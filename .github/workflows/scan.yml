@@ -18,7 +18,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: eve-bpc-scan
+  group: eve-bpc-scan-v2
   cancel-in-progress: true
 
 jobs:
@@ -64,4 +64,4 @@ jobs:
           git commit -m "data: refresh EVE BPC opportunities $(date -u +'%Y-%m-%d %H:%M UTC')"
           git push
 
-# Manual full-pipeline test trigger: 2026-09-02
+# Manual full-pipeline test trigger: 2026-09-02-v2
