@@ -25,7 +25,7 @@ jobs:
       - name: Install requests
         run: pip install requests
 
-      - name: Send direct test mail to MikeChong
+      - name: Send LadyGuaGua test mail to MikeChong
         env:
           EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
           EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
@@ -54,9 +54,9 @@ jobs:
           worker = os.environ["EVE_MAIL_WORKER_URL"].rstrip("/")
           payload = {
               "recipient_id": recipient_id,
-              "subject": "EVE套利推送链路测试",
-              "body": "<b>EVE BPC 套利推送测试成功</b><br><br>如果你看到这封邮件，说明 GitHub → Cloudflare Worker → EVE Mail → MikeChong 整条链路已经打通。",
-              "idempotency_key": f"mail-test-{os.environ.get('GITHUB_RUN_ID','manual')}",
+              "subject": "LadyGuaGua 套利推送测试",
+              "body": "<b>LadyGuaGua → MikeChong 测试</b><br><br>如果你看到这封邮件，说明异角色 EVE Mail 推送链路已打通。",
+              "idempotency_key": f"mail-test-{os.environ.get('GITHUB_RUN_ID','manual')}-{os.environ.get('GITHUB_RUN_ATTEMPT','1')}",
           }
           resp = requests.post(
               worker + "/api/send-mail",
