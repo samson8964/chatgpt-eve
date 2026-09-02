@@ -9,7 +9,11 @@ def add_links(path: Path, contract=False, market=False):
     if not path.exists():
         print(f"skip missing: {path}")
         return
-    df = pd.read_csv(path)
+    try:
+        df = pd.read_csv(path)
+    except pd.errors.EmptyDataError:
+        print(f"skip empty: {path}")
+        return
 
     if contract and "contract_id" in df.columns:
         ids = pd.to_numeric(df["contract_id"], errors="coerce").astype("Int64")
