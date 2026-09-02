@@ -10,6 +10,8 @@ RESULT = Path("results/latest/ranked_opportunities.csv")
 WORKER = os.getenv("EVE_MAIL_WORKER_URL", "https://eve-contract-opener.99617224.workers.dev").rstrip("/")
 API_KEY = os.getenv("EVE_MAIL_API_KEY", "").strip()
 RECIPIENT_ID = os.getenv("EVE_MAIL_RECIPIENT_ID", "").strip()
+RECIPIENT_NAME = os.getenv("EVE_MAIL_RECIPIENT_NAME", "MikeChong").strip()
+ESI = "https://esi.evetech.net/latest"
 
 
 def fmt_isk(v):
@@ -33,20 +35,41 @@ def fmt_num(v, digits=1):
         return "-"
 
 
+def resolve_recipient_id():
+    if RECIPIENT_ID:
+        return int(RECIPIENT_ID)
+    if not RECIPIENT_NAME:
+        raise RuntimeError("Missing EVE_MAIL_RECIPIENT_ID / EVE_MAIL_RECIPIENT_NAME")
+    resp = requests.post(
+        f"{ESI}/universe/ids/?datasource=tranquility&language=en",
+        json=[RECIPIENT_NAME],
+        timeout=30,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    chars = data.get("characters") or []
+    exact = [c for c in chars if str(c.get("name", "")).casefold() == RECIPIENT_NAME.casefold()]
+    if not exact:
+        raise RuntimeError(f"EVE character not found: {RECIPIENT_NAME}")
+    cid = int(exact[0]["id"])
+    print(f"Resolved recipient {RECIPIENT_NAME} -> {cid}")
+    return cid
+
+
 def main():
-    if not API_KEY or not RECIPIENT_ID:
-        print("EVE mail disabled: missing EVE_MAIL_API_KEY or EVE_MAIL_RECIPIENT_ID")
+    if not API_KEY:
+        print("EVE mail disabled: missing EVE_MAIL_API_KEY")
         return
     if not RESULT.exists():
         print(f"EVE mail skipped: missing {RESULT}")
         return
 
+    recipient_id = resolve_recipient_id()
     df = pd.read_csv(RESULT)
     if df.empty:
         print("EVE mail skipped: no opportunities")
         return
 
-    # 主榜本身已按机会分排序；排掉明确 D/不做项，再取前 5。
     if "recommendation" in df.columns:
         keep = ~df["recommendation"].fillna("").astype(str).str.startswith("D")
         df = df.loc[keep]
@@ -85,13 +108,13 @@ def main():
 
     parts.append("买合同前请再次核对 BPC 流程/ME/TE 与当前 Jita 买盘。")
     body = "".join(parts)
-    digest = hashlib.sha256((subject + body + RECIPIENT_ID).encode("utf-8")).hexdigest()[:32]
+    digest = hashlib.sha256((subject + body + str(recipient_id)).encode("utf-8")).hexdigest()[:32]
 
     resp = requests.post(
         f"{WORKER}/api/send-mail",
         headers={"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"},
         json={
-            "recipient_id": int(RECIPIENT_ID),
+            "recipient_id": recipient_id,
             "subject": subject,
             "body": body,
             "idempotency_key": digest,
