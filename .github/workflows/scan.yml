@@ -7,6 +7,7 @@ on:
       - 'runner.py'
       - 'payload/**'
       - 'requirements.txt'
+      - 'add_action_links.py'
       - '.github/workflows/scan.yml'
   schedule:
     # Beijing time 08:30 and 20:30 (UTC+8)
@@ -38,6 +39,9 @@ jobs:
 
       - name: Run scanner
         run: python runner.py
+
+      - name: Add one-click EVE links
+        run: python add_action_links.py
 
       - name: Commit refreshed results
         shell: bash
