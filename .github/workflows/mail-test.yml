@@ -22,12 +22,48 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install mail dependencies
-        run: pip install pandas requests
+      - name: Install requests
+        run: pip install requests
 
-      - name: Send existing EVE digest to MikeChong
+      - name: Send direct test mail to MikeChong
         env:
           EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
-          EVE_MAIL_RECIPIENT_NAME: MikeChong
           EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
-        run: python send_eve_mail.py
+        run: |
+          python - <<'PY'
+          import os
+          import requests
+
+          name = "MikeChong"
+          ids = requests.post(
+              "https://esi.evetech.net/latest/universe/ids/?datasource=tranquility",
+              json=[name],
+              timeout=20,
+          )
+          print("resolve:", ids.status_code, ids.text)
+          ids.raise_for_status()
+          chars = ids.json().get("characters", [])
+          if not chars:
+              raise RuntimeError(f"Character not found: {name}")
+          recipient_id = int(chars[0]["id"])
+
+          api_key = os.environ.get("EVE_MAIL_API_KEY", "")
+          if not api_key:
+              raise RuntimeError("GitHub secret EVE_MAIL_API_KEY is missing")
+
+          worker = os.environ["EVE_MAIL_WORKER_URL"].rstrip("/")
+          payload = {
+              "recipient_id": recipient_id,
+              "subject": "EVE套利推送链路测试",
+              "body": "<b>EVE BPC 套利推送测试成功</b><br><br>如果你看到这封邮件，说明 GitHub → Cloudflare Worker → EVE Mail → MikeChong 整条链路已经打通。",
+              "idempotency_key": f"mail-test-{os.environ.get('GITHUB_RUN_ID','manual')}",
+          }
+          resp = requests.post(
+              worker + "/api/send-mail",
+              headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+              json=payload,
+              timeout=30,
+          )
+          print("worker:", resp.status_code, resp.text)
+          resp.raise_for_status()
+          PY
