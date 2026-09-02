@@ -4,8 +4,8 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - 'scanner.py'
       - 'runner.py'
+      - 'payload/**'
       - 'requirements.txt'
       - '.github/workflows/scan.yml'
   schedule:
