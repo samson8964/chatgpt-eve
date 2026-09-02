@@ -12,8 +12,8 @@ on:
       - 'send_eve_mail_fast.py'
       - '.github/workflows/scan.yml'
   schedule:
-    # Beijing time 08:30 and 20:30 (UTC+8)
-    - cron: '30 0,12 * * *'
+    # Beijing time 08:35 and 20:35 (UTC+8), after the half-hour EVE Ref snapshot is normally published.
+    - cron: '35 0,12 * * *'
 
 permissions:
   contents: write
