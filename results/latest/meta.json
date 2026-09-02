@@ -1,9 +1,13 @@
 {
-  "generated_at_utc": "2026-09-02T15:44:09.934287+00:00",
+  "generated_at_utc": "2026-09-02T16:14:03.088036+00:00",
   "contracts_snapshot": "2026-09-02T15:32:15.743Z",
-  "market_snapshot": "2026-09-02T15:19:52.308Z",
+  "market_snapshot": "2026-09-02T15:49:51.758Z",
   "accounting_level": 5,
   "transaction_tax_rate": 0.033749999999999995,
+  "market_broker_fee_rate": 0.015,
+  "expected_relists": 2,
+  "relist_reserve_rate": 0.005999999999999998,
+  "haul_isk_per_m3": 0.0,
   "factory_candidates": [
     {
       "system_id": 30000176,
@@ -22,6 +26,6 @@
       "jumps": 12
     }
   ],
-  "ranked_count": 6,
-  "all_executable_count": 27
+  "ranked_count": 2,
+  "all_executable_count": 2
 }
