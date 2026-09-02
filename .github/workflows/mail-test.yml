@@ -1,0 +1,33 @@
+name: EVE mail test
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/mail-test.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install mail dependencies
+        run: pip install pandas requests
+
+      - name: Send existing EVE digest to MikeChong
+        env:
+          EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+          EVE_MAIL_RECIPIENT_NAME: MikeChong
+          EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
+        run: python send_eve_mail.py
