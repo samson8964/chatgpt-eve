@@ -5,10 +5,11 @@ on:
   push:
     paths:
       - 'runner.py'
+      - 'scanner_source.py'
       - 'payload/**'
       - 'requirements.txt'
       - 'add_action_links.py'
-      - 'send_eve_mail.py'
+      - 'send_eve_mail_fast.py'
       - '.github/workflows/scan.yml'
   schedule:
     # Beijing time 08:30 and 20:30 (UTC+8)
@@ -18,13 +19,13 @@ permissions:
   contents: write
 
 concurrency:
-  group: eve-bpc-scan-v2
+  group: eve-bpc-scan-v3
   cancel-in-progress: true
 
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -38,18 +39,21 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run scanner
+      - name: Run fast scanner
         run: python runner.py
 
       - name: Add one-click EVE links
         run: python add_action_links.py
 
-      - name: Send EVE mail digest
+      - name: Send filtered EVE mail digest
         env:
           EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
           EVE_MAIL_RECIPIENT_NAME: MikeChong
           EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
-        run: python send_eve_mail.py
+          MAIL_MIN_NET_PROFIT: '20000000'
+          MAIL_MIN_NET_ROI: '0.08'
+          MAIL_TOP: '5'
+        run: python send_eve_mail_fast.py
 
       - name: Commit refreshed results
         shell: bash
@@ -63,5 +67,3 @@ jobs:
           fi
           git commit -m "data: refresh EVE BPC opportunities $(date -u +'%Y-%m-%d %H:%M UTC')"
           git push
-
-# Manual full-pipeline test trigger: 2026-09-02-v2
