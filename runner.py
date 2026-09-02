@@ -12,6 +12,13 @@ os.environ.setdefault("PREFILTER_MIN_GROSS_REVENUE", "30000000")
 os.environ.setdefault("PREFILTER_MIN_ROI", "0.05")
 os.environ.setdefault("PREFILTER_MAX_OUTPUT_DAYS_30D", "2.0")
 
+# Conservative fully-loaded market-cost model.
+# Broker Relations V with zero Caldari/Caldari Navy standings is 1.5% in an NPC station.
+# Advanced Broker Relations V gives an 80% relist discount; reserve two downward reprices.
+os.environ.setdefault("MARKET_BROKER_FEE_RATE", "0.015")
+os.environ.setdefault("ADV_BROKER_RELATIONS_LEVEL", "5")
+os.environ.setdefault("EXPECTED_RELISTS", "2")
+
 
 def safe_int(value):
     try:
@@ -59,15 +66,36 @@ def replace_once(source: str, old: str, new: str, label: str) -> str:
 
 
 def patch_source(source: str) -> str:
-    # Add fast-prefilter controls next to the existing strategy settings.
+    # Add fast-prefilter and fully-loaded fee controls next to the existing settings.
     source = replace_once(
         source,
         'PREFILTER_TOP = int(os.getenv("PREFILTER_TOP", "800"))\n',
         'PREFILTER_TOP = int(os.getenv("PREFILTER_TOP", "800"))\n'
         'PREFILTER_MIN_GROSS_REVENUE = float(os.getenv("PREFILTER_MIN_GROSS_REVENUE", "30000000"))\n'
         'PREFILTER_MIN_ROI = float(os.getenv("PREFILTER_MIN_ROI", "0.05"))\n'
-        'PREFILTER_MAX_OUTPUT_DAYS_30D = float(os.getenv("PREFILTER_MAX_OUTPUT_DAYS_30D", "2.0"))\n',
-        "prefilter settings",
+        'PREFILTER_MAX_OUTPUT_DAYS_30D = float(os.getenv("PREFILTER_MAX_OUTPUT_DAYS_30D", "2.0"))\n'
+        'MARKET_BROKER_FEE_RATE = float(os.getenv("MARKET_BROKER_FEE_RATE", "0.015"))\n'
+        'ADV_BROKER_RELATIONS_LEVEL = int(os.getenv("ADV_BROKER_RELATIONS_LEVEL", "5"))\n'
+        'EXPECTED_RELISTS = int(os.getenv("EXPECTED_RELISTS", "2"))\n'
+        'RELIST_DISCOUNT = min(0.80, 0.50 + 0.06 * ADV_BROKER_RELATIONS_LEVEL)\n'
+        'RELIST_RESERVE_RATE = MARKET_BROKER_FEE_RATE * (1.0 - RELIST_DISCOUNT) * EXPECTED_RELISTS\n',
+        "prefilter and fee settings",
+    )
+
+    # Return the industry cost components. total_job_cost already includes SCI + facility tax + SCC,
+    # so SCC is exposed for reporting but must not be subtracted a second time.
+    source = replace_once(
+        source,
+        '        return {"job_cost": float(row.get("total_job_cost", 0.0)), "time_hours": parse_iso_hours(row.get("time"))}\n',
+        '        return {\n'
+        '            "job_cost": float(row.get("total_job_cost", 0.0)),\n'
+        '            "time_hours": parse_iso_hours(row.get("time")),\n'
+        '            "scc_surcharge": float(row.get("scc_surcharge", 0.0)),\n'
+        '            "facility_tax_cost": float(row.get("facility_tax", 0.0)),\n'
+        '            "system_cost_index_cost": float(row.get("system_cost_index", 0.0)),\n'
+        '            "system_cost_bonuses": float(row.get("system_cost_bonuses", 0.0)),\n'
+        '        }\n',
+        "industry fee breakdown",
     )
 
     # Multi-product BPC packs are expensive to value and hard to liquidate cleanly.
@@ -133,6 +161,67 @@ def patch_source(source: str) -> str:
         "liquidity prefilter",
     )
 
+    # Replace the exact fee calculation with a fully-loaded model. The BPC contract price remains
+    # a cost as well; manufacturing_job_cost includes SCC and is subtracted exactly once.
+    source = replace_once(
+        source,
+        '            job_cost=0.0; job_hours=0.0; ok=True\n'
+        '            for j in p["jobs"]:\n'
+        '                q=industry_quote(j["bp_tid"],j["product_tid"],j["runs"],j["me"],j["te"],fac["system_id"])\n'
+        '                if not q: ok=False; break\n'
+        '                job_cost += q["job_cost"] * j["copies"]\n'
+        '                job_hours += q["time_hours"] * j["copies"]\n'
+        '            if not ok: continue\n'
+        '            sales_tax = p["gross_revenue"]*tax_rate\n'
+        '            haul_cost = p["haul_m3"]*HIGHSEC_HAUL_ISK_PER_M3\n'
+        '            net = p["gross_revenue"] - p["contract_price"] - p["material_cost"] - job_cost - sales_tax - haul_cost\n'
+        '            base = p["contract_price"] + p["material_cost"] + job_cost + haul_cost\n'
+        '            roi = net/base if base else 0\n'
+        '            cand={"fac":fac,"job_cost":job_cost,"job_hours":job_hours,"sales_tax":sales_tax,"haul_cost":haul_cost,"net":net,"roi":roi}\n',
+        '            job_cost=0.0; job_hours=0.0; scc_cost=0.0; facility_tax_cost=0.0; sci_cost=0.0; ok=True\n'
+        '            for j in p["jobs"]:\n'
+        '                q=industry_quote(j["bp_tid"],j["product_tid"],j["runs"],j["me"],j["te"],fac["system_id"])\n'
+        '                if not q: ok=False; break\n'
+        '                copies=j["copies"]\n'
+        '                job_cost += q["job_cost"] * copies\n'
+        '                job_hours += q["time_hours"] * copies\n'
+        '                scc_cost += q.get("scc_surcharge",0.0) * copies\n'
+        '                facility_tax_cost += q.get("facility_tax_cost",0.0) * copies\n'
+        '                sci_cost += (q.get("system_cost_index_cost",0.0) + q.get("system_cost_bonuses",0.0)) * copies\n'
+        '            if not ok: continue\n'
+        '            sales_tax = p["gross_revenue"]*tax_rate\n'
+        '            broker_fee = p["gross_revenue"]*MARKET_BROKER_FEE_RATE\n'
+        '            relist_cost = p["gross_revenue"]*RELIST_RESERVE_RATE\n'
+        '            haul_cost = p["haul_m3"]*HIGHSEC_HAUL_ISK_PER_M3\n'
+        '            net = p["gross_revenue"] - p["contract_price"] - p["material_cost"] - job_cost - broker_fee - sales_tax - relist_cost - haul_cost\n'
+        '            base = p["contract_price"] + p["material_cost"] + job_cost + broker_fee + relist_cost + haul_cost\n'
+        '            roi = net/base if base else 0\n'
+        '            cand={"fac":fac,"job_cost":job_cost,"job_hours":job_hours,"scc_cost":scc_cost,"facility_tax_cost":facility_tax_cost,"sci_cost":sci_cost,"broker_fee":broker_fee,"sales_tax":sales_tax,"relist_cost":relist_cost,"haul_cost":haul_cost,"net":net,"roi":roi}\n',
+        "fully loaded exact fees",
+    )
+
+    # Break-even buy depth must also cover all market percentage costs.
+    source = replace_once(
+        source,
+        '            break_even_bid=fixed/(int(output_qty)*(1-tax_rate))\n',
+        '            sale_keep_rate=1-tax_rate-MARKET_BROKER_FEE_RATE-RELIST_RESERVE_RATE\n'
+        '            break_even_bid=fixed/(int(output_qty)*sale_keep_rate) if sale_keep_rate>0 else np.inf\n',
+        "fully loaded break-even bid",
+    )
+
+    # Publish every cost component for auditability. SCC/facility/SCI are a breakdown of job_cost,
+    # not extra deductions beyond manufacturing_job_cost.
+    source = replace_once(
+        source,
+        '            "contract_price":p["contract_price"],"material_cost_jita_depth":p["material_cost"],"manufacturing_job_cost":best["job_cost"],\n'
+        '            "sales_tax":best["sales_tax"],"configured_haul_cost":best["haul_cost"],"gross_revenue":p["gross_revenue"],"net_profit":best["net"],"net_roi":best["roi"],\n',
+        '            "contract_price":p["contract_price"],"material_cost_jita_depth":p["material_cost"],"manufacturing_job_cost":best["job_cost"],\n'
+        '            "industry_scc_surcharge":best["scc_cost"],"industry_facility_tax":best["facility_tax_cost"],"industry_sci_component":best["sci_cost"],\n'
+        '            "market_broker_fee":best["broker_fee"],"sales_tax":best["sales_tax"],"relist_cost_reserve":best["relist_cost"],"configured_haul_cost":best["haul_cost"],\n'
+        '            "gross_revenue":p["gross_revenue"],"net_profit":best["net"],"net_roi":best["roi"],\n',
+        "fee output columns",
+    )
+
     # Reuse quick history results later instead of calling the same ESI endpoint twice.
     source = replace_once(
         source,
@@ -141,6 +230,15 @@ def patch_source(source: str) -> str:
         '    histories=dict(quick_histories) if "quick_histories" in locals() else {}\n'
         '    tids=sorted({int(x) for x in df.loc[df["is_single_product"],"product_type_id"].dropna().tolist()} - set(histories))\n',
         "history reuse",
+    )
+
+    # Record the cost model in meta for later diagnostics.
+    source = replace_once(
+        source,
+        '        "accounting_level":ACCOUNTING_LEVEL,"transaction_tax_rate":tax_rate,"factory_candidates":factories,\n',
+        '        "accounting_level":ACCOUNTING_LEVEL,"transaction_tax_rate":tax_rate,"market_broker_fee_rate":MARKET_BROKER_FEE_RATE,\n'
+        '        "expected_relists":EXPECTED_RELISTS,"relist_reserve_rate":RELIST_RESERVE_RATE,"haul_isk_per_m3":HIGHSEC_HAUL_ISK_PER_M3,"factory_candidates":factories,\n',
+        "fee model meta",
     )
 
     return source
@@ -157,8 +255,9 @@ def main():
     ast.fix_missing_locations(tree)
 
     print(
-        "Fast scanner enabled: gross>=30M, rough ROI>=5%, single product, "
-        "<=2 days 30d volume, top150, 2 factory candidates, final ROI>=8%."
+        "Fast fully-loaded scanner: gross>=30M, rough ROI>=5%, single product, "
+        "<=2 days 30d volume, top150, 2 factories; final profit includes BPC, materials, "
+        "industry job cost (SCI+facility+SCC), broker fee, sales tax, relist reserve and configured haul."
     )
     exec(
         compile(tree, "scanner_fast.py", "exec"),
