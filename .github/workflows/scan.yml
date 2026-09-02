@@ -52,7 +52,8 @@ jobs:
           EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
           MAIL_MIN_NET_PROFIT: '20000000'
           MAIL_MIN_NET_ROI: '0.08'
-          MAIL_TOP: '5'
+          MAIL_TOP: '10'
+          MAIL_LIVE_POOL: '50'
         run: python send_eve_mail_fast.py
 
       - name: Commit refreshed results
