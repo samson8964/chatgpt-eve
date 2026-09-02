@@ -1,0 +1,27 @@
+{
+  "generated_at_utc": "2026-09-02T15:44:09.934287+00:00",
+  "contracts_snapshot": "2026-09-02T15:32:15.743Z",
+  "market_snapshot": "2026-09-02T15:19:52.308Z",
+  "accounting_level": 5,
+  "transaction_tax_rate": 0.033749999999999995,
+  "factory_candidates": [
+    {
+      "system_id": 30000176,
+      "system_name": "Keikaken",
+      "station_id": 60002845,
+      "station_name": "Keikaken I - Sukuuvestaa Corporation Production Plant",
+      "sci": 0.0078,
+      "jumps": 11
+    },
+    {
+      "system_id": 30000189,
+      "system_name": "Kiainti",
+      "station_id": 60010822,
+      "station_name": "Kiainti VI - Moon 1 - Chemal Tech Factory",
+      "sci": 0.015,
+      "jumps": 12
+    }
+  ],
+  "ranked_count": 6,
+  "all_executable_count": 27
+}
