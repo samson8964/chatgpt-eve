@@ -63,3 +63,5 @@ jobs:
           fi
           git commit -m "data: refresh EVE BPC opportunities $(date -u +'%Y-%m-%d %H:%M UTC')"
           git push
+
+# Manual full-pipeline test trigger: 2026-09-02
