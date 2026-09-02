@@ -2,6 +2,11 @@ name: EVE BPC arbitrage scan
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - 'scanner.py'
+      - 'requirements.txt'
+      - '.github/workflows/scan.yml'
   schedule:
     # Beijing time 08:30 and 20:30 (UTC+8)
     - cron: '30 0,12 * * *'
