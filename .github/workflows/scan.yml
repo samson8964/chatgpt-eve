@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - 'scanner.py'
+      - 'runner.py'
       - 'requirements.txt'
       - '.github/workflows/scan.yml'
   schedule:
@@ -36,7 +37,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run scanner
-        run: python scanner.py
+        run: python runner.py
 
       - name: Commit refreshed results
         shell: bash
