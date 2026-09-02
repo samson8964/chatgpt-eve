@@ -14,7 +14,7 @@ WORKER = os.getenv("EVE_MAIL_WORKER_URL", "https://eve-contract-opener.99617224.
 API_KEY = os.getenv("EVE_MAIL_API_KEY", "").strip()
 RECIPIENT_NAME = os.getenv("EVE_MAIL_RECIPIENT_NAME", "MikeChong").strip()
 ESI = "https://esi.evetech.net/latest"
-MAIL_MIN_PROFIT = float(os.getenv("MAIL_MIN_NET_PROFIT", "20000000"))
+MAIL_MIN_PROFIT = float(os.getenv("MAIL_MIN_NET_PROFIT", "10000000"))
 MAIL_MIN_ROI = float(os.getenv("MAIL_MIN_NET_ROI", "0.08"))
 MAIL_TOP = int(os.getenv("MAIL_TOP", "10"))
 MAIL_LIVE_POOL = int(os.getenv("MAIL_LIVE_POOL", "50"))
@@ -22,11 +22,16 @@ LIVE_CHECK_WORKERS = int(os.getenv("LIVE_CHECK_WORKERS", "10"))
 
 
 def fmt_isk(v):
-    x = float(v)
+    try:
+        x = float(v)
+    except Exception:
+        return "-"
     if abs(x) >= 1e9:
         return f"{x/1e9:.2f}B"
     if abs(x) >= 1e6:
         return f"{x/1e6:.1f}M"
+    if abs(x) >= 1e3:
+        return f"{x/1e3:.1f}K"
     return f"{x:,.0f}"
 
 
@@ -41,11 +46,7 @@ def resolve_character(name):
 
 
 def contract_is_live(contract_id):
-    """Return True only when ESI still exposes the public contract items.
-
-    ESI returns 204 when a public contract has expired or was recently accepted,
-    and 404 when it is no longer available. Retry transient server/rate errors once.
-    """
+    """Return True only when ESI still exposes the public contract items."""
     url = f"{ESI}/contracts/public/items/{int(contract_id)}/"
     for attempt in range(2):
         try:
@@ -127,17 +128,23 @@ def main():
     if df.empty:
         subject = f"BPC扫描完成 {stamp} · 暂无可抢机会"
         body = (
-            f"<b>EVE BPC 快速扫描完成</b><br>{stamp}<br><br>"
-            f"本轮主榜 {total} 个；强候选 {strong_total} 个，但发送前实时复核后没有仍可用的合同。<br>"
-            f"筛选标准：净利≥{fmt_isk(MAIL_MIN_PROFIT)}、ROI≥{MAIL_MIN_ROI*100:.0f}%、买盘容量≥1批。<br><br>"
-            "这封状态邮件也表示 GitHub → LadyGuaGua → MikeChong 推送链路正常。"
+            f"<b>EVE BPC 全成本扫描完成</b><br>{stamp}<br><br>"
+            f"本轮主榜 {total} 个；全成本强候选 {strong_total} 个，但发送前实时复核后没有仍可用的合同。<br>"
+            f"筛选标准：全成本净利≥{fmt_isk(MAIL_MIN_PROFIT)}、净ROI≥{MAIL_MIN_ROI*100:.0f}%、买盘容量≥1批。<br><br>"
+            "利润已计：BPC、材料、制造安装费(含SCI/设施税/SCC)、Broker、销售税、改价预留、配置的物流成本。"
         )
     else:
         subject = f"BPC捡漏 {stamp} · {len(df)}个现存机会"
-        parts = [f"<b>EVE BPC 捡漏简报</b><br>{stamp}<br>"]
+        parts = [f"<b>EVE BPC 全成本捡漏简报</b><br>{stamp}<br>"]
         if meta:
+            broker = float(meta.get("market_broker_fee_rate", 0) or 0) * 100
+            relist = float(meta.get("relist_reserve_rate", 0) or 0) * 100
+            tax = float(meta.get("transaction_tax_rate", 0) or 0) * 100
+            haul = float(meta.get("haul_isk_per_m3", 0) or 0)
             parts.append(f"精算通过 {meta.get('all_executable_count','-')} · 主榜 {meta.get('ranked_count','-')}<br>")
+            parts.append(f"口径：销售税{tax:.2f}% · Broker{broker:.2f}% · 改价预留{relist:.2f}% · 物流{haul:.0f} ISK/m³<br>")
         parts.append(f"强候选 {strong_total} · 发送前已复核合同存活<br><br>")
+
         for i, (_, r) in enumerate(df.iterrows(), 1):
             product = html.escape(str(r.get("products", "Unknown")))
             cid = int(float(r["contract_id"]))
@@ -146,7 +153,18 @@ def main():
             avg30 = float(r.get("avg_daily_volume_30d", 0) or 0)
             score = float(r.get("opportunity_score", 0) or 0)
             parts.append(f"<b>{i}. {product}</b><br>")
-            parts.append(f"净利 {fmt_isk(r.get('net_profit',0))} · ROI {roi:.1f}% · 容量 {cap:.0f}批<br>")
+            parts.append(f"全成本净利 {fmt_isk(r.get('net_profit',0))} · 净ROI {roi:.1f}% · 容量 {cap:.0f}批<br>")
+            parts.append(
+                f"售价 {fmt_isk(r.get('gross_revenue',0))} · BPC {fmt_isk(r.get('contract_price',0))} · 材料 {fmt_isk(r.get('material_cost_jita_depth',0))}<br>"
+            )
+            parts.append(
+                f"制造 {fmt_isk(r.get('manufacturing_job_cost',0))}"
+                f"(SCC {fmt_isk(r.get('industry_scc_surcharge',0))}) · "
+                f"Broker {fmt_isk(r.get('market_broker_fee',0))} · 税 {fmt_isk(r.get('sales_tax',0))}<br>"
+            )
+            parts.append(
+                f"改价 {fmt_isk(r.get('relist_cost_reserve',0))} · 物流 {fmt_isk(r.get('configured_haul_cost',0))}<br>"
+            )
             parts.append(f"30日均量 {avg30:.1f}/天 · 评分 {score:.1f}<br>")
             parts.append(f"<url=contract:0//{cid}><b>打开合同</b></url>")
             try:
@@ -155,7 +173,11 @@ def main():
             except Exception:
                 pass
             parts.append("<br><br>")
-        parts.append("合同在发送前已做 ESI 存活复核；下单前仍请核对 BPC runs/ME/TE 与 Jita 买盘。")
+
+        parts.append(
+            "注：制造总费用已包含SCI、设施税和SCC，SCC只做拆分展示，没有重复扣。"
+            "合同发送前已做ESI存活复核；下单前仍核对BPC runs/ME/TE与Jita买盘。"
+        )
         body = "".join(parts)
 
     digest = hashlib.sha256((subject + body + str(recipient_id)).encode()).hexdigest()[:32]
