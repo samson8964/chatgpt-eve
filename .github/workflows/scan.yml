@@ -47,7 +47,7 @@ jobs:
       - name: Send EVE mail digest
         env:
           EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
-          EVE_MAIL_RECIPIENT_ID: ${{ vars.EVE_MAIL_RECIPIENT_ID }}
+          EVE_MAIL_RECIPIENT_NAME: MikeChong
           EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
         run: python send_eve_mail.py
 
