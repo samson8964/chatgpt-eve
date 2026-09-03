@@ -6,6 +6,7 @@ on:
     paths:
       - 'runner.py'
       - 'scanner_source.py'
+      - 'bpc_contract_benchmark.py'
       - 'contract_deal_scanner.py'
       - 'payload/**'
       - 'requirements.txt'
@@ -43,6 +44,9 @@ jobs:
 
       - name: Run fast BPC scanner
         run: python runner.py
+
+      - name: Benchmark BPC contract-market value per run
+        run: python bpc_contract_benchmark.py
 
       - name: Run all-space spot contract deal scanner
         env:
