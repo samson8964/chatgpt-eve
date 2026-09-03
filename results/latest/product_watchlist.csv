@@ -1,3 +1,3 @@
 product_type_id,product_name,last_seen,opportunity_class,opportunity_score,recommendation,persistence_7d,scan_days_7d,profitable_days_7d,avg_daily_volume_30d,vwap_30d,current_bid_premium_vs_30d,best_current_net_roi,best_current_net_profit,current_profitable_contracts,eve_market_url
 20060,6x Amarr Control Tower Small,2026-09-03,新机会/待观察,77.6,B-：当前不错，继续观察,1.0,2,2,12.10344827586207,113243190.88327634,-0.0357036114201674,0.162277713085879,89052929.0,1,https://eve-contract-opener.99617224.workers.dev/m/20060
-92514,9x Ultratidal Entropic Disintegrator II,2026-09-03,深度不足型瞬时机会,46.4,C：抢单型，先确认买盘,1.0,1,1,13.9,300226618.70412475,-0.1183326743560219,0.0817564542580597,178835243.79999995,3,https://eve-contract-opener.99617224.workers.dev/m/92514
+92514,9x Ultratidal Entropic Disintegrator II,2026-09-03,深度不足型瞬时机会,46.4,C：抢单型，先确认买盘,1.0,1,1,13.9,300226618.70412475,-0.1183326743560219,0.0817564542580597,178835243.79999995,5,https://eve-contract-opener.99617224.workers.dev/m/92514
