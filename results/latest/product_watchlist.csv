@@ -1,2 +1,2 @@
 product_type_id,product_name,last_seen,opportunity_class,opportunity_score,recommendation,persistence_7d,scan_days_7d,profitable_days_7d,avg_daily_volume_30d,vwap_30d,current_bid_premium_vs_30d,best_current_net_roi,best_current_net_profit,current_profitable_contracts,eve_market_url
-20060,6x Amarr Control Tower Small,2026-09-03,新机会/待观察,78.1,B-：当前不错，继续观察,1.0,2,2,12.10344827586207,113243190.88327634,-0.0357036114201674,0.165497577436077,90568986.0,1,https://eve-contract-opener.99617224.workers.dev/m/20060
+20060,6x Amarr Control Tower Small,2026-09-03,新机会/待观察,78.7,B-：当前不错，继续观察,1.0,2,2,12.10344827586207,113243190.88327634,-0.0357036114201674,0.1693953058731979,92449029.0,1,https://eve-contract-opener.99617224.workers.dev/m/20060
