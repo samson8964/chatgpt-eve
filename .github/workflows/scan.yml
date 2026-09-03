@@ -1,4 +1,4 @@
-name: EVE BPC arbitrage scan
+name: EVE dual arbitrage scan
 
 on:
   workflow_dispatch:
@@ -6,10 +6,12 @@ on:
     paths:
       - 'runner.py'
       - 'scanner_source.py'
+      - 'contract_deal_scanner.py'
       - 'payload/**'
       - 'requirements.txt'
       - 'add_action_links.py'
       - 'send_eve_mail_fast.py'
+      - 'send_eve_mail_dual.py'
       - '.github/workflows/scan.yml'
   schedule:
     # Beijing time 08:35 and 20:35 (UTC+8), after the half-hour EVE Ref snapshot is normally published.
@@ -19,13 +21,13 @@ permissions:
   contents: write
 
 concurrency:
-  group: eve-bpc-scan-v3
+  group: eve-dual-scan-v1
   cancel-in-progress: true
 
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -39,13 +41,26 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run fast scanner
+      - name: Run fast BPC scanner
         run: python runner.py
+
+      - name: Run spot contract deal scanner
+        env:
+          DEAL_MIN_CONTRACT_PRICE: '1000000'
+          DEAL_MIN_PRELIM_EDGE: '8000000'
+          DEAL_MIN_NET_PROFIT: '15000000'
+          DEAL_MIN_NET_ROI: '0.10'
+          DEAL_MIN_LIST_NET_PROFIT: '25000000'
+          DEAL_MIN_LIST_NET_ROI: '0.15'
+          DEAL_MAX_SECURE_JUMPS: '25'
+          DEAL_HAUL_BASE_ISK: '2000000'
+          DEAL_HAUL_ISK_PER_M3_JUMP: '200'
+        run: python contract_deal_scanner.py
 
       - name: Add one-click EVE links
         run: python add_action_links.py
 
-      - name: Send filtered EVE mail digest
+      - name: Send dual-engine EVE mail digest
         env:
           EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
           EVE_MAIL_RECIPIENT_NAME: MikeChong
@@ -53,18 +68,18 @@ jobs:
           MAIL_MIN_NET_PROFIT: '10000000'
           MAIL_MIN_NET_ROI: '0.08'
           MAIL_TOP: '10'
-          MAIL_LIVE_POOL: '50'
-        run: python send_eve_mail_fast.py
+          MAIL_LIVE_POOL: '60'
+        run: python send_eve_mail_dual.py
 
       - name: Commit refreshed results
         shell: bash
         run: |
-          git config user.name "eve-bpc-bot"
-          git config user.email "eve-bpc-bot@users.noreply.github.com"
+          git config user.name "eve-arbitrage-bot"
+          git config user.email "eve-arbitrage-bot@users.noreply.github.com"
           git add results
           if git diff --cached --quiet; then
             echo "No result changes."
             exit 0
           fi
-          git commit -m "data: refresh EVE BPC opportunities $(date -u +'%Y-%m-%d %H:%M UTC')"
+          git commit -m "data: refresh EVE dual opportunities $(date -u +'%Y-%m-%d %H:%M UTC')"
           git push
