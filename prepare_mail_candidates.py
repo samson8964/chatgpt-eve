@@ -24,6 +24,9 @@ SPOT_MIN_STRESS_PROFIT = float(os.getenv("MAIL_SPOT_MIN_STRESS_PROFIT", "1500000
 SPOT_MIN_STRESS_ROI = float(os.getenv("MAIL_SPOT_MIN_STRESS_ROI", "0.10"))
 SPOT_MIN_BUY_COVERAGE = float(os.getenv("MAIL_SPOT_MIN_BUY_COVERAGE", "0.95"))
 
+# BPC contract-market statistics are supplemental evidence only. They may boost ranking,
+# but asking prices from other contracts are not realised sale prices and therefore cannot,
+# by themselves, prove an executable arbitrage opportunity.
 BPC_VALUE_MIN_SAMPLES = int(os.getenv("MAIL_BPC_VALUE_MIN_SAMPLES", "5"))
 BPC_VALUE_MIN_AVG_DISCOUNT = float(os.getenv("MAIL_BPC_VALUE_MIN_AVG_DISCOUNT", "0.30"))
 BPC_VALUE_MIN_MEDIAN_DISCOUNT = float(os.getenv("MAIL_BPC_VALUE_MIN_MEDIAN_DISCOUNT", "0.20"))
@@ -106,7 +109,6 @@ def attach_freshness(df: pd.DataFrame, issue_map) -> pd.DataFrame:
         raw = issue_map.get(cid, r.get("date_issued", ""))
         ts = pd.to_datetime(raw, utc=True, errors="coerce")
         if pd.isna(ts):
-            age = np.nan
             issued.append("")
             ages.append(np.nan)
             scores.append(freshness_score(None))
@@ -186,6 +188,8 @@ def prepare_bpc_file(path: Path, issue_map):
     df = attach_freshness(df, issue_map)
     eligible = []
     reasons = []
+    intrinsic_signals = []
+
     for _, r in df.iterrows():
         n = int(finite(r.get("bpc_market_sample_count"), 0.0))
         davg = finite(r.get("bpc_discount_vs_avg"), np.nan)
@@ -195,7 +199,7 @@ def prepare_bpc_file(path: Path, issue_map):
         roi = finite(r.get("net_roi"), 0.0)
         cap = finite(r.get("market_capacity_contracts"), 0.0)
 
-        intrinsic_ok = (
+        intrinsic_signal = (
             n >= BPC_VALUE_MIN_SAMPLES
             and math.isfinite(davg)
             and davg <= -BPC_VALUE_MIN_AVG_DISCOUNT
@@ -204,20 +208,28 @@ def prepare_bpc_file(path: Path, issue_map):
         )
         manufacturing_ok = profit >= BPC_MFG_MIN_PROFIT and roi >= BPC_MFG_MIN_ROI and cap >= 1
 
-        eligible.append(bool(intrinsic_ok or manufacturing_ok))
-        if intrinsic_ok and manufacturing_ok:
-            reasons.append("INTRINSIC_AND_MANUFACTURING")
-        elif intrinsic_ok:
-            reasons.append("INTRINSIC_VALUE")
+        # Critical rule: comparable contract ASK prices are not realised proceeds.
+        # A BPC may only enter EVE mail when manufacturing economics independently prove
+        # executable profit. Intrinsic-value statistics then become a secondary ranking signal.
+        eligible.append(bool(manufacturing_ok))
+        intrinsic_signals.append(bool(intrinsic_signal))
+        if manufacturing_ok and intrinsic_signal:
+            reasons.append("MANUFACTURING_PLUS_INTRINSIC_VALUE")
         elif manufacturing_ok:
             reasons.append("MANUFACTURING")
+        elif intrinsic_signal:
+            reasons.append("INTRINSIC_VALUE_OBSERVATION_ONLY")
         else:
             reasons.append("BELOW_STRICT_MAIL_MARGIN")
 
+    df["bpc_intrinsic_signal"] = intrinsic_signals
     df["mail_eligible"] = eligible
     df["mail_filter_reason"] = reasons
     df.to_csv(path, index=False)
-    print(f"mail gate {path.name}: eligible={int(pd.Series(eligible).sum())}/{len(df)}")
+    print(
+        f"mail gate {path.name}: executable={int(pd.Series(eligible).sum())}/{len(df)}; "
+        f"intrinsic_observation={int(pd.Series(intrinsic_signals).sum())}"
+    )
     return df
 
 
