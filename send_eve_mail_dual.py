@@ -11,6 +11,7 @@ from send_eve_mail_fast import fmt_isk, resolve_character, contract_is_live
 
 DEALS = Path("results/latest/contract_deals.csv")
 BPC = Path("results/latest/ranked_opportunities.csv")
+BPC_VALUE = Path("results/latest/bpc_value_opportunities.csv")
 WORKER = os.getenv("EVE_MAIL_WORKER_URL", "https://eve-contract-opener.99617224.workers.dev").rstrip("/")
 API_KEY = os.getenv("EVE_MAIL_API_KEY", "").strip()
 RECIPIENT_NAME = os.getenv("EVE_MAIL_RECIPIENT_NAME", "MikeChong").strip()
@@ -45,6 +46,16 @@ def finite_num(v, default=None):
         return default
 
 
+def merge_rows(primary, secondary):
+    out = primary.copy()
+    for k, v in secondary.items():
+        cur = out.get(k)
+        empty = cur is None or cur == "" or (isinstance(cur, float) and pd.isna(cur))
+        if empty:
+            out[k] = v
+    return out
+
+
 def build_deal_candidates():
     out = []
     deals = read_csv(DEALS)
@@ -60,20 +71,52 @@ def build_deal_candidates():
 
 
 def build_bpc_candidates():
-    out = []
+    """Union intrinsic BPC-value deals with manufacturing deals; intrinsic value is primary."""
+    best = {}
+
+    value_df = read_csv(BPC_VALUE)
+    if not value_df.empty and "contract_id" in value_df.columns:
+        for _, r in value_df.iterrows():
+            try:
+                cid = int(float(r["contract_id"]))
+            except Exception:
+                continue
+            priority = 500 + float(r.get("bpc_value_score", 0) or 0)
+            best[cid] = {"priority": priority, "contract_id": cid, "row": r.copy(), "source": "intrinsic"}
+
     bpc = read_csv(BPC)
-    if bpc.empty:
-        return out
-    profit = pd.to_numeric(bpc.get("net_profit"), errors="coerce").fillna(0)
-    roi = pd.to_numeric(bpc.get("net_roi"), errors="coerce").fillna(0)
-    keep = (profit >= BPC_MIN_PROFIT) & (roi >= BPC_MIN_ROI)
-    if "market_capacity_contracts" in bpc.columns:
-        keep &= pd.to_numeric(bpc["market_capacity_contracts"], errors="coerce").fillna(0) >= 1
-    if "recommendation" in bpc.columns:
-        keep &= ~bpc["recommendation"].fillna("").astype(str).str.startswith("D")
-    for _, r in bpc.loc[keep].iterrows():
-        out.append({"priority": float(r.get("opportunity_score", 0) or 0), "contract_id": int(float(r["contract_id"])), "row": r})
-    out.sort(key=lambda x: (x["priority"], float(x["row"].get("net_profit", 0) or 0)), reverse=True)
+    if not bpc.empty and "contract_id" in bpc.columns:
+        profit = pd.to_numeric(bpc.get("net_profit"), errors="coerce").fillna(0)
+        roi = pd.to_numeric(bpc.get("net_roi"), errors="coerce").fillna(0)
+        keep = (profit >= BPC_MIN_PROFIT) & (roi >= BPC_MIN_ROI)
+        if "market_capacity_contracts" in bpc.columns:
+            keep &= pd.to_numeric(bpc["market_capacity_contracts"], errors="coerce").fillna(0) >= 1
+        if "recommendation" in bpc.columns:
+            keep &= ~bpc["recommendation"].fillna("").astype(str).str.startswith("D")
+
+        for _, r in bpc.loc[keep].iterrows():
+            try:
+                cid = int(float(r["contract_id"]))
+            except Exception:
+                continue
+            priority = 300 + float(r.get("opportunity_score", 0) or 0)
+            if cid in best:
+                merged = merge_rows(best[cid]["row"].to_dict(), r.to_dict())
+                best[cid]["row"] = pd.Series(merged)
+                best[cid]["source"] = "intrinsic+manufacturing"
+                best[cid]["priority"] += min(40, float(r.get("opportunity_score", 0) or 0) * 0.4)
+            else:
+                best[cid] = {"priority": priority, "contract_id": cid, "row": r.copy(), "source": "manufacturing"}
+
+    out = list(best.values())
+    out.sort(
+        key=lambda x: (
+            x["priority"],
+            finite_num(x["row"].get("bpc_intrinsic_value_surplus"), 0) or 0,
+            finite_num(x["row"].get("net_profit"), 0) or 0,
+        ),
+        reverse=True,
+    )
     return out
 
 
@@ -149,25 +192,76 @@ def bpc_market_html(r):
         basis_text = "同种蓝图（ME/TE混合样本）"
     dev_text = f"便宜 {-discount*100:.1f}%" if discount is not None and discount < 0 else (f"偏贵 {discount*100:.1f}%" if discount is not None else "偏差未知")
     return (
-        f"BPC自身估值：当前 {fmt_isk(current)}/流程 · 市场均价 {fmt_isk(avg)}/流程"
+        f"<b>BPC自身价值：</b>当前 {fmt_isk(current)}/流程 · 可比平均 {fmt_isk(avg)}/流程"
         + (f" · 中位 {fmt_isk(median)}/流程" if median is not None else "")
         + f" · {dev_text}<br>"
-        f"按合同市场估值整张约 {fmt_isk(market_value)} · 相对合同价潜在价值差 {fmt_isk(surplus)} · 样本{int(n)}个（{basis_text}）<br>"
+        f"按可比合同估值整包约 {fmt_isk(market_value)} · 价值差 {fmt_isk(surplus)} · 样本{int(n)}个（{basis_text}）<br>"
     )
+
+
+def bpc_location_html(r):
+    system_name = short_text(r.get("system_name", ""), 45)
+    station = short_text(r.get("station_name", ""), 70)
+    risk = short_text(r.get("risk_tier", ""), 40)
+    if not system_name and not station:
+        return ""
+    sec = finite_num(r.get("security"))
+    jumps = finite_num(r.get("shortest_jumps_to_jita"))
+    bits = []
+    if system_name:
+        bits.append(html.escape(system_name))
+    if station:
+        bits.append(html.escape(station))
+    if sec is not None:
+        bits.append(f"安全等级 {sec:.1f}")
+    if jumps is not None and jumps >= 0:
+        bits.append(f"Jita最短 {int(jumps)}跳")
+    if risk:
+        bits.append(html.escape(risk))
+    return "位置 " + " · ".join(bits) + "<br>"
 
 
 def bpc_html(i, r):
     cid = int(float(r["contract_id"]))
-    product = html.escape(short_text(r.get("products", "Unknown"), 120))
-    roi = float(r.get("net_roi", 0) or 0) * 100
-    cap = float(r.get("market_capacity_contracts", 0) or 0)
-    return (
-        f"<b>{i}. {product}</b><br>"
-        f"合同价 {fmt_isk(r.get('contract_price',0))} · 全成本制造净利 {fmt_isk(r.get('net_profit',0))} · 净ROI {roi:.1f}% · 买盘容量 {cap:.0f}批<br>"
-        + bpc_market_html(r)
-        + f"材料 {fmt_isk(r.get('material_cost_jita_depth',0))} · 制造 {fmt_isk(r.get('manufacturing_job_cost',0))} · Broker {fmt_isk(r.get('market_broker_fee',0))} · 税 {fmt_isk(r.get('sales_tax',0))} · 改价 {fmt_isk(r.get('relist_cost_reserve',0))} · 物流 {fmt_isk(r.get('configured_haul_cost',0))}<br>"
-        f"<url=contract:0//{cid}><b>打开合同</b></url><br><br>"
-    )
+    bp_name = short_text(r.get("blueprint_name", ""), 110)
+    if not bp_name:
+        bp_name = short_text(r.get("blueprints", ""), 110)
+    if not bp_name:
+        bp_name = short_text(r.get("products", "Unknown BPC"), 110)
+    bp_name = html.escape(bp_name)
+
+    total_runs = finite_num(r.get("total_bpc_runs"))
+    copies = finite_num(r.get("bpc_copy_count"))
+    run_note = ""
+    if total_runs is not None:
+        run_note = f" · 总流程 {int(total_runs)}"
+        if copies is not None:
+            run_note += f" · {int(copies)}张"
+
+    lines = [
+        f"<b>{i}. {bp_name}</b>{run_note}<br>",
+        f"合同价 {fmt_isk(r.get('contract_price',0))}<br>",
+        bpc_market_html(r),
+    ]
+
+    mfg_profit = finite_num(r.get("net_profit"))
+    mfg_roi = finite_num(r.get("net_roi"))
+    if mfg_profit is not None and mfg_roi is not None:
+        cap = finite_num(r.get("market_capacity_contracts"), 0) or 0
+        lines.append(
+            f"制造参考：全成本净利 {fmt_isk(mfg_profit)} · 净ROI {mfg_roi*100:.1f}% · 买盘容量 {cap:.0f}批<br>"
+        )
+        lines.append(
+            f"材料 {fmt_isk(r.get('material_cost_jita_depth',0))} · 制造 {fmt_isk(r.get('manufacturing_job_cost',0))} · "
+            f"Broker {fmt_isk(r.get('market_broker_fee',0))} · 税 {fmt_isk(r.get('sales_tax',0))} · "
+            f"改价 {fmt_isk(r.get('relist_cost_reserve',0))} · 物流 {fmt_isk(r.get('configured_haul_cost',0))}<br>"
+        )
+    else:
+        lines.append("制造参考：未进入当前制造强机会榜；不影响蓝图自身低估判断。<br>")
+
+    lines.append(bpc_location_html(r))
+    lines.append(f"<url=contract:0//{cid}><b>打开合同</b></url><br><br>")
+    return "".join(lines)
 
 
 def send_mail(recipient_id, subject, body, channel_key):
@@ -204,7 +298,7 @@ def send_deal_digest(recipient_id, stamp):
         ]
         for i, c in enumerate(picked, 1):
             parts.append(deal_html(i, c["row"]))
-        parts.append("说明：风险标签不代表绝对安全；00/低安运输仍需根据实时路况、营地和建筑访问权限复核。现货捡漏不与BPC制造混排。")
+        parts.append("说明：风险标签不代表绝对安全；00/低安运输仍需根据实时路况、营地和建筑访问权限复核。现货捡漏不与BPC混排。")
         body = "".join(parts)
     send_mail(recipient_id, subject, body, "spot-deals")
 
@@ -213,25 +307,25 @@ def send_bpc_digest(recipient_id, stamp):
     candidates = build_bpc_candidates()
     picked, removed = live_pick(candidates)
     if not picked:
-        subject = f"蓝图制造捡漏 {stamp} · 暂无现存强机会"
+        subject = f"BPC蓝图捡漏 {stamp} · 暂无现存强机会"
         body = (
-            f"<b>BPC蓝图制造捡漏</b><br>{stamp}<br><br>"
-            f"全成本合格候选 {len(candidates)} 个；发送前剔除/不可见 {removed} 个；当前没有仍存活的强机会。<br><br>"
-            f"筛选门槛：净利润≥{fmt_isk(BPC_MIN_PROFIT)}、净ROI≥{BPC_MIN_ROI*100:.0f}%、买盘容量≥1批。"
+            f"<b>BPC蓝图捡漏</b><br>{stamp}<br><br>"
+            f"候选 {len(candidates)} 个；发送前剔除/不可见 {removed} 个；当前没有仍存活的强机会。<br><br>"
+            "主筛选看同种BPC每流程合同价格是否显著低于可比平均/中位价；制造利润是第二参考。地点不限高安，低安和00只做风险标记。"
         )
     else:
-        subject = f"蓝图制造捡漏 {stamp} · TOP{len(picked)}"
+        subject = f"BPC蓝图捡漏 {stamp} · TOP{len(picked)}"
         parts = [
-            f"<b>BPC蓝图制造捡漏 TOP{len(picked)}</b><br>{stamp}<br>",
-            f"全成本合格候选 {len(candidates)} · 发送前剔除 {removed} 个失效/不可见合同。<br>",
-            "双重估值：①制造后全成本利润；②同种BPC合同市场每流程价格，衡量蓝图自身价值。<br>"
-            "制造口径：BPC + 材料 + 制造安装费(含SCI/设施税/SCC) + Broker + 销售税 + 改价预留 + 物流。<br><br>",
+            f"<b>BPC蓝图捡漏 TOP{len(picked)}</b><br>{stamp}<br>",
+            f"全星域候选 {len(candidates)} · 发送前剔除 {removed} 个失效/不可见合同。<br>",
+            "主排序：蓝图自身每流程价格相对同类平均/中位价的显著折价；制造后全成本利润作为第二参考。<br>"
+            "地点不限高安：低安/00可进入候选；真正无法解析或星门不可达的地点才剔除。<br><br>",
         ]
         for i, c in enumerate(picked, 1):
             parts.append(bpc_html(i, c["row"]))
-        parts.append("说明：BPC合同市场估值优先采用同类型同ME/TE且至少3个可比合同；样本不足时退回同类型全部ME/TE。平均价同时显示中位价，避免离谱挂单误导。SCC已包含在制造安装费中，不重复扣。")
+        parts.append("说明：可比均价会剔除极端离谱挂价，并用中位价做防误判校验；合同挂牌价不等于历史真实成交价。玩家建筑仍需核对停靠权限。")
         body = "".join(parts)
-    send_mail(recipient_id, subject, body, "bpc-manufacturing")
+    send_mail(recipient_id, subject, body, "bpc-value")
 
 
 def main():
