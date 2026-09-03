@@ -42,7 +42,8 @@ def build_deal_candidates():
         return out
     for _, r in deals.iterrows():
         cls = str(r.get("deal_class", ""))
-        priority = (300 if cls.startswith("A") else 200) + float(r.get("deal_score", 0) or 0)
+        risk_rank = float(r.get("risk_rank", 5) or 5)
+        priority = (300 if cls.startswith("A") else 200) + float(r.get("deal_score", 0) or 0) - risk_rank * 2
         out.append({"priority": priority, "contract_id": int(float(r["contract_id"])), "row": r})
     out.sort(key=lambda x: x["priority"], reverse=True)
     return out
@@ -86,25 +87,35 @@ def live_pick(candidates):
 def deal_html(i, r):
     cid = int(float(r["contract_id"]))
     cls = html.escape(str(r.get("deal_class", "合同捡漏")))
+    risk = html.escape(str(r.get("risk_tier", "风险未知")))
     items = html.escape(short_text(r.get("items", ""), 150))
     hidden = html.escape(short_text(r.get("top_value_items", ""), 130))
-    jumps = int(float(r.get("secure_jumps_to_jita", 0) or 0))
     station = html.escape(short_text(r.get("station_name", ""), 75))
+    system_name = html.escape(short_text(r.get("system_name", ""), 45))
+    sec = float(r.get("security", 0) or 0)
+    secure_jumps = int(float(r.get("secure_jumps_to_jita", -1) or -1))
+    shortest_jumps = int(float(r.get("shortest_jumps_to_jita", -1) or -1))
+    jumps_text = f"安全路线 {secure_jumps}跳" if secure_jumps >= 0 else (f"最短路线约 {shortest_jumps}跳" if shortest_jumps >= 0 else "路线未知")
     cov = float(r.get("buy_unit_coverage", 0) or 0) * 100
+    alliance = html.escape(short_text(r.get("friendly_alliance_ticker", ""), 20))
+
     if str(r.get("deal_class", "")).startswith("A"):
         profit = float(r.get("instant_net_profit", 0) or 0)
         roi = float(r.get("instant_net_roi", 0) or 0) * 100
-        valuation = f"Jita即时买单 {fmt_isk(r.get('jita_buy_gross',0))} · 税 {fmt_isk(r.get('sales_tax_if_instant',0))} · 物流 {fmt_isk(r.get('haul_reserve',0))}"
+        valuation = f"Jita即时买单 {fmt_isk(r.get('jita_buy_gross',0))} · 税 {fmt_isk(r.get('sales_tax_if_instant',0))} · 物流预留 {fmt_isk(r.get('haul_reserve',0))}"
         caveat = f"买单数量覆盖 {cov:.0f}%"
     else:
         profit = float(r.get("list_net_profit_est", 0) or 0)
         roi = float(r.get("list_net_roi_est", 0) or 0) * 100
         valuation = f"Jita挂卖参考 {fmt_isk(r.get('jita_replacement_value',0))} · Broker {fmt_isk(r.get('list_broker_fee',0))} · 税 {fmt_isk(r.get('list_sales_tax',0))} · 改价 {fmt_isk(r.get('list_relist_reserve',0))}"
         caveat = "挂单利润为估算，不等于即时可兑现"
+
+    alliance_note = f" · 当前联盟[{alliance}]" if alliance else ""
     return (
-        f"<b>{i}. {cls}</b><br>{items}<br>"
+        f"<b>{i}. {cls} · {risk}</b><br>{items}<br>"
         f"合同价 {fmt_isk(r.get('contract_price',0))} · 净利约 {fmt_isk(profit)} · 净ROI {roi:.1f}%<br>"
-        f"{valuation}<br>位置 {station} · 安全路线 {jumps}跳 · {caveat}<br>"
+        f"{valuation}<br>位置 {system_name} / {station} · 安全等级 {sec:.1f} · {jumps_text}{alliance_note}<br>"
+        f"{caveat}<br>"
         + (f"主要价值：{hidden}<br>" if hidden else "")
         + f"<url=contract:0//{cid}><b>打开合同</b></url><br><br>"
     )
@@ -145,18 +156,19 @@ def send_deal_digest(recipient_id, stamp):
         body = (
             f"<b>单件/多件现货合同捡漏</b><br>{stamp}<br><br>"
             f"合格候选 {len(candidates)} 个；发送前剔除/不可见 {removed} 个；当前没有仍存活的强机会。<br><br>"
-            "A类按Jita当前买单即时兑现；B类按Jita挂卖参考价扣Broker、销售税、改价和物流预留。"
+            "全星域扫描。风险分层：A1联盟势力范围、A2 Jita近郊高安、B其他高安、C低安、D非友军00/未知建筑。"
         )
     else:
         subject = f"现货合同捡漏 {stamp} · TOP{len(picked)}"
         parts = [
             f"<b>单件/多件现货合同捡漏 TOP{len(picked)}</b><br>{stamp}<br>",
-            f"合格候选 {len(candidates)} · 发送前剔除 {removed} 个失效/不可见合同。<br>",
-            "排序：A即时买单套利优先，其次B挂单潜在套利。<br><br>",
+            f"全星域合格候选 {len(candidates)} · 发送前剔除 {removed} 个失效/不可见合同。<br>",
+            "风险：A1联盟势力范围低风险 ＞ A2 Jita近郊高安 ＞ B其他高安 ＞ C低安 ＞ D非友军00/未知。<br>"
+            "经济排序：即时买单套利优先，其次挂单潜在套利。<br><br>",
         ]
         for i, c in enumerate(picked, 1):
             parts.append(deal_html(i, c["row"]))
-        parts.append("说明：现货捡漏不与BPC制造混排；下单前仍打开合同核对物品、数量和地点。")
+        parts.append("说明：风险标签不代表绝对安全；00/低安运输仍需根据实时路况、营地和建筑访问权限复核。现货捡漏不与BPC制造混排。")
         body = "".join(parts)
     send_mail(recipient_id, subject, body, "spot-deals")
 
@@ -190,8 +202,6 @@ def main():
         raise RuntimeError("Missing EVE_MAIL_API_KEY")
     recipient_id = resolve_character(RECIPIENT_NAME)
     stamp = pd.Timestamp.now(tz="Asia/Shanghai").strftime("%m-%d %H:%M")
-
-    # Two intentionally separate mails, each independently ranked and live-checked.
     send_deal_digest(recipient_id, stamp)
     send_bpc_digest(recipient_id, stamp)
 
