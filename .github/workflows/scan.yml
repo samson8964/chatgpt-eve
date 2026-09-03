@@ -44,7 +44,7 @@ jobs:
       - name: Run fast BPC scanner
         run: python runner.py
 
-      - name: Run spot contract deal scanner
+      - name: Run all-space spot contract deal scanner
         env:
           DEAL_MIN_CONTRACT_PRICE: '1000000'
           DEAL_MIN_PRELIM_EDGE: '8000000'
@@ -52,15 +52,21 @@ jobs:
           DEAL_MIN_NET_ROI: '0.10'
           DEAL_MIN_LIST_NET_PROFIT: '25000000'
           DEAL_MIN_LIST_NET_ROI: '0.15'
-          DEAL_MAX_SECURE_JUMPS: '25'
+          DEAL_JITA_NEAR_SECURE_JUMPS: '25'
+          DEAL_LOCATION_PREFILTER_TOP: '500'
           DEAL_HAUL_BASE_ISK: '2000000'
           DEAL_HAUL_ISK_PER_M3_JUMP: '200'
+          # Public ESI character lookup only; no new OAuth scope is required.
+          DEAL_FRIENDLY_CHARACTER_ID: '2124493042'
+          # Add comma-separated alliance IDs later if we positively identify blue allies.
+          DEAL_FRIENDLY_ALLIANCE_IDS: ''
+          DEAL_FRIENDLY_REGION_IDS: ''
         run: python contract_deal_scanner.py
 
       - name: Add one-click EVE links
         run: python add_action_links.py
 
-      - name: Send dual-engine EVE mail digest
+      - name: Send separate top-10 EVE mail digests
         env:
           EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
           EVE_MAIL_RECIPIENT_NAME: MikeChong
