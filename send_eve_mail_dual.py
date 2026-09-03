@@ -35,6 +35,16 @@ def short_text(v, n=145):
     return s if len(s) <= n else s[: n - 1] + "…"
 
 
+def finite_num(v, default=None):
+    try:
+        x = float(v)
+        if pd.isna(x) or x == float("inf") or x == float("-inf"):
+            return default
+        return x
+    except Exception:
+        return default
+
+
 def build_deal_candidates():
     out = []
     deals = read_csv(DEALS)
@@ -121,6 +131,31 @@ def deal_html(i, r):
     )
 
 
+def bpc_market_html(r):
+    n = finite_num(r.get("bpc_market_sample_count"), 0) or 0
+    avg = finite_num(r.get("bpc_market_avg_per_run"))
+    median = finite_num(r.get("bpc_market_median_per_run"))
+    current = finite_num(r.get("bpc_current_cost_per_run"))
+    discount = finite_num(r.get("bpc_discount_vs_avg"))
+    market_value = finite_num(r.get("bpc_contract_market_value_est"))
+    surplus = finite_num(r.get("bpc_intrinsic_value_surplus"))
+    basis = str(r.get("bpc_market_basis", "") or "")
+    if n <= 0 or avg is None or current is None:
+        return "BPC合同市场估值：暂无足够同类合同样本<br>"
+
+    if basis.startswith("same_type_ME"):
+        basis_text = "同种蓝图、同ME/TE"
+    else:
+        basis_text = "同种蓝图（ME/TE混合样本）"
+    dev_text = f"便宜 {-discount*100:.1f}%" if discount is not None and discount < 0 else (f"偏贵 {discount*100:.1f}%" if discount is not None else "偏差未知")
+    return (
+        f"BPC自身估值：当前 {fmt_isk(current)}/流程 · 市场均价 {fmt_isk(avg)}/流程"
+        + (f" · 中位 {fmt_isk(median)}/流程" if median is not None else "")
+        + f" · {dev_text}<br>"
+        f"按合同市场估值整张约 {fmt_isk(market_value)} · 相对合同价潜在价值差 {fmt_isk(surplus)} · 样本{int(n)}个（{basis_text}）<br>"
+    )
+
+
 def bpc_html(i, r):
     cid = int(float(r["contract_id"]))
     product = html.escape(short_text(r.get("products", "Unknown"), 120))
@@ -128,8 +163,9 @@ def bpc_html(i, r):
     cap = float(r.get("market_capacity_contracts", 0) or 0)
     return (
         f"<b>{i}. {product}</b><br>"
-        f"合同价 {fmt_isk(r.get('contract_price',0))} · 全成本净利 {fmt_isk(r.get('net_profit',0))} · 净ROI {roi:.1f}% · 买盘容量 {cap:.0f}批<br>"
-        f"材料 {fmt_isk(r.get('material_cost_jita_depth',0))} · 制造 {fmt_isk(r.get('manufacturing_job_cost',0))} · Broker {fmt_isk(r.get('market_broker_fee',0))} · 税 {fmt_isk(r.get('sales_tax',0))} · 改价 {fmt_isk(r.get('relist_cost_reserve',0))} · 物流 {fmt_isk(r.get('configured_haul_cost',0))}<br>"
+        f"合同价 {fmt_isk(r.get('contract_price',0))} · 全成本制造净利 {fmt_isk(r.get('net_profit',0))} · 净ROI {roi:.1f}% · 买盘容量 {cap:.0f}批<br>"
+        + bpc_market_html(r)
+        + f"材料 {fmt_isk(r.get('material_cost_jita_depth',0))} · 制造 {fmt_isk(r.get('manufacturing_job_cost',0))} · Broker {fmt_isk(r.get('market_broker_fee',0))} · 税 {fmt_isk(r.get('sales_tax',0))} · 改价 {fmt_isk(r.get('relist_cost_reserve',0))} · 物流 {fmt_isk(r.get('configured_haul_cost',0))}<br>"
         f"<url=contract:0//{cid}><b>打开合同</b></url><br><br>"
     )
 
@@ -188,11 +224,12 @@ def send_bpc_digest(recipient_id, stamp):
         parts = [
             f"<b>BPC蓝图制造捡漏 TOP{len(picked)}</b><br>{stamp}<br>",
             f"全成本合格候选 {len(candidates)} · 发送前剔除 {removed} 个失效/不可见合同。<br>",
-            "利润口径：BPC + 材料 + 制造安装费(含SCI/设施税/SCC) + Broker + 销售税 + 改价预留 + 物流。<br><br>",
+            "双重估值：①制造后全成本利润；②同种BPC合同市场每流程价格，衡量蓝图自身价值。<br>"
+            "制造口径：BPC + 材料 + 制造安装费(含SCI/设施税/SCC) + Broker + 销售税 + 改价预留 + 物流。<br><br>",
         ]
         for i, c in enumerate(picked, 1):
             parts.append(bpc_html(i, c["row"]))
-        parts.append("说明：BPC制造机会不与现货合同混排；SCC已包含在制造安装费中，不重复扣。")
+        parts.append("说明：BPC合同市场估值优先采用同类型同ME/TE且至少3个可比合同；样本不足时退回同类型全部ME/TE。平均价同时显示中位价，避免离谱挂单误导。SCC已包含在制造安装费中，不重复扣。")
         body = "".join(parts)
     send_mail(recipient_id, subject, body, "bpc-manufacturing")
 
