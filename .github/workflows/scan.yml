@@ -29,7 +29,7 @@ concurrency:
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -43,10 +43,23 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run fast BPC scanner
+      - name: Run fast BPC manufacturing scanner
         run: python runner.py
 
-      - name: Benchmark BPC contract-market value per run
+      - name: Scan all-space BPC intrinsic value per run
+        env:
+          # Intrinsic BPC value is the primary BPC-deal signal.
+          BPC_VALUE_MIN_SAMPLES: '3'
+          BPC_VALUE_MIN_EXACT_SAMPLES: '3'
+          BPC_VALUE_MIN_DISCOUNT: '0.25'
+          BPC_VALUE_MIN_MEDIAN_DISCOUNT: '0.10'
+          BPC_VALUE_MIN_SURPLUS: '10000000'
+          BPC_VALUE_MIN_HOURS_TO_EXPIRE: '2'
+          BPC_VALUE_TOP: '200'
+          # Public character/alliance and sovereignty data; no OAuth scope required.
+          DEAL_FRIENDLY_CHARACTER_ID: '2124493042'
+          DEAL_FRIENDLY_ALLIANCE_IDS: ''
+          DEAL_FRIENDLY_REGION_IDS: ''
         run: python bpc_contract_benchmark.py
 
       - name: Run all-space spot contract deal scanner
@@ -61,9 +74,7 @@ jobs:
           DEAL_LOCATION_PREFILTER_TOP: '500'
           DEAL_HAUL_BASE_ISK: '2000000'
           DEAL_HAUL_ISK_PER_M3_JUMP: '200'
-          # Public ESI character lookup only; no new OAuth scope is required.
           DEAL_FRIENDLY_CHARACTER_ID: '2124493042'
-          # Add comma-separated alliance IDs later if we positively identify blue allies.
           DEAL_FRIENDLY_ALLIANCE_IDS: ''
           DEAL_FRIENDLY_REGION_IDS: ''
         run: python contract_deal_scanner.py
