@@ -115,18 +115,45 @@ jobs:
           MAIL_REPEAT_IMPROVEMENT: '0.25'
         run: python send_eve_mail_quality.py
 
-      - name: Commit refreshed results
+      - name: Commit refreshed results safely
         shell: bash
         run: |
+          set -euo pipefail
           git config user.name "eve-arbitrage-bot"
           git config user.email "eve-arbitrage-bot@users.noreply.github.com"
-          git add results
-          if git diff --cached --quiet; then
-            echo "No result changes."
-            exit 0
-          fi
-          git commit -m "data: refresh EVE dual opportunities $(date -u +'%Y-%m-%d %H:%M UTC')"
-          # Code/doc commits can land while a long scan is running. Rebase the result commit
-          # before pushing so mail history and refreshed CSV state are not lost to non-fast-forward errors.
-          git pull --rebase origin main
-          git push
+
+          # Preserve exactly the results produced by this scan. The workflow may have started
+          # from an older event SHA, especially when a previous Actions run is re-run manually.
+          RESULTS_SNAPSHOT="$(mktemp -d)"
+          cp -a results/. "$RESULTS_SNAPSHOT/"
+
+          for attempt in 1 2 3; do
+            echo "Result push attempt $attempt/3"
+
+            # Always rebuild the result commit on top of the newest main instead of rebasing
+            # an old event commit. This prevents non-fast-forward errors and most result conflicts.
+            git fetch origin main
+            git reset --hard origin/main
+            rm -rf results
+            mkdir -p results
+            cp -a "$RESULTS_SNAPSHOT/." results/
+            git add results
+
+            if git diff --cached --quiet; then
+              echo "No result changes relative to latest main."
+              exit 0
+            fi
+
+            git commit -m "data: refresh EVE dual opportunities $(date -u +'%Y-%m-%d %H:%M UTC')"
+
+            if git push origin HEAD:main; then
+              echo "Results pushed successfully."
+              exit 0
+            fi
+
+            echo "Remote main advanced during push; retrying on newest main..."
+            sleep $((attempt * 2))
+          done
+
+          echo "Failed to push refreshed results after 3 attempts."
+          exit 1
