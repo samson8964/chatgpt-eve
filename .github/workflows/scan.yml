@@ -9,11 +9,13 @@ on:
       - 'bpc_contract_benchmark.py'
       - 'contract_deal_scanner.py'
       - 'filter_reachable_contract_deals.py'
+      - 'prepare_mail_candidates.py'
       - 'payload/**'
       - 'requirements.txt'
       - 'add_action_links.py'
       - 'send_eve_mail_fast.py'
       - 'send_eve_mail_dual.py'
+      - 'send_eve_mail_quality.py'
       - '.github/workflows/scan.yml'
   schedule:
     # Beijing time 08:35 and 20:35 (UTC+8), after the half-hour EVE Ref snapshot is normally published.
@@ -48,7 +50,7 @@ jobs:
 
       - name: Scan all-space BPC intrinsic value per run
         env:
-          # Intrinsic BPC value is the primary BPC-deal signal.
+          # Keep the scanner fairly broad; the mail gate below is deliberately stricter.
           BPC_VALUE_MIN_SAMPLES: '3'
           BPC_VALUE_MIN_EXACT_SAMPLES: '3'
           BPC_VALUE_MIN_DISCOUNT: '0.25'
@@ -56,7 +58,6 @@ jobs:
           BPC_VALUE_MIN_SURPLUS: '10000000'
           BPC_VALUE_MIN_HOURS_TO_EXPIRE: '2'
           BPC_VALUE_TOP: '200'
-          # Public character/alliance and sovereignty data; no OAuth scope required.
           DEAL_FRIENDLY_CHARACTER_ID: '2124493042'
           DEAL_FRIENDLY_ALLIANCE_IDS: ''
           DEAL_FRIENDLY_REGION_IDS: ''
@@ -82,19 +83,37 @@ jobs:
       - name: Exclude unreachable contract systems
         run: python filter_reachable_contract_deals.py
 
+      - name: Prepare strict fresh mail candidates
+        env:
+          # Spot mail: only immediately liquidatable A deals; survive a 5% adverse Jita price move.
+          MAIL_SPOT_STRESS_PRICE_DROP: '0.05'
+          MAIL_SPOT_MIN_STRESS_PROFIT: '15000000'
+          MAIL_SPOT_MIN_STRESS_ROI: '0.10'
+          MAIL_SPOT_MIN_BUY_COVERAGE: '0.95'
+          # BPC mail: stronger evidence than the broad scanner itself.
+          MAIL_BPC_VALUE_MIN_SAMPLES: '5'
+          MAIL_BPC_VALUE_MIN_AVG_DISCOUNT: '0.30'
+          MAIL_BPC_VALUE_MIN_MEDIAN_DISCOUNT: '0.20'
+          MAIL_BPC_VALUE_MIN_SURPLUS: '20000000'
+          MAIL_BPC_MFG_MIN_PROFIT: '20000000'
+          MAIL_BPC_MFG_MIN_ROI: '0.10'
+        run: python prepare_mail_candidates.py
+
       - name: Add one-click EVE links
         run: python add_action_links.py
 
-      - name: Send separate top-10 EVE mail digests
+      - name: Send fresh top-10 EVE mail digests
         env:
           EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
           EVE_MAIL_RECIPIENT_NAME: MikeChong
           EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
-          MAIL_MIN_NET_PROFIT: '10000000'
-          MAIL_MIN_NET_ROI: '0.08'
           MAIL_TOP: '10'
-          MAIL_LIVE_POOL: '60'
-        run: python send_eve_mail_dual.py
+          MAIL_LIVE_POOL: '80'
+          # New contracts receive a large ranking bonus; repeats cool down for 24h.
+          MAIL_FRESHNESS_WEIGHT: '2.0'
+          MAIL_REPEAT_COOLDOWN_HOURS: '24'
+          MAIL_REPEAT_IMPROVEMENT: '0.25'
+        run: python send_eve_mail_quality.py
 
       - name: Commit refreshed results
         shell: bash
@@ -107,4 +126,7 @@ jobs:
             exit 0
           fi
           git commit -m "data: refresh EVE dual opportunities $(date -u +'%Y-%m-%d %H:%M UTC')"
+          # Code/doc commits can land while a long scan is running. Rebase the result commit
+          # before pushing so mail history and refreshed CSV state are not lost to non-fast-forward errors.
+          git pull --rebase origin main
           git push
