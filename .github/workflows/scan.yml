@@ -18,8 +18,8 @@ on:
       - 'send_eve_mail_quality.py'
       - '.github/workflows/scan.yml'
   schedule:
-    # Beijing time 08:35 and 20:35 (UTC+8), after the half-hour EVE Ref snapshot is normally published.
-    - cron: '35 0,12 * * *'
+    # Run every 30 minutes. GitHub Actions cron uses UTC.
+    - cron: '5,35 * * * *'
 
 permissions:
   contents: write
