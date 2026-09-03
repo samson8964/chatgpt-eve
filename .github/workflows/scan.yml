@@ -8,6 +8,7 @@ on:
       - 'scanner_source.py'
       - 'bpc_contract_benchmark.py'
       - 'contract_deal_scanner.py'
+      - 'filter_reachable_contract_deals.py'
       - 'payload/**'
       - 'requirements.txt'
       - 'add_action_links.py'
@@ -66,6 +67,9 @@ jobs:
           DEAL_FRIENDLY_ALLIANCE_IDS: ''
           DEAL_FRIENDLY_REGION_IDS: ''
         run: python contract_deal_scanner.py
+
+      - name: Exclude unreachable contract systems
+        run: python filter_reachable_contract_deals.py
 
       - name: Add one-click EVE links
         run: python add_action_links.py
