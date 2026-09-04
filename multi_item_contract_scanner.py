@@ -20,6 +20,8 @@ from scanner_source import (
     prepare_jita_books,
     fill_book,
     truthy_series,
+    fetch_many_ref,
+    name_en,
     type_volume,
     esi_get,
 )
@@ -43,7 +45,6 @@ MIN_CONTRACT_PRICE = float(os.getenv("MULTI_MIN_CONTRACT_PRICE", "1000000"))
 MIN_DISCOUNT = float(os.getenv("MULTI_MIN_DISCOUNT", "0.30"))
 MIN_VALUE_GAP = float(os.getenv("MULTI_MIN_VALUE_GAP", "30000000"))
 MIN_VALUE_COVERAGE = float(os.getenv("MULTI_MIN_VALUE_COVERAGE", "0.90"))
-MIN_A_BUY_COVERAGE = float(os.getenv("MULTI_MIN_A_BUY_COVERAGE", "0.90"))
 MIN_HOURS_TO_EXPIRE = float(os.getenv("MULTI_MIN_HOURS_TO_EXPIRE", "1"))
 HISTORY_WORKERS = int(os.getenv("MULTI_HISTORY_WORKERS", "16"))
 TOP_OUTPUT = int(os.getenv("MULTI_TOP", "250"))
@@ -129,6 +130,8 @@ def raw_value(itemq, buy_books, sell_books, fallback_prices):
     denom = priced_sell_value + fallback_missing_value
     coverage = priced_sell_value / denom if denom > 0 else 0.0
     if unknown_types:
+        # Unknown-price types cannot silently count as covered. This conservative cap prevents
+        # a bundle from passing merely because the unpriced items have no fallback value.
         type_ratio = max(0.0, (len(itemq) - unknown_types) / max(1, len(itemq)))
         coverage = min(coverage, type_ratio)
 
@@ -197,19 +200,6 @@ def major_type_ids(type_rows):
         if len(out) >= 10 or acc / total >= 0.95:
             break
     return out
-
-
-def type_name(type_id, cache):
-    tid = int(type_id)
-    if tid in cache:
-        return cache[tid]
-    try:
-        row = esi_get(f"/universe/types/{tid}/", {"datasource": "tranquility"}, cache_key=f"type_{tid}")
-        name = str(row.get("name") or tid)
-    except Exception:
-        name = str(tid)
-    cache[tid] = name
-    return name
 
 
 def main():
@@ -294,19 +284,22 @@ def main():
         loc = resolve_location(r["start_location_id"], structures, friendly_ids, sov_map)
         if not loc:
             continue
-        if int(loc.get("system_id", 0) or 0) <= 0:
+        if int(safe_num(loc.get("system_id"), 0.0)) <= 0:
             continue
-        if int(loc.get("shortest_jumps_to_jita", -1) or -1) < 0:
+        if int(safe_num(loc.get("shortest_jumps_to_jita"), -1.0)) < 0:
             continue
         rr = dict(r)
         rr["location"] = loc
         reachable.append(rr)
     print(f"multi reachable candidates={len(reachable)}")
 
-    print("multi 4) liquidity history for major value contributors")
+    print("multi 4) liquidity history + type metadata")
     wanted_types = set()
+    all_reachable_types = set()
     for r in reachable:
         wanted_types |= major_type_ids(r["type_rows"])
+        all_reachable_types |= {int(tid) for tid in r["itemq"]}
+
     histories = {}
     if wanted_types:
         with ThreadPoolExecutor(max_workers=min(HISTORY_WORKERS, len(wanted_types))) as ex:
@@ -317,12 +310,12 @@ def main():
                     histories[tid] = fut.result()
                 except Exception:
                     histories[tid] = {"avg_daily_volume": 0.0, "traded_days": 0}
-    print(f"multi history types={len(histories)}")
+    type_refs = fetch_many_ref("types", all_reachable_types) if all_reachable_types else {}
+    print(f"multi history types={len(histories)} metadata types={len(type_refs)}")
 
     print("multi 5) final A/B economics")
     final_rows = []
     all_rows = []
-    name_cache = {}
     for r in reachable:
         itemq = r["itemq"]
         major = major_type_ids(r["type_rows"])
@@ -336,6 +329,7 @@ def main():
                 factor = liquidity_factor(qty, hist)
                 avg_daily = safe_num(hist.get("avg_daily_volume"), 0.0)
             else:
+                # Small tail positions get a mild haircut without spending one history request each.
                 factor = 0.90
                 avg_daily = 0.0
             adjusted_value = safe_num(tr.get("sell_value"), 0.0) * factor
@@ -345,25 +339,22 @@ def main():
         loc = r["location"]
         total_m3 = 0.0
         for tid, qty in itemq.items():
-            try:
-                total_m3 += max(0.0, safe_num(type_volume(int(tid)), 0.0)) * qty
-            except Exception:
-                pass
+            total_m3 += max(0.0, safe_num(type_volume(type_refs.get(int(tid))), 0.0)) * qty
         haul = haul_reserve(total_m3, loc)
         price = r["contract_price"]
 
+        # A: value only what can actually hit current Jita buy orders. Unfilled leftovers are
+        # valued at zero here, so the estimate stays conservative without a separate coverage veto.
         a_gross = safe_num(r["jita_buy_gross"], 0.0)
         a_tax = a_gross * SALES_TAX_RATE
         a_net_value = a_gross - a_tax - haul
         a_gap = a_net_value - price
         a_discount = a_gap / a_net_value if a_net_value > 0 else -1.0
         a_roi = a_gap / price if price > 0 else -1.0
-        a_ok = (
-            safe_num(r["buy_unit_coverage"], 0.0) >= MIN_A_BUY_COVERAGE
-            and a_gap >= MIN_VALUE_GAP
-            and a_discount >= MIN_DISCOUNT
-        )
+        a_ok = a_gap >= MIN_VALUE_GAP and a_discount >= MIN_DISCOUNT
 
+        # B: Jita sell-side replacement value, haircut by 30-day liquidity, then normal selling
+        # costs and haul reserve. This is a conservative market-value estimate, not instant cash.
         b_broker = adjusted_market_gross * BROKER_FEE_RATE
         b_tax = adjusted_market_gross * SALES_TAX_RATE
         b_relist = adjusted_market_gross * RELIST_RESERVE_RATE
@@ -423,7 +414,8 @@ def main():
 
         item_bits = []
         for tr in adjusted_sorted:
-            name = type_name(tr["type_id"], name_cache)
+            tid = int(tr["type_id"])
+            name = name_en(type_refs.get(tid), str(tid))
             item_bits.append(
                 f"{name} x{int(tr['quantity'])}≈{safe_num(tr['adjusted_value'],0.0):.0f} "
                 f"(liq×{safe_num(tr['liquidity_factor'],0.0):.2f})"
