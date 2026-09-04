@@ -17,7 +17,9 @@ on:
       - 'send_eve_mail_fast.py'
       - 'send_eve_mail_dual.py'
       - 'send_eve_mail_quality.py'
+      - 'send_eve_mail_quality_multi.py'
       - 'send_multi_item_mail.py'
+      - 'send_multi_item_mail_multi.py'
       - '.github/workflows/scan.yml'
   schedule:
     # GitHub schedule events may be delayed or dropped. Give the scheduler a chance every 10 minutes,
@@ -61,9 +63,8 @@ jobs:
             last=""
           fi
 
-          # Full scans usually take roughly 10-15 minutes. A 17-minute completion-age guard,
-          # combined with 10-minute cron opportunities, yields about one full run every 30 minutes
-          # while allowing the next cron slot to recover when GitHub misses one.
+          # Ten-minute trigger opportunities plus a 25-minute start-age guard normally produce
+          # about one full scan every 30 minutes, while allowing later slots to recover a missed cron.
           if [ -n "$last" ]; then
             age=$((now - last))
           else
@@ -178,20 +179,22 @@ jobs:
         env:
           EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
           EVE_MAIL_RECIPIENT_NAME: MikeChong
+          EVE_MAIL_RECIPIENT_NAMES: 'MikeChong,Vektor Yang'
           EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
           MAIL_TOP: '10'
           MAIL_LIVE_POOL: '80'
-        run: python send_eve_mail_quality.py
+        run: python send_eve_mail_quality_multi.py
 
       - name: Send changed multi-item top-10 digest
         if: steps.cadence.outputs.run_scan == 'true'
         env:
           EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
           EVE_MAIL_RECIPIENT_NAME: MikeChong
+          EVE_MAIL_RECIPIENT_NAMES: 'MikeChong,Vektor Yang'
           EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
           MAIL_TOP: '10'
           MAIL_LIVE_POOL: '80'
-        run: python send_multi_item_mail.py
+        run: python send_multi_item_mail_multi.py
 
       - name: Commit refreshed results safely
         if: steps.cadence.outputs.run_scan == 'true'
