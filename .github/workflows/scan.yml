@@ -20,39 +20,89 @@ on:
       - 'send_multi_item_mail.py'
       - '.github/workflows/scan.yml'
   schedule:
-    # Run every 30 minutes. GitHub Actions cron uses UTC.
-    - cron: '5,35 * * * *'
+    # GitHub schedule events may be delayed or dropped. Give the scheduler a chance every 10 minutes,
+    # then use the cadence gate below so a full scan normally starts only about every 30 minutes.
+    - cron: '7,17,27,37,47,57 * * * *'
 
 permissions:
   contents: write
 
 concurrency:
-  group: eve-arbitrage-scan-v2
-  cancel-in-progress: true
+  group: eve-arbitrage-scan-v3
+  cancel-in-progress: false
 
 jobs:
   scan:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
-      - name: Checkout
+      - name: Checkout latest main
         uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 20
+
+      - name: Cadence gate
+        id: cadence
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "run_scan=true" >> "$GITHUB_OUTPUT"
+            echo "Manual/push event: run immediately."
+            exit 0
+          fi
+
+          stamp="results/state/last_scan_started_epoch.txt"
+          now="$(date -u +%s)"
+          if [ -f "$stamp" ]; then
+            last="$(tr -dc '0-9' < "$stamp")"
+          else
+            last=""
+          fi
+
+          # Full scans usually take roughly 10-15 minutes. A 17-minute completion-age guard,
+          # combined with 10-minute cron opportunities, yields about one full run every 30 minutes
+          # while allowing the next cron slot to recover when GitHub misses one.
+          if [ -n "$last" ]; then
+            age=$((now - last))
+          else
+            age=999999
+          fi
+
+          if [ "$age" -lt 1500 ]; then
+            echo "run_scan=false" >> "$GITHUB_OUTPUT"
+            echo "Skip full scan: previous scan started ${age}s ago (<25m)."
+          else
+            echo "run_scan=true" >> "$GITHUB_OUTPUT"
+            echo "Run full scan: previous scan started ${age}s ago."
+          fi
+
+      - name: Record scan start
+        if: steps.cadence.outputs.run_scan == 'true'
+        shell: bash
+        run: |
+          mkdir -p results/state
+          date -u +%s > results/state/last_scan_started_epoch.txt
 
       - name: Set up Python
+        if: steps.cadence.outputs.run_scan == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
           cache: 'pip'
 
       - name: Install dependencies
+        if: steps.cadence.outputs.run_scan == 'true'
         run: pip install -r requirements.txt
 
       - name: Run fast BPC manufacturing scanner
+        if: steps.cadence.outputs.run_scan == 'true'
         run: python runner.py
 
       - name: Scan all-space BPC intrinsic value per run
+        if: steps.cadence.outputs.run_scan == 'true'
         env:
-          # Broad discovery gate. Mail filtering below uses stricter evidence thresholds.
           BPC_VALUE_MIN_SAMPLES: '3'
           BPC_VALUE_MIN_EXACT_SAMPLES: '3'
           BPC_VALUE_MIN_DISCOUNT: '0.25'
@@ -66,6 +116,7 @@ jobs:
         run: python bpc_contract_benchmark.py
 
       - name: Run all-space spot contract deal scanner
+        if: steps.cadence.outputs.run_scan == 'true'
         env:
           DEAL_MIN_CONTRACT_PRICE: '1000000'
           DEAL_MIN_PRELIM_EDGE: '8000000'
@@ -83,12 +134,12 @@ jobs:
         run: python contract_deal_scanner.py
 
       - name: Exclude unreachable contract systems
+        if: steps.cadence.outputs.run_scan == 'true'
         run: python filter_reachable_contract_deals.py
 
       - name: Scan reachable multi-item bundle contracts
+        if: steps.cadence.outputs.run_scan == 'true'
         env:
-          # Independent bundle-deal track: at least two item types, reliable valuation,
-          # >=30% discount to conservative net value and >=30M absolute value gap.
           MULTI_MIN_TYPES: '2'
           MULTI_MIN_CONTRACT_PRICE: '1000000'
           MULTI_MIN_DISCOUNT: '0.30'
@@ -106,11 +157,10 @@ jobs:
         run: python multi_item_contract_scanner.py
 
       - name: Prepare mail candidates
+        if: steps.cadence.outputs.run_scan == 'true'
         env:
-          # Spot: A immediate-buy and B listing opportunities share the final mail gate.
           MAIL_SPOT_MIN_PROFIT: '30000000'
           MAIL_SPOT_MIN_ROI: '0.10'
-          # BPC intrinsic-value and manufacturing are independent qualification routes.
           MAIL_BPC_VALUE_MIN_SAMPLES: '5'
           MAIL_BPC_VALUE_MIN_AVG_DISCOUNT: '0.30'
           MAIL_BPC_VALUE_MIN_MEDIAN_DISCOUNT: '0.20'
@@ -120,9 +170,11 @@ jobs:
         run: python prepare_mail_candidates.py
 
       - name: Add one-click EVE links
+        if: steps.cadence.outputs.run_scan == 'true'
         run: python add_action_links.py
 
       - name: Send changed spot and BPC top-10 digests
+        if: steps.cadence.outputs.run_scan == 'true'
         env:
           EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
           EVE_MAIL_RECIPIENT_NAME: MikeChong
@@ -132,6 +184,7 @@ jobs:
         run: python send_eve_mail_quality.py
 
       - name: Send changed multi-item top-10 digest
+        if: steps.cadence.outputs.run_scan == 'true'
         env:
           EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
           EVE_MAIL_RECIPIENT_NAME: MikeChong
@@ -141,22 +194,18 @@ jobs:
         run: python send_multi_item_mail.py
 
       - name: Commit refreshed results safely
+        if: steps.cadence.outputs.run_scan == 'true'
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "eve-arbitrage-bot"
           git config user.email "eve-arbitrage-bot@users.noreply.github.com"
 
-          # Preserve exactly the results produced by this scan. The workflow may have started
-          # from an older event SHA, especially when a previous Actions run is re-run manually.
           RESULTS_SNAPSHOT="$(mktemp -d)"
           cp -a results/. "$RESULTS_SNAPSHOT/"
 
           for attempt in 1 2 3; do
             echo "Result push attempt $attempt/3"
-
-            # Always rebuild the result commit on top of the newest main instead of rebasing
-            # an old event commit. This prevents non-fast-forward errors and most result conflicts.
             git fetch origin main
             git reset --hard origin/main
             rm -rf results
