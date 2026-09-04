@@ -1,7 +1,7 @@
 {
-  "generated_at_utc": "2026-09-04T00:25:55.361960+00:00",
-  "contracts_snapshot": "2026-09-04T00:02:12.697Z",
-  "market_snapshot": "2026-09-03T23:49:40.776Z",
+  "generated_at_utc": "2026-09-04T02:10:22.418470+00:00",
+  "contracts_snapshot": "2026-09-04T02:02:13.984Z",
+  "market_snapshot": "2026-09-04T01:49:49.924Z",
   "accounting_level": 5,
   "transaction_tax_rate": 0.033749999999999995,
   "market_broker_fee_rate": 0.015,
@@ -22,7 +22,7 @@
       "system_name": "Uoyonen",
       "station_id": 60001633,
       "station_name": "Uoyonen IX - Perkone Warehouse",
-      "sci": 0.0151,
+      "sci": 0.0153,
       "jumps": 8
     }
   ],
