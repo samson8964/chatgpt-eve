@@ -50,7 +50,7 @@ jobs:
 
       - name: Scan all-space BPC intrinsic value per run
         env:
-          # Keep the scanner fairly broad; the mail gate below is deliberately stricter.
+          # Broad discovery gate. Mail filtering below uses stricter evidence thresholds.
           BPC_VALUE_MIN_SAMPLES: '3'
           BPC_VALUE_MIN_EXACT_SAMPLES: '3'
           BPC_VALUE_MIN_DISCOUNT: '0.25'
@@ -83,14 +83,12 @@ jobs:
       - name: Exclude unreachable contract systems
         run: python filter_reachable_contract_deals.py
 
-      - name: Prepare strict fresh mail candidates
+      - name: Prepare mail candidates
         env:
-          # Spot mail: only immediately liquidatable A deals; survive a 5% adverse Jita price move.
-          MAIL_SPOT_STRESS_PRICE_DROP: '0.05'
-          MAIL_SPOT_MIN_STRESS_PROFIT: '15000000'
-          MAIL_SPOT_MIN_STRESS_ROI: '0.10'
-          MAIL_SPOT_MIN_BUY_COVERAGE: '0.95'
-          # BPC mail: stronger evidence than the broad scanner itself.
+          # Spot: A immediate-buy and B listing opportunities share the final mail gate.
+          MAIL_SPOT_MIN_PROFIT: '30000000'
+          MAIL_SPOT_MIN_ROI: '0.10'
+          # BPC intrinsic-value and manufacturing are independent qualification routes.
           MAIL_BPC_VALUE_MIN_SAMPLES: '5'
           MAIL_BPC_VALUE_MIN_AVG_DISCOUNT: '0.30'
           MAIL_BPC_VALUE_MIN_MEDIAN_DISCOUNT: '0.20'
@@ -102,17 +100,13 @@ jobs:
       - name: Add one-click EVE links
         run: python add_action_links.py
 
-      - name: Send fresh top-10 EVE mail digests
+      - name: Send changed top-10 EVE mail digests
         env:
           EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
           EVE_MAIL_RECIPIENT_NAME: MikeChong
           EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
           MAIL_TOP: '10'
           MAIL_LIVE_POOL: '80'
-          # New contracts receive a large ranking bonus; repeats cool down for 24h.
-          MAIL_FRESHNESS_WEIGHT: '2.0'
-          MAIL_REPEAT_COOLDOWN_HOURS: '24'
-          MAIL_REPEAT_IMPROVEMENT: '0.25'
         run: python send_eve_mail_quality.py
 
       - name: Commit refreshed results safely
