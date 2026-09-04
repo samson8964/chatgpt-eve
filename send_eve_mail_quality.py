@@ -17,9 +17,6 @@ HISTORY = Path("results/state/mail_push_history.csv")
 MAIL_TOP = int(os.getenv("MAIL_TOP", "10"))
 LIVE_POOL = int(os.getenv("MAIL_LIVE_POOL", "80"))
 LIVE_WORKERS = int(os.getenv("LIVE_CHECK_WORKERS", "10"))
-COOLDOWN_HOURS = float(os.getenv("MAIL_REPEAT_COOLDOWN_HOURS", "24"))
-REPEAT_IMPROVEMENT = float(os.getenv("MAIL_REPEAT_IMPROVEMENT", "0.25"))
-FRESHNESS_WEIGHT = float(os.getenv("MAIL_FRESHNESS_WEIGHT", "2.0"))
 
 
 def read_csv(path: Path) -> pd.DataFrame:
@@ -45,89 +42,61 @@ def truth(v):
     return str(v).strip().lower() in {"1", "true", "t", "yes", "y"}
 
 
-def freshness(r):
-    return finite(r.get("mail_freshness_score"), -40.0)
-
-
-def age_hours(r):
-    return finite(r.get("contract_age_hours"), -1.0)
-
-
-def freshness_label(r):
-    h = age_hours(r)
-    if h < 0:
-        return "发布时间未知"
-    if h < 1:
-        return f"新合同 · 发布约{max(1, int(h*60))}分钟"
-    return f"发布约{h:.1f}小时"
-
-
 def candidate_metric(channel, row):
     if channel == "spot-deals":
-        return max(0.0, finite(row.get("mail_stress_net_profit"), finite(row.get("instant_net_profit"), 0.0)))
-    # BPC cooldown/re-push decisions must use executable manufacturing profit only.
-    # Comparable contract ASK-price surplus is not realised profit.
-    return max(0.0, finite(row.get("net_profit"), 0.0))
-
-
-def intrinsic_bonus(row):
-    """Secondary ranking bonus after manufacturing economics have already passed the mail gate."""
-    if not truth(row.get("bpc_intrinsic_signal")):
-        return 0.0
-    davg = finite(row.get("bpc_discount_vs_avg"), 0.0)
-    dmed = finite(row.get("bpc_discount_vs_median"), 0.0)
-    surplus = max(0.0, finite(row.get("bpc_intrinsic_value_surplus"), 0.0))
-    discount = max(0.0, -min(davg, dmed))
-    return min(50.0, discount / 0.60 * 30.0 + surplus / 200_000_000 * 20.0)
+        return max(0.0, finite(row.get("mail_net_profit"), 0.0))
+    return max(
+        0.0,
+        finite(row.get("bpc_intrinsic_value_surplus"), 0.0) if truth(row.get("bpc_intrinsic_signal")) else 0.0,
+        finite(row.get("net_profit"), 0.0) if truth(row.get("bpc_manufacturing_signal")) else 0.0,
+        finite(row.get("mail_value_gap_isk"), 0.0),
+    )
 
 
 def load_history():
+    """Keep one compact row per contract/channel and migrate the old event log automatically."""
     df = read_csv(HISTORY)
+    columns = ["channel", "contract_id", "last_sent_at", "metric", "push_count"]
     if df.empty:
-        return pd.DataFrame(columns=["channel", "contract_id", "sent_at", "metric"])
-    for col in ["channel", "contract_id", "sent_at", "metric"]:
+        return pd.DataFrame(columns=columns)
+
+    for col in ["channel", "contract_id", "metric"]:
         if col not in df.columns:
-            df[col] = "" if col in {"channel", "sent_at"} else 0
+            df[col] = "" if col == "channel" else 0
     df["contract_id"] = pd.to_numeric(df["contract_id"], errors="coerce").fillna(0).astype(int)
     df["metric"] = pd.to_numeric(df["metric"], errors="coerce").fillna(0.0)
+
+    # New compact format.
+    if "last_sent_at" in df.columns and "push_count" in df.columns:
+        df["last_sent_at"] = pd.to_datetime(df["last_sent_at"], utc=True, errors="coerce")
+        df["push_count"] = pd.to_numeric(df["push_count"], errors="coerce").fillna(0).astype(int)
+        return df[columns].copy()
+
+    # Old format: one row per send with sent_at. Collapse it while preserving total counts.
+    if "sent_at" not in df.columns:
+        df["sent_at"] = pd.NaT
     df["sent_at"] = pd.to_datetime(df["sent_at"], utc=True, errors="coerce")
-    cutoff = pd.Timestamp.now(tz="UTC") - pd.Timedelta(days=30)
-    return df[df["sent_at"].isna() | (df["sent_at"] >= cutoff)].copy()
+    rows = []
+    for (channel, cid), g in df.groupby(["channel", "contract_id"], dropna=False):
+        g = g.sort_values("sent_at")
+        latest = g.iloc[-1]
+        rows.append({
+            "channel": str(channel),
+            "contract_id": int(cid),
+            "last_sent_at": latest.get("sent_at"),
+            "metric": finite(latest.get("metric"), 0.0),
+            "push_count": int(len(g)),
+        })
+    return pd.DataFrame(rows, columns=columns)
 
 
-def cooldown_filter(candidates, channel, history):
-    now = pd.Timestamp.now(tz="UTC")
-    recent = history[history["channel"].astype(str) == channel].copy()
-    by_id = {}
-    if not recent.empty:
-        recent.sort_values("sent_at", inplace=True)
-        for _, r in recent.iterrows():
-            by_id[int(r["contract_id"])] = r
-
-    kept = []
-    cooled = 0
-    improved = 0
-    for c in candidates:
-        cid = int(c["contract_id"])
-        old = by_id.get(cid)
-        if old is None or pd.isna(old.get("sent_at")):
-            kept.append(c)
-            continue
-        hours = (now - old["sent_at"]).total_seconds() / 3600.0
-        if hours >= COOLDOWN_HOURS:
-            kept.append(c)
-            continue
-        old_metric = max(0.0, finite(old.get("metric"), 0.0))
-        new_metric = candidate_metric(channel, c["row"])
-        threshold = old_metric * (1.0 + REPEAT_IMPROVEMENT)
-        if old_metric <= 0 or new_metric >= threshold:
-            c = dict(c)
-            c["repeat_improved"] = True
-            kept.append(c)
-            improved += 1
-        else:
-            cooled += 1
-    return kept, cooled, improved
+def get_push_count(history, channel, contract_id):
+    if history.empty:
+        return 0
+    mask = (history["channel"].astype(str) == channel) & (history["contract_id"].astype(int) == int(contract_id))
+    if not mask.any():
+        return 0
+    return int(pd.to_numeric(history.loc[mask, "push_count"], errors="coerce").fillna(0).max())
 
 
 def live_pick(candidates):
@@ -156,94 +125,144 @@ def build_spot_candidates():
         if "mail_eligible" in df.columns and not truth(r.get("mail_eligible")):
             continue
         cls = str(r.get("deal_class", ""))
-        if not cls.startswith("A"):
+        if not (cls.startswith("A") or cls.startswith("B")):
             continue
-        risk_rank = finite(r.get("risk_rank"), 5.0)
-        stress_roi = max(0.0, finite(r.get("mail_stress_net_roi"), 0.0))
-        priority = (
-            400.0
-            + finite(r.get("deal_score"), 0.0)
-            + FRESHNESS_WEIGHT * freshness(r)
-            + min(40.0, stress_roi / 0.30 * 40.0)
-            - risk_rank * 3.0
-        )
-        out.append({"priority": priority, "contract_id": int(float(r["contract_id"])), "row": r.copy()})
-    out.sort(key=lambda x: (x["priority"], candidate_metric("spot-deals", x["row"])), reverse=True)
+        gap = candidate_metric("spot-deals", r)
+        roi = max(0.0, finite(r.get("mail_net_roi"), 0.0))
+        out.append({
+            "priority": gap,
+            "roi": roi,
+            "contract_id": int(float(r["contract_id"])),
+            "row": r.copy(),
+        })
+    # No freshness bonus and no risk-class bonus: rank by absolute value gap first.
+    out.sort(key=lambda x: (x["priority"], x["roi"]), reverse=True)
+    return out
+
+
+def merge_rows(primary, secondary):
+    out = primary.copy()
+    for k, v in secondary.items():
+        cur = out.get(k)
+        empty = cur is None or cur == "" or (isinstance(cur, float) and pd.isna(cur))
+        if empty:
+            out[k] = v
     return out
 
 
 def build_bpc_candidates():
-    # Only manufacturing-proven rows may reach mail. Intrinsic BPC market value remains
-    # attached to ranked_opportunities.csv and can add a secondary bonus, but it cannot
-    # independently create an EVE-mail opportunity.
-    out = []
-    mfg = read_csv(BPC)
-    if mfg.empty or "contract_id" not in mfg.columns:
-        return out
+    """Union intrinsic-value and manufacturing routes; either may independently qualify."""
+    best = {}
 
-    for _, r in mfg.iterrows():
-        if "mail_eligible" in mfg.columns and not truth(r.get("mail_eligible")):
+    for path in [BPC_VALUE, BPC]:
+        df = read_csv(path)
+        if df.empty or "contract_id" not in df.columns:
             continue
-        cid = int(float(r["contract_id"]))
-        priority = (
-            360.0
-            + finite(r.get("opportunity_score"), 0.0)
-            + FRESHNESS_WEIGHT * freshness(r)
-            + intrinsic_bonus(r)
-        )
+        for _, r in df.iterrows():
+            if "mail_eligible" in df.columns and not truth(r.get("mail_eligible")):
+                continue
+            try:
+                cid = int(float(r["contract_id"]))
+            except Exception:
+                continue
+            if cid in best:
+                merged = merge_rows(best[cid]["row"].to_dict(), r.to_dict())
+                best[cid]["row"] = pd.Series(merged)
+            else:
+                best[cid] = {"contract_id": cid, "row": r.copy()}
+
+    out = []
+    for cid, c in best.items():
+        r = c["row"]
+        intrinsic = truth(r.get("bpc_intrinsic_signal"))
+        manufacturing = truth(r.get("bpc_manufacturing_signal"))
+        if intrinsic and manufacturing:
+            source = "intrinsic+manufacturing"
+        elif intrinsic:
+            source = "intrinsic"
+        else:
+            source = "manufacturing"
+        gap = candidate_metric("bpc-value", r)
+        roi = max(0.0, finite(r.get("net_roi"), 0.0))
         out.append({
-            "priority": priority,
+            "priority": gap,
+            "roi": roi,
             "contract_id": cid,
-            "row": r.copy(),
-            "source": "manufacturing+intrinsic" if truth(r.get("bpc_intrinsic_signal")) else "manufacturing",
+            "row": r,
+            "source": source,
         })
 
-    out.sort(key=lambda x: (x["priority"], candidate_metric("bpc-value", x["row"])), reverse=True)
+    # All BPC opportunities also rank by the largest current ISK value gap, not freshness.
+    out.sort(key=lambda x: (x["priority"], x["roi"]), reverse=True)
     return out
 
 
 def record_history(history, channel, picked):
     if not picked:
+        HISTORY.parent.mkdir(parents=True, exist_ok=True)
+        history.to_csv(HISTORY, index=False)
         return history
-    now = pd.Timestamp.now(tz="UTC").isoformat()
-    rows = []
+
+    now = pd.Timestamp.now(tz="UTC")
+    history = history.copy()
     for c in picked:
-        rows.append({
-            "channel": channel,
-            "contract_id": int(c["contract_id"]),
-            "sent_at": now,
-            "metric": candidate_metric(channel, c["row"]),
-        })
-    add = pd.DataFrame(rows)
-    out = pd.concat([history, add], ignore_index=True)
+        cid = int(c["contract_id"])
+        mask = (history["channel"].astype(str) == channel) & (history["contract_id"].astype(int) == cid)
+        if mask.any():
+            idx = history.index[mask][0]
+            history.at[idx, "last_sent_at"] = now
+            history.at[idx, "metric"] = candidate_metric(channel, c["row"])
+            history.at[idx, "push_count"] = int(finite(history.at[idx, "push_count"], 0)) + 1
+        else:
+            history.loc[len(history)] = {
+                "channel": channel,
+                "contract_id": cid,
+                "last_sent_at": now,
+                "metric": candidate_metric(channel, c["row"]),
+                "push_count": 1,
+            }
+
     HISTORY.parent.mkdir(parents=True, exist_ok=True)
-    out.to_csv(HISTORY, index=False)
-    return out
+    history.to_csv(HISTORY, index=False)
+    return history
+
+
+def spot_tag(row):
+    cls = str(row.get("deal_class", ""))
+    return "【现货-A 即时】" if cls.startswith("A") else "【现货-B 挂单】"
+
+
+def bpc_tag(source):
+    if source == "intrinsic+manufacturing":
+        return "【蓝图-价值+制造】"
+    if source == "intrinsic":
+        return "【蓝图-价值】"
+    return "【蓝图-制造】"
 
 
 def send_spot(recipient_id, stamp, history):
-    raw = build_spot_candidates()
-    candidates, cooled, improved = cooldown_filter(raw, "spot-deals", history)
+    candidates = build_spot_candidates()
     picked, removed = live_pick(candidates)
 
     if not picked:
-        subject = f"现货捡漏 {stamp} · 暂无新的强机会"
+        subject = f"现货捡漏 {stamp} · 暂无强机会"
         body = (
-            f"<b>现货即时兑现捡漏</b><br>{stamp}<br><br>"
-            f"严格候选 {len(raw)} 个；24小时重复冷却 {cooled} 个；发送前失效/不可见 {removed} 个。<br>"
-            "邮件只推A类即时买单机会，并要求Jita买价整体下跌5%后仍满足利润/ROI门槛；B类挂单机会只保留在CSV观察榜。"
+            f"<b>现货合同捡漏</b><br>{stamp}<br><br>"
+            f"合格候选 {len(candidates)} 个；发送前失效/不可见 {removed} 个。<br>"
+            "A类即时买单和B类挂单机会均可推送；统一要求净利润≥30M、ROI≥10%。不再做Jita买价下调5%压力测试，也不要求买盘覆盖≥95%。"
         )
     else:
-        subject = f"现货捡漏 {stamp} · {len(picked)}个新机会"
+        subject = f"现货捡漏 {stamp} · TOP{len(picked)}"
         parts = [
-            f"<b>现货即时兑现捡漏 TOP{len(picked)}</b><br>{stamp}<br>",
-            f"严格候选 {len(raw)} · 重复冷却 {cooled} · 改善后允许重推 {improved} · 失效/不可见 {removed}<br>",
-            "排序大幅偏重新合同；只推A类即时买单，并通过5%不利价格压力测试。<br><br>",
+            f"<b>现货合同捡漏 TOP{len(picked)}</b><br>{stamp}<br>",
+            f"合格候选 {len(candidates)} · 失效/不可见 {removed}<br>",
+            "排序：只按当前价差空间（净利润ISK）从大到小；A即时买单、B挂单都参与。<br><br>",
         ]
         for i, c in enumerate(picked, 1):
-            parts.append(f"<b>{freshness_label(c['row'])}</b><br>")
+            count = get_push_count(history, "spot-deals", c["contract_id"]) + 1
+            parts.append(f"<b>{spot_tag(c['row'])} · 已推送次数：{count}</b><br>")
             parts.append(base.deal_html(i, c["row"]))
-        parts.append("说明：新合同优先不是放宽利润门槛；新鲜度只在已经通过严格可兑现性筛选的机会之间决定优先级。")
+        parts.append("说明：B类是挂单潜在利润，不是即时可兑现利润；风险标签继续保留，但不参与价差排名。")
         body = "".join(parts)
 
     base.send_mail(recipient_id, subject, body, "spot-deals")
@@ -251,28 +270,28 @@ def send_spot(recipient_id, stamp, history):
 
 
 def send_bpc(recipient_id, stamp, history):
-    raw = build_bpc_candidates()
-    candidates, cooled, improved = cooldown_filter(raw, "bpc-value", history)
+    candidates = build_bpc_candidates()
     picked, removed = live_pick(candidates)
 
     if not picked:
-        subject = f"BPC捡漏 {stamp} · 暂无新的可执行机会"
+        subject = f"BPC捡漏 {stamp} · 暂无强机会"
         body = (
             f"<b>BPC蓝图捡漏</b><br>{stamp}<br><br>"
-            f"制造利润严格候选 {len(raw)} 个；24小时重复冷却 {cooled} 个；发送前失效/不可见 {removed} 个。<br>"
-            "同类BPC挂牌均价/中位价现在只作辅助估值和排序，不能单独构成推送理由；必须先通过制造净利润、净ROI和买盘容量门槛。"
+            f"合格候选 {len(candidates)} 个；发送前失效/不可见 {removed} 个。<br>"
+            "蓝图自身明显低估和制造套利是两条独立入选路径；不再要求必须先通过manufacturing_ok。"
         )
     else:
-        subject = f"BPC捡漏 {stamp} · {len(picked)}个新机会"
+        subject = f"BPC捡漏 {stamp} · TOP{len(picked)}"
         parts = [
-            f"<b>BPC蓝图可执行捡漏 TOP{len(picked)}</b><br>{stamp}<br>",
-            f"制造利润严格候选 {len(raw)} · 重复冷却 {cooled} · 改善后允许重推 {improved} · 失效/不可见 {removed}<br>",
-            "先要求制造后全成本利润可执行；BPC自身每流程折价只作为额外价值和排序加分。新合同优先。<br><br>",
+            f"<b>BPC蓝图捡漏 TOP{len(picked)}</b><br>{stamp}<br>",
+            f"合格候选 {len(candidates)} · 失效/不可见 {removed}<br>",
+            "排序：按蓝图自身低估价值差与制造净利润中的较大价差空间排序，不使用新鲜度加权。<br><br>",
         ]
         for i, c in enumerate(picked, 1):
-            parts.append(f"<b>{freshness_label(c['row'])}</b><br>")
+            count = get_push_count(history, "bpc-value", c["contract_id"]) + 1
+            parts.append(f"<b>{bpc_tag(c['source'])} · 已推送次数：{count}</b><br>")
             parts.append(base.bpc_html(i, c["row"]))
-        parts.append("说明：其他公开合同的挂牌价不等于真实成交价，因此蓝图自身估值不再被当作独立利润。")
+        parts.append("说明：蓝图挂牌可比价不是实际成交价，所以价值型机会仍要求样本数、平均/中位折价和绝对价值差同时过线；制造收益只是另一条独立证据。")
         body = "".join(parts)
 
     base.send_mail(recipient_id, subject, body, "bpc-value")
