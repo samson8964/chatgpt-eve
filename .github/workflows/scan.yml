@@ -1,4 +1,4 @@
-name: EVE dual arbitrage scan
+name: EVE arbitrage scans
 
 on:
   workflow_dispatch:
@@ -9,6 +9,7 @@ on:
       - 'bpc_contract_benchmark.py'
       - 'contract_deal_scanner.py'
       - 'filter_reachable_contract_deals.py'
+      - 'multi_item_contract_scanner.py'
       - 'prepare_mail_candidates.py'
       - 'payload/**'
       - 'requirements.txt'
@@ -16,6 +17,7 @@ on:
       - 'send_eve_mail_fast.py'
       - 'send_eve_mail_dual.py'
       - 'send_eve_mail_quality.py'
+      - 'send_multi_item_mail.py'
       - '.github/workflows/scan.yml'
   schedule:
     # Run every 30 minutes. GitHub Actions cron uses UTC.
@@ -25,7 +27,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: eve-dual-scan-v1
+  group: eve-arbitrage-scan-v2
   cancel-in-progress: true
 
 jobs:
@@ -83,6 +85,26 @@ jobs:
       - name: Exclude unreachable contract systems
         run: python filter_reachable_contract_deals.py
 
+      - name: Scan reachable multi-item bundle contracts
+        env:
+          # Independent bundle-deal track: at least two item types, reliable valuation,
+          # >=30% discount to conservative net value and >=30M absolute value gap.
+          MULTI_MIN_TYPES: '2'
+          MULTI_MIN_CONTRACT_PRICE: '1000000'
+          MULTI_MIN_DISCOUNT: '0.30'
+          MULTI_MIN_VALUE_GAP: '30000000'
+          MULTI_MIN_VALUE_COVERAGE: '0.90'
+          MULTI_MIN_A_BUY_COVERAGE: '0.90'
+          MULTI_MIN_HOURS_TO_EXPIRE: '1'
+          MULTI_HISTORY_WORKERS: '16'
+          MULTI_TOP: '250'
+          DEAL_HAUL_BASE_ISK: '2000000'
+          DEAL_HAUL_ISK_PER_M3_JUMP: '200'
+          DEAL_FRIENDLY_CHARACTER_ID: '2124493042'
+          DEAL_FRIENDLY_ALLIANCE_IDS: ''
+          DEAL_FRIENDLY_REGION_IDS: ''
+        run: python multi_item_contract_scanner.py
+
       - name: Prepare mail candidates
         env:
           # Spot: A immediate-buy and B listing opportunities share the final mail gate.
@@ -100,7 +122,7 @@ jobs:
       - name: Add one-click EVE links
         run: python add_action_links.py
 
-      - name: Send changed top-10 EVE mail digests
+      - name: Send changed spot and BPC top-10 digests
         env:
           EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
           EVE_MAIL_RECIPIENT_NAME: MikeChong
@@ -108,6 +130,15 @@ jobs:
           MAIL_TOP: '10'
           MAIL_LIVE_POOL: '80'
         run: python send_eve_mail_quality.py
+
+      - name: Send changed multi-item top-10 digest
+        env:
+          EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+          EVE_MAIL_RECIPIENT_NAME: MikeChong
+          EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
+          MAIL_TOP: '10'
+          MAIL_LIVE_POOL: '80'
+        run: python send_multi_item_mail.py
 
       - name: Commit refreshed results safely
         shell: bash
@@ -138,7 +169,7 @@ jobs:
               exit 0
             fi
 
-            git commit -m "data: refresh EVE dual opportunities $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git commit -m "data: refresh EVE arbitrage opportunities $(date -u +'%Y-%m-%d %H:%M UTC')"
 
             if git push origin HEAD:main; then
               echo "Results pushed successfully."
