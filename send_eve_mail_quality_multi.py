@@ -40,6 +40,10 @@ COSMETIC_PATTERNS = [
     r"\btattoo\b",
 ]
 COSMETIC_RE = re.compile("|".join(COSMETIC_PATTERNS), re.IGNORECASE)
+SPOT_PUSH_RE = re.compile(
+    r"<b>(【现货-[^】]+】)\s*·\s*已推送次数：\s*(\d+)</b><br>",
+    re.IGNORECASE,
+)
 
 
 def recipient_names():
@@ -61,10 +65,12 @@ def recipient_top_state_path(name: str) -> Path:
 
 
 def make_spot_push_count_prominent(body: str) -> str:
-    pattern = r"(<b>【现货-[^】]+】) · 已推送次数：(\d+)</b><br>"
-    return re.sub(
-        pattern,
-        lambda m: f"{m.group(1)}</b><br><b>推送记录：第 {m.group(2)} 次</b><br>",
+    """Make the per-contract cumulative push count impossible to miss in spot mail."""
+    return SPOT_PUSH_RE.sub(
+        lambda m: (
+            f"<b>{m.group(1)}</b><br>"
+            f"<b>本合同累计推送：第 {m.group(2)} 次</b><br>"
+        ),
         body,
     )
 
