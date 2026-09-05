@@ -8,6 +8,40 @@ import send_eve_mail_quality as quality
 from send_eve_mail_fast import resolve_character
 
 
+# Spot-mail only: the user does not want apparel/fashion items or ship SKIN contracts.
+# Keep this at the mail-candidate layer so BPC and multi-item bundle scanners are unchanged.
+COSMETIC_PATTERNS = [
+    r"\bskin\b",
+    r"\bskins\b",
+    r"\bapparel\b",
+    r"\bclothing\b",
+    r"\bt[- ]?shirt\b",
+    r"\bshirt\b",
+    r"\bjacket\b",
+    r"\bcoat\b",
+    r"\bpants\b",
+    r"\btrousers\b",
+    r"\bshorts\b",
+    r"\bdress\b",
+    r"\bskirt\b",
+    r"\bblouse\b",
+    r"\bboots?\b",
+    r"\bshoes?\b",
+    r"\bheels?\b",
+    r"\bglasses\b",
+    r"\bgoggles\b",
+    r"\beyewear\b",
+    r"\bmonocle\b",
+    r"\bberet\b",
+    r"\bcap\b",
+    r"\bhat\b",
+    r"\buniform\b",
+    r"\bvest\b",
+    r"\btattoo\b",
+]
+COSMETIC_RE = re.compile("|".join(COSMETIC_PATTERNS), re.IGNORECASE)
+
+
 def recipient_names():
     raw = os.getenv("EVE_MAIL_RECIPIENT_NAMES", "").strip()
     if raw:
@@ -35,6 +69,36 @@ def make_spot_push_count_prominent(body: str) -> str:
     )
 
 
+def is_unwanted_cosmetic_row(row) -> bool:
+    # Current spot scanner persists English type names in `items` and the highest-value
+    # components in `top_value_items`. Checking both catches single-item and bundle-like rows.
+    text = " | ".join(
+        str(row.get(col, "") or "")
+        for col in ("items", "top_value_items")
+    )
+    return bool(COSMETIC_RE.search(text))
+
+
+def install_spot_cosmetic_filter():
+    original_builder = quality.build_spot_candidates
+
+    def filtered_builder():
+        candidates = original_builder()
+        kept = []
+        removed = 0
+        for c in candidates:
+            if is_unwanted_cosmetic_row(c["row"]):
+                removed += 1
+                continue
+            kept.append(c)
+        if removed:
+            print(f"spot cosmetic filter: suppressed {removed} apparel/SKIN candidates")
+        return kept
+
+    quality.build_spot_candidates = filtered_builder
+    return original_builder
+
+
 def main():
     if not quality.base.API_KEY:
         raise RuntimeError("Missing EVE_MAIL_API_KEY")
@@ -46,6 +110,7 @@ def main():
     original_send = quality.base.send_mail
     original_record_history = quality.record_history
     original_top_state_path = quality.TOP_STATE
+    original_spot_builder = install_spot_cosmetic_filter()
 
     # One shared push counter per scan cycle: two recipients do not count as two pushes.
     shared_history = quality.load_history()
@@ -111,6 +176,7 @@ def main():
         quality.base.send_mail = original_send
         quality.record_history = original_record_history
         quality.TOP_STATE = original_top_state_path
+        quality.build_spot_candidates = original_spot_builder
 
 
 if __name__ == "__main__":
