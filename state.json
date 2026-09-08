@@ -2,17 +2,17 @@
  "delivery": [
   {
    "contract_id": 235778917,
-   "detail": "正在发送",
+   "detail": "游戏邮件编号 403093774",
    "recipient": 2124493042,
-   "state": "sending",
-   "updated": 1788910904.9205265
+   "state": "sent",
+   "updated": 1788910908.7968051
   },
   {
    "contract_id": 235778963,
-   "detail": "正在发送",
+   "detail": "游戏邮件编号 403093774",
    "recipient": 2124493042,
-   "state": "sending",
-   "updated": 1788910904.920227
+   "state": "sent",
+   "updated": 1788910908.796552
   },
   {
    "contract_id": 235833767,
@@ -56704,7 +56704,7 @@
    }
   ]
  },
- "next_mail_at": 1788849530.476751,
+ "next_mail_at": 1788912708.796133,
  "status": {
   "before_volume_filter": 31215,
   "candidates": 18851,
@@ -56720,5 +56720,5 @@
   "stage": "等待下一次检查",
   "volume_cap": 0.06
  },
- "updated": "2026-09-08T23:41:44.944776+00:00"
+ "updated": "2026-09-08T23:41:48.818256+00:00"
 }
