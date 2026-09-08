@@ -1,7 +1,8 @@
 const SSO_AUTHORIZE = "https://login.eveonline.com/v2/oauth/authorize";
 const SSO_TOKEN = "https://login.eveonline.com/v2/oauth/token";
 const ESI_BASE = "https://esi.evetech.net/latest";
-const SCOPE = "esi-ui.open_window.v1 esi-mail.send_mail.v1";
+const ESI_SKILLS_BASE = "https://esi.evetech.net/v4";
+const SCOPE = "esi-ui.open_window.v1 esi-mail.send_mail.v1 esi-skills.read_skills.v1";
 
 export default {
   async fetch(request, env) {
@@ -20,6 +21,7 @@ export default {
         <h1>EVE Contract Opener</h1>
         <p>状态：<b>${hasToken ? "已授权" : "尚未授权"}</b>${name ? ` · ${escapeHtml(name)} (${escapeHtml(id || "")})` : ""}</p>
         <p>权限：<code>${escapeHtml(SCOPE)}</code></p>
+        <p>技能点：<a href="/skills"><code>/skills</code></a>（网页） · <a href="/api/skills"><code>/api/skills</code></a>（JSON）</p>
         <p>打开合同：<code>/c/合同ID</code></p>
         <p>打开市场：<code>/m/物品Type ID</code></p>
         <p><a href="/auth">重新授权角色</a> · <a href="/logout">清除授权</a></p>`);
@@ -31,6 +33,8 @@ export default {
     }
     if (url.pathname === "/auth") return startAuth(env, null);
     if (url.pathname === "/callback") return handleCallback(request, env);
+    if (url.pathname === "/skills") return handleSkills(request, env, false);
+    if (url.pathname === "/api/skills") return handleSkills(request, env, true);
     if (url.pathname === "/api/send-mail") return handleSendMail(request, env);
 
     const contractMatch = url.pathname.match(/^\/c\/(\d+)\/?$/);
@@ -40,6 +44,73 @@ export default {
     return text("Not found", 404);
   },
 };
+
+async function handleSkills(request, env, asJson) {
+  if (request.method !== "GET") return text("Method not allowed", 405);
+
+  const characterId = Number(await env.AUTH_STORE.get("character_id") || 0);
+  const characterName = await env.AUTH_STORE.get("character_name") || "unknown";
+  if (!Number.isSafeInteger(characterId) || characterId <= 0) {
+    if (asJson) return json({ ok: false, error: "not_authorized", auth_url: "/auth" }, 401);
+    return html("<!doctype html><meta charset='utf-8'><h2>尚未授权角色</h2><p><a href='/auth'>点击这里进行 EVE SSO 授权</a></p>", 401);
+  }
+
+  const token = await getFreshToken(env);
+  if (!token.ok) {
+    if (asJson) return json({ ok: false, error: "token_refresh_failed", detail: token.detail || token.status, auth_url: "/auth" }, 401);
+    return html(`<!doctype html><meta charset='utf-8'><h2>EVE 授权已失效</h2><p>${escapeHtml(token.detail || token.status || "unknown")}</p><p><a href='/auth'>重新授权</a></p>`, 401);
+  }
+
+  const resp = await fetch(`${ESI_SKILLS_BASE}/characters/${characterId}/skills/?datasource=tranquility`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token.access_token}`,
+      Accept: "application/json",
+    },
+  });
+  const detail = await resp.text();
+  if (resp.status !== 200) {
+    const missingScope = resp.status === 403;
+    const message = missingScope
+      ? "当前 refresh token 没有 esi-skills.read_skills.v1 权限，请重新 /auth 授权。"
+      : `EVE skills failed (${resp.status}): ${detail}`;
+    if (asJson) return json({ ok: false, error: missingScope ? "missing_scope" : "esi_error", status: resp.status, detail, auth_url: "/auth" }, missingScope ? 403 : 502);
+    return html(`<!doctype html><meta charset='utf-8'><h2>技能读取失败</h2><p>${escapeHtml(message)}</p><p><a href='/auth'>重新授权 Mike Chong / 当前角色</a></p>`, missingScope ? 403 : 502);
+  }
+
+  let data;
+  try { data = JSON.parse(detail); } catch { return text("EVE skills returned invalid JSON", 502); }
+  const totalSp = Number(data.total_sp || 0);
+  const unallocatedSp = Number(data.unallocated_sp || 0);
+  const skills = Array.isArray(data.skills) ? data.skills : [];
+  const trainedSkills = skills.filter(s => Number(s.trained_skill_level || 0) > 0).length;
+  const level5Skills = skills.filter(s => Number(s.trained_skill_level || 0) >= 5).length;
+
+  const result = {
+    ok: true,
+    character_id: characterId,
+    character_name: characterName,
+    total_sp: totalSp,
+    unallocated_sp: unallocatedSp,
+    allocated_sp: Math.max(0, totalSp - unallocatedSp),
+    skills_count: skills.length,
+    trained_skills_count: trainedSkills,
+    level_5_skills_count: level5Skills,
+    skills,
+  };
+
+  if (asJson) return json(result);
+
+  const fmt = new Intl.NumberFormat("en-US");
+  return html(`<!doctype html><meta charset="utf-8"><title>${escapeHtml(characterName)} 技能点</title>
+    <style>body{font:16px system-ui;max-width:760px;margin:48px auto;padding:0 20px;line-height:1.65}.big{font-size:32px;font-weight:700}code{background:#eee;padding:2px 6px;border-radius:5px}</style>
+    <h1>${escapeHtml(characterName)} 技能点</h1>
+    <p class="big">${fmt.format(totalSp)} SP</p>
+    <p>未分配技能点：<b>${fmt.format(unallocatedSp)} SP</b></p>
+    <p>已分配技能点：<b>${fmt.format(Math.max(0, totalSp - unallocatedSp))} SP</b></p>
+    <p>技能条目：<b>${fmt.format(skills.length)}</b> · 已训练：<b>${fmt.format(trainedSkills)}</b> · 5级技能：<b>${fmt.format(level5Skills)}</b></p>
+    <p><a href="/api/skills">查看完整技能 JSON</a> · <a href="/">返回状态页</a> · <a href="/auth">重新授权</a></p>`);
+}
 
 async function handleOpen(env, action) {
   const token = await getFreshToken(env);
@@ -128,7 +199,7 @@ async function handleCallback(request, env) {
   const headers = new Headers({ "Content-Type": "text/html; charset=utf-8" });
   headers.append("Set-Cookie", expiredCookie("eve_state"));
   headers.append("Set-Cookie", expiredCookie("eve_action"));
-  return new Response(`<!doctype html><meta charset='utf-8'><h2>EVE 授权成功。</h2><p>角色：${escapeHtml(claims.name || characterId || "unknown")}</p><p>已申请合同窗口 + 发送邮件权限。</p><p><a href='/'>返回状态页</a></p>`, { status: 200, headers });
+  return new Response(`<!doctype html><meta charset='utf-8'><h2>EVE 授权成功。</h2><p>角色：${escapeHtml(claims.name || characterId || "unknown")}</p><p>已申请合同窗口 + 发送邮件 + 读取技能权限。</p><p><a href='/skills'>立即读取技能点</a> · <a href='/'>返回状态页</a></p>`, { status: 200, headers });
 }
 
 async function getFreshToken(env) {
