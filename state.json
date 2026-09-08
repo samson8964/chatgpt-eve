@@ -56715,10 +56715,10 @@
   "market_updated": "2026-09-08T23:38:51.621206+00:00",
   "next_scan": null,
   "opportunities": 3,
-  "running": true,
+  "running": false,
   "scanned": 4403,
   "stage": "等待下一次检查",
   "volume_cap": 0.06
  },
- "updated": "2026-09-08T23:41:48.818256+00:00"
+ "updated": "2026-09-08T23:41:50.232463+00:00"
 }
