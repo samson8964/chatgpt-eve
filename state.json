@@ -11131,10 +11131,10 @@
   "market_updated": "2026-09-08T06:05:52.804772+00:00",
   "next_scan": null,
   "opportunities": 4,
-  "running": true,
+  "running": false,
   "scanned": 800,
   "stage": "等待下一次检查",
   "volume_cap": 0.06
  },
- "updated": "2026-09-08T06:08:50.480608+00:00"
+ "updated": "2026-09-08T06:08:51.952133+00:00"
 }
