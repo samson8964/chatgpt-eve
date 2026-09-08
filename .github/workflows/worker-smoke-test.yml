@@ -1,0 +1,36 @@
+name: Cloudflare worker smoke test
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/worker-smoke-test.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check live Worker routes
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='https://eve-contract-opener.99617224.workers.dev'
+          health_status=$(curl -sS -o /tmp/health.txt -w '%{http_code}' "$base/health")
+          skills_status=$(curl -sS -o /tmp/skills.txt -w '%{http_code}' "$base/api/skills")
+          echo "health_status=$health_status"
+          echo "skills_status=$skills_status"
+          test "$health_status" = "200"
+          if [ "$skills_status" = "401" ]; then
+            echo 'New protected skills endpoint is live.'
+          elif [ "$skills_status" = "404" ]; then
+            echo 'Skills endpoint is not deployed yet.'
+            exit 2
+          else
+            echo "Unexpected /api/skills status: $skills_status"
+            cat /tmp/skills.txt
+            exit 1
+          fi
