@@ -13,7 +13,16 @@ jobs:
   smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    env:
+      CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
+      - name: Check Cloudflare deploy credentials
+        shell: bash
+        run: |
+          if [ -n "${CF_API_TOKEN:-}" ]; then echo 'cloudflare_api_token=present'; else echo 'cloudflare_api_token=missing'; fi
+          if [ -n "${CF_ACCOUNT_ID:-}" ]; then echo 'cloudflare_account_id=present'; else echo 'cloudflare_account_id=missing'; fi
+
       - name: Check live Worker routes
         shell: bash
         run: |
