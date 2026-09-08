@@ -31,6 +31,2545 @@
  ],
  "format": "eve-booster-monitor-v1",
  "inspected": {
+  "235817853": [],
+  "235817873": [],
+  "235817969": [],
+  "235817976": [],
+  "235817977": [],
+  "235817981": [],
+  "235817992": [],
+  "235817993": [],
+  "235817997": [],
+  "235818000": [],
+  "235818030": [],
+  "235818046": [],
+  "235818054": [],
+  "235818058": [],
+  "235818061": [],
+  "235818065": [],
+  "235818066": [],
+  "235818080": [],
+  "235818085": [],
+  "235818185": [],
+  "235818197": [],
+  "235818222": [],
+  "235818288": [
+   {
+    "is_included": true,
+    "item_id": 1055556792277,
+    "quantity": 1,
+    "record_id": 5309425824,
+    "type_id": 40519
+   }
+  ],
+  "235818295": [
+   {
+    "is_included": true,
+    "item_id": 1055556791874,
+    "quantity": 1,
+    "record_id": 5309425859,
+    "type_id": 40519
+   }
+  ],
+  "235818301": [
+   {
+    "is_included": true,
+    "item_id": 1055556788358,
+    "quantity": 1,
+    "record_id": 5309425887,
+    "type_id": 40519
+   }
+  ],
+  "235818308": [
+   {
+    "is_included": true,
+    "item_id": 1055556788086,
+    "quantity": 1,
+    "record_id": 5309425940,
+    "type_id": 40519
+   }
+  ],
+  "235818309": [
+   {
+    "is_included": true,
+    "item_id": 1055556785461,
+    "quantity": 1,
+    "record_id": 5309425941,
+    "type_id": 40519
+   }
+  ],
+  "235818312": [
+   {
+    "is_included": true,
+    "item_id": 1055556792614,
+    "quantity": 1,
+    "record_id": 5309426007,
+    "type_id": 40519
+   }
+  ],
+  "235818316": [
+   {
+    "is_included": true,
+    "item_id": 1055556785705,
+    "quantity": 1,
+    "record_id": 5309426067,
+    "type_id": 40519
+   }
+  ],
+  "235818319": [
+   {
+    "is_included": true,
+    "item_id": 1055556789776,
+    "quantity": 1,
+    "record_id": 5309426071,
+    "type_id": 40519
+   }
+  ],
+  "235818323": [
+   {
+    "is_included": true,
+    "item_id": 1055556790057,
+    "quantity": 1,
+    "record_id": 5309426084,
+    "type_id": 40519
+   }
+  ],
+  "235818326": [
+   {
+    "is_included": true,
+    "item_id": 1055556790644,
+    "quantity": 1,
+    "record_id": 5309426095,
+    "type_id": 40519
+   }
+  ],
+  "235818331": [
+   {
+    "is_included": true,
+    "item_id": 1055556786459,
+    "quantity": 1,
+    "record_id": 5309426229,
+    "type_id": 40519
+   }
+  ],
+  "235818337": [
+   {
+    "is_included": true,
+    "item_id": 1055556793549,
+    "quantity": 1,
+    "record_id": 5309426258,
+    "type_id": 40519
+   }
+  ],
+  "235818341": [
+   {
+    "is_included": true,
+    "item_id": 1055556794026,
+    "quantity": 1,
+    "record_id": 5309426294,
+    "type_id": 40519
+   }
+  ],
+  "235818347": [
+   {
+    "is_included": true,
+    "item_id": 1055556789429,
+    "quantity": 1,
+    "record_id": 5309426308,
+    "type_id": 40519
+   }
+  ],
+  "235818352": [
+   {
+    "is_included": true,
+    "item_id": 1055556791460,
+    "quantity": 1,
+    "record_id": 5309426333,
+    "type_id": 40519
+   }
+  ],
+  "235818353": [],
+  "235818354": [
+   {
+    "is_included": true,
+    "item_id": 1055556787780,
+    "quantity": 1,
+    "record_id": 5309426335,
+    "type_id": 40519
+   }
+  ],
+  "235818359": [],
+  "235818362": [
+   {
+    "is_included": true,
+    "item_id": 1055556788700,
+    "quantity": 1,
+    "record_id": 5309426370,
+    "type_id": 40519
+   }
+  ],
+  "235818365": [
+   {
+    "is_included": true,
+    "item_id": 1055556787152,
+    "quantity": 1,
+    "record_id": 5309426386,
+    "type_id": 40519
+   }
+  ],
+  "235818371": [
+   {
+    "is_included": true,
+    "item_id": 1055556790999,
+    "quantity": 1,
+    "record_id": 5309426470,
+    "type_id": 40519
+   }
+  ],
+  "235818375": [
+   {
+    "is_included": true,
+    "item_id": 1018757741068,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309426481,
+    "time_efficiency": 20,
+    "type_id": 1067
+   }
+  ],
+  "235818380": [
+   {
+    "is_included": true,
+    "item_id": 1055556789086,
+    "quantity": 1,
+    "record_id": 5309426499,
+    "type_id": 40519
+   }
+  ],
+  "235818385": [
+   {
+    "is_included": true,
+    "item_id": 1055556793289,
+    "quantity": 1,
+    "record_id": 5309426596,
+    "type_id": 40519
+   }
+  ],
+  "235818389": [
+   {
+    "is_included": true,
+    "item_id": 1055556792947,
+    "quantity": 1,
+    "record_id": 5309426687,
+    "type_id": 40519
+   }
+  ],
+  "235818392": [
+   {
+    "is_included": true,
+    "item_id": 1055556787483,
+    "quantity": 1,
+    "record_id": 5309426734,
+    "type_id": 40519
+   }
+  ],
+  "235818397": [
+   {
+    "is_included": true,
+    "item_id": 1055556786837,
+    "quantity": 1,
+    "record_id": 5309426774,
+    "type_id": 40519
+   }
+  ],
+  "235818402": [
+   {
+    "is_included": true,
+    "item_id": 1055556786070,
+    "quantity": 1,
+    "record_id": 5309426783,
+    "type_id": 40519
+   }
+  ],
+  "235818406": [
+   {
+    "is_included": true,
+    "item_id": 1024178543046,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309426787,
+    "time_efficiency": 20,
+    "type_id": 4394
+   }
+  ],
+  "235818409": [
+   {
+    "is_included": true,
+    "item_id": 1055556784501,
+    "quantity": 1,
+    "record_id": 5309426854,
+    "type_id": 40519
+   }
+  ],
+  "235818420": [
+   {
+    "is_included": true,
+    "item_id": 1009992850942,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309427085,
+    "time_efficiency": 20,
+    "type_id": 26759
+   }
+  ],
+  "235818421": [],
+  "235818426": [],
+  "235818427": [
+   {
+    "is_included": true,
+    "item_id": 1009992853257,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309427230,
+    "time_efficiency": 20,
+    "type_id": 26759
+   }
+  ],
+  "235818437": [
+   {
+    "is_included": true,
+    "item_id": 1027973161425,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309427281,
+    "time_efficiency": 20,
+    "type_id": 788
+   }
+  ],
+  "235818447": [
+   {
+    "is_included": true,
+    "item_id": 1027973161259,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309427520,
+    "time_efficiency": 20,
+    "type_id": 788
+   }
+  ],
+  "235818521": [],
+  "235818533": [],
+  "235818543": [],
+  "235818571": [
+   {
+    "is_included": true,
+    "item_id": 1032908099002,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309430415,
+    "time_efficiency": 20,
+    "type_id": 12055
+   }
+  ],
+  "235818582": [
+   {
+    "is_included": true,
+    "item_id": 1044639931118,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309430442,
+    "time_efficiency": 20,
+    "type_id": 22577
+   }
+  ],
+  "235818588": [
+   {
+    "is_included": true,
+    "item_id": 1028902347184,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309430449,
+    "time_efficiency": 20,
+    "type_id": 29046
+   }
+  ],
+  "235818601": [
+   {
+    "is_included": true,
+    "item_id": 1032414735058,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309430557,
+    "time_efficiency": 20,
+    "type_id": 43911
+   }
+  ],
+  "235818606": [
+   {
+    "is_included": true,
+    "item_id": 1032704745066,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309430596,
+    "time_efficiency": 20,
+    "type_id": 29058
+   }
+  ],
+  "235818623": [
+   {
+    "is_included": true,
+    "item_id": 1022857293843,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309430800,
+    "time_efficiency": 20,
+    "type_id": 29062
+   }
+  ],
+  "235818627": [
+   {
+    "is_included": true,
+    "item_id": 1051576879965,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309430863,
+    "time_efficiency": 20,
+    "type_id": 33006
+   }
+  ],
+  "235818632": [
+   {
+    "is_included": true,
+    "item_id": 1052809736813,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309430906,
+    "time_efficiency": 20,
+    "type_id": 33006
+   }
+  ],
+  "235818634": [
+   {
+    "is_included": true,
+    "item_id": 1023457397059,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309430917,
+    "time_efficiency": 20,
+    "type_id": 26005
+   }
+  ],
+  "235818637": [
+   {
+    "is_included": true,
+    "item_id": 1028902347192,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309430981,
+    "time_efficiency": 20,
+    "type_id": 29066
+   }
+  ],
+  "235818639": [
+   {
+    "is_included": true,
+    "item_id": 1023749733004,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309430987,
+    "time_efficiency": 20,
+    "type_id": 26027
+   }
+  ],
+  "235818642": [
+   {
+    "is_included": true,
+    "item_id": 513049770,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309430992,
+    "time_efficiency": 20,
+    "type_id": 17669
+   }
+  ],
+  "235818649": [
+   {
+    "is_included": true,
+    "item_id": 1042289028450,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309431070,
+    "time_efficiency": 20,
+    "type_id": 26085
+   }
+  ],
+  "235818655": [
+   {
+    "is_included": true,
+    "item_id": 1052264880187,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309431135,
+    "time_efficiency": 20,
+    "type_id": 41355
+   }
+  ],
+  "235818658": [
+   {
+    "is_included": true,
+    "item_id": 513049815,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309431138,
+    "time_efficiency": 20,
+    "type_id": 17671
+   }
+  ],
+  "235818660": [
+   {
+    "is_included": true,
+    "item_id": 1028828839583,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309431142,
+    "time_efficiency": 20,
+    "type_id": 25919
+   }
+  ],
+  "235818669": [
+   {
+    "is_included": true,
+    "item_id": 1032906306037,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309431189,
+    "time_efficiency": 20,
+    "type_id": 37621
+   }
+  ],
+  "235818679": [
+   {
+    "is_included": true,
+    "item_id": 1052264900966,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309431412,
+    "time_efficiency": 20,
+    "type_id": 47243
+   }
+  ],
+  "235818692": [
+   {
+    "is_included": true,
+    "item_id": 1023457132707,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309431526,
+    "time_efficiency": 20,
+    "type_id": 26021
+   }
+  ],
+  "235818696": [],
+  "235818699": [],
+  "235818704": [],
+  "235818708": [],
+  "235818717": [],
+  "235818722": [
+   {
+    "is_included": true,
+    "item_id": 1052595907897,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309432343,
+    "time_efficiency": 20,
+    "type_id": 33008
+   }
+  ],
+  "235818725": [
+   {
+    "is_included": true,
+    "item_id": 1051001690678,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309432349,
+    "time_efficiency": 20,
+    "type_id": 33008
+   }
+  ],
+  "235818735": [
+   {
+    "is_included": true,
+    "item_id": 1004683589175,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309432443,
+    "time_efficiency": 20,
+    "type_id": 18055
+   }
+  ],
+  "235818747": [
+   {
+    "is_included": true,
+    "item_id": 1049560048685,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309432465,
+    "time_efficiency": 20,
+    "type_id": 33010
+   }
+  ],
+  "235818749": [
+   {
+    "is_included": true,
+    "item_id": 1054145476830,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309432476,
+    "time_efficiency": 20,
+    "type_id": 33010
+   }
+  ],
+  "235818751": [
+   {
+    "is_included": true,
+    "item_id": 1032419795996,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309432528,
+    "time_efficiency": 20,
+    "type_id": 42882
+   }
+  ],
+  "235818758": [
+   {
+    "is_included": true,
+    "item_id": 1051293315632,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309432551,
+    "time_efficiency": 20,
+    "type_id": 32860
+   }
+  ],
+  "235818761": [
+   {
+    "is_included": true,
+    "item_id": 1050745480522,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309432597,
+    "time_efficiency": 20,
+    "type_id": 32860
+   }
+  ],
+  "235818796": [
+   {
+    "is_included": true,
+    "item_id": 1053654350449,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309433171,
+    "time_efficiency": 20,
+    "type_id": 32858
+   }
+  ],
+  "235818802": [
+   {
+    "is_included": true,
+    "item_id": 1052991256382,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309433248,
+    "time_efficiency": 20,
+    "type_id": 24349
+   }
+  ],
+  "235818817": [
+   {
+    "is_included": true,
+    "item_id": 1038240718129,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309433408,
+    "time_efficiency": 20,
+    "type_id": 61217
+   }
+  ],
+  "235818832": [
+   {
+    "is_included": true,
+    "item_id": 1054766770184,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309433616,
+    "time_efficiency": 20,
+    "type_id": 27309
+   }
+  ],
+  "235818836": [
+   {
+    "is_included": true,
+    "item_id": 1054604029382,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309433652,
+    "time_efficiency": 20,
+    "type_id": 27309
+   }
+  ],
+  "235818843": [
+   {
+    "is_included": true,
+    "item_id": 1053374555601,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309433743,
+    "time_efficiency": 20,
+    "type_id": 11280
+   }
+  ],
+  "235818855": [
+   {
+    "is_included": true,
+    "item_id": 1053368601892,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309433833,
+    "time_efficiency": 20,
+    "type_id": 10841
+   }
+  ],
+  "235818858": [],
+  "235818859": [],
+  "235818861": [
+   {
+    "is_included": true,
+    "item_id": 1051830134508,
+    "material_efficiency": 9,
+    "quantity": 1,
+    "record_id": 5309433861,
+    "time_efficiency": 20,
+    "type_id": 1124
+   }
+  ],
+  "235818863": [],
+  "235818871": [
+   {
+    "is_included": true,
+    "item_id": 1053425774290,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309434947,
+    "time_efficiency": 0,
+    "type_id": 790
+   }
+  ],
+  "235818876": [
+   {
+    "is_included": true,
+    "item_id": 1053368684360,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309435046,
+    "time_efficiency": 20,
+    "type_id": 12055
+   }
+  ],
+  "235818885": [
+   {
+    "is_included": true,
+    "item_id": 1053531044702,
+    "material_efficiency": 8,
+    "quantity": 1,
+    "record_id": 5309435167,
+    "time_efficiency": 16,
+    "type_id": 41644
+   }
+  ],
+  "235818904": [
+   {
+    "is_included": true,
+    "item_id": 1051483143028,
+    "material_efficiency": 6,
+    "quantity": 1,
+    "record_id": 5309435605,
+    "time_efficiency": 10,
+    "type_id": 40672
+   }
+  ],
+  "235818917": [
+   {
+    "is_included": true,
+    "item_id": 1054616477907,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309435878,
+    "time_efficiency": 0,
+    "type_id": 13321
+   }
+  ],
+  "235818928": [
+   {
+    "is_included": true,
+    "item_id": 1053531009137,
+    "material_efficiency": 9,
+    "quantity": 1,
+    "record_id": 5309436088,
+    "time_efficiency": 18,
+    "type_id": 936
+   }
+  ],
+  "235818933": [
+   {
+    "is_included": true,
+    "item_id": 1054145607602,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309436128,
+    "time_efficiency": 20,
+    "type_id": 11872
+   }
+  ],
+  "235818935": [
+   {
+    "is_included": true,
+    "item_id": 1051633603956,
+    "material_efficiency": 9,
+    "quantity": 1,
+    "record_id": 5309436240,
+    "time_efficiency": 18,
+    "type_id": 840
+   }
+  ],
+  "235818936": [
+   {
+    "is_included": true,
+    "item_id": 1053629882635,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309436241,
+    "time_efficiency": 20,
+    "type_id": 11872
+   }
+  ],
+  "235818941": [],
+  "235818948": [
+   {
+    "is_included": true,
+    "item_id": 1051483440688,
+    "material_efficiency": 9,
+    "quantity": 1,
+    "record_id": 5309436320,
+    "time_efficiency": 18,
+    "type_id": 847
+   }
+  ],
+  "235819018": [
+   {
+    "is_included": true,
+    "item_id": 1024613955630,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309438455,
+    "time_efficiency": 20,
+    "type_id": 27913
+   }
+  ],
+  "235819022": [],
+  "235819036": [],
+  "235819048": [],
+  "235819053": [],
+  "235819055": [],
+  "235819062": [],
+  "235819081": [],
+  "235819165": [],
+  "235819200": [],
+  "235819216": [],
+  "235819253": [],
+  "235819263": [],
+  "235819264": [],
+  "235819266": [],
+  "235819275": [],
+  "235819302": [],
+  "235819303": [],
+  "235819306": [],
+  "235819324": [
+   {
+    "is_included": true,
+    "item_id": 1054189300429,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309445659,
+    "time_efficiency": 20,
+    "type_id": 3243
+   }
+  ],
+  "235819390": [],
+  "235819392": [],
+  "235819395": [],
+  "235819413": [],
+  "235819417": [],
+  "235819422": [],
+  "235819428": [],
+  "235819435": [],
+  "235819559": [],
+  "235819576": [],
+  "235819747": [],
+  "235819751": [],
+  "235819783": [],
+  "235819790": [],
+  "235819812": [],
+  "235819814": [],
+  "235819815": [],
+  "235819822": [],
+  "235819828": [],
+  "235819833": [],
+  "235819837": [],
+  "235819842": [],
+  "235819845": [],
+  "235819865": [],
+  "235819881": [],
+  "235819886": [],
+  "235819887": [],
+  "235819893": [],
+  "235819903": [],
+  "235819939": [],
+  "235819950": [],
+  "235819954": [],
+  "235819963": [],
+  "235819985": [],
+  "235819997": [],
+  "235820004": [],
+  "235820015": [],
+  "235820020": [],
+  "235820027": [],
+  "235820029": [],
+  "235820046": [],
+  "235820055": [],
+  "235820062": [],
+  "235820071": [],
+  "235820074": [],
+  "235820087": [],
+  "235820105": [],
+  "235820114": [],
+  "235820123": [],
+  "235820124": [],
+  "235820135": [],
+  "235820136": [],
+  "235820148": [],
+  "235820150": [],
+  "235820164": [],
+  "235820172": [],
+  "235820191": [],
+  "235820205": [],
+  "235820221": [],
+  "235820228": [
+   {
+    "is_included": true,
+    "item_id": 1054773597706,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309469635,
+    "time_efficiency": 20,
+    "type_id": 11873
+   }
+  ],
+  "235820234": [
+   {
+    "is_included": true,
+    "item_id": 1054773611649,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309469788,
+    "time_efficiency": 20,
+    "type_id": 11873
+   }
+  ],
+  "235820242": [],
+  "235820243": [],
+  "235820252": [
+   {
+    "is_included": true,
+    "item_id": 1054298111141,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309469912,
+    "time_efficiency": 20,
+    "type_id": 11870
+   }
+  ],
+  "235820264": [],
+  "235820268": [],
+  "235820270": [
+   {
+    "is_included": true,
+    "item_id": 1051068378370,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309470519,
+    "time_efficiency": 20,
+    "type_id": 21020
+   }
+  ],
+  "235820271": [
+   {
+    "is_included": true,
+    "item_id": 1052802740899,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309470520,
+    "time_efficiency": 20,
+    "type_id": 11859
+   }
+  ],
+  "235820273": [
+   {
+    "is_included": true,
+    "item_id": 1052595762576,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309470591,
+    "time_efficiency": 20,
+    "type_id": 11859
+   }
+  ],
+  "235820285": [],
+  "235820287": [
+   {
+    "is_included": true,
+    "item_id": 1053832361561,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309471578,
+    "time_efficiency": 20,
+    "type_id": 11887
+   }
+  ],
+  "235820290": [
+   {
+    "is_included": true,
+    "item_id": 1053832360049,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309471581,
+    "time_efficiency": 20,
+    "type_id": 11887
+   }
+  ],
+  "235820293": [],
+  "235820305": [
+   {
+    "is_included": true,
+    "item_id": 1052156390756,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309471846,
+    "time_efficiency": 20,
+    "type_id": 11889
+   }
+  ],
+  "235820307": [
+   {
+    "is_included": true,
+    "item_id": 1053431078019,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309471848,
+    "time_efficiency": 20,
+    "type_id": 11889
+   }
+  ],
+  "235820308": [],
+  "235820330": [],
+  "235820344": [
+   {
+    "is_included": true,
+    "item_id": 1051457634982,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309474814,
+    "time_efficiency": 20,
+    "type_id": 11890
+   }
+  ],
+  "235820346": [
+   {
+    "is_included": true,
+    "item_id": 1054985044535,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309474833,
+    "time_efficiency": 20,
+    "type_id": 11890
+   }
+  ],
+  "235820366": [],
+  "235820388": [],
+  "235820393": [],
+  "235820394": [],
+  "235820396": [],
+  "235820399": [],
+  "235820402": [],
+  "235820411": [],
+  "235820416": [],
+  "235820439": [],
+  "235820446": [],
+  "235820562": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055261780516,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309479739,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 33158
+   },
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055261780517,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309479740,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 33158
+   },
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055261780518,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309479741,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 33158
+   },
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055261780519,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309479742,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 33158
+   },
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055457126030,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309479743,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 33158
+   }
+  ],
+  "235820572": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1052360749402,
+    "material_efficiency": 5,
+    "quantity": 1,
+    "record_id": 5309479873,
+    "runs": 5,
+    "time_efficiency": 10,
+    "type_id": 40759
+   }
+  ],
+  "235820592": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054938557047,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309480056,
+    "runs": 1,
+    "time_efficiency": 14,
+    "type_id": 20184
+   }
+  ],
+  "235820598": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1053362359674,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309480093,
+    "runs": 1,
+    "time_efficiency": 14,
+    "type_id": 20184
+   }
+  ],
+  "235820602": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1053362359711,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309480157,
+    "runs": 1,
+    "time_efficiency": 14,
+    "type_id": 20184
+   }
+  ],
+  "235820610": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054938557040,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309480228,
+    "runs": 1,
+    "time_efficiency": 14,
+    "type_id": 20184
+   }
+  ],
+  "235820624": [],
+  "235820632": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055391032018,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309481427,
+    "runs": 1,
+    "time_efficiency": 10,
+    "type_id": 23736
+   }
+  ],
+  "235820642": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055327059534,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309482484,
+    "runs": 50,
+    "time_efficiency": 20,
+    "type_id": 41371
+   }
+  ],
+  "235820648": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055327059520,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309482563,
+    "runs": 50,
+    "time_efficiency": 20,
+    "type_id": 41371
+   }
+  ],
+  "235820651": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055187082913,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309482607,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 20704
+   }
+  ],
+  "235820655": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055327059522,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309482653,
+    "runs": 50,
+    "time_efficiency": 20,
+    "type_id": 41371
+   }
+  ],
+  "235820657": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055209617712,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309482665,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 20704
+   }
+  ],
+  "235820667": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055187082914,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309483610,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 20704
+   }
+  ],
+  "235820688": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1051054783162,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309484013,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 17479
+   }
+  ],
+  "235820692": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1053542228965,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309484019,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 17479
+   }
+  ],
+  "235820695": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1053542228966,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309484052,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 17479
+   }
+  ],
+  "235820699": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1051054783175,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309484512,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 17479
+   }
+  ],
+  "235820709": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055327059329,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309485879,
+    "runs": 50,
+    "time_efficiency": 20,
+    "type_id": 32345
+   }
+  ],
+  "235820714": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055327059337,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309485926,
+    "runs": 50,
+    "time_efficiency": 20,
+    "type_id": 32345
+   }
+  ],
+  "235820719": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055327059327,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309485930,
+    "runs": 50,
+    "time_efficiency": 20,
+    "type_id": 32345
+   }
+  ],
+  "235820725": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055327059331,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309485976,
+    "runs": 50,
+    "time_efficiency": 20,
+    "type_id": 32345
+   }
+  ],
+  "235820763": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054193051611,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309486409,
+    "runs": 5,
+    "time_efficiency": 10,
+    "type_id": 41666
+   }
+  ],
+  "235820771": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054193051609,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309487100,
+    "runs": 5,
+    "time_efficiency": 10,
+    "type_id": 41666
+   }
+  ],
+  "235820773": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054862539814,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309487201,
+    "runs": 50,
+    "time_efficiency": 0,
+    "type_id": 25510
+   },
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055032816615,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309487202,
+    "runs": 50,
+    "time_efficiency": 0,
+    "type_id": 25510
+   }
+  ],
+  "235820787": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054030985538,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309488394,
+    "runs": 50,
+    "time_efficiency": 0,
+    "type_id": 25510
+   },
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054876818384,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309488395,
+    "runs": 50,
+    "time_efficiency": 0,
+    "type_id": 25510
+   }
+  ],
+  "235820798": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055032816614,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309488578,
+    "runs": 50,
+    "time_efficiency": 0,
+    "type_id": 25510
+   },
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055032816616,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309488579,
+    "runs": 50,
+    "time_efficiency": 0,
+    "type_id": 25510
+   }
+  ],
+  "235820806": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055327064423,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309490449,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 24546
+   }
+  ],
+  "235820807": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054929866629,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309490450,
+    "runs": 50,
+    "time_efficiency": 0,
+    "type_id": 25510
+   },
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055032816611,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309490451,
+    "runs": 50,
+    "time_efficiency": 0,
+    "type_id": 25510
+   }
+  ],
+  "235820809": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055327064441,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309490453,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 24546
+   }
+  ],
+  "235820813": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055327064455,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309490468,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 24546
+   }
+  ],
+  "235820815": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055327064438,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309490819,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 24546
+   }
+  ],
+  "235820835": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054153935523,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309491251,
+    "runs": 3,
+    "time_efficiency": 20,
+    "type_id": 63164
+   }
+  ],
+  "235820838": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054153935517,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309491347,
+    "runs": 3,
+    "time_efficiency": 20,
+    "type_id": 63164
+   }
+  ],
+  "235820840": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054153935519,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309491364,
+    "runs": 3,
+    "time_efficiency": 20,
+    "type_id": 63164
+   }
+  ],
+  "235820844": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054153935525,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309491562,
+    "runs": 3,
+    "time_efficiency": 20,
+    "type_id": 63164
+   }
+  ],
+  "235820845": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055140064261,
+    "material_efficiency": 4,
+    "quantity": 1,
+    "record_id": 5309491563,
+    "runs": 11,
+    "time_efficiency": 14,
+    "type_id": 41353
+   }
+  ],
+  "235820847": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055140064260,
+    "material_efficiency": 4,
+    "quantity": 1,
+    "record_id": 5309491565,
+    "runs": 11,
+    "time_efficiency": 14,
+    "type_id": 41353
+   }
+  ],
+  "235820861": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055140064348,
+    "material_efficiency": 4,
+    "quantity": 1,
+    "record_id": 5309492001,
+    "runs": 11,
+    "time_efficiency": 14,
+    "type_id": 41370
+   }
+  ],
+  "235820865": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055140064347,
+    "material_efficiency": 4,
+    "quantity": 1,
+    "record_id": 5309492030,
+    "runs": 11,
+    "time_efficiency": 14,
+    "type_id": 41370
+   }
+  ],
+  "235820873": [
+   {
+    "is_included": true,
+    "item_id": 1798275959,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309492044,
+    "time_efficiency": 20,
+    "type_id": 26061
+   }
+  ],
+  "235820894": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055523143029,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309492827,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 33523
+   }
+  ],
+  "235820942": [
+   {
+    "is_included": true,
+    "item_id": 1113354757,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309494099,
+    "time_efficiency": 20,
+    "type_id": 31106
+   }
+  ],
+  "235820973": [
+   {
+    "is_included": true,
+    "item_id": 1024901668793,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309494846,
+    "time_efficiency": 20,
+    "type_id": 60341
+   }
+  ],
+  "235821026": [
+   {
+    "is_included": true,
+    "item_id": 1054996243406,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309496340,
+    "time_efficiency": 20,
+    "type_id": 29046
+   }
+  ],
+  "235821040": [
+   {
+    "is_included": true,
+    "item_id": 1050564728926,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309496827,
+    "time_efficiency": 20,
+    "type_id": 29058
+   }
+  ],
+  "235821055": [
+   {
+    "is_included": true,
+    "item_id": 1054861460098,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309497159,
+    "time_efficiency": 20,
+    "type_id": 29062
+   }
+  ],
+  "235821072": [
+   {
+    "is_included": true,
+    "item_id": 1055366708696,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309497504,
+    "time_efficiency": 20,
+    "type_id": 29066
+   }
+  ],
+  "235821081": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1048962451984,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309497653,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 57524
+   }
+  ],
+  "235821086": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1048962451985,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309497667,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 57524
+   }
+  ],
+  "235821089": [
+   {
+    "is_included": true,
+    "item_id": 1050898623811,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309497753,
+    "time_efficiency": 20,
+    "type_id": 29084
+   }
+  ],
+  "235821106": [
+   {
+    "is_included": true,
+    "item_id": 1055366653010,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309497997,
+    "time_efficiency": 20,
+    "type_id": 29102
+   }
+  ],
+  "235821127": [
+   {
+    "is_included": true,
+    "item_id": 1054861046695,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309499105,
+    "time_efficiency": 20,
+    "type_id": 29108
+   }
+  ],
+  "235821171": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1048557596703,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309503318,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21038
+   }
+  ],
+  "235821176": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1048557596704,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309503430,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21038
+   }
+  ],
+  "235821180": [
+   {
+    "is_included": true,
+    "item_id": 1054668022492,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309503435,
+    "time_efficiency": 20,
+    "type_id": 17346
+   }
+  ],
+  "235821195": [
+   {
+    "is_included": true,
+    "item_id": 1054909621429,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309503530,
+    "time_efficiency": 20,
+    "type_id": 17331
+   }
+  ],
+  "235821197": [
+   {
+    "is_included": true,
+    "item_id": 1033116334349,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309503536,
+    "time_efficiency": 20,
+    "type_id": 23062
+   }
+  ],
+  "235821213": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1043932986554,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309503863,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 57518
+   }
+  ],
+  "235821215": [
+   {
+    "is_included": true,
+    "item_id": 1055177182797,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309503878,
+    "time_efficiency": 20,
+    "type_id": 17329
+   }
+  ],
+  "235821219": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1046322293445,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309503988,
+    "runs": 50,
+    "time_efficiency": 0,
+    "type_id": 25323
+   }
+  ],
+  "235821230": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054691113553,
+    "material_efficiency": 8,
+    "quantity": 1,
+    "record_id": 5309504288,
+    "runs": 1,
+    "time_efficiency": 16,
+    "type_id": 23758
+   }
+  ],
+  "235821237": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1046322293443,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309504497,
+    "runs": 50,
+    "time_efficiency": 0,
+    "type_id": 25323
+   }
+  ],
+  "235821240": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1041494217285,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309504500,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 57521
+   }
+  ],
+  "235821243": [
+   {
+    "is_included": true,
+    "item_id": 1055027670724,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309504513,
+    "time_efficiency": 20,
+    "type_id": 17348
+   }
+  ],
+  "235821255": [
+   {
+    "is_included": true,
+    "item_id": 1055406353117,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309504564,
+    "time_efficiency": 20,
+    "type_id": 17345
+   }
+  ],
+  "235821265": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1052942524403,
+    "material_efficiency": 8,
+    "quantity": 1,
+    "record_id": 5309504894,
+    "runs": 1,
+    "time_efficiency": 12,
+    "type_id": 22853
+   }
+  ],
+  "235821269": [
+   {
+    "is_included": true,
+    "item_id": 1055258343530,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309504979,
+    "time_efficiency": 20,
+    "type_id": 17337
+   }
+  ],
+  "235821270": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1053879074815,
+    "material_efficiency": 8,
+    "quantity": 1,
+    "record_id": 5309504980,
+    "runs": 1,
+    "time_efficiency": 12,
+    "type_id": 22853
+   }
+  ],
+  "235821275": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055123460872,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309505031,
+    "runs": 3,
+    "time_efficiency": 0,
+    "type_id": 22900
+   }
+  ],
+  "235821281": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1048486291398,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309505174,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 973
+   }
+  ],
+  "235821282": [
+   {
+    "is_included": true,
+    "item_id": 1055471163131,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309505175,
+    "time_efficiency": 20,
+    "type_id": 17357
+   }
+  ],
+  "235821309": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1050072352868,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309505920,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 16230
+   }
+  ],
+  "235821311": [
+   {
+    "is_included": true,
+    "item_id": 1055114850847,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309505924,
+    "time_efficiency": 20,
+    "type_id": 17341
+   }
+  ],
+  "235821312": [],
+  "235821338": [
+   {
+    "is_included": true,
+    "item_id": 1055114864489,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309506609,
+    "time_efficiency": 20,
+    "type_id": 17351
+   }
+  ],
+  "235821342": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055499392423,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309506632,
+    "runs": 3,
+    "time_efficiency": 0,
+    "type_id": 23786
+   }
+  ],
+  "235821366": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1049212888307,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309507000,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 2007
+   }
+  ],
+  "235821374": [
+   {
+    "is_included": true,
+    "item_id": 1055215404100,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309507473,
+    "time_efficiency": 20,
+    "type_id": 17328
+   }
+  ],
+  "235821377": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1049642218958,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309508122,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 4305
+   }
+  ],
+  "235821403": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1047497747135,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309509269,
+    "runs": 7,
+    "time_efficiency": 20,
+    "type_id": 21956
+   }
+  ],
+  "235821408": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1047497747136,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309509276,
+    "runs": 7,
+    "time_efficiency": 20,
+    "type_id": 21956
+   }
+  ],
+  "235821419": [
+   {
+    "is_included": true,
+    "item_id": 1051960610842,
+    "quantity": 1,
+    "record_id": 5309509530,
+    "type_id": 74152
+   }
+  ],
+  "235821421": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1046998251792,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309509532,
+    "runs": 7,
+    "time_efficiency": 20,
+    "type_id": 21950
+   }
+  ],
+  "235821427": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1046998251793,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309509575,
+    "runs": 7,
+    "time_efficiency": 20,
+    "type_id": 21950
+   }
+  ],
+  "235821440": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054741537302,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309509722,
+    "runs": 200,
+    "time_efficiency": 20,
+    "type_id": 11873
+   }
+  ],
+  "235821444": [
+   {
+    "is_included": true,
+    "item_id": 1052228608473,
+    "quantity": 1,
+    "record_id": 5309509894,
+    "type_id": 46949
+   }
+  ],
+  "235821446": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055557820079,
+    "material_efficiency": 2,
+    "quantity": 1,
+    "record_id": 5309509923,
+    "runs": 1,
+    "time_efficiency": 2,
+    "type_id": 90039
+   }
+  ],
+  "235821457": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054966511339,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309510610,
+    "runs": 200,
+    "time_efficiency": 20,
+    "type_id": 11859
+   }
+  ],
+  "235821474": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055092329979,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309511771,
+    "runs": 200,
+    "time_efficiency": 20,
+    "type_id": 11887
+   }
+  ],
+  "235821487": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054741537753,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309513634,
+    "runs": 200,
+    "time_efficiency": 20,
+    "type_id": 11889
+   }
+  ],
+  "235821493": [
+   {
+    "is_included": true,
+    "item_id": 1043763152968,
+    "quantity": 2,
+    "record_id": 5309513689,
+    "type_id": 79733
+   }
+  ],
+  "235821501": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054741538328,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309514358,
+    "runs": 200,
+    "time_efficiency": 20,
+    "type_id": 11891
+   }
+  ],
+  "235821514": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1049642219819,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309514525,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 4309
+   }
+  ],
+  "235821516": [
+   {
+    "is_included": true,
+    "item_id": 1051090152171,
+    "quantity": 1,
+    "record_id": 5309514562,
+    "type_id": 78781
+   }
+  ],
+  "235821526": [
+   {
+    "is_included": true,
+    "item_id": 1032799016674,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309514602,
+    "time_efficiency": 20,
+    "type_id": 31753
+   }
+  ],
+  "235821527": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1049819189028,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309514603,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 4311
+   }
+  ],
+  "235821541": [
+   {
+    "is_included": true,
+    "item_id": 1046743781011,
+    "quantity": 1,
+    "record_id": 5309515037,
+    "type_id": 73839
+   }
+  ],
+  "235821558": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1051498536392,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309515220,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 24703
+   }
+  ],
+  "235821568": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1048739726930,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309515436,
+    "runs": 7,
+    "time_efficiency": 20,
+    "type_id": 21954
+   }
+  ],
+  "235821571": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1048739726931,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309515682,
+    "runs": 7,
+    "time_efficiency": 20,
+    "type_id": 21954
+   }
+  ],
+  "235821582": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1048739726932,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309515854,
+    "runs": 7,
+    "time_efficiency": 20,
+    "type_id": 21954
+   }
+  ],
+  "235821589": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1048830854696,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309516039,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 971
+   }
+  ],
+  "235821602": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1052374299384,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309516383,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 976
+   }
+  ],
+  "235821604": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1046223732161,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309516386,
+    "runs": 7,
+    "time_efficiency": 20,
+    "type_id": 21966
+   }
+  ],
+  "235821621": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1046998251876,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309516540,
+    "runs": 7,
+    "time_efficiency": 20,
+    "type_id": 21966
+   }
+  ],
+  "235821630": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1049188842369,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309516716,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 24701
+   }
+  ],
+  "235821652": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1048486292129,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309517517,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 687
+   }
+  ],
+  "235821673": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1049212885860,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309517823,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 969
+   }
+  ],
+  "235821680": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054741536487,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309517832,
+    "runs": 200,
+    "time_efficiency": 20,
+    "type_id": 11872
+   }
+  ],
+  "235821699": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1049582917417,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309518092,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 972
+   }
+  ],
+  "235821712": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1048486291955,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309518968,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 977
+   }
+  ],
   "235821728": [
    {
     "is_blueprint_copy": true,
@@ -157,19 +2696,6 @@
     "runs": 10,
     "time_efficiency": 20,
     "type_id": 979
-   }
-  ],
-  "235821840": [
-   {
-    "is_blueprint_copy": true,
-    "is_included": true,
-    "item_id": 1050975253164,
-    "material_efficiency": 3,
-    "quantity": 1,
-    "record_id": 5309523330,
-    "runs": 4,
-    "time_efficiency": 2,
-    "type_id": 12000
    }
   ],
   "235821846": [
@@ -329,19 +2855,6 @@
     "runs": 3,
     "time_efficiency": 0,
     "type_id": 23788
-   }
-  ],
-  "235821982": [
-   {
-    "is_blueprint_copy": true,
-    "is_included": true,
-    "item_id": 1055556505075,
-    "material_efficiency": 0,
-    "quantity": 1,
-    "record_id": 5309527713,
-    "runs": 1,
-    "time_efficiency": 0,
-    "type_id": 17931
    }
   ],
   "235821998": [
@@ -574,19 +3087,6 @@
     "runs": 1,
     "time_efficiency": 0,
     "type_id": 33547
-   }
-  ],
-  "235822391": [
-   {
-    "is_blueprint_copy": true,
-    "is_included": true,
-    "item_id": 1055119360938,
-    "material_efficiency": 0,
-    "quantity": 1,
-    "record_id": 5309536858,
-    "runs": 10,
-    "time_efficiency": 0,
-    "type_id": 28293
    }
   ],
   "235822400": [
@@ -1378,19 +3878,6 @@
     "type_id": 996
    }
   ],
-  "235823793": [
-   {
-    "is_blueprint_copy": true,
-    "is_included": true,
-    "item_id": 1055472112248,
-    "material_efficiency": 10,
-    "quantity": 1,
-    "record_id": 5309578718,
-    "runs": 40,
-    "time_efficiency": 20,
-    "type_id": 21038
-   }
-  ],
   "235823798": [
    {
     "is_blueprint_copy": true,
@@ -2042,32 +4529,6 @@
     "type_id": 40741
    }
   ],
-  "235825146": [
-   {
-    "is_blueprint_copy": true,
-    "is_included": true,
-    "item_id": 1055448545629,
-    "material_efficiency": 10,
-    "quantity": 1,
-    "record_id": 5309622023,
-    "runs": 10,
-    "time_efficiency": 20,
-    "type_id": 999
-   }
-  ],
-  "235825151": [
-   {
-    "is_blueprint_copy": true,
-    "is_included": true,
-    "item_id": 1055448545630,
-    "material_efficiency": 10,
-    "quantity": 1,
-    "record_id": 5309622252,
-    "runs": 10,
-    "time_efficiency": 20,
-    "type_id": 999
-   }
-  ],
   "235825157": [
    {
     "is_blueprint_copy": true,
@@ -2428,19 +4889,6 @@
     "runs": 1,
     "time_efficiency": 0,
     "type_id": 45545
-   }
-  ],
-  "235826023": [
-   {
-    "is_blueprint_copy": true,
-    "is_included": true,
-    "item_id": 1055162154548,
-    "material_efficiency": 0,
-    "quantity": 1,
-    "record_id": 5309645561,
-    "runs": 10,
-    "time_efficiency": 0,
-    "type_id": 33984
    }
   ],
   "235826080": [
@@ -2820,19 +5268,6 @@
     "type_id": 16234
    }
   ],
-  "235826220": [
-   {
-    "is_blueprint_copy": true,
-    "is_included": true,
-    "item_id": 1055525062885,
-    "material_efficiency": 0,
-    "quantity": 1,
-    "record_id": 5309648672,
-    "runs": 1,
-    "time_efficiency": 0,
-    "type_id": 33703
-   }
-  ],
   "235826222": [
    {
     "is_blueprint_copy": true,
@@ -3091,19 +5526,6 @@
     "runs": 1,
     "time_efficiency": 20,
     "type_id": 996
-   }
-  ],
-  "235826324": [
-   {
-    "is_blueprint_copy": true,
-    "is_included": true,
-    "item_id": 1055514773545,
-    "material_efficiency": 0,
-    "quantity": 1,
-    "record_id": 5309650677,
-    "runs": 49,
-    "time_efficiency": 0,
-    "type_id": 4404
    }
   ],
   "235826326": [
@@ -5422,19 +7844,6 @@
     "type_id": 41535
    }
   ],
-  "235828530": [
-   {
-    "is_blueprint_copy": true,
-    "is_included": true,
-    "item_id": 1055456110986,
-    "material_efficiency": 0,
-    "quantity": 1,
-    "record_id": 5309714579,
-    "runs": 1,
-    "time_efficiency": 0,
-    "type_id": 33817
-   }
-  ],
   "235828534": [
    {
     "is_blueprint_copy": true,
@@ -6552,28 +8961,6 @@
     "type_id": 28607
    }
   ],
-  "235830095": [
-   {
-    "is_included": true,
-    "item_id": 1015454675308,
-    "material_efficiency": 10,
-    "quantity": 1,
-    "record_id": 5309758944,
-    "time_efficiency": 20,
-    "type_id": 13000
-   }
-  ],
-  "235830165": [
-   {
-    "is_included": true,
-    "item_id": 1023014859657,
-    "material_efficiency": 10,
-    "quantity": 1,
-    "record_id": 5309760956,
-    "time_efficiency": 20,
-    "type_id": 971
-   }
-  ],
   "235830205": [
    {
     "is_included": true,
@@ -6583,175 +8970,6 @@
     "record_id": 5309762307,
     "time_efficiency": 14,
     "type_id": 43910
-   }
-  ],
-  "235830232": [
-   {
-    "is_blueprint_copy": true,
-    "is_included": true,
-    "item_id": 1055516896582,
-    "material_efficiency": 10,
-    "quantity": 1,
-    "record_id": 5309763219,
-    "runs": 1,
-    "time_efficiency": 20,
-    "type_id": 81043
-   }
-  ],
-  "235830235": [
-   {
-    "is_blueprint_copy": true,
-    "is_included": true,
-    "item_id": 1055496271675,
-    "material_efficiency": 10,
-    "quantity": 1,
-    "record_id": 5309763326,
-    "runs": 1,
-    "time_efficiency": 20,
-    "type_id": 81043
-   }
-  ],
-  "235830241": [
-   {
-    "is_blueprint_copy": true,
-    "is_included": true,
-    "item_id": 1055496271674,
-    "material_efficiency": 10,
-    "quantity": 1,
-    "record_id": 5309763404,
-    "runs": 1,
-    "time_efficiency": 20,
-    "type_id": 81043
-   }
-  ],
-  "235830245": [
-   {
-    "is_blueprint_copy": true,
-    "is_included": true,
-    "item_id": 1055496271673,
-    "material_efficiency": 10,
-    "quantity": 1,
-    "record_id": 5309763475,
-    "runs": 1,
-    "time_efficiency": 20,
-    "type_id": 81043
-   }
-  ],
-  "235830251": [
-   {
-    "is_blueprint_copy": true,
-    "is_included": true,
-    "item_id": 1055496271671,
-    "material_efficiency": 10,
-    "quantity": 1,
-    "record_id": 5309764051,
-    "runs": 1,
-    "time_efficiency": 20,
-    "type_id": 81043
-   }
-  ],
-  "235830254": [
-   {
-    "is_blueprint_copy": true,
-    "is_included": true,
-    "item_id": 1055496271670,
-    "material_efficiency": 10,
-    "quantity": 1,
-    "record_id": 5309764055,
-    "runs": 1,
-    "time_efficiency": 20,
-    "type_id": 81043
-   }
-  ],
-  "235830261": [
-   {
-    "is_blueprint_copy": true,
-    "is_included": true,
-    "item_id": 1055496271669,
-    "material_efficiency": 10,
-    "quantity": 1,
-    "record_id": 5309764122,
-    "runs": 1,
-    "time_efficiency": 20,
-    "type_id": 81043
-   }
-  ],
-  "235830264": [
-   {
-    "is_blueprint_copy": true,
-    "is_included": true,
-    "item_id": 1055496271668,
-    "material_efficiency": 10,
-    "quantity": 1,
-    "record_id": 5309764129,
-    "runs": 1,
-    "time_efficiency": 20,
-    "type_id": 81043
-   }
-  ],
-  "235830303": [
-   {
-    "is_blueprint_copy": true,
-    "is_included": true,
-    "item_id": 1055496271666,
-    "material_efficiency": 10,
-    "quantity": 1,
-    "record_id": 5309764838,
-    "runs": 1,
-    "time_efficiency": 20,
-    "type_id": 81043
-   }
-  ],
-  "235830309": [
-   {
-    "is_blueprint_copy": true,
-    "is_included": true,
-    "item_id": 1055496271665,
-    "material_efficiency": 10,
-    "quantity": 1,
-    "record_id": 5309765035,
-    "runs": 1,
-    "time_efficiency": 20,
-    "type_id": 81043
-   }
-  ],
-  "235830314": [
-   {
-    "is_blueprint_copy": true,
-    "is_included": true,
-    "item_id": 1055496271664,
-    "material_efficiency": 10,
-    "quantity": 1,
-    "record_id": 5309765196,
-    "runs": 1,
-    "time_efficiency": 20,
-    "type_id": 81043
-   }
-  ],
-  "235830319": [
-   {
-    "is_blueprint_copy": true,
-    "is_included": true,
-    "item_id": 1055496271663,
-    "material_efficiency": 10,
-    "quantity": 1,
-    "record_id": 5309765203,
-    "runs": 1,
-    "time_efficiency": 20,
-    "type_id": 81043
-   }
-  ],
-  "235830322": [
-   {
-    "is_blueprint_copy": true,
-    "is_included": true,
-    "item_id": 1055496271662,
-    "material_efficiency": 10,
-    "quantity": 1,
-    "record_id": 5309765224,
-    "runs": 1,
-    "time_efficiency": 20,
-    "type_id": 81043
    }
   ],
   "235830324": [
@@ -6765,58 +8983,6 @@
     "runs": 10,
     "time_efficiency": 20,
     "type_id": 4307
-   }
-  ],
-  "235830325": [
-   {
-    "is_blueprint_copy": true,
-    "is_included": true,
-    "item_id": 1055496271661,
-    "material_efficiency": 10,
-    "quantity": 1,
-    "record_id": 5309765243,
-    "runs": 1,
-    "time_efficiency": 20,
-    "type_id": 81043
-   }
-  ],
-  "235830328": [
-   {
-    "is_blueprint_copy": true,
-    "is_included": true,
-    "item_id": 1055496271660,
-    "material_efficiency": 10,
-    "quantity": 1,
-    "record_id": 5309765465,
-    "runs": 1,
-    "time_efficiency": 20,
-    "type_id": 81043
-   }
-  ],
-  "235830330": [
-   {
-    "is_blueprint_copy": true,
-    "is_included": true,
-    "item_id": 1055496271659,
-    "material_efficiency": 10,
-    "quantity": 1,
-    "record_id": 5309765504,
-    "runs": 1,
-    "time_efficiency": 20,
-    "type_id": 81043
-   }
-  ],
-  "235830334": [
-   {
-    "is_blueprint_copy": true,
-    "is_included": true,
-    "item_id": 1055496271658,
-    "material_efficiency": 10,
-    "quantity": 1,
-    "record_id": 5309765533,
-    "runs": 1,
-    "time_efficiency": 20,
-    "type_id": 81043
    }
   ],
   "235830460": [
@@ -7421,19 +9587,6 @@
     "type_id": 81922
    }
   ],
-  "235830654": [
-   {
-    "is_blueprint_copy": true,
-    "is_included": true,
-    "item_id": 1051383971355,
-    "material_efficiency": 7,
-    "quantity": 1,
-    "record_id": 5309772638,
-    "runs": 1,
-    "time_efficiency": 18,
-    "type_id": 81922
-   }
-  ],
   "235830656": [
    {
     "is_included": true,
@@ -7601,19 +9754,6 @@
     "type_id": 21964
    }
   ],
-  "235830714": [
-   {
-    "is_blueprint_copy": true,
-    "is_included": true,
-    "item_id": 1055561418742,
-    "material_efficiency": 0,
-    "quantity": 1,
-    "record_id": 5309773459,
-    "runs": 5,
-    "time_efficiency": 0,
-    "type_id": 47969
-   }
-  ],
   "235830716": [
    {
     "is_blueprint_copy": true,
@@ -7638,19 +9778,6 @@
     "runs": 7,
     "time_efficiency": 16,
     "type_id": 21964
-   }
-  ],
-  "235830726": [
-   {
-    "is_blueprint_copy": true,
-    "is_included": true,
-    "item_id": 1055561966700,
-    "material_efficiency": 0,
-    "quantity": 1,
-    "record_id": 5309775396,
-    "runs": 5,
-    "time_efficiency": 0,
-    "type_id": 47969
    }
   ],
   "235830729": [
@@ -7900,19 +10027,6 @@
     "type_id": 57511
    }
   ],
-  "235830820": [
-   {
-    "is_blueprint_copy": true,
-    "is_included": true,
-    "item_id": 1035992866905,
-    "material_efficiency": 9,
-    "quantity": 1,
-    "record_id": 5309778197,
-    "runs": 1,
-    "time_efficiency": 14,
-    "type_id": 23912
-   }
-  ],
   "235830824": [
    {
     "is_blueprint_copy": true,
@@ -8004,19 +10118,6 @@
     "type_id": 57524
    }
   ],
-  "235830874": [
-   {
-    "is_blueprint_copy": true,
-    "is_included": true,
-    "item_id": 1055562016504,
-    "material_efficiency": 0,
-    "quantity": 1,
-    "record_id": 5309778955,
-    "runs": 1,
-    "time_efficiency": 0,
-    "type_id": 17931
-   }
-  ],
   "235830922": [
    {
     "is_blueprint_copy": true,
@@ -8093,19 +10194,6 @@
     "runs": 5,
     "time_efficiency": 20,
     "type_id": 57511
-   }
-  ],
-  "235830955": [
-   {
-    "is_blueprint_copy": true,
-    "is_included": true,
-    "item_id": 1051384079703,
-    "material_efficiency": 10,
-    "quantity": 1,
-    "record_id": 5309780612,
-    "runs": 5,
-    "time_efficiency": 20,
-    "type_id": 57524
    }
   ],
   "235830960": [
@@ -9007,19 +11095,6 @@
     "type_id": 785
    }
   ],
-  "235831990": [
-   {
-    "is_blueprint_copy": true,
-    "is_included": true,
-    "item_id": 1055450908138,
-    "material_efficiency": 0,
-    "quantity": 1,
-    "record_id": 5309807396,
-    "runs": 1,
-    "time_efficiency": 0,
-    "type_id": 17919
-   }
-  ],
   "235831995": [
    {
     "is_included": true,
@@ -9537,43 +11612,6 @@
     "type_id": 23058
    }
   ],
-  "235832456": [
-   {
-    "is_blueprint_copy": true,
-    "is_included": true,
-    "item_id": 1055553611433,
-    "material_efficiency": 0,
-    "quantity": 1,
-    "record_id": 5309819726,
-    "runs": 1,
-    "time_efficiency": 0,
-    "type_id": 17716
-   }
-  ],
-  "235832487": [
-   {
-    "is_blueprint_copy": true,
-    "is_included": true,
-    "item_id": 1055506960112,
-    "material_efficiency": 0,
-    "quantity": 1,
-    "record_id": 5309820056,
-    "runs": 1,
-    "time_efficiency": 0,
-    "type_id": 17927
-   },
-   {
-    "is_blueprint_copy": true,
-    "is_included": true,
-    "item_id": 1055549654762,
-    "material_efficiency": 0,
-    "quantity": 1,
-    "record_id": 5309820057,
-    "runs": 1,
-    "time_efficiency": 0,
-    "type_id": 17927
-   }
-  ],
   "235832530": [
    {
     "is_included": true,
@@ -9583,17 +11621,6 @@
     "record_id": 5309821242,
     "time_efficiency": 16,
     "type_id": 43927
-   }
-  ],
-  "235832546": [
-   {
-    "is_included": true,
-    "item_id": 1054861133664,
-    "material_efficiency": 10,
-    "quantity": 1,
-    "record_id": 5309821498,
-    "time_efficiency": 20,
-    "type_id": 4314
    }
   ],
   "235832549": [
@@ -9798,17 +11825,6 @@
     "runs": 100,
     "time_efficiency": 20,
     "type_id": 57523
-   }
-  ],
-  "235832598": [
-   {
-    "is_included": true,
-    "item_id": 1054827705450,
-    "material_efficiency": 10,
-    "quantity": 1,
-    "record_id": 5309823226,
-    "time_efficiency": 20,
-    "type_id": 937
    }
   ],
   "235832604": [
@@ -10203,19 +12219,6 @@
     "type_id": 3535
    }
   ],
-  "235833092": [
-   {
-    "is_blueprint_copy": true,
-    "is_included": true,
-    "item_id": 1055018337920,
-    "material_efficiency": 10,
-    "quantity": 1,
-    "record_id": 5309833284,
-    "runs": 7,
-    "time_efficiency": 20,
-    "type_id": 21948
-   }
-  ],
   "235833095": [
    {
     "is_blueprint_copy": true,
@@ -10294,19 +12297,6 @@
     "type_id": 3543
    }
   ],
-  "235833114": [
-   {
-    "is_blueprint_copy": true,
-    "is_included": true,
-    "item_id": 1055425841297,
-    "material_efficiency": 10,
-    "quantity": 1,
-    "record_id": 5309833415,
-    "runs": 30,
-    "time_efficiency": 20,
-    "type_id": 689
-   }
-  ],
   "235833116": [
    {
     "is_blueprint_copy": true,
@@ -10318,32 +12308,6 @@
     "runs": 5,
     "time_efficiency": 0,
     "type_id": 3543
-   }
-  ],
-  "235833118": [
-   {
-    "is_blueprint_copy": true,
-    "is_included": true,
-    "item_id": 1055425841298,
-    "material_efficiency": 10,
-    "quantity": 1,
-    "record_id": 5309833665,
-    "runs": 30,
-    "time_efficiency": 20,
-    "type_id": 689
-   }
-  ],
-  "235833121": [
-   {
-    "is_blueprint_copy": true,
-    "is_included": true,
-    "item_id": 1055425841299,
-    "material_efficiency": 10,
-    "quantity": 1,
-    "record_id": 5309833696,
-    "runs": 30,
-    "time_efficiency": 20,
-    "type_id": 689
    }
   ],
   "235833124": [
@@ -10450,15 +12414,6 @@
     "type_id": 17719
    }
   ],
-  "235833303": [
-   {
-    "is_included": true,
-    "item_id": 1055563617928,
-    "quantity": 1,
-    "record_id": 5309836791,
-    "type_id": 40520
-   }
-  ],
   "235833305": [
    {
     "is_blueprint_copy": true,
@@ -10483,15 +12438,6 @@
     "runs": 1,
     "time_efficiency": 0,
     "type_id": 17719
-   }
-  ],
-  "235833309": [
-   {
-    "is_included": true,
-    "item_id": 1055563620720,
-    "quantity": 1,
-    "record_id": 5309837058,
-    "type_id": 40520
    }
   ],
   "235833312": [
@@ -10520,15 +12466,6 @@
     "type_id": 17719
    }
   ],
-  "235833316": [
-   {
-    "is_included": true,
-    "item_id": 1055563624268,
-    "quantity": 1,
-    "record_id": 5309837119,
-    "type_id": 40519
-   }
-  ],
   "235833319": [
    {
     "is_blueprint_copy": true,
@@ -10553,15 +12490,6 @@
     "runs": 1,
     "time_efficiency": 0,
     "type_id": 17719
-   }
-  ],
-  "235833327": [
-   {
-    "is_included": true,
-    "item_id": 1055563626392,
-    "quantity": 1,
-    "record_id": 5309837163,
-    "type_id": 40519
    }
   ],
   "235833328": [
@@ -10783,19 +12711,6 @@
     "runs": 1,
     "time_efficiency": 0,
     "type_id": 53726
-   }
-  ],
-  "235833514": [
-   {
-    "is_blueprint_copy": true,
-    "is_included": true,
-    "item_id": 1051753760814,
-    "material_efficiency": 0,
-    "quantity": 1,
-    "record_id": 5309841202,
-    "runs": 1,
-    "time_efficiency": 0,
-    "type_id": 57134
    }
   ],
   "235833520": [
@@ -11118,23 +13033,5053 @@
     "time_efficiency": 0,
     "type_id": 45486
    }
+  ],
+  "235833874": [
+   {
+    "is_included": true,
+    "item_id": 1055563913130,
+    "quantity": 100,
+    "record_id": 5309849888,
+    "type_id": 44992
+   }
+  ],
+  "235833878": [
+   {
+    "is_included": true,
+    "item_id": 1055563912586,
+    "quantity": 100,
+    "record_id": 5309849894,
+    "type_id": 44992
+   }
+  ],
+  "235833883": [
+   {
+    "is_included": true,
+    "item_id": 1839948592,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309849909,
+    "time_efficiency": 20,
+    "type_id": 808
+   }
+  ],
+  "235833886": [
+   {
+    "is_included": true,
+    "item_id": 1041424365690,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309850262,
+    "time_efficiency": 20,
+    "type_id": 892
+   }
+  ],
+  "235833889": [
+   {
+    "is_included": true,
+    "item_id": 1050506208801,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309850271,
+    "time_efficiency": 20,
+    "type_id": 22543
+   }
+  ],
+  "235833901": [
+   {
+    "is_included": true,
+    "item_id": 1055563930302,
+    "quantity": 50,
+    "record_id": 5309850352,
+    "type_id": 44992
+   }
+  ],
+  "235833906": [
+   {
+    "is_included": true,
+    "item_id": 1042698866786,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309850403,
+    "time_efficiency": 20,
+    "type_id": 1076
+   }
+  ],
+  "235833908": [
+   {
+    "is_included": true,
+    "item_id": 1055563912240,
+    "quantity": 50,
+    "record_id": 5309850409,
+    "type_id": 44992
+   }
+  ],
+  "235833978": [
+   {
+    "is_included": true,
+    "item_id": 1051747640678,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309852483,
+    "time_efficiency": 20,
+    "type_id": 17328
+   }
+  ],
+  "235833989": [
+   {
+    "is_included": true,
+    "item_id": 1053591958638,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309852814,
+    "time_efficiency": 20,
+    "type_id": 17330
+   }
+  ],
+  "235833990": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055563907389,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309852815,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 17637
+   }
+  ],
+  "235833992": [
+   {
+    "is_included": true,
+    "item_id": 1049493438910,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309852819,
+    "time_efficiency": 20,
+    "type_id": 17336
+   }
+  ],
+  "235833995": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055563907388,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309852836,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 17637
+   }
+  ],
+  "235833997": [
+   {
+    "is_included": true,
+    "item_id": 1036828882522,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309852839,
+    "time_efficiency": 20,
+    "type_id": 17359
+   }
+  ],
+  "235833998": [
+   {
+    "is_included": true,
+    "item_id": 1044287069014,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309852840,
+    "time_efficiency": 20,
+    "type_id": 17341
+   }
+  ],
+  "235834021": [
+   {
+    "is_included": true,
+    "item_id": 1043143163353,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309854202,
+    "time_efficiency": 20,
+    "type_id": 31407
+   }
+  ],
+  "235834052": [
+   {
+    "is_included": true,
+    "item_id": 1034736720958,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309855230,
+    "time_efficiency": 20,
+    "type_id": 17346
+   }
+  ],
+  "235834057": [
+   {
+    "is_included": true,
+    "item_id": 1023289726532,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309855688,
+    "time_efficiency": 20,
+    "type_id": 60343
+   }
+  ],
+  "235834062": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055297334502,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309855986,
+    "runs": 100,
+    "time_efficiency": 20,
+    "type_id": 57523
+   }
+  ],
+  "235834067": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055496333000,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309855991,
+    "runs": 100,
+    "time_efficiency": 20,
+    "type_id": 57523
+   }
+  ],
+  "235834073": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055380188803,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309856070,
+    "runs": 100,
+    "time_efficiency": 20,
+    "type_id": 57523
+   }
+  ],
+  "235834074": [
+   {
+    "is_included": true,
+    "item_id": 1045230294773,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309856071,
+    "time_efficiency": 20,
+    "type_id": 879
+   }
+  ],
+  "235834080": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055228866155,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309856338,
+    "runs": 100,
+    "time_efficiency": 20,
+    "type_id": 57523
+   }
+  ],
+  "235834081": [
+   {
+    "is_included": true,
+    "item_id": 1043786211301,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309856339,
+    "time_efficiency": 20,
+    "type_id": 1106
+   }
+  ],
+  "235834084": [
+   {
+    "is_included": true,
+    "item_id": 1043786079308,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309856343,
+    "time_efficiency": 20,
+    "type_id": 1109
+   }
+  ],
+  "235834088": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055276459093,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309856388,
+    "runs": 100,
+    "time_efficiency": 20,
+    "type_id": 57523
+   }
+  ],
+  "235834094": [
+   {
+    "is_included": true,
+    "item_id": 1055564010808,
+    "quantity": 1,
+    "record_id": 5309856498,
+    "type_id": 1129
+   }
+  ],
+  "235834097": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055311195029,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309856509,
+    "runs": 100,
+    "time_efficiency": 20,
+    "type_id": 57523
+   }
+  ],
+  "235834099": [
+   {
+    "is_included": true,
+    "item_id": 1055362297248,
+    "quantity": 1,
+    "record_id": 5309856535,
+    "type_id": 12109
+   }
+  ],
+  "235834100": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055563857442,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309856536,
+    "runs": 100,
+    "time_efficiency": 20,
+    "type_id": 57523
+   }
+  ],
+  "235834101": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1014053953455,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309856537,
+    "runs": 2,
+    "time_efficiency": 0,
+    "type_id": 12300
+   }
+  ],
+  "235834107": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055075976697,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309856960,
+    "runs": 100,
+    "time_efficiency": 20,
+    "type_id": 57523
+   }
+  ],
+  "235834108": [
+   {
+    "is_included": true,
+    "item_id": 1043883078214,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309856961,
+    "time_efficiency": 20,
+    "type_id": 31118
+   }
+  ],
+  "235834111": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054406513142,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309856976,
+    "runs": 100,
+    "time_efficiency": 20,
+    "type_id": 57523
+   }
+  ],
+  "235834113": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055208840169,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309856978,
+    "runs": 100,
+    "time_efficiency": 20,
+    "type_id": 57523
+   }
+  ],
+  "235834214": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054963407713,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309862769,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 21020
+   }
+  ],
+  "235834216": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054815317868,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309862771,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 21020
+   }
+  ],
+  "235834218": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054661821789,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309862773,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 21020
+   }
+  ],
+  "235834221": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055407538606,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309862799,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 21020
+   }
+  ],
+  "235834224": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055407538611,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309862889,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 21020
+   }
+  ],
+  "235834226": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055407538612,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309862898,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 21020
+   }
+  ],
+  "235834229": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055407537376,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309863144,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 21028
+   }
+  ],
+  "235834230": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055407537392,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309863145,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 21028
+   }
+  ],
+  "235834259": [
+   {
+    "is_included": true,
+    "item_id": 1038622311395,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309865066,
+    "time_efficiency": 20,
+    "type_id": 944
+   }
+  ],
+  "235834336": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1048965063648,
+    "material_efficiency": 3,
+    "quantity": 1,
+    "record_id": 5309868966,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 81086
+   }
+  ],
+  "235834339": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1047870799113,
+    "material_efficiency": 3,
+    "quantity": 1,
+    "record_id": 5309868969,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 81086
+   }
+  ],
+  "235834341": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1048965063661,
+    "material_efficiency": 3,
+    "quantity": 1,
+    "record_id": 5309868972,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 81086
+   }
+  ],
+  "235834342": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1048965063656,
+    "material_efficiency": 3,
+    "quantity": 1,
+    "record_id": 5309868973,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 81086
+   }
+  ],
+  "235834347": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1048965063635,
+    "material_efficiency": 3,
+    "quantity": 1,
+    "record_id": 5309868991,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 81086
+   }
+  ],
+  "235834349": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1048965063617,
+    "material_efficiency": 3,
+    "quantity": 1,
+    "record_id": 5309869001,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 81086
+   }
+  ],
+  "235834352": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1047870799119,
+    "material_efficiency": 3,
+    "quantity": 1,
+    "record_id": 5309869017,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 81086
+   }
+  ],
+  "235834354": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1047870799140,
+    "material_efficiency": 3,
+    "quantity": 1,
+    "record_id": 5309869020,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 81086
+   }
+  ],
+  "235834355": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1048965063637,
+    "material_efficiency": 3,
+    "quantity": 1,
+    "record_id": 5309869021,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 81086
+   }
+  ],
+  "235834357": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1048965063628,
+    "material_efficiency": 3,
+    "quantity": 1,
+    "record_id": 5309869033,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 81086
+   }
+  ],
+  "235834360": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1048965063633,
+    "material_efficiency": 3,
+    "quantity": 1,
+    "record_id": 5309869077,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 81086
+   }
+  ],
+  "235834361": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1048965063629,
+    "material_efficiency": 3,
+    "quantity": 1,
+    "record_id": 5309869078,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 81086
+   }
+  ],
+  "235834362": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1048965063618,
+    "material_efficiency": 3,
+    "quantity": 1,
+    "record_id": 5309869079,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 81086
+   }
+  ],
+  "235834364": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1048965063662,
+    "material_efficiency": 3,
+    "quantity": 1,
+    "record_id": 5309869092,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 81086
+   }
+  ],
+  "235834368": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1047870799120,
+    "material_efficiency": 3,
+    "quantity": 1,
+    "record_id": 5309869581,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 81086
+   }
+  ],
+  "235834369": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1047870799136,
+    "material_efficiency": 3,
+    "quantity": 1,
+    "record_id": 5309869582,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 81086
+   }
+  ],
+  "235834371": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1048965063651,
+    "material_efficiency": 3,
+    "quantity": 1,
+    "record_id": 5309869603,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 81086
+   }
+  ],
+  "235834431": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055530463320,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309870772,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 33821
+   }
+  ],
+  "235834442": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055497205848,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309871393,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 17737
+   }
+  ],
+  "235834446": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055496825421,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309871398,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 17737
+   }
+  ],
+  "235834449": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055497619206,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309871614,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 17737
+   }
+  ],
+  "235834489": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055495673270,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309872153,
+    "runs": 3,
+    "time_efficiency": 0,
+    "type_id": 20560
+   }
+  ],
+  "235834497": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1047530886913,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309873035,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 57144
+   }
+  ],
+  "235834501": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055470312490,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309873040,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 17719
+   }
+  ],
+  "235834503": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055470120340,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309873047,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 17719
+   }
+  ],
+  "235834508": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055400836783,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309873114,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 17719
+   }
+  ],
+  "235834510": [],
+  "235834512": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055415001786,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309873122,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 17719
+   }
+  ],
+  "235834514": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055469349437,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309873124,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 17719
+   }
+  ],
+  "235834515": [],
+  "235834518": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055455765385,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309873158,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 17719
+   }
+  ],
+  "235834521": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055481238612,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309873191,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 17719
+   }
+  ],
+  "235834525": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055455182537,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309873417,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 17719
+   }
+  ],
+  "235834527": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055391390137,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309873419,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 17719
+   }
+  ],
+  "235834531": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055424642859,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309873485,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 17719
+   }
+  ],
+  "235834599": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055467511139,
+    "material_efficiency": 5,
+    "quantity": 1,
+    "record_id": 5309876257,
+    "runs": 5,
+    "time_efficiency": 10,
+    "type_id": 41190
+   }
+  ],
+  "235834602": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054987005276,
+    "material_efficiency": 5,
+    "quantity": 1,
+    "record_id": 5309876343,
+    "runs": 5,
+    "time_efficiency": 10,
+    "type_id": 41190
+   }
+  ],
+  "235834605": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055409500554,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309876366,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 20540
+   }
+  ],
+  "235834609": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055409500553,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309876622,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 20540
+   }
+  ],
+  "235834612": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054601850591,
+    "material_efficiency": 5,
+    "quantity": 1,
+    "record_id": 5309876625,
+    "runs": 5,
+    "time_efficiency": 10,
+    "type_id": 41187
+   }
+  ],
+  "235834616": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054045678655,
+    "material_efficiency": 5,
+    "quantity": 1,
+    "record_id": 5309876803,
+    "runs": 5,
+    "time_efficiency": 10,
+    "type_id": 41187
+   }
+  ],
+  "235834617": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055024968317,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309876804,
+    "runs": 5,
+    "time_efficiency": 10,
+    "type_id": 32445
+   }
+  ],
+  "235834623": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055024968314,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309876820,
+    "runs": 5,
+    "time_efficiency": 10,
+    "type_id": 32445
+   }
+  ],
+  "235834632": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055357520783,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309876977,
+    "runs": 1,
+    "time_efficiency": 10,
+    "type_id": 24549
+   }
+  ],
+  "235834635": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055564123396,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309876985,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 74000
+   }
+  ],
+  "235834641": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055564123395,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309877040,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 74000
+   }
+  ],
+  "235834672": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1050719124685,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309877488,
+    "runs": 50,
+    "time_efficiency": 0,
+    "type_id": 25314
+   }
+  ],
+  "235834681": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1050724538874,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309877735,
+    "runs": 50,
+    "time_efficiency": 0,
+    "type_id": 25314
+   }
+  ],
+  "235834700": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1053798082742,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309877983,
+    "runs": 1,
+    "time_efficiency": 10,
+    "type_id": 36966
+   }
+  ],
+  "235834761": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054016656092,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309878838,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 21018
+   }
+  ],
+  "235834766": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054016656083,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309878843,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 21018
+   }
+  ],
+  "235834770": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054528016231,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309878847,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 21020
+   }
+  ],
+  "235834773": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055464778901,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309878883,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 33154
+   }
+  ],
+  "235834776": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054528016224,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309878904,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 21020
+   }
+  ],
+  "235834784": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055464778903,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309879001,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 33154
+   }
+  ],
+  "235834790": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055464778904,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309879502,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 33154
+   }
+  ],
+  "235834793": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055442827571,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309879505,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 49714
+   }
+  ],
+  "235834795": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055464778905,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309879508,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 33154
+   }
+  ],
+  "235834801": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055464778907,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309879514,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 33154
+   }
+  ],
+  "235834809": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055464778908,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309879669,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 33154
+   }
+  ],
+  "235834908": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054828888454,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309881398,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 21028
+   }
+  ],
+  "235834910": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054828888455,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309881500,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 21028
+   }
+  ],
+  "235834911": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055165268740,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309881501,
+    "runs": 30,
+    "time_efficiency": 20,
+    "type_id": 944
+   }
+  ],
+  "235834914": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054828888456,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309881518,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 21028
+   }
+  ],
+  "235834917": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055165268741,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309881605,
+    "runs": 30,
+    "time_efficiency": 20,
+    "type_id": 944
+   }
+  ],
+  "235834920": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054886376777,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309881618,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 21028
+   }
+  ],
+  "235834926": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054886376778,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309881813,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 21028
+   }
+  ],
+  "235834931": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054886376779,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309881870,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 21028
+   }
+  ],
+  "235834942": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055180145405,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309882130,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 21036
+   }
+  ],
+  "235834945": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054810255241,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309882137,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 21038
+   }
+  ],
+  "235834960": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054810255271,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309882544,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 21038
+   }
+  ],
+  "235834968": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054506747622,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309882656,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 21026
+   }
+  ],
+  "235834972": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054506747616,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309882684,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 21026
+   }
+  ],
+  "235834983": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1040879270778,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309883069,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 21030
+   }
+  ],
+  "235834987": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1040879270780,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309883115,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 21030
+   }
+  ],
+  "235834995": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054980992307,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309883499,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 24561
+   }
+  ],
+  "235834997": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054980992308,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309883501,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 24561
+   }
+  ],
+  "235835007": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055489263719,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309884969,
+    "runs": 50,
+    "time_efficiency": 20,
+    "type_id": 15509
+   }
+  ],
+  "235835008": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054753214161,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309884970,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 24559
+   }
+  ],
+  "235835009": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054810255193,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309884971,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 24559
+   }
+  ],
+  "235835015": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1052313959694,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309885357,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 21022
+   }
+  ],
+  "235835020": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1052313959687,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309885529,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 21022
+   }
+  ],
+  "235835032": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054439727323,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309886141,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 21010
+   }
+  ],
+  "235835034": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054439727324,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309886149,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 21010
+   }
+  ],
+  "235835040": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054205071499,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309886260,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 21014
+   }
+  ],
+  "235835046": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054205071489,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309886647,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 21014
+   }
+  ],
+  "235835166": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055562794649,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309889779,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 57524
+   }
+  ],
+  "235835170": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055562794634,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309889786,
+    "runs": 400,
+    "time_efficiency": 20,
+    "type_id": 57518
+   }
+  ],
+  "235835176": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055500629481,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309889951,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 57517
+   }
+  ],
+  "235835182": [],
+  "235835185": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055305941758,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309889970,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 57520
+   }
+  ],
+  "235835189": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055331806005,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309890247,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 57520
+   }
+  ],
+  "235835192": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055380762230,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309890253,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 57520
+   }
+  ],
+  "235835194": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055408037455,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309890326,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 57520
+   }
+  ],
+  "235835238": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055360721568,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309890888,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 41225
+   }
+  ],
+  "235835240": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055428155733,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309890913,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 41225
+   }
+  ],
+  "235835242": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055428155736,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309890915,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 41225
+   }
+  ],
+  "235835307": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055553011112,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309893654,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 54423
+   }
+  ],
+  "235835314": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055492724365,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309893928,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 53921
+   }
+  ],
+  "235835321": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055520803129,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309894003,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 53924
+   }
+  ],
+  "235835326": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055484364688,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309894089,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 53922
+   }
+  ],
+  "235835362": [],
+  "235835384": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054581141367,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309895200,
+    "runs": 100,
+    "time_efficiency": 20,
+    "type_id": 2021
+   }
+  ],
+  "235835389": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054581141368,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309895218,
+    "runs": 100,
+    "time_efficiency": 20,
+    "type_id": 2021
+   }
+  ],
+  "235835392": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054581141370,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309895461,
+    "runs": 100,
+    "time_efficiency": 20,
+    "type_id": 2021
+   }
+  ],
+  "235835393": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054581141371,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309895462,
+    "runs": 100,
+    "time_efficiency": 20,
+    "type_id": 2021
+   }
+  ],
+  "235835396": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054581141372,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309895992,
+    "runs": 100,
+    "time_efficiency": 20,
+    "type_id": 2021
+   }
+  ],
+  "235835407": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054581141373,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309896058,
+    "runs": 100,
+    "time_efficiency": 20,
+    "type_id": 2021
+   }
+  ],
+  "235835413": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054581141374,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309896064,
+    "runs": 100,
+    "time_efficiency": 20,
+    "type_id": 2021
+   }
+  ],
+  "235835418": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054737836836,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309896084,
+    "runs": 100,
+    "time_efficiency": 20,
+    "type_id": 2021
+   }
+  ],
+  "235835426": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054737836837,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309896113,
+    "runs": 100,
+    "time_efficiency": 20,
+    "type_id": 2021
+   }
+  ],
+  "235835432": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054737836838,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309896124,
+    "runs": 100,
+    "time_efficiency": 20,
+    "type_id": 2021
+   }
+  ],
+  "235835439": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054737836839,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309896466,
+    "runs": 100,
+    "time_efficiency": 20,
+    "type_id": 2021
+   }
+  ],
+  "235835443": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054737836840,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309896495,
+    "runs": 100,
+    "time_efficiency": 20,
+    "type_id": 2021
+   }
+  ],
+  "235835448": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055469168675,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309896500,
+    "runs": 20,
+    "time_efficiency": 0,
+    "type_id": 41655
+   }
+  ],
+  "235835466": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054997178346,
+    "material_efficiency": 5,
+    "quantity": 1,
+    "record_id": 5309896690,
+    "runs": 1,
+    "time_efficiency": 10,
+    "type_id": 36971
+   }
+  ],
+  "235835470": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054997178345,
+    "material_efficiency": 5,
+    "quantity": 1,
+    "record_id": 5309896714,
+    "runs": 1,
+    "time_efficiency": 10,
+    "type_id": 36971
+   }
+  ],
+  "235835472": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054997178344,
+    "material_efficiency": 5,
+    "quantity": 1,
+    "record_id": 5309896716,
+    "runs": 1,
+    "time_efficiency": 10,
+    "type_id": 36971
+   }
+  ],
+  "235835479": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054997178343,
+    "material_efficiency": 5,
+    "quantity": 1,
+    "record_id": 5309896740,
+    "runs": 1,
+    "time_efficiency": 10,
+    "type_id": 36971
+   }
+  ],
+  "235835486": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055335988043,
+    "material_efficiency": 5,
+    "quantity": 1,
+    "record_id": 5309896752,
+    "runs": 1,
+    "time_efficiency": 12,
+    "type_id": 36966
+   }
+  ],
+  "235835487": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1049811497738,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309896753,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 692
+   }
+  ],
+  "235835489": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055335988042,
+    "material_efficiency": 5,
+    "quantity": 1,
+    "record_id": 5309896755,
+    "runs": 1,
+    "time_efficiency": 12,
+    "type_id": 36966
+   }
+  ],
+  "235835492": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055335988041,
+    "material_efficiency": 5,
+    "quantity": 1,
+    "record_id": 5309896758,
+    "runs": 1,
+    "time_efficiency": 12,
+    "type_id": 36966
+   }
+  ],
+  "235835497": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055335988040,
+    "material_efficiency": 5,
+    "quantity": 1,
+    "record_id": 5309896811,
+    "runs": 1,
+    "time_efficiency": 12,
+    "type_id": 36966
+   }
+  ],
+  "235835518": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055313601113,
+    "material_efficiency": 8,
+    "quantity": 1,
+    "record_id": 5309897191,
+    "runs": 1,
+    "time_efficiency": 12,
+    "type_id": 34329
+   }
+  ],
+  "235835520": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055313601112,
+    "material_efficiency": 8,
+    "quantity": 1,
+    "record_id": 5309897203,
+    "runs": 1,
+    "time_efficiency": 12,
+    "type_id": 34329
+   }
+  ],
+  "235835522": [
+   {
+    "is_included": true,
+    "item_id": 1054153829325,
+    "material_efficiency": 5,
+    "quantity": 1,
+    "record_id": 5309897235,
+    "time_efficiency": 10,
+    "type_id": 23912
+   }
+  ],
+  "235835525": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055026236830,
+    "material_efficiency": 5,
+    "quantity": 1,
+    "record_id": 5309897244,
+    "runs": 1,
+    "time_efficiency": 6,
+    "type_id": 81054
+   }
+  ],
+  "235835533": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055026236829,
+    "material_efficiency": 5,
+    "quantity": 1,
+    "record_id": 5309897381,
+    "runs": 1,
+    "time_efficiency": 6,
+    "type_id": 81054
+   }
+  ],
+  "235835537": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055026237436,
+    "material_efficiency": 6,
+    "quantity": 1,
+    "record_id": 5309897436,
+    "runs": 1,
+    "time_efficiency": 10,
+    "type_id": 41584
+   }
+  ],
+  "235835542": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054844686915,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309897693,
+    "runs": 100,
+    "time_efficiency": 20,
+    "type_id": 17860
+   }
+  ],
+  "235835545": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054835335703,
+    "material_efficiency": 6,
+    "quantity": 1,
+    "record_id": 5309898317,
+    "runs": 1,
+    "time_efficiency": 10,
+    "type_id": 41583
+   }
+  ],
+  "235835550": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054844686917,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309898402,
+    "runs": 100,
+    "time_efficiency": 20,
+    "type_id": 17860
+   }
+  ],
+  "235835555": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054944718548,
+    "material_efficiency": 6,
+    "quantity": 1,
+    "record_id": 5309898413,
+    "runs": 1,
+    "time_efficiency": 10,
+    "type_id": 41585
+   }
+  ],
+  "235835556": [],
+  "235835561": [],
+  "235835562": [],
+  "235835565": [],
+  "235835572": [],
+  "235835576": [],
+  "235835580": [],
+  "235835583": [],
+  "235835584": [],
+  "235835585": [],
+  "235835589": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055429719405,
+    "material_efficiency": 3,
+    "quantity": 1,
+    "record_id": 5309898744,
+    "runs": 3,
+    "time_efficiency": 2,
+    "type_id": 28845
+   }
+  ],
+  "235835592": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055292322841,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309898747,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 24559
+   }
+  ],
+  "235835596": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055292322840,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309898788,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 24559
+   }
+  ],
+  "235835597": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055024069981,
+    "material_efficiency": 1,
+    "quantity": 1,
+    "record_id": 5309898789,
+    "runs": 5,
+    "time_efficiency": 8,
+    "type_id": 94074
+   }
+  ],
+  "235835599": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054861589373,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309898793,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 24559
+   }
+  ],
+  "235835603": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054861589372,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309899286,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 24559
+   }
+  ],
+  "235835606": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054861589371,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309899302,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 24559
+   }
+  ],
+  "235835610": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055292321973,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309899673,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21024
+   }
+  ],
+  "235835611": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1053915580242,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309899674,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21024
+   }
+  ],
+  "235835617": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1053915580241,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309899712,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21024
+   }
+  ],
+  "235835620": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1053915580240,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309899726,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21024
+   }
+  ],
+  "235835625": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055138935696,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309899767,
+    "runs": 1,
+    "time_efficiency": 18,
+    "type_id": 34329
+   }
+  ],
+  "235835628": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055138935698,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309899776,
+    "runs": 1,
+    "time_efficiency": 18,
+    "type_id": 34329
+   }
+  ],
+  "235835631": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054418351636,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309899866,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21014
+   }
+  ],
+  "235835632": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055357630809,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309899867,
+    "runs": 1,
+    "time_efficiency": 18,
+    "type_id": 81054
+   }
+  ],
+  "235835635": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055357630811,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309899886,
+    "runs": 1,
+    "time_efficiency": 18,
+    "type_id": 81054
+   }
+  ],
+  "235835637": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054418351635,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309899888,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21014
+   }
+  ],
+  "235835640": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055357629510,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309899912,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 57525
+   }
+  ],
+  "235835641": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055357629516,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309899913,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 57525
+   }
+  ],
+  "235835642": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1053915587181,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309899914,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21014
+   }
+  ],
+  "235835650": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1053915587179,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309899975,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21014
+   }
+  ],
+  "235835669": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055455082046,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309900404,
+    "runs": 5,
+    "time_efficiency": 0,
+    "type_id": 48109
+   }
+  ],
+  "235835692": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1052993086599,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309901140,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 17739
+   }
+  ],
+  "235835694": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1053003333224,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309901146,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 17739
+   }
+  ],
+  "235835695": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1053010045259,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309901147,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 17739
+   }
+  ],
+  "235835699": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1053010338400,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309901266,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 17739
+   }
+  ],
+  "235835702": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1052578046461,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309901292,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 21024
+   }
+  ],
+  "235835707": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1053916568726,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309901381,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 21024
+   }
+  ],
+  "235835715": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054465294460,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309901598,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 21040
+   }
+  ],
+  "235835718": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1053331322738,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309901613,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 53725
+   }
+  ],
+  "235835719": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054528016427,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309901614,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 21040
+   }
+  ],
+  "235835747": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054707323901,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309901932,
+    "runs": 30,
+    "time_efficiency": 20,
+    "type_id": 952
+   }
+  ],
+  "235835867": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055313318932,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309905774,
+    "runs": 10,
+    "time_efficiency": 0,
+    "type_id": 996
+   }
+  ],
+  "235835872": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055528795777,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309905798,
+    "runs": 3,
+    "time_efficiency": 0,
+    "type_id": 21528
+   }
+  ],
+  "235835887": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055478478530,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309905886,
+    "runs": 3,
+    "time_efficiency": 0,
+    "type_id": 20610
+   }
+  ],
+  "235835933": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054790259226,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309907265,
+    "runs": 30,
+    "time_efficiency": 20,
+    "type_id": 949
+   }
+  ],
+  "235835952": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1046493443124,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309907759,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 17925
+   }
+  ],
+  "235835957": [
+   {
+    "is_included": true,
+    "item_id": 1031261843147,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309907793,
+    "time_efficiency": 20,
+    "type_id": 17338
+   }
+  ],
+  "235835964": [
+   {
+    "is_included": true,
+    "item_id": 1032515675310,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309907992,
+    "time_efficiency": 20,
+    "type_id": 17323
+   }
+  ],
+  "235835968": [
+   {
+    "is_included": true,
+    "item_id": 1031268624482,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309907996,
+    "time_efficiency": 20,
+    "type_id": 17347
+   }
+  ],
+  "235835971": [
+   {
+    "is_included": true,
+    "item_id": 1031290937876,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309908999,
+    "time_efficiency": 20,
+    "type_id": 17355
+   }
+  ],
+  "235835973": [
+   {
+    "is_included": true,
+    "item_id": 1031249070061,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309909008,
+    "time_efficiency": 20,
+    "type_id": 17340
+   }
+  ],
+  "235835974": [
+   {
+    "is_included": true,
+    "item_id": 1032533509186,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309909009,
+    "time_efficiency": 20,
+    "type_id": 17329
+   }
+  ],
+  "235835977": [
+   {
+    "is_included": true,
+    "item_id": 1030709501122,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309909012,
+    "time_efficiency": 20,
+    "type_id": 17359
+   }
+  ],
+  "235835979": [
+   {
+    "is_included": true,
+    "item_id": 1031215770993,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309909014,
+    "time_efficiency": 20,
+    "type_id": 17333
+   }
+  ],
+  "235835981": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055557114933,
+    "material_efficiency": 8,
+    "quantity": 1,
+    "record_id": 5309909066,
+    "runs": 1,
+    "time_efficiency": 12,
+    "type_id": 19727
+   }
+  ],
+  "235835983": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055557114937,
+    "material_efficiency": 8,
+    "quantity": 1,
+    "record_id": 5309909072,
+    "runs": 1,
+    "time_efficiency": 12,
+    "type_id": 19727
+   }
+  ],
+  "235835984": [
+   {
+    "is_included": true,
+    "item_id": 1032551152703,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309909073,
+    "time_efficiency": 20,
+    "type_id": 17345
+   }
+  ],
+  "235835987": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055557114938,
+    "material_efficiency": 8,
+    "quantity": 1,
+    "record_id": 5309909088,
+    "runs": 1,
+    "time_efficiency": 12,
+    "type_id": 19727
+   }
+  ],
+  "235835989": [
+   {
+    "is_included": true,
+    "item_id": 1031207941184,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309909090,
+    "time_efficiency": 20,
+    "type_id": 17356
+   }
+  ],
+  "235835990": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055557114936,
+    "material_efficiency": 8,
+    "quantity": 1,
+    "record_id": 5309909091,
+    "runs": 1,
+    "time_efficiency": 12,
+    "type_id": 19727
+   }
+  ],
+  "235835991": [
+   {
+    "is_included": true,
+    "item_id": 1031261849526,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309909092,
+    "time_efficiency": 20,
+    "type_id": 17330
+   }
+  ],
+  "235835992": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055557114940,
+    "material_efficiency": 8,
+    "quantity": 1,
+    "record_id": 5309909093,
+    "runs": 1,
+    "time_efficiency": 12,
+    "type_id": 19727
+   }
+  ],
+  "235835995": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055553545879,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309909108,
+    "runs": 10,
+    "time_efficiency": 0,
+    "type_id": 28277
+   }
+  ],
+  "235835996": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055557114934,
+    "material_efficiency": 8,
+    "quantity": 1,
+    "record_id": 5309909109,
+    "runs": 1,
+    "time_efficiency": 12,
+    "type_id": 19727
+   }
+  ],
+  "235835998": [
+   {
+    "is_included": true,
+    "item_id": 1031215823730,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309909114,
+    "time_efficiency": 20,
+    "type_id": 17325
+   }
+  ],
+  "235836001": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055557114939,
+    "material_efficiency": 8,
+    "quantity": 1,
+    "record_id": 5309909170,
+    "runs": 1,
+    "time_efficiency": 12,
+    "type_id": 19727
+   }
+  ],
+  "235836005": [
+   {
+    "is_included": true,
+    "item_id": 1031215762376,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309909179,
+    "time_efficiency": 20,
+    "type_id": 17342
+   }
+  ],
+  "235836006": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055557114935,
+    "material_efficiency": 8,
+    "quantity": 1,
+    "record_id": 5309909180,
+    "runs": 1,
+    "time_efficiency": 12,
+    "type_id": 19727
+   }
+  ],
+  "235836009": [
+   {
+    "is_included": true,
+    "item_id": 1032533499304,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309909213,
+    "time_efficiency": 20,
+    "type_id": 17337
+   }
+  ],
+  "235836012": [
+   {
+    "is_included": true,
+    "item_id": 1031208240505,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309909217,
+    "time_efficiency": 20,
+    "type_id": 17324
+   }
+  ],
+  "235836027": [
+   {
+    "is_included": true,
+    "item_id": 1031378718488,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309909387,
+    "time_efficiency": 20,
+    "type_id": 17336
+   }
+  ],
+  "235836034": [
+   {
+    "is_included": true,
+    "item_id": 1031207948948,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309909429,
+    "time_efficiency": 20,
+    "type_id": 17327
+   }
+  ],
+  "235836037": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055458900690,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309909757,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 24548
+   }
+  ],
+  "235836039": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055489122776,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309909759,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 24548
+   }
+  ],
+  "235836042": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055489122792,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309909763,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 24548
+   }
+  ],
+  "235836058": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055489122778,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309910113,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 24548
+   }
+  ],
+  "235836061": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055489122781,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309910606,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 24548
+   }
+  ],
+  "235836065": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055489122784,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309910657,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 24548
+   }
+  ],
+  "235836068": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055458900704,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309910689,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 24548
+   }
+  ],
+  "235836069": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055489122788,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309910690,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 24548
+   }
+  ],
+  "235836070": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055489122785,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309910691,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 24548
+   }
+  ],
+  "235836071": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055458900698,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309910692,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 24548
+   }
+  ],
+  "235836072": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055458900696,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309910693,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 24548
+   }
+  ],
+  "235836074": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055489122793,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309910710,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 24548
+   }
+  ],
+  "235836083": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055485875482,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309910819,
+    "runs": 5,
+    "time_efficiency": 0,
+    "type_id": 34127
+   }
+  ],
+  "235836084": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055489122830,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309910820,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21036
+   }
+  ],
+  "235836086": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055489122829,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309910825,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21036
+   }
+  ],
+  "235836087": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055489122834,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309910826,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21036
+   }
+  ],
+  "235836089": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055489122828,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309910836,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21036
+   }
+  ],
+  "235836090": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055489122824,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309910837,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21036
+   }
+  ],
+  "235836101": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055489122825,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309911141,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21036
+   }
+  ],
+  "235836103": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055489122823,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309911145,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21036
+   }
+  ],
+  "235836104": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055489122831,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309911146,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21036
+   }
+  ],
+  "235836106": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055489122826,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309911931,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21036
+   }
+  ],
+  "235836107": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055489122821,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309911932,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21036
+   }
+  ],
+  "235836148": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055489122906,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309912900,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 24561
+   }
+  ],
+  "235836178": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055489197368,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309913488,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21022
+   }
+  ],
+  "235836183": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055489197427,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309913715,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21022
+   }
+  ],
+  "235836185": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1050610986057,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309913717,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 688
+   }
+  ],
+  "235836186": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055489197418,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309913718,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21022
+   }
+  ],
+  "235836188": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055489197421,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309913720,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21022
+   }
+  ],
+  "235836191": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055489197416,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309913723,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21022
+   }
+  ],
+  "235836192": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055489197429,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309913724,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21022
+   }
+  ],
+  "235836195": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055489197369,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309913739,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21022
+   }
+  ],
+  "235836201": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055489197356,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309914112,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21022
+   }
+  ],
+  "235836204": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055489197363,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309914115,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21022
+   }
+  ],
+  "235836207": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055489197410,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309914118,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21022
+   }
+  ],
+  "235836215": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1052549160312,
+    "material_efficiency": 4,
+    "quantity": 1,
+    "record_id": 5309914384,
+    "runs": 2,
+    "time_efficiency": 14,
+    "type_id": 28711
+   }
+  ],
+  "235836238": [
+   {
+    "is_included": true,
+    "item_id": 1054885552433,
+    "quantity": 1,
+    "record_id": 5309914918,
+    "type_id": 40520
+   }
+  ],
+  "235836242": [
+   {
+    "is_included": true,
+    "item_id": 1054885544762,
+    "quantity": 1,
+    "record_id": 5309915030,
+    "type_id": 40520
+   }
+  ],
+  "235836243": [
+   {
+    "is_included": true,
+    "item_id": 1054885543785,
+    "quantity": 1,
+    "record_id": 5309915031,
+    "type_id": 40520
+   }
+  ],
+  "235836246": [
+   {
+    "is_included": true,
+    "item_id": 1054885542805,
+    "quantity": 1,
+    "record_id": 5309915043,
+    "type_id": 40520
+   }
+  ],
+  "235836248": [
+   {
+    "is_included": true,
+    "item_id": 1054885532280,
+    "quantity": 1,
+    "record_id": 5309915045,
+    "type_id": 40520
+   }
+  ],
+  "235836326": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055564946768,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309917993,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 73996
+   }
+  ],
+  "235836328": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055552858307,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309918001,
+    "runs": 50,
+    "time_efficiency": 0,
+    "type_id": 33077
+   },
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055553978544,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309918002,
+    "runs": 5,
+    "time_efficiency": 0,
+    "type_id": 41620
+   },
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055554400242,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309918003,
+    "runs": 20,
+    "time_efficiency": 0,
+    "type_id": 41653
+   },
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055554523992,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309918004,
+    "runs": 2,
+    "time_efficiency": 0,
+    "type_id": 31210
+   }
+  ],
+  "235836332": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055564946769,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309918071,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 73996
+   }
+  ],
+  "235836345": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054461581957,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309918161,
+    "runs": 30,
+    "time_efficiency": 20,
+    "type_id": 32881
+   }
+  ],
+  "235836352": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055330774011,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309918341,
+    "runs": 30,
+    "time_efficiency": 20,
+    "type_id": 689
+   }
+  ],
+  "235836383": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1053136642497,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309918649,
+    "runs": 50,
+    "time_efficiency": 0,
+    "type_id": 25314
+   }
+  ],
+  "235836386": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1053136642511,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309918704,
+    "runs": 50,
+    "time_efficiency": 0,
+    "type_id": 25314
+   }
+  ],
+  "235836451": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055163572461,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309921627,
+    "runs": 8,
+    "time_efficiency": 20,
+    "type_id": 62669
+   }
+  ],
+  "235836476": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055044763947,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309921858,
+    "runs": 5,
+    "time_efficiency": 18,
+    "type_id": 37041
+   }
+  ],
+  "235836478": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055044763944,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309921890,
+    "runs": 5,
+    "time_efficiency": 18,
+    "type_id": 37041
+   }
+  ],
+  "235836484": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055153721326,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309922074,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 37045
+   }
+  ],
+  "235836488": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055153721334,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309922131,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 37045
+   }
+  ],
+  "235836493": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055138935794,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309922435,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 37044
+   }
+  ],
+  "235836494": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055138935786,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309922436,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 37044
+   }
+  ],
+  "235836495": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055537649257,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309922437,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 49714
+   }
+  ],
+  "235836497": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055058958391,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309922523,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 37087
+   }
+  ],
+  "235836498": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055058958390,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309922524,
+    "runs": 5,
+    "time_efficiency": 20,
+    "type_id": 37087
+   }
+  ],
+  "235836510": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055537732058,
+    "material_efficiency": 9,
+    "quantity": 1,
+    "record_id": 5309923841,
+    "runs": 1,
+    "time_efficiency": 16,
+    "type_id": 19721
+   }
+  ],
+  "235836512": [],
+  "235836517": [],
+  "235836518": [],
+  "235836557": [],
+  "235836558": [],
+  "235836560": [],
+  "235836562": [],
+  "235836585": [],
+  "235836588": [],
+  "235836589": [],
+  "235836590": [],
+  "235836595": [],
+  "235836602": [],
+  "235836604": [],
+  "235836605": [],
+  "235836607": [],
+  "235836613": [],
+  "235836620": [],
+  "235836623": [],
+  "235836624": [],
+  "235836625": [],
+  "235836627": [],
+  "235836628": [],
+  "235836630": [],
+  "235836631": [],
+  "235836634": [],
+  "235836635": [],
+  "235836637": [],
+  "235836638": [],
+  "235836640": [],
+  "235836797": [],
+  "235836804": [],
+  "235836809": [],
+  "235836870": [],
+  "235836933": [],
+  "235836974": [],
+  "235836986": [],
+  "235836990": [],
+  "235836998": [],
+  "235837002": [],
+  "235837007": [],
+  "235837014": [],
+  "235837018": [],
+  "235837022": [],
+  "235837028": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055496271651,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309939882,
+    "runs": 1,
+    "time_efficiency": 20,
+    "type_id": 81043
+   }
+  ],
+  "235837029": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055496271650,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309939883,
+    "runs": 1,
+    "time_efficiency": 20,
+    "type_id": 81043
+   }
+  ],
+  "235837032": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055496271649,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309939891,
+    "runs": 1,
+    "time_efficiency": 20,
+    "type_id": 81043
+   }
+  ],
+  "235837035": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055496271648,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309939898,
+    "runs": 1,
+    "time_efficiency": 20,
+    "type_id": 81043
+   }
+  ],
+  "235837041": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055496271647,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309940272,
+    "runs": 1,
+    "time_efficiency": 20,
+    "type_id": 81043
+   }
+  ],
+  "235837043": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055496271646,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309940277,
+    "runs": 1,
+    "time_efficiency": 20,
+    "type_id": 81043
+   }
+  ],
+  "235837045": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055496271645,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309940311,
+    "runs": 1,
+    "time_efficiency": 20,
+    "type_id": 81043
+   }
+  ],
+  "235837048": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055496271644,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309940346,
+    "runs": 1,
+    "time_efficiency": 20,
+    "type_id": 81043
+   }
+  ],
+  "235837054": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055496271643,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309940536,
+    "runs": 1,
+    "time_efficiency": 20,
+    "type_id": 81043
+   }
+  ],
+  "235837056": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055496271642,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309940540,
+    "runs": 1,
+    "time_efficiency": 20,
+    "type_id": 81043
+   }
+  ],
+  "235837058": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055496271641,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309940542,
+    "runs": 1,
+    "time_efficiency": 20,
+    "type_id": 81043
+   }
+  ],
+  "235837072": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1030663905590,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309940734,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21020
+   }
+  ],
+  "235837073": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1030727385582,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309940735,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21020
+   }
+  ],
+  "235837074": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1031903168643,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309940736,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21020
+   }
+  ],
+  "235837082": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1030727385585,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309940936,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21020
+   }
+  ],
+  "235837085": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1030448519739,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309940957,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21020
+   }
+  ],
+  "235837087": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1030981141242,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309940959,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21020
+   }
+  ],
+  "235837089": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1030830226288,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309940969,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21020
+   }
+  ],
+  "235837118": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055565508156,
+    "material_efficiency": 8,
+    "quantity": 1,
+    "record_id": 5309941301,
+    "runs": 1,
+    "time_efficiency": 10,
+    "type_id": 19723
+   }
+  ],
+  "235837138": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054828763658,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309941886,
+    "runs": 3,
+    "time_efficiency": 18,
+    "type_id": 59171
+   }
+  ],
+  "235837146": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055550495992,
+    "material_efficiency": 5,
+    "quantity": 1,
+    "record_id": 5309942020,
+    "runs": 1,
+    "time_efficiency": 10,
+    "type_id": 28845
+   }
+  ],
+  "235837159": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055440090976,
+    "material_efficiency": 5,
+    "quantity": 1,
+    "record_id": 5309942382,
+    "runs": 1,
+    "time_efficiency": 10,
+    "type_id": 28849
+   }
+  ],
+  "235837168": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055020336707,
+    "material_efficiency": 5,
+    "quantity": 1,
+    "record_id": 5309942655,
+    "runs": 1,
+    "time_efficiency": 10,
+    "type_id": 28851
+   }
+  ],
+  "235837173": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055098615330,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309942676,
+    "runs": 3,
+    "time_efficiency": 0,
+    "type_id": 21475
+   }
+  ],
+  "235837193": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054580382174,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309943213,
+    "runs": 3,
+    "time_efficiency": 0,
+    "type_id": 23786
+   }
+  ],
+  "235837214": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055085465235,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309943647,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 33536
+   }
+  ],
+  "235837236": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055467982124,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309944252,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 33703
+   }
+  ],
+  "235837254": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055484230813,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309944825,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 33703
+   }
+  ],
+  "235837289": [
+   {
+    "is_included": true,
+    "item_id": 1055551777566,
+    "quantity": 1,
+    "record_id": 5309945390,
+    "type_id": 40520
+   }
+  ],
+  "235837311": [
+   {
+    "is_included": true,
+    "item_id": 1055551706241,
+    "quantity": 1,
+    "record_id": 5309945894,
+    "type_id": 40520
+   }
+  ],
+  "235837315": [
+   {
+    "is_included": true,
+    "item_id": 1055551715804,
+    "quantity": 1,
+    "record_id": 5309946204,
+    "type_id": 40520
+   }
+  ],
+  "235837321": [
+   {
+    "is_included": true,
+    "item_id": 1055551720381,
+    "quantity": 1,
+    "record_id": 5309946263,
+    "type_id": 40520
+   }
+  ],
+  "235837325": [
+   {
+    "is_included": true,
+    "item_id": 1055551731864,
+    "quantity": 1,
+    "record_id": 5309946267,
+    "type_id": 40520
+   }
+  ],
+  "235837328": [
+   {
+    "is_included": true,
+    "item_id": 1055551738208,
+    "quantity": 1,
+    "record_id": 5309946304,
+    "type_id": 40520
+   }
+  ],
+  "235837333": [
+   {
+    "is_included": true,
+    "item_id": 1055551754323,
+    "quantity": 1,
+    "record_id": 5309946381,
+    "type_id": 40520
+   }
+  ],
+  "235837339": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054019953320,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309947393,
+    "runs": 60,
+    "time_efficiency": 0,
+    "type_id": 28267
+   }
+  ],
+  "235837340": [
+   {
+    "is_included": true,
+    "item_id": 1055551758470,
+    "quantity": 1,
+    "record_id": 5309947394,
+    "type_id": 40520
+   }
+  ],
+  "235837341": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054870911140,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309947395,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 30994
+   }
+  ],
+  "235837345": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054477449431,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309947474,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 30994
+   }
+  ],
+  "235837346": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054019978020,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309947475,
+    "runs": 60,
+    "time_efficiency": 0,
+    "type_id": 28267
+   }
+  ],
+  "235837353": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054477449429,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309947650,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 30994
+   }
+  ],
+  "235837356": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054477449422,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309947659,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 30994
+   }
+  ],
+  "235837379": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054502133328,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309948181,
+    "runs": 25,
+    "time_efficiency": 20,
+    "type_id": 52695
+   }
+  ],
+  "235837381": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054255786626,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309948258,
+    "runs": 25,
+    "time_efficiency": 20,
+    "type_id": 52695
+   }
+  ],
+  "235837527": [],
+  "235837530": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1050641986088,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309951167,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21020
+   }
+  ],
+  "235837533": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1050641986089,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309951227,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21020
+   }
+  ],
+  "235837535": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1050641986090,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309951236,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21020
+   }
+  ],
+  "235837540": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1051085170998,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309951403,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21020
+   }
+  ],
+  "235837549": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054981322698,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309951547,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 24548
+   }
+  ],
+  "235837552": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054981322699,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309951769,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 24548
+   }
+  ],
+  "235837556": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054981322700,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309951787,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 24548
+   }
+  ],
+  "235837564": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1042733547894,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309951941,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21038
+   }
+  ],
+  "235837568": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1049202906317,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309951958,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21038
+   }
+  ],
+  "235837573": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1049202906318,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309952013,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 21038
+   }
+  ],
+  "235837597": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1051085171043,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309952656,
+    "runs": 40,
+    "time_efficiency": 20,
+    "type_id": 57524
+   }
+  ],
+  "235837600": [],
+  "235837601": [],
+  "235837605": [],
+  "235837609": [],
+  "235837640": [],
+  "235837648": [],
+  "235837649": [],
+  "235837658": [],
+  "235837661": [],
+  "235837697": [],
+  "235837705": [],
+  "235837718": [],
+  "235837728": [],
+  "235837738": [],
+  "235837741": [],
+  "235837743": [
+   {
+    "is_included": true,
+    "item_id": 1050755216723,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309955657,
+    "time_efficiency": 20,
+    "type_id": 17939
+   }
+  ],
+  "235837745": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055375534115,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309955770,
+    "runs": 5,
+    "time_efficiency": 0,
+    "type_id": 41603
+   }
+  ],
+  "235837748": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055375534119,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309955774,
+    "runs": 5,
+    "time_efficiency": 0,
+    "type_id": 41603
+   }
+  ],
+  "235837749": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1052535351655,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309955775,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 53724
+   }
+  ],
+  "235837752": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055564606772,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309955790,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 73996
+   }
+  ],
+  "235837759": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055375525672,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309955932,
+    "runs": 5,
+    "time_efficiency": 0,
+    "type_id": 92182
+   }
+  ],
+  "235837761": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055375525671,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309955963,
+    "runs": 5,
+    "time_efficiency": 0,
+    "type_id": 92182
+   }
+  ],
+  "235837764": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055375525694,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309956018,
+    "runs": 5,
+    "time_efficiency": 0,
+    "type_id": 92182
+   }
+  ],
+  "235837766": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055375525695,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309956028,
+    "runs": 5,
+    "time_efficiency": 0,
+    "type_id": 92182
+   }
+  ],
+  "235837770": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055375525696,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309956058,
+    "runs": 5,
+    "time_efficiency": 0,
+    "type_id": 92182
+   }
+  ],
+  "235837775": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055375525697,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309956103,
+    "runs": 5,
+    "time_efficiency": 0,
+    "type_id": 92182
+   }
+  ],
+  "235837841": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055522247329,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309958870,
+    "runs": 60,
+    "time_efficiency": 0,
+    "type_id": 28295
+   },
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055522247334,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309958871,
+    "runs": 60,
+    "time_efficiency": 0,
+    "type_id": 28295
+   },
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055522247336,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309958872,
+    "runs": 60,
+    "time_efficiency": 0,
+    "type_id": 28303
+   }
+  ],
+  "235837844": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1031027069232,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309958888,
+    "runs": 3,
+    "time_efficiency": 18,
+    "type_id": 28584
+   }
+  ],
+  "235837846": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1034908637747,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309958890,
+    "runs": 3,
+    "time_efficiency": 20,
+    "type_id": 28584
+   }
+  ],
+  "235837847": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1030406163335,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309958891,
+    "runs": 3,
+    "time_efficiency": 18,
+    "type_id": 28584
+   }
+  ],
+  "235837849": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1034908637768,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309958920,
+    "runs": 3,
+    "time_efficiency": 20,
+    "type_id": 28584
+   }
+  ],
+  "235837850": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1031027069235,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309958921,
+    "runs": 3,
+    "time_efficiency": 18,
+    "type_id": 28584
+   }
+  ],
+  "235837863": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1034908637732,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309959609,
+    "runs": 3,
+    "time_efficiency": 20,
+    "type_id": 28584
+   }
+  ],
+  "235837868": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1031027069238,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309959749,
+    "runs": 3,
+    "time_efficiency": 18,
+    "type_id": 28584
+   }
+  ],
+  "235837879": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1031027069233,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309959948,
+    "runs": 3,
+    "time_efficiency": 18,
+    "type_id": 28584
+   }
+  ],
+  "235837882": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1031027069236,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309959951,
+    "runs": 3,
+    "time_efficiency": 18,
+    "type_id": 28584
+   }
+  ],
+  "235837886": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1034908637755,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309959980,
+    "runs": 3,
+    "time_efficiency": 20,
+    "type_id": 28584
+   }
+  ],
+  "235837889": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1034908637766,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309959998,
+    "runs": 3,
+    "time_efficiency": 20,
+    "type_id": 28584
+   }
+  ],
+  "235837890": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1034908637739,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309959999,
+    "runs": 3,
+    "time_efficiency": 20,
+    "type_id": 28584
+   }
+  ],
+  "235837891": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1034908637753,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309960000,
+    "runs": 3,
+    "time_efficiency": 20,
+    "type_id": 28584
+   }
+  ],
+  "235837892": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1034908637743,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309960001,
+    "runs": 3,
+    "time_efficiency": 20,
+    "type_id": 28584
+   }
+  ],
+  "235837894": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1034908637760,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309960095,
+    "runs": 3,
+    "time_efficiency": 20,
+    "type_id": 28584
+   }
+  ],
+  "235837899": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1034908637758,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309960122,
+    "runs": 3,
+    "time_efficiency": 20,
+    "type_id": 28584
+   }
+  ],
+  "235837901": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1034908637780,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309960140,
+    "runs": 3,
+    "time_efficiency": 20,
+    "type_id": 28584
+   }
+  ],
+  "235837905": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1034908637730,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309960158,
+    "runs": 3,
+    "time_efficiency": 20,
+    "type_id": 28584
+   }
+  ],
+  "235837907": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1034908637741,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309960167,
+    "runs": 3,
+    "time_efficiency": 20,
+    "type_id": 28584
+   }
+  ],
+  "235837908": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1034908637727,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309960168,
+    "runs": 3,
+    "time_efficiency": 20,
+    "type_id": 28584
+   }
+  ],
+  "235837909": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1034908637761,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309960169,
+    "runs": 3,
+    "time_efficiency": 20,
+    "type_id": 28584
+   }
+  ],
+  "235837932": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055539465303,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5309960534,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 17921
+   }
+  ],
+  "235837962": [
+   {
+    "is_included": true,
+    "item_id": 1055233169575,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309961108,
+    "time_efficiency": 20,
+    "type_id": 819
+   }
+  ],
+  "235837966": [
+   {
+    "is_included": true,
+    "item_id": 1055300167448,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309961130,
+    "time_efficiency": 20,
+    "type_id": 10679
+   }
+  ],
+  "235837972": [
+   {
+    "is_included": true,
+    "item_id": 1055036401431,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309961373,
+    "time_efficiency": 20,
+    "type_id": 820
+   }
+  ],
+  "235837979": [
+   {
+    "is_included": true,
+    "item_id": 1054965805086,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5309961421,
+    "time_efficiency": 20,
+    "type_id": 1116
+   }
   ]
  },
  "next_mail_at": 1788849530.476751,
  "status": {
-  "before_volume_filter": 31190,
-  "candidates": 18876,
+  "before_volume_filter": 31198,
+  "candidates": 18986,
   "error": null,
-  "last_scan": "2026-09-08T06:08:45.734535+00:00",
+  "last_scan": "2026-09-08T11:23:45.067943+00:00",
   "mail_error": null,
   "market_errors": {},
-  "market_updated": "2026-09-08T06:05:52.804772+00:00",
+  "market_updated": "2026-09-08T11:20:52.619039+00:00",
   "next_scan": null,
   "opportunities": 4,
   "running": false,
-  "scanned": 800,
+  "scanned": 1551,
   "stage": "等待下一次检查",
   "volume_cap": 0.06
  },
- "updated": "2026-09-08T06:08:51.952133+00:00"
+ "updated": "2026-09-08T11:23:46.046469+00:00"
 }
