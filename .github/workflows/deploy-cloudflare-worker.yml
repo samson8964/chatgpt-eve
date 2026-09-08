@@ -1,0 +1,48 @@
+name: Deploy Cloudflare EVE Worker
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'cloudflare/worker.js'
+      - '.github/workflows/deploy-cloudflare-worker.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Require Cloudflare credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}" || { echo 'Missing GitHub secret: CLOUDFLARE_API_TOKEN'; exit 2; }
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}" || { echo 'Missing GitHub secret: CLOUDFLARE_ACCOUNT_ID'; exit 2; }
+
+      - name: Validate Worker bundle
+        shell: bash
+        run: |
+          npx --yes wrangler@latest deploy cloudflare/worker.js \
+            --name eve-contract-opener \
+            --compatibility-date 2026-09-08 \
+            --keep-vars \
+            --strict \
+            --dry-run
+
+      - name: Deploy Worker safely
+        shell: bash
+        run: |
+          npx --yes wrangler@latest deploy cloudflare/worker.js \
+            --name eve-contract-opener \
+            --compatibility-date 2026-09-08 \
+            --keep-vars \
+            --strict
