@@ -8,9 +8,11 @@ EVE callback URL:
 
 `https://eve-contract-opener.99617224.workers.dev/callback`
 
-Required EVE scope:
+Required EVE scopes:
 
-`esi-ui.open_window.v1`
+- `esi-ui.open_window.v1`
+- `esi-mail.send_mail.v1`
+- `esi-skills.read_skills.v1`
 
 ## 1. Create KV
 
@@ -35,25 +37,33 @@ Plaintext variables:
 - `EVE_CLIENT_ID` = your public EVE application Client ID
 - `EVE_REDIRECT_URI` = `https://eve-contract-opener.99617224.workers.dev/callback`
 
-Secret:
+Secrets:
 
 - `EVE_CLIENT_SECRET` = the EVE application Client Secret
+- `MAIL_API_KEY` = private API key used by the mail and skills API routes
 
-Never commit `EVE_CLIENT_SECRET` to GitHub.
+Never commit secrets to GitHub.
 
-## 3. Replace Worker code
+## 3. Deploy Worker code
 
-Copy the complete contents of `cloudflare/worker.js` into the Cloudflare Worker editor and deploy.
+The complete Worker source is `cloudflare/worker.js`.
 
-## 4. First authorization
+For automatic deployment, add these GitHub Actions secrets:
+
+- `CLOUDFLARE_API_TOKEN`
+- `CLOUDFLARE_ACCOUNT_ID`
+
+Then run the `Deploy Cloudflare EVE Worker` workflow. The workflow uses Wrangler `--strict` and `--keep-vars` so it refuses unsafe remote-setting conflicts and preserves dashboard variables.
+
+## 4. Authorize / re-authorize the EVE character
 
 Open:
 
 `https://eve-contract-opener.99617224.workers.dev/auth`
 
-Select the EVE character that should receive contract-window opens and authorize `esi-ui.open_window.v1`.
+Select the EVE character and grant all requested scopes. After adding `esi-skills.read_skills.v1`, an existing refresh token must be replaced by completing this authorization flow again.
 
-The Worker stores only the refresh token in the bound KV namespace so it can refresh short-lived access tokens. EVE SSO refresh tokens can rotate; the Worker updates the stored refresh token whenever SSO returns a replacement.
+The Worker stores the refresh token in the bound KV namespace and rotates it when EVE SSO returns a replacement.
 
 ## 5. Test
 
@@ -65,7 +75,15 @@ For a market details window:
 
 `https://eve-contract-opener.99617224.workers.dev/m/TYPE_ID`
 
-A successful ESI request returns HTTP 204 from ESI and the Worker shows a confirmation page.
+For skills, make an authenticated GET request to:
+
+`https://eve-contract-opener.99617224.workers.dev/api/skills`
+
+with header:
+
+`Authorization: Bearer <MAIL_API_KEY>`
+
+The skills response includes total SP, unallocated SP, allocated SP, skill counts, and the raw per-skill ESI data.
 
 ## 6. Revoke / switch character
 
