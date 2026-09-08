@@ -1,0 +1,2226 @@
+[
+  {
+    "id": 25303,
+    "name": "标准型蓝色药丸增效体蓝图",
+    "kind": "manufacturing",
+    "time": 600,
+    "materials": [
+      {
+        "id": 40,
+        "name": "超噬矿",
+        "quantity": 8
+      },
+      {
+        "id": 25237,
+        "name": "纯标准型蓝色药丸增效体",
+        "quantity": 17
+      }
+    ],
+    "products": [
+      {
+        "id": 9950,
+        "name": "标准型蓝色药丸增效体",
+        "quantity": 1
+      }
+    ],
+    "skills": [
+      {
+        "name": "药品制备",
+        "level": 1
+      }
+    ]
+  },
+  {
+    "id": 25307,
+    "name": "加强型蓝色药丸增效体蓝图",
+    "kind": "manufacturing",
+    "time": 900,
+    "materials": [
+      {
+        "id": 40,
+        "name": "超噬矿",
+        "quantity": 8
+      },
+      {
+        "id": 25241,
+        "name": "纯加强型蓝色药丸增效体",
+        "quantity": 13
+      }
+    ],
+    "products": [
+      {
+        "id": 10155,
+        "name": "加强型蓝色药丸增效体",
+        "quantity": 1
+      }
+    ],
+    "skills": [
+      {
+        "name": "药品制备",
+        "level": 3
+      }
+    ]
+  },
+  {
+    "id": 25308,
+    "name": "超强型蓝色药丸增效体蓝图",
+    "kind": "manufacturing",
+    "time": 1200,
+    "materials": [
+      {
+        "id": 40,
+        "name": "超噬矿",
+        "quantity": 8
+      },
+      {
+        "id": 25283,
+        "name": "纯超强型蓝色药丸增效体",
+        "quantity": 11
+      }
+    ],
+    "products": [
+      {
+        "id": 10156,
+        "name": "超强型蓝色药丸增效体",
+        "quantity": 1
+      }
+    ],
+    "skills": [
+      {
+        "name": "药品制备",
+        "level": 5
+      }
+    ]
+  },
+  {
+    "id": 25309,
+    "name": "标准型撞击感增效体蓝图",
+    "kind": "manufacturing",
+    "time": 600,
+    "materials": [
+      {
+        "id": 40,
+        "name": "超噬矿",
+        "quantity": 8
+      },
+      {
+        "id": 25242,
+        "name": "纯标准型撞击感增效体",
+        "quantity": 17
+      }
+    ],
+    "products": [
+      {
+        "id": 9947,
+        "name": "标准型撞击感增效体",
+        "quantity": 1
+      }
+    ],
+    "skills": [
+      {
+        "name": "药品制备",
+        "level": 1
+      }
+    ]
+  },
+  {
+    "id": 25310,
+    "name": "加强型撞击感增效体蓝图",
+    "kind": "manufacturing",
+    "time": 900,
+    "materials": [
+      {
+        "id": 40,
+        "name": "超噬矿",
+        "quantity": 8
+      },
+      {
+        "id": 25335,
+        "name": "纯加强型撞击感增效体",
+        "quantity": 13
+      }
+    ],
+    "products": [
+      {
+        "id": 10151,
+        "name": "加强型撞击感增效体",
+        "quantity": 1
+      }
+    ],
+    "skills": [
+      {
+        "name": "药品制备",
+        "level": 3
+      }
+    ]
+  },
+  {
+    "id": 25311,
+    "name": "超强型撞击感增效体蓝图",
+    "kind": "manufacturing",
+    "time": 1200,
+    "materials": [
+      {
+        "id": 40,
+        "name": "超噬矿",
+        "quantity": 8
+      },
+      {
+        "id": 25342,
+        "name": "纯超强型撞击感增效体",
+        "quantity": 11
+      }
+    ],
+    "products": [
+      {
+        "id": 10152,
+        "name": "超强型撞击感增效体",
+        "quantity": 1
+      }
+    ],
+    "skills": [
+      {
+        "name": "药品制备",
+        "level": 5
+      }
+    ]
+  },
+  {
+    "id": 25314,
+    "name": "标准型梦呓增效体蓝图",
+    "kind": "manufacturing",
+    "time": 600,
+    "materials": [
+      {
+        "id": 40,
+        "name": "超噬矿",
+        "quantity": 8
+      },
+      {
+        "id": 25334,
+        "name": "纯标准型梦呓增效体",
+        "quantity": 17
+      }
+    ],
+    "products": [
+      {
+        "id": 10164,
+        "name": "标准型梦呓增效体",
+        "quantity": 1
+      }
+    ],
+    "skills": [
+      {
+        "name": "药品制备",
+        "level": 1
+      }
+    ]
+  },
+  {
+    "id": 25322,
+    "name": "超强型疯癫增效体蓝图",
+    "kind": "manufacturing",
+    "time": 1200,
+    "materials": [
+      {
+        "id": 40,
+        "name": "超噬矿",
+        "quantity": 8
+      },
+      {
+        "id": 25346,
+        "name": "纯超强型疯癫增效体",
+        "quantity": 11
+      }
+    ],
+    "products": [
+      {
+        "id": 15462,
+        "name": "超强型疯癫增效体",
+        "quantity": 1
+      }
+    ],
+    "skills": [
+      {
+        "name": "药品制备",
+        "level": 5
+      }
+    ]
+  },
+  {
+    "id": 25323,
+    "name": "标准型思维冲击增效体蓝图",
+    "kind": "manufacturing",
+    "time": 600,
+    "materials": [
+      {
+        "id": 40,
+        "name": "超噬矿",
+        "quantity": 8
+      },
+      {
+        "id": 25332,
+        "name": "纯标准型思维冲击增效体",
+        "quantity": 17
+      }
+    ],
+    "products": [
+      {
+        "id": 15463,
+        "name": "标准型思维冲击增效体",
+        "quantity": 1
+      }
+    ],
+    "skills": [
+      {
+        "name": "药品制备",
+        "level": 1
+      }
+    ]
+  },
+  {
+    "id": 25327,
+    "name": "标准型坠落感增效体蓝图",
+    "kind": "manufacturing",
+    "time": 600,
+    "materials": [
+      {
+        "id": 40,
+        "name": "超噬矿",
+        "quantity": 8
+      },
+      {
+        "id": 25330,
+        "name": "纯标准型坠落感增效体",
+        "quantity": 17
+      }
+    ],
+    "products": [
+      {
+        "id": 15466,
+        "name": "标准型坠落感增效体",
+        "quantity": 1
+      }
+    ],
+    "skills": [
+      {
+        "name": "药品制备",
+        "level": 1
+      }
+    ]
+  },
+  {
+    "id": 25328,
+    "name": "加强型坠落感增效体蓝图",
+    "kind": "manufacturing",
+    "time": 900,
+    "materials": [
+      {
+        "id": 40,
+        "name": "超噬矿",
+        "quantity": 8
+      },
+      {
+        "id": 25336,
+        "name": "纯加强型坠落感增效体",
+        "quantity": 13
+      }
+    ],
+    "products": [
+      {
+        "id": 15477,
+        "name": "加强型坠落感增效体",
+        "quantity": 1
+      }
+    ],
+    "skills": [
+      {
+        "name": "药品制备",
+        "level": 3
+      }
+    ]
+  },
+  {
+    "id": 25329,
+    "name": "超强型坠落感增效体蓝图",
+    "kind": "manufacturing",
+    "time": 1200,
+    "materials": [
+      {
+        "id": 40,
+        "name": "超噬矿",
+        "quantity": 8
+      },
+      {
+        "id": 25343,
+        "name": "纯超强型坠落感增效体",
+        "quantity": 11
+      }
+    ],
+    "products": [
+      {
+        "id": 15478,
+        "name": "超强型坠落感增效体",
+        "quantity": 1
+      }
+    ],
+    "skills": [
+      {
+        "name": "药品制备",
+        "level": 5
+      }
+    ]
+  },
+  {
+    "id": 25503,
+    "name": "加强型X—本能增效体蓝图",
+    "kind": "manufacturing",
+    "time": 900,
+    "materials": [
+      {
+        "id": 40,
+        "name": "超噬矿",
+        "quantity": 8
+      },
+      {
+        "id": 25340,
+        "name": "纯加强型X—本能增效体",
+        "quantity": 13
+      }
+    ],
+    "products": [
+      {
+        "id": 15458,
+        "name": "加强型X—本能增效体",
+        "quantity": 1
+      }
+    ],
+    "skills": [
+      {
+        "name": "药品制备",
+        "level": 3
+      }
+    ]
+  },
+  {
+    "id": 25504,
+    "name": "加强型游离感增效体蓝图",
+    "kind": "manufacturing",
+    "time": 900,
+    "materials": [
+      {
+        "id": 40,
+        "name": "超噬矿",
+        "quantity": 8
+      },
+      {
+        "id": 25337,
+        "name": "纯加强型游离感增效体",
+        "quantity": 13
+      }
+    ],
+    "products": [
+      {
+        "id": 15480,
+        "name": "加强型游离感增效体",
+        "quantity": 1
+      }
+    ],
+    "skills": [
+      {
+        "name": "药品制备",
+        "level": 3
+      }
+    ]
+  },
+  {
+    "id": 25505,
+    "name": "加强型疯癫增效体蓝图",
+    "kind": "manufacturing",
+    "time": 900,
+    "materials": [
+      {
+        "id": 40,
+        "name": "超噬矿",
+        "quantity": 8
+      },
+      {
+        "id": 25339,
+        "name": "纯加强型疯癫增效体",
+        "quantity": 13
+      }
+    ],
+    "products": [
+      {
+        "id": 15461,
+        "name": "加强型疯癫增效体",
+        "quantity": 1
+      }
+    ],
+    "skills": [
+      {
+        "name": "药品制备",
+        "level": 3
+      }
+    ]
+  },
+  {
+    "id": 25506,
+    "name": "加强型思维冲击增效体蓝图",
+    "kind": "manufacturing",
+    "time": 900,
+    "materials": [
+      {
+        "id": 40,
+        "name": "超噬矿",
+        "quantity": 8
+      },
+      {
+        "id": 25338,
+        "name": "纯加强型思维冲击增效体",
+        "quantity": 13
+      }
+    ],
+    "products": [
+      {
+        "id": 15464,
+        "name": "加强型思维冲击增效体",
+        "quantity": 1
+      }
+    ],
+    "skills": [
+      {
+        "name": "药品制备",
+        "level": 3
+      }
+    ]
+  },
+  {
+    "id": 25507,
+    "name": "加强型梦呓增效体蓝图",
+    "kind": "manufacturing",
+    "time": 900,
+    "materials": [
+      {
+        "id": 40,
+        "name": "超噬矿",
+        "quantity": 8
+      },
+      {
+        "id": 25341,
+        "name": "纯加强型梦呓增效体",
+        "quantity": 13
+      }
+    ],
+    "products": [
+      {
+        "id": 10165,
+        "name": "加强型梦呓增效体",
+        "quantity": 1
+      }
+    ],
+    "skills": [
+      {
+        "name": "药品制备",
+        "level": 3
+      }
+    ]
+  },
+  {
+    "id": 25508,
+    "name": "标准型游离感增效体蓝图",
+    "kind": "manufacturing",
+    "time": 600,
+    "materials": [
+      {
+        "id": 40,
+        "name": "超噬矿",
+        "quantity": 8
+      },
+      {
+        "id": 25331,
+        "name": "纯标准型游离感增效体",
+        "quantity": 17
+      }
+    ],
+    "products": [
+      {
+        "id": 15479,
+        "name": "标准型游离感增效体",
+        "quantity": 1
+      }
+    ],
+    "skills": [
+      {
+        "name": "药品制备",
+        "level": 1
+      }
+    ]
+  },
+  {
+    "id": 25509,
+    "name": "标准型疯癫增效体蓝图",
+    "kind": "manufacturing",
+    "time": 600,
+    "materials": [
+      {
+        "id": 40,
+        "name": "超噬矿",
+        "quantity": 8
+      },
+      {
+        "id": 25252,
+        "name": "纯标准型疯癫增效体",
+        "quantity": 17
+      }
+    ],
+    "products": [
+      {
+        "id": 15460,
+        "name": "标准型疯癫增效体",
+        "quantity": 1
+      }
+    ],
+    "skills": [
+      {
+        "name": "药品制备",
+        "level": 1
+      }
+    ]
+  },
+  {
+    "id": 25510,
+    "name": "标准型X—本能增效体蓝图",
+    "kind": "manufacturing",
+    "time": 600,
+    "materials": [
+      {
+        "id": 40,
+        "name": "超噬矿",
+        "quantity": 8
+      },
+      {
+        "id": 25333,
+        "name": "纯标准型X—本能增效体",
+        "quantity": 17
+      }
+    ],
+    "products": [
+      {
+        "id": 15457,
+        "name": "标准型X—本能增效体",
+        "quantity": 1
+      }
+    ],
+    "skills": [
+      {
+        "name": "药品制备",
+        "level": 1
+      }
+    ]
+  },
+  {
+    "id": 25511,
+    "name": "超强型思维冲击增效体蓝图",
+    "kind": "manufacturing",
+    "time": 1200,
+    "materials": [
+      {
+        "id": 40,
+        "name": "超噬矿",
+        "quantity": 8
+      },
+      {
+        "id": 25345,
+        "name": "纯超强型思维冲击增效体",
+        "quantity": 11
+      }
+    ],
+    "products": [
+      {
+        "id": 15465,
+        "name": "超强型思维冲击增效体",
+        "quantity": 1
+      }
+    ],
+    "skills": [
+      {
+        "name": "药品制备",
+        "level": 5
+      }
+    ]
+  },
+  {
+    "id": 25512,
+    "name": "超强型梦呓增效体蓝图",
+    "kind": "manufacturing",
+    "time": 1200,
+    "materials": [
+      {
+        "id": 40,
+        "name": "超噬矿",
+        "quantity": 8
+      },
+      {
+        "id": 25348,
+        "name": "纯超强型梦呓增效体",
+        "quantity": 11
+      }
+    ],
+    "products": [
+      {
+        "id": 10166,
+        "name": "超强型梦呓增效体",
+        "quantity": 1
+      }
+    ],
+    "skills": [
+      {
+        "name": "药品制备",
+        "level": 5
+      }
+    ]
+  },
+  {
+    "id": 25513,
+    "name": "超强型X—本能增效体蓝图",
+    "kind": "manufacturing",
+    "time": 1200,
+    "materials": [
+      {
+        "id": 40,
+        "name": "超噬矿",
+        "quantity": 8
+      },
+      {
+        "id": 25347,
+        "name": "纯超强型X—本能增效体",
+        "quantity": 11
+      }
+    ],
+    "products": [
+      {
+        "id": 15459,
+        "name": "超强型X—本能增效体",
+        "quantity": 1
+      }
+    ],
+    "skills": [
+      {
+        "name": "药品制备",
+        "level": 5
+      }
+    ]
+  },
+  {
+    "id": 25539,
+    "name": "超强型游离感增效体蓝图",
+    "kind": "manufacturing",
+    "time": 1200,
+    "materials": [
+      {
+        "id": 40,
+        "name": "超噬矿",
+        "quantity": 8
+      },
+      {
+        "id": 25344,
+        "name": "纯超强型游离感增效体",
+        "quantity": 11
+      }
+    ],
+    "products": [
+      {
+        "id": 25349,
+        "name": "超强型游离感增效体",
+        "quantity": 1
+      }
+    ],
+    "skills": [
+      {
+        "name": "药品制备",
+        "level": 5
+      }
+    ]
+  },
+  {
+    "id": 28671,
+    "name": "合成型蓝色药丸增效体蓝图",
+    "kind": "manufacturing",
+    "time": 300,
+    "materials": [
+      {
+        "id": 40,
+        "name": "超噬矿",
+        "quantity": 2
+      },
+      {
+        "id": 28686,
+        "name": "纯合成型蓝色药丸增效体",
+        "quantity": 17
+      }
+    ],
+    "products": [
+      {
+        "id": 28670,
+        "name": "合成型蓝色药丸增效体",
+        "quantity": 1
+      }
+    ],
+    "skills": [
+      {
+        "name": "药品制备",
+        "level": 1
+      }
+    ]
+  },
+  {
+    "id": 28673,
+    "name": "合成型撞击感增效体蓝图",
+    "kind": "manufacturing",
+    "time": 300,
+    "materials": [
+      {
+        "id": 40,
+        "name": "超噬矿",
+        "quantity": 2
+      },
+      {
+        "id": 28687,
+        "name": "纯合成型撞击感增效体",
+        "quantity": 17
+      }
+    ],
+    "products": [
+      {
+        "id": 28672,
+        "name": "合成型撞击感增效体",
+        "quantity": 1
+      }
+    ],
+    "skills": [
+      {
+        "name": "药品制备",
+        "level": 1
+      }
+    ]
+  },
+  {
+    "id": 28675,
+    "name": "合成型坠落感增效体蓝图",
+    "kind": "manufacturing",
+    "time": 300,
+    "materials": [
+      {
+        "id": 40,
+        "name": "超噬矿",
+        "quantity": 2
+      },
+      {
+        "id": 28688,
+        "name": "纯合成型坠落感增效体",
+        "quantity": 17
+      }
+    ],
+    "products": [
+      {
+        "id": 28674,
+        "name": "合成型坠落感增效体",
+        "quantity": 1
+      }
+    ],
+    "skills": [
+      {
+        "name": "药品制备",
+        "level": 1
+      }
+    ]
+  },
+  {
+    "id": 28677,
+    "name": "合成型游离感增效体蓝图",
+    "kind": "manufacturing",
+    "time": 300,
+    "materials": [
+      {
+        "id": 40,
+        "name": "超噬矿",
+        "quantity": 2
+      },
+      {
+        "id": 28689,
+        "name": "纯合成型游离感增效体",
+        "quantity": 17
+      }
+    ],
+    "products": [
+      {
+        "id": 28676,
+        "name": "合成型游离感增效体",
+        "quantity": 1
+      }
+    ],
+    "skills": [
+      {
+        "name": "药品制备",
+        "level": 1
+      }
+    ]
+  },
+  {
+    "id": 28679,
+    "name": "合成型疯癫增效体蓝图",
+    "kind": "manufacturing",
+    "time": 300,
+    "materials": [
+      {
+        "id": 40,
+        "name": "超噬矿",
+        "quantity": 2
+      },
+      {
+        "id": 28690,
+        "name": "纯合成型疯癫增效体",
+        "quantity": 17
+      }
+    ],
+    "products": [
+      {
+        "id": 28678,
+        "name": "合成型疯癫增效体",
+        "quantity": 1
+      }
+    ],
+    "skills": [
+      {
+        "name": "药品制备",
+        "level": 1
+      }
+    ]
+  },
+  {
+    "id": 28681,
+    "name": "合成型思维冲击增效体蓝图",
+    "kind": "manufacturing",
+    "time": 300,
+    "materials": [
+      {
+        "id": 40,
+        "name": "超噬矿",
+        "quantity": 2
+      },
+      {
+        "id": 28691,
+        "name": "纯合成型思维冲击增效体",
+        "quantity": 17
+      }
+    ],
+    "products": [
+      {
+        "id": 28680,
+        "name": "合成型思维冲击增效体",
+        "quantity": 1
+      }
+    ],
+    "skills": [
+      {
+        "name": "药品制备",
+        "level": 1
+      }
+    ]
+  },
+  {
+    "id": 28683,
+    "name": "合成型X—本能增效体蓝图",
+    "kind": "manufacturing",
+    "time": 300,
+    "materials": [
+      {
+        "id": 40,
+        "name": "超噬矿",
+        "quantity": 2
+      },
+      {
+        "id": 28693,
+        "name": "纯合成型X—本能增效体",
+        "quantity": 17
+      }
+    ],
+    "products": [
+      {
+        "id": 28682,
+        "name": "合成型X—本能增效体",
+        "quantity": 1
+      }
+    ],
+    "skills": [
+      {
+        "name": "药品制备",
+        "level": 1
+      }
+    ]
+  },
+  {
+    "id": 28685,
+    "name": "合成型梦呓增效体蓝图",
+    "kind": "manufacturing",
+    "time": 300,
+    "materials": [
+      {
+        "id": 40,
+        "name": "超噬矿",
+        "quantity": 2
+      },
+      {
+        "id": 28692,
+        "name": "纯合成型梦呓增效体",
+        "quantity": 17
+      }
+    ],
+    "products": [
+      {
+        "id": 28684,
+        "name": "合成型梦呓增效体",
+        "quantity": 1
+      }
+    ],
+    "skills": [
+      {
+        "name": "药品制备",
+        "level": 1
+      }
+    ]
+  },
+  {
+    "id": 46219,
+    "name": "合成型坠落感增效体反应配方",
+    "kind": "reaction",
+    "time": 10800,
+    "materials": [
+      {
+        "id": 4312,
+        "name": "氧燃料块",
+        "quantity": 5
+      },
+      {
+        "id": 41,
+        "name": "垃圾",
+        "quantity": 20
+      },
+      {
+        "id": 28701,
+        "name": "鲜绿磷胶溶质",
+        "quantity": 40
+      }
+    ],
+    "products": [
+      {
+        "id": 28688,
+        "name": "纯合成型坠落感增效体",
+        "quantity": 30
+      }
+    ],
+    "skills": [
+      {
+        "name": "反应理论",
+        "level": 1
+      }
+    ]
+  },
+  {
+    "id": 46220,
+    "name": "合成型游离感增效体反应配方",
+    "kind": "reaction",
+    "time": 10800,
+    "materials": [
+      {
+        "id": 4312,
+        "name": "氧燃料块",
+        "quantity": 5
+      },
+      {
+        "id": 41,
+        "name": "垃圾",
+        "quantity": 20
+      },
+      {
+        "id": 28696,
+        "name": "灰绿磷胶溶质",
+        "quantity": 40
+      }
+    ],
+    "products": [
+      {
+        "id": 28689,
+        "name": "纯合成型游离感增效体",
+        "quantity": 30
+      }
+    ],
+    "skills": [
+      {
+        "name": "反应理论",
+        "level": 1
+      }
+    ]
+  },
+  {
+    "id": 46221,
+    "name": "合成型疯癫增效体反应配方",
+    "kind": "reaction",
+    "time": 10800,
+    "materials": [
+      {
+        "id": 4247,
+        "name": "氦燃料块",
+        "quantity": 5
+      },
+      {
+        "id": 41,
+        "name": "垃圾",
+        "quantity": 20
+      },
+      {
+        "id": 28698,
+        "name": "石灰磷胶溶质",
+        "quantity": 40
+      }
+    ],
+    "products": [
+      {
+        "id": 28690,
+        "name": "纯合成型疯癫增效体",
+        "quantity": 30
+      }
+    ],
+    "skills": [
+      {
+        "name": "反应理论",
+        "level": 1
+      }
+    ]
+  },
+  {
+    "id": 46222,
+    "name": "标准型疯癫增效体反应配方",
+    "kind": "reaction",
+    "time": 10800,
+    "materials": [
+      {
+        "id": 4247,
+        "name": "氦燃料块",
+        "quantity": 5
+      },
+      {
+        "id": 3645,
+        "name": "水",
+        "quantity": 20
+      },
+      {
+        "id": 25277,
+        "name": "石灰丝胶溶质",
+        "quantity": 20
+      }
+    ],
+    "products": [
+      {
+        "id": 25252,
+        "name": "纯标准型疯癫增效体",
+        "quantity": 15
+      }
+    ],
+    "skills": [
+      {
+        "name": "反应理论",
+        "level": 2
+      }
+    ]
+  },
+  {
+    "id": 46223,
+    "name": "标准型坠落感增效体反应配方",
+    "kind": "reaction",
+    "time": 10800,
+    "materials": [
+      {
+        "id": 4312,
+        "name": "氧燃料块",
+        "quantity": 5
+      },
+      {
+        "id": 3645,
+        "name": "水",
+        "quantity": 20
+      },
+      {
+        "id": 25274,
+        "name": "鲜绿丝胶溶质",
+        "quantity": 20
+      }
+    ],
+    "products": [
+      {
+        "id": 25330,
+        "name": "纯标准型坠落感增效体",
+        "quantity": 15
+      }
+    ],
+    "skills": [
+      {
+        "name": "反应理论",
+        "level": 2
+      }
+    ]
+  },
+  {
+    "id": 46224,
+    "name": "标准型游离感增效体反应配方",
+    "kind": "reaction",
+    "time": 10800,
+    "materials": [
+      {
+        "id": 4312,
+        "name": "氧燃料块",
+        "quantity": 5
+      },
+      {
+        "id": 3645,
+        "name": "水",
+        "quantity": 20
+      },
+      {
+        "id": 25275,
+        "name": "灰绿丝胶溶质",
+        "quantity": 20
+      }
+    ],
+    "products": [
+      {
+        "id": 25331,
+        "name": "纯标准型游离感增效体",
+        "quantity": 15
+      }
+    ],
+    "skills": [
+      {
+        "name": "反应理论",
+        "level": 2
+      }
+    ]
+  },
+  {
+    "id": 46225,
+    "name": "标准型思维冲击增效体反应配方",
+    "kind": "reaction",
+    "time": 10800,
+    "materials": [
+      {
+        "id": 4247,
+        "name": "氦燃料块",
+        "quantity": 5
+      },
+      {
+        "id": 3645,
+        "name": "水",
+        "quantity": 20
+      },
+      {
+        "id": 25276,
+        "name": "铜绿丝胶溶质",
+        "quantity": 20
+      }
+    ],
+    "products": [
+      {
+        "id": 25332,
+        "name": "纯标准型思维冲击增效体",
+        "quantity": 15
+      }
+    ],
+    "skills": [
+      {
+        "name": "反应理论",
+        "level": 2
+      }
+    ]
+  },
+  {
+    "id": 46226,
+    "name": "标准型X—本能增效体反应配方",
+    "kind": "reaction",
+    "time": 10800,
+    "materials": [
+      {
+        "id": 4246,
+        "name": "氢燃料块",
+        "quantity": 5
+      },
+      {
+        "id": 3645,
+        "name": "水",
+        "quantity": 20
+      },
+      {
+        "id": 25278,
+        "name": "赤红丝胶溶质",
+        "quantity": 20
+      }
+    ],
+    "products": [
+      {
+        "id": 25333,
+        "name": "纯标准型X—本能增效体",
+        "quantity": 15
+      }
+    ],
+    "skills": [
+      {
+        "name": "反应理论",
+        "level": 2
+      }
+    ]
+  },
+  {
+    "id": 46227,
+    "name": "标准型梦呓增效体反应配方",
+    "kind": "reaction",
+    "time": 10800,
+    "materials": [
+      {
+        "id": 4246,
+        "name": "氢燃料块",
+        "quantity": 5
+      },
+      {
+        "id": 3645,
+        "name": "水",
+        "quantity": 20
+      },
+      {
+        "id": 25279,
+        "name": "天蓝丝胶溶质",
+        "quantity": 20
+      }
+    ],
+    "products": [
+      {
+        "id": 25334,
+        "name": "纯标准型梦呓增效体",
+        "quantity": 15
+      }
+    ],
+    "skills": [
+      {
+        "name": "反应理论",
+        "level": 2
+      }
+    ]
+  },
+  {
+    "id": 46228,
+    "name": "合成型思维冲击增效体反应配方",
+    "kind": "reaction",
+    "time": 10800,
+    "materials": [
+      {
+        "id": 4247,
+        "name": "氦燃料块",
+        "quantity": 5
+      },
+      {
+        "id": 41,
+        "name": "垃圾",
+        "quantity": 20
+      },
+      {
+        "id": 28699,
+        "name": "铜绿磷胶溶质",
+        "quantity": 40
+      }
+    ],
+    "products": [
+      {
+        "id": 28691,
+        "name": "纯合成型思维冲击增效体",
+        "quantity": 30
+      }
+    ],
+    "skills": [
+      {
+        "name": "反应理论",
+        "level": 1
+      }
+    ]
+  },
+  {
+    "id": 46229,
+    "name": "合成型梦呓增效体反应配方",
+    "kind": "reaction",
+    "time": 10800,
+    "materials": [
+      {
+        "id": 4246,
+        "name": "氢燃料块",
+        "quantity": 5
+      },
+      {
+        "id": 41,
+        "name": "垃圾",
+        "quantity": 20
+      },
+      {
+        "id": 28695,
+        "name": "天蓝磷胶溶质",
+        "quantity": 40
+      }
+    ],
+    "products": [
+      {
+        "id": 28692,
+        "name": "纯合成型梦呓增效体",
+        "quantity": 30
+      }
+    ],
+    "skills": [
+      {
+        "name": "反应理论",
+        "level": 1
+      }
+    ]
+  },
+  {
+    "id": 46230,
+    "name": "标准型蓝色药丸增效体反应配方",
+    "kind": "reaction",
+    "time": 10800,
+    "materials": [
+      {
+        "id": 4051,
+        "name": "氮燃料块",
+        "quantity": 5
+      },
+      {
+        "id": 3645,
+        "name": "水",
+        "quantity": 20
+      },
+      {
+        "id": 25268,
+        "name": "琥珀丝胶溶质",
+        "quantity": 20
+      }
+    ],
+    "products": [
+      {
+        "id": 25237,
+        "name": "纯标准型蓝色药丸增效体",
+        "quantity": 15
+      }
+    ],
+    "skills": [
+      {
+        "name": "反应理论",
+        "level": 2
+      }
+    ]
+  },
+  {
+    "id": 46231,
+    "name": "标准型撞击感增效体反应配方",
+    "kind": "reaction",
+    "time": 10800,
+    "materials": [
+      {
+        "id": 4051,
+        "name": "氮燃料块",
+        "quantity": 5
+      },
+      {
+        "id": 3645,
+        "name": "水",
+        "quantity": 20
+      },
+      {
+        "id": 25273,
+        "name": "金色丝胶溶质",
+        "quantity": 20
+      }
+    ],
+    "products": [
+      {
+        "id": 25242,
+        "name": "纯标准型撞击感增效体",
+        "quantity": 15
+      }
+    ],
+    "skills": [
+      {
+        "name": "反应理论",
+        "level": 2
+      }
+    ]
+  },
+  {
+    "id": 46232,
+    "name": "合成型X—本能增效体反应配方",
+    "kind": "reaction",
+    "time": 10800,
+    "materials": [
+      {
+        "id": 4246,
+        "name": "氢燃料块",
+        "quantity": 5
+      },
+      {
+        "id": 41,
+        "name": "垃圾",
+        "quantity": 20
+      },
+      {
+        "id": 28700,
+        "name": "赤红磷胶溶质",
+        "quantity": 40
+      }
+    ],
+    "products": [
+      {
+        "id": 28693,
+        "name": "纯合成型X—本能增效体",
+        "quantity": 30
+      }
+    ],
+    "skills": [
+      {
+        "name": "反应理论",
+        "level": 1
+      }
+    ]
+  },
+  {
+    "id": 46233,
+    "name": "合成型蓝色药丸增效体反应配方",
+    "kind": "reaction",
+    "time": 10800,
+    "materials": [
+      {
+        "id": 4051,
+        "name": "氮燃料块",
+        "quantity": 5
+      },
+      {
+        "id": 41,
+        "name": "垃圾",
+        "quantity": 20
+      },
+      {
+        "id": 28694,
+        "name": "琥珀磷胶溶质",
+        "quantity": 40
+      }
+    ],
+    "products": [
+      {
+        "id": 28686,
+        "name": "纯合成型蓝色药丸增效体",
+        "quantity": 30
+      }
+    ],
+    "skills": [
+      {
+        "name": "反应理论",
+        "level": 1
+      }
+    ]
+  },
+  {
+    "id": 46234,
+    "name": "合成型撞击感增效体反应配方",
+    "kind": "reaction",
+    "time": 10800,
+    "materials": [
+      {
+        "id": 4051,
+        "name": "氮燃料块",
+        "quantity": 5
+      },
+      {
+        "id": 41,
+        "name": "垃圾",
+        "quantity": 20
+      },
+      {
+        "id": 28697,
+        "name": "金色磷胶溶质",
+        "quantity": 40
+      }
+    ],
+    "products": [
+      {
+        "id": 28687,
+        "name": "纯合成型撞击感增效体",
+        "quantity": 30
+      }
+    ],
+    "skills": [
+      {
+        "name": "反应理论",
+        "level": 1
+      }
+    ]
+  },
+  {
+    "id": 46235,
+    "name": "超强型蓝色药丸增效体反应配方",
+    "kind": "reaction",
+    "time": 10800,
+    "materials": [
+      {
+        "id": 4051,
+        "name": "氮燃料块",
+        "quantity": 5
+      },
+      {
+        "id": 25241,
+        "name": "纯加强型蓝色药丸增效体",
+        "quantity": 12
+      },
+      {
+        "id": 25332,
+        "name": "纯标准型思维冲击增效体",
+        "quantity": 15
+      },
+      {
+        "id": 3773,
+        "name": "盐酸",
+        "quantity": 20
+      }
+    ],
+    "products": [
+      {
+        "id": 25283,
+        "name": "纯超强型蓝色药丸增效体",
+        "quantity": 12
+      }
+    ],
+    "skills": [
+      {
+        "name": "反应理论",
+        "level": 4
+      }
+    ]
+  },
+  {
+    "id": 46236,
+    "name": "加强型撞击感增效体反应配方",
+    "kind": "reaction",
+    "time": 10800,
+    "materials": [
+      {
+        "id": 4051,
+        "name": "氮燃料块",
+        "quantity": 5
+      },
+      {
+        "id": 25237,
+        "name": "纯标准型蓝色药丸增效体",
+        "quantity": 15
+      },
+      {
+        "id": 25242,
+        "name": "纯标准型撞击感增效体",
+        "quantity": 15
+      },
+      {
+        "id": 9850,
+        "name": "幽灵酒",
+        "quantity": 20
+      }
+    ],
+    "products": [
+      {
+        "id": 25335,
+        "name": "纯加强型撞击感增效体",
+        "quantity": 12
+      }
+    ],
+    "skills": [
+      {
+        "name": "反应理论",
+        "level": 3
+      }
+    ]
+  },
+  {
+    "id": 46237,
+    "name": "加强型坠落感增效体反应配方",
+    "kind": "reaction",
+    "time": 10800,
+    "materials": [
+      {
+        "id": 4312,
+        "name": "氧燃料块",
+        "quantity": 5
+      },
+      {
+        "id": 25330,
+        "name": "纯标准型坠落感增效体",
+        "quantity": 15
+      },
+      {
+        "id": 25331,
+        "name": "纯标准型游离感增效体",
+        "quantity": 15
+      },
+      {
+        "id": 3683,
+        "name": "氧",
+        "quantity": 20
+      }
+    ],
+    "products": [
+      {
+        "id": 25336,
+        "name": "纯加强型坠落感增效体",
+        "quantity": 12
+      }
+    ],
+    "skills": [
+      {
+        "name": "反应理论",
+        "level": 3
+      }
+    ]
+  },
+  {
+    "id": 46238,
+    "name": "加强型游离感增效体反应配方",
+    "kind": "reaction",
+    "time": 10800,
+    "materials": [
+      {
+        "id": 4312,
+        "name": "氧燃料块",
+        "quantity": 5
+      },
+      {
+        "id": 25330,
+        "name": "纯标准型坠落感增效体",
+        "quantity": 15
+      },
+      {
+        "id": 25331,
+        "name": "纯标准型游离感增效体",
+        "quantity": 15
+      },
+      {
+        "id": 9850,
+        "name": "幽灵酒",
+        "quantity": 20
+      }
+    ],
+    "products": [
+      {
+        "id": 25337,
+        "name": "纯加强型游离感增效体",
+        "quantity": 12
+      }
+    ],
+    "skills": [
+      {
+        "name": "反应理论",
+        "level": 3
+      }
+    ]
+  },
+  {
+    "id": 46240,
+    "name": "加强型思维冲击增效体反应配方",
+    "kind": "reaction",
+    "time": 10800,
+    "materials": [
+      {
+        "id": 4247,
+        "name": "氦燃料块",
+        "quantity": 5
+      },
+      {
+        "id": 25252,
+        "name": "纯标准型疯癫增效体",
+        "quantity": 15
+      },
+      {
+        "id": 25332,
+        "name": "纯标准型思维冲击增效体",
+        "quantity": 15
+      },
+      {
+        "id": 3683,
+        "name": "氧",
+        "quantity": 20
+      }
+    ],
+    "products": [
+      {
+        "id": 25338,
+        "name": "纯加强型思维冲击增效体",
+        "quantity": 12
+      }
+    ],
+    "skills": [
+      {
+        "name": "反应理论",
+        "level": 3
+      }
+    ]
+  },
+  {
+    "id": 46241,
+    "name": "加强型疯癫增效体反应配方",
+    "kind": "reaction",
+    "time": 10800,
+    "materials": [
+      {
+        "id": 4247,
+        "name": "氦燃料块",
+        "quantity": 5
+      },
+      {
+        "id": 25252,
+        "name": "纯标准型疯癫增效体",
+        "quantity": 15
+      },
+      {
+        "id": 25332,
+        "name": "纯标准型思维冲击增效体",
+        "quantity": 15
+      },
+      {
+        "id": 9850,
+        "name": "幽灵酒",
+        "quantity": 20
+      }
+    ],
+    "products": [
+      {
+        "id": 25339,
+        "name": "纯加强型疯癫增效体",
+        "quantity": 12
+      }
+    ],
+    "skills": [
+      {
+        "name": "反应理论",
+        "level": 3
+      }
+    ]
+  },
+  {
+    "id": 46242,
+    "name": "加强型X—本能增效体反应配方",
+    "kind": "reaction",
+    "time": 10800,
+    "materials": [
+      {
+        "id": 4246,
+        "name": "氢燃料块",
+        "quantity": 5
+      },
+      {
+        "id": 25333,
+        "name": "纯标准型X—本能增效体",
+        "quantity": 15
+      },
+      {
+        "id": 25334,
+        "name": "纯标准型梦呓增效体",
+        "quantity": 15
+      },
+      {
+        "id": 3683,
+        "name": "氧",
+        "quantity": 20
+      }
+    ],
+    "products": [
+      {
+        "id": 25340,
+        "name": "纯加强型X—本能增效体",
+        "quantity": 12
+      }
+    ],
+    "skills": [
+      {
+        "name": "反应理论",
+        "level": 3
+      }
+    ]
+  },
+  {
+    "id": 46243,
+    "name": "加强型梦呓增效体反应配方",
+    "kind": "reaction",
+    "time": 10800,
+    "materials": [
+      {
+        "id": 4246,
+        "name": "氢燃料块",
+        "quantity": 5
+      },
+      {
+        "id": 25333,
+        "name": "纯标准型X—本能增效体",
+        "quantity": 15
+      },
+      {
+        "id": 25334,
+        "name": "纯标准型梦呓增效体",
+        "quantity": 15
+      },
+      {
+        "id": 9850,
+        "name": "幽灵酒",
+        "quantity": 20
+      }
+    ],
+    "products": [
+      {
+        "id": 25341,
+        "name": "纯加强型梦呓增效体",
+        "quantity": 12
+      }
+    ],
+    "skills": [
+      {
+        "name": "反应理论",
+        "level": 3
+      }
+    ]
+  },
+  {
+    "id": 46244,
+    "name": "超强型撞击感增效体反应配方",
+    "kind": "reaction",
+    "time": 10800,
+    "materials": [
+      {
+        "id": 4051,
+        "name": "氮燃料块",
+        "quantity": 5
+      },
+      {
+        "id": 25335,
+        "name": "纯加强型撞击感增效体",
+        "quantity": 12
+      },
+      {
+        "id": 25252,
+        "name": "纯标准型疯癫增效体",
+        "quantity": 15
+      },
+      {
+        "id": 3773,
+        "name": "盐酸",
+        "quantity": 20
+      }
+    ],
+    "products": [
+      {
+        "id": 25342,
+        "name": "纯超强型撞击感增效体",
+        "quantity": 12
+      }
+    ],
+    "skills": [
+      {
+        "name": "反应理论",
+        "level": 4
+      }
+    ]
+  },
+  {
+    "id": 46245,
+    "name": "超强型坠落感增效体反应配方",
+    "kind": "reaction",
+    "time": 10800,
+    "materials": [
+      {
+        "id": 4312,
+        "name": "氧燃料块",
+        "quantity": 5
+      },
+      {
+        "id": 25336,
+        "name": "纯加强型坠落感增效体",
+        "quantity": 12
+      },
+      {
+        "id": 25333,
+        "name": "纯标准型X—本能增效体",
+        "quantity": 15
+      },
+      {
+        "id": 3773,
+        "name": "盐酸",
+        "quantity": 20
+      }
+    ],
+    "products": [
+      {
+        "id": 25343,
+        "name": "纯超强型坠落感增效体",
+        "quantity": 12
+      }
+    ],
+    "skills": [
+      {
+        "name": "反应理论",
+        "level": 4
+      }
+    ]
+  },
+  {
+    "id": 46246,
+    "name": "超强型游离感增效体反应配方",
+    "kind": "reaction",
+    "time": 10800,
+    "materials": [
+      {
+        "id": 4312,
+        "name": "氧燃料块",
+        "quantity": 5
+      },
+      {
+        "id": 25337,
+        "name": "纯加强型游离感增效体",
+        "quantity": 12
+      },
+      {
+        "id": 25334,
+        "name": "纯标准型梦呓增效体",
+        "quantity": 15
+      },
+      {
+        "id": 3773,
+        "name": "盐酸",
+        "quantity": 20
+      }
+    ],
+    "products": [
+      {
+        "id": 25344,
+        "name": "纯超强型游离感增效体",
+        "quantity": 12
+      }
+    ],
+    "skills": [
+      {
+        "name": "反应理论",
+        "level": 4
+      }
+    ]
+  },
+  {
+    "id": 46247,
+    "name": "超强型思维冲击增效体反应配方",
+    "kind": "reaction",
+    "time": 10800,
+    "materials": [
+      {
+        "id": 4247,
+        "name": "氦燃料块",
+        "quantity": 5
+      },
+      {
+        "id": 25338,
+        "name": "纯加强型思维冲击增效体",
+        "quantity": 12
+      },
+      {
+        "id": 25242,
+        "name": "纯标准型撞击感增效体",
+        "quantity": 15
+      },
+      {
+        "id": 3773,
+        "name": "盐酸",
+        "quantity": 20
+      }
+    ],
+    "products": [
+      {
+        "id": 25345,
+        "name": "纯超强型思维冲击增效体",
+        "quantity": 12
+      }
+    ],
+    "skills": [
+      {
+        "name": "反应理论",
+        "level": 4
+      }
+    ]
+  },
+  {
+    "id": 46248,
+    "name": "超强型疯癫增效体反应配方",
+    "kind": "reaction",
+    "time": 10800,
+    "materials": [
+      {
+        "id": 4247,
+        "name": "氦燃料块",
+        "quantity": 5
+      },
+      {
+        "id": 25339,
+        "name": "纯加强型疯癫增效体",
+        "quantity": 12
+      },
+      {
+        "id": 25237,
+        "name": "纯标准型蓝色药丸增效体",
+        "quantity": 15
+      },
+      {
+        "id": 3773,
+        "name": "盐酸",
+        "quantity": 20
+      }
+    ],
+    "products": [
+      {
+        "id": 25346,
+        "name": "纯超强型疯癫增效体",
+        "quantity": 12
+      }
+    ],
+    "skills": [
+      {
+        "name": "反应理论",
+        "level": 4
+      }
+    ]
+  },
+  {
+    "id": 46249,
+    "name": "超强型X—本能增效体反应配方",
+    "kind": "reaction",
+    "time": 10800,
+    "materials": [
+      {
+        "id": 4246,
+        "name": "氢燃料块",
+        "quantity": 5
+      },
+      {
+        "id": 25340,
+        "name": "纯加强型X—本能增效体",
+        "quantity": 12
+      },
+      {
+        "id": 25331,
+        "name": "纯标准型游离感增效体",
+        "quantity": 15
+      },
+      {
+        "id": 3773,
+        "name": "盐酸",
+        "quantity": 20
+      }
+    ],
+    "products": [
+      {
+        "id": 25347,
+        "name": "纯超强型X—本能增效体",
+        "quantity": 12
+      }
+    ],
+    "skills": [
+      {
+        "name": "反应理论",
+        "level": 4
+      }
+    ]
+  },
+  {
+    "id": 46250,
+    "name": "超强型梦呓增效体反应配方",
+    "kind": "reaction",
+    "time": 10800,
+    "materials": [
+      {
+        "id": 4246,
+        "name": "氢燃料块",
+        "quantity": 5
+      },
+      {
+        "id": 25341,
+        "name": "纯加强型梦呓增效体",
+        "quantity": 12
+      },
+      {
+        "id": 25330,
+        "name": "纯标准型坠落感增效体",
+        "quantity": 15
+      },
+      {
+        "id": 3773,
+        "name": "盐酸",
+        "quantity": 20
+      }
+    ],
+    "products": [
+      {
+        "id": 25348,
+        "name": "纯超强型梦呓增效体",
+        "quantity": 12
+      }
+    ],
+    "skills": [
+      {
+        "name": "反应理论",
+        "level": 4
+      }
+    ]
+  },
+  {
+    "id": 46251,
+    "name": "加强型蓝色药丸增效体反应配方",
+    "kind": "reaction",
+    "time": 10800,
+    "materials": [
+      {
+        "id": 4051,
+        "name": "氮燃料块",
+        "quantity": 5
+      },
+      {
+        "id": 25237,
+        "name": "纯标准型蓝色药丸增效体",
+        "quantity": 15
+      },
+      {
+        "id": 25242,
+        "name": "纯标准型撞击感增效体",
+        "quantity": 15
+      },
+      {
+        "id": 3683,
+        "name": "氧",
+        "quantity": 20
+      }
+    ],
+    "products": [
+      {
+        "id": 25241,
+        "name": "纯加强型蓝色药丸增效体",
+        "quantity": 12
+      }
+    ],
+    "skills": [
+      {
+        "name": "反应理论",
+        "level": 3
+      }
+    ]
+  }
+]
