@@ -2,31 +2,31 @@
  "delivery": [
   {
    "contract_id": 235833767,
-   "detail": "正在发送",
+   "detail": "游戏邮件编号 403089888",
    "recipient": 2124493042,
-   "state": "sending",
-   "updated": 1788847726.6127276
+   "state": "sent",
+   "updated": 1788847730.4776604
   },
   {
    "contract_id": 235833771,
-   "detail": "正在发送",
+   "detail": "游戏邮件编号 403089888",
    "recipient": 2124493042,
-   "state": "sending",
-   "updated": 1788847726.6125531
+   "state": "sent",
+   "updated": 1788847730.4775133
   },
   {
    "contract_id": 235833775,
-   "detail": "正在发送",
+   "detail": "游戏邮件编号 403089888",
    "recipient": 2124493042,
-   "state": "sending",
-   "updated": 1788847726.612378
+   "state": "sent",
+   "updated": 1788847730.4773612
   },
   {
    "contract_id": 235833776,
-   "detail": "正在发送",
+   "detail": "游戏邮件编号 403089888",
    "recipient": 2124493042,
-   "state": "sending",
-   "updated": 1788847726.6120594
+   "state": "sent",
+   "updated": 1788847730.477147
   }
  ],
  "format": "eve-booster-monitor-v1",
@@ -11120,7 +11120,7 @@
    }
   ]
  },
- "next_mail_at": 0,
+ "next_mail_at": 1788849530.476751,
  "status": {
   "before_volume_filter": 31190,
   "candidates": 18876,
@@ -11136,5 +11136,5 @@
   "stage": "等待下一次检查",
   "volume_cap": 0.06
  },
- "updated": "2026-09-08T06:08:46.615748+00:00"
+ "updated": "2026-09-08T06:08:50.480608+00:00"
 }
