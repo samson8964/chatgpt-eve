@@ -307,6 +307,28 @@ def test_item_connection_failure_keeps_other_results_and_retry_queue():
         assert 11 in a.verified_ids
         a.store.close()
 
+
+def test_unavailable_contract_is_retried_after_negative_cache_expires():
+    from core import ApiError
+    cfg,c,items,p,markets=fixture()
+    with tempfile.TemporaryDirectory() as d:
+        a=Monitor(d); a.hint_loader=lambda: {}; a.store.put('config',cfg)
+        a.markets=markets; a.market_at=time.time()
+        a.price_signature=json.dumps(cfg['rules'],sort_keys=True)
+        a.public_contracts=lambda cfg: [dict(c,contract_id=10)]
+        calls=[]
+        def unavailable(path,ttl):
+            calls.append(path); raise ApiError(403,'暂时不可用')
+        a.client.pages=unavailable
+        a.scan(1); a.scan(1)
+        assert len(calls)==1 and not a.verified_ids
+        a.store.put('unavailable_until',{'10':time.time()-1})
+        a.client.pages=lambda *args: items
+        a.scan(1)
+        assert 10 in a.verified_ids and a.state['new_inspected']==1
+        assert '10' not in a.store.get('unavailable_until')
+        a.store.close()
+
 if __name__ == '__main__':
     for name in sorted(globals()):
         if name.startswith('test_'):

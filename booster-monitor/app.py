@@ -154,7 +154,10 @@ class Monitor:
             if cap is not None:
                 candidates = [c for c in candidates if c.get('volume') is None or c['volume'] <= cap+1e-7]
             self.state['volume_cap'] = cap
+            unavailable = self.store.get('unavailable_until', {})
             inspected = {r['id']: json.loads(r['items']) for r in self.store.rows('SELECT * FROM inspected')}
+            inspected = {cid: items for cid, items in inspected.items()
+                         if items or unavailable.get(str(cid), 0) > time.time()}
             self.state['stage'] = '从公开快照定位目标蓝图'
             hints = self.hint_loader()
             self.priority_ids = {int(cid) for cid in hints.get('contracts', {})}
@@ -187,8 +190,14 @@ class Monitor:
                         continue
                     inspected[cid] = items
                     self.store.execute('INSERT OR REPLACE INTO inspected VALUES (?,?)', (cid, json.dumps(items)))
+                    if items:
+                        unavailable.pop(str(cid), None)
+                    else:
+                        unavailable[str(cid)] = time.time()+1800
                     self.state['scanned'] += 1
                     self.state['new_inspected'] += 1
+            self.store.put('unavailable_until', {cid: until for cid, until in unavailable.items()
+                                                if until > time.time()})
             if unknown:
                 self.store.put('region_cursor', unknown[-1].get('region_id', REGION))
             current = []

@@ -47,6 +47,7 @@ class GitState:
                 tuple(r[k] for k in ('contract_id','recipient','state','detail','updated')))
         store.put('next_mail_at', data.get('next_mail_at', 0))
         store.put('region_cursor', data.get('region_cursor', 0))
+        store.put('unavailable_until', data.get('unavailable_until', {}))
 
     def save(self):
         monitor, store = self.monitor, self.monitor.store
@@ -56,6 +57,7 @@ class GitState:
             delivery=store.rows('SELECT * FROM delivery ORDER BY contract_id'),
             next_mail_at=store.get('next_mail_at', 0), status=monitor.state,
             region_cursor=store.get('region_cursor', 0),
+            unavailable_until=store.get('unavailable_until', {}),
             alerts=[json.loads(r['payload']) for r in store.rows('SELECT payload FROM alerts')
                     if json.loads(r['payload'])['contract_id'] in monitor.verified_ids])
         raw = json.dumps(data, ensure_ascii=False, indent=1, sort_keys=True).encode()
