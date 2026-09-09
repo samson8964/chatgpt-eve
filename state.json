@@ -2329,73 +2329,73 @@
  "delivery": [
   {
    "contract_id": 234989144,
-   "detail": "正在发送",
+   "detail": "游戏邮件编号 403094328",
    "recipient": 2124493042,
-   "state": "sending",
-   "updated": 1788922382.391752
+   "state": "sent",
+   "updated": 1788922385.615115
   },
   {
    "contract_id": 235245495,
-   "detail": "正在发送",
+   "detail": "游戏邮件编号 403094328",
    "recipient": 2124493042,
-   "state": "sending",
-   "updated": 1788922382.393214
+   "state": "sent",
+   "updated": 1788922385.61609
   },
   {
    "contract_id": 235297045,
-   "detail": "正在发送",
+   "detail": "游戏邮件编号 403094328",
    "recipient": 2124493042,
-   "state": "sending",
-   "updated": 1788922382.3930638
+   "state": "sent",
+   "updated": 1788922385.6160069
   },
   {
    "contract_id": 235335056,
-   "detail": "正在发送",
+   "detail": "游戏邮件编号 403094328",
    "recipient": 2124493042,
-   "state": "sending",
-   "updated": 1788922382.3929577
+   "state": "sent",
+   "updated": 1788922385.6159122
   },
   {
    "contract_id": 235335084,
-   "detail": "正在发送",
+   "detail": "游戏邮件编号 403094328",
    "recipient": 2124493042,
-   "state": "sending",
-   "updated": 1788922382.392837
+   "state": "sent",
+   "updated": 1788922385.6158159
   },
   {
    "contract_id": 235335092,
-   "detail": "正在发送",
+   "detail": "游戏邮件编号 403094328",
    "recipient": 2124493042,
-   "state": "sending",
-   "updated": 1788922382.3927152
+   "state": "sent",
+   "updated": 1788922385.6156728
   },
   {
    "contract_id": 235433358,
-   "detail": "正在发送",
+   "detail": "游戏邮件编号 403094328",
    "recipient": 2124493042,
-   "state": "sending",
-   "updated": 1788922382.3926098
+   "state": "sent",
+   "updated": 1788922385.6155949
   },
   {
    "contract_id": 235433370,
-   "detail": "正在发送",
+   "detail": "游戏邮件编号 403094328",
    "recipient": 2124493042,
-   "state": "sending",
-   "updated": 1788922382.3924494
+   "state": "sent",
+   "updated": 1788922385.6155167
   },
   {
    "contract_id": 235433380,
-   "detail": "正在发送",
+   "detail": "游戏邮件编号 403094328",
    "recipient": 2124493042,
-   "state": "sending",
-   "updated": 1788922382.3922608
+   "state": "sent",
+   "updated": 1788922385.615432
   },
   {
    "contract_id": 235530332,
-   "detail": "正在发送",
+   "detail": "游戏邮件编号 403094328",
    "recipient": 2124493042,
-   "state": "sending",
-   "updated": 1788922382.3921044
+   "state": "sent",
+   "updated": 1788922385.615318
   },
   {
    "contract_id": 235778917,
@@ -82049,7 +82049,7 @@
    }
   ]
  },
- "next_mail_at": 1788912708.796133,
+ "next_mail_at": 1788924185.6147344,
  "region_cursor": 10000048,
  "status": {
   "before_volume_filter": 46036,
@@ -82077,5 +82077,5 @@
   "stage": "等待下一次检查",
   "volume_cap": 0.06
  },
- "updated": "2026-09-09T02:53:02.421563+00:00"
+ "updated": "2026-09-09T02:53:05.653031+00:00"
 }
