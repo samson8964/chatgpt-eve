@@ -82069,7 +82069,8 @@
   "region_errors": {},
   "regions_checked": 114,
   "regions_total": 114,
-  "running": true,
+  "round_completed": 1,
+  "running": false,
   "scanned": 5918,
   "snapshot_error": null,
   "snapshot_modified": "2026-09-09T02:32:04.036Z",
@@ -82077,5 +82078,5 @@
   "stage": "等待下一次检查",
   "volume_cap": 0.06
  },
- "updated": "2026-09-09T02:53:05.653031+00:00"
+ "updated": "2026-09-09T02:53:07.119219+00:00"
 }
