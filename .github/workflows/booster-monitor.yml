@@ -2,6 +2,11 @@ name: 药品制造蓝图监控
 on:
   workflow_dispatch:
     inputs:
+      rounds:
+        description: 连续核验轮数（每轮最多 800 个新合同）
+        type: choice
+        options: ['1', '10']
+        default: '1'
       dry_run:
         description: 只扫描，不发邮件
         type: boolean
@@ -19,7 +24,7 @@ concurrency:
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -33,8 +38,9 @@ jobs:
         env:
           EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
           DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
+          SCAN_ROUNDS: ${{ inputs.rounds || '1' }}
         shell: bash
         run: |
           args=()
           if [ "$DRY_RUN" = "1" ]; then args+=(--dry-run); fi
-          python booster-monitor/cloud_run.py --limit 800 "${args[@]}"
+          python booster-monitor/cloud_run.py --limit 800 --rounds "$SCAN_ROUNDS" "${args[@]}"

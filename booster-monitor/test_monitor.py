@@ -219,6 +219,94 @@ def test_cloud_state_survives_new_runner_and_marks_inflight_unknown():
             other.save();b.store.close()
         finally: os.chdir(original)
 
+def test_all_regions_and_round_robin_progress():
+    cfg,c,items,p,markets=fixture()
+    with tempfile.TemporaryDirectory() as d:
+        a=Monitor(d)
+        a.hint_loader=lambda: {}
+        a.store.put('config',cfg)
+        a.markets=markets; a.market_at=time.time()
+        a.price_signature=json.dumps(cfg['rules'],sort_keys=True)
+        calls=[]
+        def get(path,ttl):
+            assert path=='/universe/regions'
+            return [10000002,10000043],{}
+        def pages(path,ttl):
+            calls.append(path)
+            if '/items/' in path: return items
+            region=int(path.rsplit('/',1)[1])
+            return [dict(c,contract_id=region*10+i,start_location_id=60000001) for i in range(3)]
+        a.client.get=get; a.client.pages=pages
+        a.scan(2)
+        assert a.state['new_inspected']==2 and a.state['pending']==4
+        assert {json.loads(r['payload'])['region_id'] for r in a.store.rows('SELECT payload FROM alerts')}=={10000002,10000043}
+        a.scan(2)
+        details=[x for x in calls if '/items/' in x]
+        assert len(details)==len(set(details))==4
+        assert a.state['scanned']==4 and a.state['pending']==2
+        assert not a.store.rows('SELECT * FROM delivery')
+        a.store.close()
+
+def test_partial_region_failure_preserves_inspected_state():
+    from cloud_run import GitState
+    from core import ApiError
+    with tempfile.TemporaryDirectory() as d:
+        a=Monitor(d);a.client.get=lambda *args: ([10000002,10000043],{})
+        def pages(path,ttl):
+            if path.endswith('10000043'): raise ApiError(503,'暂不可用')
+            return [dict(contract_id=99)]
+        a.client.pages=pages
+        assert len(a.public_contracts(a.store.config()))==1
+        assert not a.state['coverage_complete'] and '10000043' in a.state['region_errors']
+        a.active_ids={99}
+        a.store.execute('INSERT INTO inspected VALUES (?,?)',(100,'[]'))
+        saved=[]
+        ledger=GitState(a)
+        def git(*args,data=None,**kw):
+            if args[0]=='hash-object': saved.append(json.loads(data))
+            return subprocess.CompletedProcess(args,0,stdout=b'fake-sha',stderr=b'')
+        ledger.git=git;ledger.save()
+        assert '100' in saved[0]['inspected']
+        a.store.close()
+
+
+def test_snapshot_priorities_never_exclude_unknown_contracts():
+    from snapshot_hints import parse_hints
+    import io
+    import tarfile
+    raw = b'type_id,contract_id\n25308,42\n34,43\n25539,44\n'
+    buffer = io.BytesIO()
+    with tarfile.open(fileobj=buffer, mode='w:bz2') as archive:
+        member = tarfile.TarInfo('contract_items.csv'); member.size=len(raw)
+        archive.addfile(member, io.BytesIO(raw))
+    assert parse_hints(buffer.getvalue(), {25308,25539}) == {'42':[25308], '44':[25539]}
+    with tempfile.TemporaryDirectory() as d:
+        a=Monitor(d); a.priority_ids={42,44,999}
+        candidates=[dict(contract_id=n, date_issued='2026-09-01', region_id=10000002) for n in [41,42,43,44]]
+        selected=a.next_candidates(candidates,{},4)
+        assert [c['contract_id'] for c in selected]==[42,44,41,43]
+        assert a.next_candidates(candidates,{42:[]},1)[0]['contract_id']==44
+        a.store.close()
+
+
+def test_item_connection_failure_keeps_other_results_and_retry_queue():
+    from core import ApiError
+    cfg,c,items,p,markets=fixture()
+    with tempfile.TemporaryDirectory() as d:
+        a=Monitor(d); a.hint_loader=lambda: {}; a.store.put('config',cfg)
+        a.markets=markets; a.market_at=time.time()
+        a.price_signature=json.dumps(cfg['rules'],sort_keys=True)
+        a.public_contracts=lambda cfg: [dict(c,contract_id=n) for n in [10,11]]
+        def pages(path,ttl):
+            if path.endswith('/10'): raise ApiError(0,'网络中断')
+            return items
+        a.client.pages=pages
+        a.scan(2)
+        assert a.state['new_inspected']==1 and a.state['item_errors']==1 and a.state['pending']==1
+        assert [r['id'] for r in a.store.rows('SELECT id FROM inspected')]==[11]
+        assert 11 in a.verified_ids
+        a.store.close()
+
 if __name__ == '__main__':
     for name in sorted(globals()):
         if name.startswith('test_'):

@@ -14,7 +14,7 @@ from pathlib import Path
 
 BASE = Path(__file__).resolve().parent
 ESI = 'https://esi.evetech.net'
-VERSION = '1.2.0'
+VERSION = '1.3.0'
 # ESI validates against UTC-11. Pin the reviewed, fully elapsed day.
 DATE = '2026-09-07'
 REGION = 10000002
@@ -22,7 +22,7 @@ JITA = 60003760
 BLUEPRINTS = {25308: '蓝色药丸', 25311: '撞击感', 25322: '疯癫', 25329: '坠落感',
               25511: '思维冲击', 25512: '梦呓', 25513: 'X—本能', 25539: '游离感'}
 DEFAULTS = dict(recipient_name='MikeChong', recipient_id=None, client_id='', mail_enabled=False,
-                max_contract_isk=2_000_000_000, min_copy_runs=50, jita_only=True,
+                max_contract_isk=2_000_000_000, min_copy_runs=50, jita_only=False,
                 sale_fee=0.05, reserve_per_50=10_000_000, max_week_share=0.25,
                 rules={str(k): dict(enabled=True, min_profit_50=100_000_000, min_roi=0.20)
                        for k in BLUEPRINTS})
@@ -277,6 +277,7 @@ def evaluate(contract, items, cfg, planner, markets):
                 history_end=ref['end'], eligible=not reasons, reasons=reasons,
                 location_id=contract['start_location_id'], expired=contract['date_expired'],
                 issued=contract['date_issued'], discovered=utc(), price_updated=markets['updated'],
+                region_id=contract.get('region_id'),
                 blueprints=[dict(runs=i['runs'], quantity=i['quantity'], me=i.get('material_efficiency'),
                                  te=i.get('time_efficiency')) for i in items])
 

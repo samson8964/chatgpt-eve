@@ -1,5 +1,6 @@
 import argparse
 import concurrent.futures as futures
+from collections import defaultdict, deque
 import json
 import math
 import os
@@ -13,6 +14,7 @@ from pathlib import Path
 from core import (ApiError, BASE, BLUEPRINTS, Client, DEFAULTS, JITA, Planner, REGION,
                   Store, UncertainSend, candidate_volume_cap, evaluate, refresh_markets, stamp, utc, VERSION)
 from auth import Auth, CALLBACK, RECIPIENT, SENDER, digest
+from snapshot_hints import refresh_hints
 
 def validate_config(data, current):
     cfg = json.loads(json.dumps(current))
@@ -63,9 +65,56 @@ class Monitor:
         self.market_at = 0
         self.active_ids = set()
         self.verified_ids = set()
+        self.hint_loader = lambda: refresh_hints(self.store, BLUEPRINTS)
+        self.priority_ids = set()
         self.state = dict(stage='准备启动', running=False, scanned=0, candidates=0,
                           last_scan=None, next_scan=None, market_updated=None, error=None, mail_error=None)
         self.store.execute('CREATE TABLE IF NOT EXISTS inspected (id INTEGER PRIMARY KEY, items TEXT)')
+
+    def public_contracts(self, cfg):
+        regions = [REGION] if cfg['jita_only'] else self.client.get('/universe/regions', 86400)[0]
+        contracts = {}
+        errors = {}
+        self.state.update(regions_total=len(regions), regions_checked=0, region_errors={})
+        def fetch(region):
+            return self.client.pages(f'/contracts/public/{region}', 1800)
+        with futures.ThreadPoolExecutor(max_workers=4) as pool:
+            tasks = {pool.submit(fetch, region): region for region in regions}
+            for task in futures.as_completed(tasks):
+                region = tasks[task]
+                try:
+                    for row in task.result():
+                        contracts[row['contract_id']] = dict(row, region_id=region)
+                except ApiError as e:
+                    errors[str(region)] = dict(status=e.status, message=str(e))
+                self.state['regions_checked'] += 1
+                self.state['region_errors'] = dict(errors)
+        self.state['coverage_complete'] = not errors
+        if not contracts and errors:
+            raise ApiError(0, '本轮星域合同列表读取失败，未完成核验')
+        return list(contracts.values())
+
+    def next_candidates(self, candidates, inspected, limit):
+        # Snapshot item types are hints only. Actual items always come from ESI.
+        ordered = sorted(candidates, key=lambda c: c['date_issued'], reverse=True)
+        priority = [c for c in ordered if c['contract_id'] not in inspected
+                    and c['contract_id'] in self.priority_ids][:limit]
+        selected_ids = {c['contract_id'] for c in priority}
+        buckets = defaultdict(deque)
+        for c in ordered:
+            if c['contract_id'] not in inspected and c['contract_id'] not in selected_ids:
+                buckets[c.get('region_id', REGION)].append(c)
+        regions = sorted(buckets)
+        cursor = self.store.get('region_cursor', 0)
+        regions = [r for r in regions if r > cursor]+[r for r in regions if r <= cursor]
+        queue = deque(regions)
+        chosen = priority
+        while queue and len(chosen) < limit:
+            region = queue.popleft()
+            chosen.append(buckets[region].popleft())
+            if buckets[region]:
+                queue.append(region)
+        return chosen
 
     def status(self):
         entries = self.store.rows('SELECT payload FROM alerts ORDER BY updated DESC')
@@ -83,9 +132,9 @@ class Monitor:
         if not self.scan_lock.acquire(blocking=False):
             return
         try:
-            self.state.update(running=True, stage='读取伏尔戈星域公开合同', error=None)
+            self.state.update(running=True, stage='读取各星域公开合同', error=None, new_inspected=0)
             cfg = self.store.config()
-            contracts = self.client.pages(f'/contracts/public/{REGION}', 1800)
+            contracts = self.public_contracts(cfg)
             self.active_ids = {c['contract_id'] for c in contracts}
             candidates = [c for c in contracts if c.get('type') == 'item_exchange'
                 and 0 <= c.get('price', -1) <= cfg['max_contract_isk'] and not c.get('reward', 0)
@@ -106,7 +155,12 @@ class Monitor:
                 candidates = [c for c in candidates if c.get('volume') is None or c['volume'] <= cap+1e-7]
             self.state['volume_cap'] = cap
             inspected = {r['id']: json.loads(r['items']) for r in self.store.rows('SELECT * FROM inspected')}
-            unknown = [c for c in candidates if c['contract_id'] not in inspected][:limit]
+            self.state['stage'] = '从公开快照定位目标蓝图'
+            hints = self.hint_loader()
+            self.priority_ids = {int(cid) for cid in hints.get('contracts', {})}
+            self.state.update(snapshot_modified=hints.get('modified'), snapshot_error=hints.get('error'),
+                              snapshot_target_contracts=len(self.priority_ids))
+            unknown = self.next_candidates(candidates, inspected, limit)
             self.state.update(stage='核验蓝图物品和剩余流程', candidates=len(candidates),
                               scanned=sum(c['contract_id'] in inspected for c in candidates))
             def inspect(c):
@@ -116,13 +170,27 @@ class Monitor:
                     if e.status in (204, 403, 404):
                         return c['contract_id'], []
                     raise
+            self.state.update(item_errors=0, item_error=None)
             with futures.ThreadPoolExecutor(max_workers=4) as pool:
                 pending = [pool.submit(inspect, c) for c in unknown]
                 for f in futures.as_completed(pending):
-                    cid, items = f.result()
+                    if f.cancelled():
+                        continue
+                    try:
+                        cid, items = f.result()
+                    except ApiError as e:
+                        self.state['item_errors'] += 1
+                        self.state['item_error'] = str(e)
+                        if e.status in (420, 429, 503) or self.state['item_errors'] >= 5:
+                            for other in pending:
+                                other.cancel()
+                        continue
                     inspected[cid] = items
                     self.store.execute('INSERT OR REPLACE INTO inspected VALUES (?,?)', (cid, json.dumps(items)))
                     self.state['scanned'] += 1
+                    self.state['new_inspected'] += 1
+            if unknown:
+                self.store.put('region_cursor', unknown[-1].get('region_id', REGION))
             current = []
             verified = set()
             for c in candidates:
@@ -143,7 +211,8 @@ class Monitor:
                     if result['eligible']:
                         current.append(result)
             self.verified_ids = verified
-            self.state.update(stage='等待下一次检查', last_scan=utc(), opportunities=len(current))
+            self.state.update(stage='等待下一次检查', last_scan=utc(), opportunities=len(current),
+                              pending=len(candidates)-self.state['scanned'])
             if cfg == self.store.config() and not self.store.get('paused', False) and cfg['mail_enabled']:
                 self.send_opportunities(current)
         finally:

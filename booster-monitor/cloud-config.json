@@ -1,7 +1,7 @@
 {
   "max_contract_isk": 2000000000,
   "min_copy_runs": 50,
-  "jita_only": true,
+  "jita_only": false,
   "sale_fee": 0.05,
   "reserve_per_50": 10000000,
   "max_week_share": 0.25

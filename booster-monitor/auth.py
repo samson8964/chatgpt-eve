@@ -197,13 +197,14 @@ def digest(rows):
     lines = ['超强增效剂蓝图机会提醒', '以下为公开合同报价及制造估算，未购买。',
              '基础用量从气体自制，材料取吉他卖单；成品取星域近期成交参考价。',
              '已扣设定的销售费用和额外费用预留；实际成交、建筑成本及销量可能不同。',
+             '远地交货未取得实际运输报价；玩家建筑的停靠与取货权限须自行核对。',
              'ESI 有缓存，合同可能已被接受；请核对游戏中的价格、物品和剩余流程。', '']
     for r in rows:
         lines.extend([f"{r['name']}：{r['copies']} 张，共 {r['runs']} 流程",
             f"合同总价 {r['price']/1e8:.2f} 亿；折算 50 流程 {r['price']*50/r['runs']/1e8:.2f} 亿",
             f"预计总利润 {r['profit']/1e8:.2f} 亿；每 50 流程 {r['profit50']/1e8:.2f} 亿；回报率 {r['roi']:.0%}",
             f"成品七天成交 {r['week_volume']} 个（截至 {r['history_end']}）",
-            f"交货地点编号 {r['location_id']}；合同编号 {r['contract_id']}",
+            f"星域编号 {r.get('region_id', '未知')}；交货地点编号 {r['location_id']}；合同编号 {r['contract_id']}",
             f"详情：https://www.adam4eve.eu/contract.php?id={r['contract_id']}", ''])
     # Do not interpolate untrusted contract titles into in-game markup.
     body = '<br>'.join(html.escape(s) for s in lines)

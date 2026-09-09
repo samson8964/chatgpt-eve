@@ -46,14 +46,18 @@ class GitState:
             store.execute('INSERT OR REPLACE INTO delivery VALUES (?,?,?,?,?)',
                 tuple(r[k] for k in ('contract_id','recipient','state','detail','updated')))
         store.put('next_mail_at', data.get('next_mail_at', 0))
+        store.put('region_cursor', data.get('region_cursor', 0))
 
     def save(self):
         monitor, store = self.monitor, self.monitor.store
         inspected = {str(r['id']):json.loads(r['items']) for r in store.rows('SELECT * FROM inspected')
-                     if not monitor.active_ids or r['id'] in monitor.active_ids}
+                     if not monitor.state.get('coverage_complete') or r['id'] in monitor.active_ids}
         data = dict(format='eve-booster-monitor-v1', updated=utc(), inspected=inspected,
             delivery=store.rows('SELECT * FROM delivery ORDER BY contract_id'),
-            next_mail_at=store.get('next_mail_at', 0), status=monitor.state)
+            next_mail_at=store.get('next_mail_at', 0), status=monitor.state,
+            region_cursor=store.get('region_cursor', 0),
+            alerts=[json.loads(r['payload']) for r in store.rows('SELECT payload FROM alerts')
+                    if json.loads(r['payload'])['contract_id'] in monitor.verified_ids])
         raw = json.dumps(data, ensure_ascii=False, indent=1, sort_keys=True).encode()
         blob = self.git('hash-object', '-w', '--stdin', data=raw).stdout.decode().strip()
         tree = self.git('mktree', data=f'100644 blob {blob}\tstate.json\n'.encode()).stdout.decode().strip()
@@ -70,6 +74,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--limit', type=int, default=800)
     parser.add_argument('--dry-run', action='store_true')
+    parser.add_argument('--rounds', type=int, default=1, choices=range(1, 11))
     args = parser.parse_args()
     m = Monitor(BASE/'cloud-data')
     try:
@@ -81,9 +86,15 @@ def main():
         m.auth = RelayAuth(m.client)
         m.delivery_checkpoint = ledger.save
         print('开始扫描；LadyGuaGua → MikeChong。', flush=True)
-        m.scan(max(1,min(args.limit,2400)))
-        ledger.save()
-        print(json.dumps(m.state,ensure_ascii=False),flush=True)
+        for number in range(1, args.rounds+1):
+            m.scan(max(1,min(args.limit,2400)))
+            m.state['round_completed'] = number
+            ledger.save()
+            print(json.dumps(m.state,ensure_ascii=False),flush=True)
+            if number < args.rounds and (m.state.get('item_errors') or m.state.get('region_errors')):
+                deadline = max(time.time()+60, m.client.blocked_until)
+                while time.time() < deadline:
+                    time.sleep(min(30, deadline-time.time()))
         if m.state.get('mail_error'):
             return 2
         return 0

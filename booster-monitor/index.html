@@ -28,7 +28,7 @@ async function post(url){try{await api(url,{method:'POST',body:'{}'});await refr
 async function login(){try{let x=await api('/api/login',{method:'POST',body:'{}'});location.href=x.url}catch(e){alert(e.message)}}
 async function refresh(){try{last=await (await fetch('/api/status',{cache:'no-store'})).json();csrf=last.csrf;render()}catch(e){document.getElementById('stage').textContent='本地程序未运行或连接中断';document.getElementById('dot').className='dot bad'}}
 function render(){let s=last.state||{},dot=document.getElementById('dot');dot.className='dot '+(s.error?'bad':s.running?'':'good');document.getElementById('stage').textContent=s.stage||'—';document.getElementById('time').textContent=s.last_scan?'上次检查：'+new Date(s.last_scan).toLocaleString():'尚未检查';document.getElementById('error').textContent=s.error||s.mail_error||'';let a=last.auth||{};document.getElementById('auth').innerHTML=a.connected?`已授权：<strong>${esc(a.sender)}</strong> → <strong>${esc(a.recipient)}</strong>`:`未授权 ${esc(a.sender||'LadyGuaGua')}；邮件提醒未启用`;
- document.getElementById('progress').textContent=`已核验 ${fmt(s.scanned)} / ${fmt(s.candidates)} 个候选合同；本轮符合 ${fmt(s.opportunities)} 个。`;
+ document.getElementById('progress').textContent=`星域列表 ${fmt(s.regions_checked)} / ${fmt(s.regions_total)}；失败 ${Object.keys(s.region_errors||{}).length}。已核验 ${fmt(s.scanned)} / ${fmt(s.candidates)} 个候选合同；本轮新增核验 ${fmt(s.new_inspected)} 个，物品请求失败 ${fmt(s.item_errors)} 个；符合 ${fmt(s.opportunities)} 个。快照定位 ${fmt(s.snapshot_target_contracts)} 个目标合同。${s.snapshot_error||''}`;
  let c=last.config||{};
  if(!dirty||!formReady){
   document.getElementById('client_id').value=c.client_id||'';
