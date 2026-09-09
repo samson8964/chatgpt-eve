@@ -2369,17 +2369,17 @@
   },
   {
    "contract_id": 235245489,
-   "detail": "正在发送",
+   "detail": "游戏邮件编号 403094921",
    "recipient": 2124493042,
-   "state": "sending",
-   "updated": 1788936386.5311728
+   "state": "sent",
+   "updated": 1788936390.422734
   },
   {
    "contract_id": 235245494,
-   "detail": "正在发送",
+   "detail": "游戏邮件编号 403094921",
    "recipient": 2124493042,
-   "state": "sending",
-   "updated": 1788936386.5308518
+   "state": "sent",
+   "updated": 1788936390.4225028
   },
   {
    "contract_id": 235245495,
@@ -2446,17 +2446,17 @@
   },
   {
    "contract_id": 235670079,
-   "detail": "正在发送",
+   "detail": "游戏邮件编号 403094921",
    "recipient": 2124493042,
-   "state": "sending",
-   "updated": 1788936386.5321684
+   "state": "sent",
+   "updated": 1788936390.423526
   },
   {
    "contract_id": 235697400,
-   "detail": "正在发送",
+   "detail": "游戏邮件编号 403094921",
    "recipient": 2124493042,
-   "state": "sending",
-   "updated": 1788936386.5319564
+   "state": "sent",
+   "updated": 1788936390.4233763
   },
   {
    "contract_id": 235778917,
@@ -2502,24 +2502,24 @@
   },
   {
    "contract_id": 235855799,
-   "detail": "正在发送",
+   "detail": "游戏邮件编号 403094921",
    "recipient": 2124493042,
-   "state": "sending",
-   "updated": 1788936386.5317817
+   "state": "sent",
+   "updated": 1788936390.423219
   },
   {
    "contract_id": 235855804,
-   "detail": "正在发送",
+   "detail": "游戏邮件编号 403094921",
    "recipient": 2124493042,
-   "state": "sending",
-   "updated": 1788936386.53161
+   "state": "sent",
+   "updated": 1788936390.423065
   },
   {
    "contract_id": 235865584,
-   "detail": "正在发送",
+   "detail": "游戏邮件编号 403094921",
    "recipient": 2124493042,
-   "state": "sending",
-   "updated": 1788936386.531417
+   "state": "sent",
+   "updated": 1788936390.422904
   }
  ],
  "format": "eve-booster-monitor-v1",
@@ -92642,7 +92642,7 @@
    }
   ]
  },
- "next_mail_at": 1788924185.6147344,
+ "next_mail_at": 1788938190.4221034,
  "region_cursor": 10000043,
  "status": {
   "before_volume_filter": 46020,
@@ -92670,5 +92670,5 @@
   "stage": "等待下一次检查",
   "volume_cap": 0.06
  },
- "updated": "2026-09-09T06:46:26.566191+00:00"
+ "updated": "2026-09-09T06:46:30.449718+00:00"
 }
