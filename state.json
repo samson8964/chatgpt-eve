@@ -2353,17 +2353,17 @@
   },
   {
    "contract_id": 235894165,
-   "detail": "正在发送",
+   "detail": "游戏邮件编号 403099931",
    "recipient": 2124493042,
-   "state": "sending",
-   "updated": 1789015638.9021885
+   "state": "sent",
+   "updated": 1789015642.30904
   },
   {
    "contract_id": 235894167,
-   "detail": "正在发送",
+   "detail": "游戏邮件编号 403099931",
    "recipient": 2124493042,
-   "state": "sending",
-   "updated": 1789015638.9018838
+   "state": "sent",
+   "updated": 1789015642.3086958
   }
  ],
  "format": "eve-booster-monitor-v1",
@@ -145253,7 +145253,7 @@
    }
   ]
  },
- "next_mail_at": 1788992908.9915133,
+ "next_mail_at": 1789017442.3082826,
  "region_cursor": 10000002,
  "status": {
   "before_volume_filter": 45706,
@@ -145282,5 +145282,5 @@
   "volume_cap": 0.06
  },
  "unavailable_until": {},
- "updated": "2026-09-10T04:47:18.965765+00:00"
+ "updated": "2026-09-10T04:47:22.361510+00:00"
 }
