@@ -4,14 +4,19 @@ import send_eve_mail_quality as quality
 import send_eve_mail_quality_multi as multi
 import buy_only_mail_templates as templates
 
+POLICY_VERSION = "buyonly-v1"
+
 
 def main():
-    # Replace only presentation; candidate selection/history/retry behavior stays in the proven
-    # multi-recipient sender. The underlying result CSVs have already been rebuilt under the
-    # Jita-buy-only policy before this step runs.
+    # Replace presentation and signature namespace while preserving the proven multi-recipient
+    # sender, shared historical push counts and live-contract checks.
     original_deal_html = quality.base.deal_html
     original_bpc_html = quality.base.bpc_html
     original_send = quality.base.send_mail
+    original_top_signature = quality.top_signature
+
+    def versioned_signature(picked):
+        return POLICY_VERSION + "|" + original_top_signature(picked)
 
     def transformed_send(recipient_id, subject, body, channel_key):
         if channel_key == "spot-deals":
@@ -40,11 +45,13 @@ def main():
         quality.base.deal_html = templates.deal_html
         quality.base.bpc_html = templates.bpc_html
         quality.base.send_mail = transformed_send
+        quality.top_signature = versioned_signature
         multi.main()
     finally:
         quality.base.deal_html = original_deal_html
         quality.base.bpc_html = original_bpc_html
         quality.base.send_mail = original_send
+        quality.top_signature = original_top_signature
 
 
 if __name__ == "__main__":
