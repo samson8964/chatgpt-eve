@@ -31,9 +31,11 @@ on:
 permissions:
   contents: write
 
+# Code edits should validate only the newest revision. Scheduled scans use a different group and
+# are never cancelled by a later schedule tick, so a long normal scan can finish and persist data.
 concurrency:
-  group: eve-arbitrage-scan-v4-buy-only
-  cancel-in-progress: false
+  group: eve-arbitrage-v5-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name == 'push' }}
 
 jobs:
   scan:
