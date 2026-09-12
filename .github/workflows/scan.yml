@@ -7,6 +7,7 @@ on:
       - 'runner.py'
       - 'scanner_source.py'
       - 'bpc_contract_benchmark.py'
+      - 'bpc_contract_benchmark_buy_only.py'
       - 'apply_buy_only_bpc_policy.py'
       - 'buy_only_contract_scanner.py'
       - 'buy_only_mail_templates.py'
@@ -104,7 +105,7 @@ jobs:
           EXPECTED_RELISTS: '0'
         run: python runner.py
 
-      - name: Scan all-space BPC intrinsic value per run
+      - name: Scan BPC intrinsic value with capped/clean benchmark pool
         if: steps.cadence.outputs.run_scan == 'true'
         env:
           BPC_VALUE_MIN_SAMPLES: '3'
@@ -114,10 +115,11 @@ jobs:
           BPC_VALUE_MIN_SURPLUS: '10000000'
           BPC_VALUE_MIN_HOURS_TO_EXPIRE: '2'
           BPC_VALUE_TOP: '200'
+          DEAL_MAX_CONTRACT_PRICE: '5000000000'
           DEAL_FRIENDLY_CHARACTER_ID: '2124493042'
           DEAL_FRIENDLY_ALLIANCE_IDS: ''
           DEAL_FRIENDLY_REGION_IDS: ''
-        run: python bpc_contract_benchmark.py
+        run: python bpc_contract_benchmark_buy_only.py
 
       - name: Enforce BPC price cap, SKIN exclusions and buy-only economics
         if: steps.cadence.outputs.run_scan == 'true'
