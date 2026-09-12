@@ -1,7 +1,6 @@
 """Independent Actions entrypoint, using a dedicated public-data state branch."""
 import argparse
 import json
-import os
 from pathlib import Path
 import subprocess
 import sys
@@ -9,10 +8,11 @@ import time
 
 from app import validate_config
 from monitor_v2 import OpportunityMonitor
-from core import BASE, DEFAULTS, utc
+from core import ApiError, BASE, DEFAULTS, utc
 from relay import RelayAuth
 
 STATE_BRANCH = 'eve-booster-monitor-state'
+
 
 class GitState:
     def __init__(self, monitor):
@@ -35,9 +35,17 @@ class GitState:
             raise RuntimeError('无法确认远程投递记录，已停止本轮')
         self.git('fetch', '--depth=1', 'origin', 'refs/heads/'+STATE_BRANCH)
         self.parent = self.git('rev-parse', 'FETCH_HEAD').stdout.decode().strip()
-        data = json.loads(self.git('show', self.parent+':state.json').stdout)
+
+        raw = self.git('show', self.parent+':state.json').stdout
+        if not raw.strip():
+            raise RuntimeError('状态分支 state.json 为空；已停止本轮，避免重置投递次数或重复发信')
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            raise RuntimeError('状态分支 state.json 不是有效 JSON；已停止本轮，避免重复发信') from None
         if data.get('format') != 'eve-booster-monitor-v1':
             raise RuntimeError('状态分支内容不匹配，未覆盖原内容')
+
         store = self.monitor.store
         for cid, items in data.get('inspected', {}).items():
             store.execute('INSERT OR REPLACE INTO inspected VALUES (?,?)', (int(cid), json.dumps(items)))
@@ -106,6 +114,7 @@ class GitState:
         self.git('push','origin',commit+':refs/heads/'+STATE_BRANCH)
         self.parent = commit
 
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--limit', type=int, default=800)
@@ -134,13 +143,21 @@ def main():
         if m.state.get('mail_error'):
             return 2
         return 0
-    except Exception as e:
-        # Known exceptions contain only controlled messages; do not dump tokens,
-        # response bodies, environment variables or tracebacks.
-        print('本轮失败：'+str(e) if isinstance(e,(RuntimeError,ValueError)) else '本轮接口失败，未确认新的提醒。', flush=True)
+    except ApiError as e:
+        stage = m.state.get('stage', '准备阶段')
+        print(f'本轮失败（阶段：{stage}）：{e}', flush=True)
+        return 1
+    except (RuntimeError, ValueError) as e:
+        stage = m.state.get('stage', '准备阶段')
+        print(f'本轮失败（阶段：{stage}）：{e}', flush=True)
+        return 1
+    except Exception:
+        stage = m.state.get('stage', '准备阶段')
+        print(f'本轮接口失败（阶段：{stage}），未确认新的提醒。', flush=True)
         return 1
     finally:
         m.store.close()
+
 
 if __name__ == '__main__':
     sys.exit(main())

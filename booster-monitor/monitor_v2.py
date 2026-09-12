@@ -3,11 +3,20 @@ from __future__ import annotations
 
 from collections import defaultdict
 import html
+import json
 import statistics
 import time
 
 from app import Monitor
-from core import ApiError, UncertainSend, stamp
+from core import (
+    ApiError,
+    BLUEPRINTS,
+    Client,
+    ESI,
+    UncertainSend,
+    extract_blueprints,
+    stamp,
+)
 
 CHANNEL_MANUFACTURING = "booster-manufacturing"
 CHANNEL_SPREAD = "booster-spread"
@@ -18,6 +27,23 @@ MAIL_COOLDOWN = 1800
 SPREAD_MIN_COMPARATORS = 2
 SPREAD_MIN_DISCOUNT = 0.20
 SPREAD_MIN_TOTAL_GAP = 30_000_000
+
+
+class ResilientClient(Client):
+    """Retry once after an invalid cached/live JSON response and report the exact ESI path."""
+
+    def get(self, path, ttl=300):
+        try:
+            return super().get(path, ttl)
+        except json.JSONDecodeError:
+            # A stale/corrupt cache row or a transient empty/non-JSON ESI body can
+            # otherwise surface only as "Expecting value". Drop the path cache and
+            # retry once without ETag state.
+            self.store.execute("DELETE FROM cache WHERE key=?", (ESI + path,))
+            try:
+                return super().get(path, ttl)
+            except json.JSONDecodeError:
+                raise ApiError(0, f"ESI 返回空内容或非 JSON：{path}", 60) from None
 
 
 def _isk(value: float) -> str:
@@ -112,7 +138,7 @@ def spread_digest(rows):
     lines = [
         "超强增效剂蓝图价差捡漏提醒",
         "这个通道只比较同种蓝图拷贝的每流程合同报价，不把制造利润作为入选条件。",
-        "主要基准是同种蓝图中‘下一份最便宜合同’的每流程价格；其他合同中位价只作辅助参考。",
+        "主要基准是同种蓝图中“下一份最便宜合同”的每流程价格；其他合同中位价只作辅助参考。",
         f"默认门槛：至少 {SPREAD_MIN_COMPARATORS} 个其他可比合同、便宜 ≥ {SPREAD_MIN_DISCOUNT:.0%}、按本合同流程折算总价差 ≥ {_isk(SPREAD_MIN_TOTAL_GAP)}。",
         "",
     ]
@@ -138,7 +164,21 @@ def spread_digest(rows):
 
 
 class OpportunityMonitor(Monitor):
-    """Monitor that keeps independent repeat counters for manufacturing/spread channels."""
+    """Monitor with independent manufacturing/spread channels and repeat counters."""
+
+    def __init__(self, directory):
+        super().__init__(directory)
+        # Replace the base client before any network scan. cloud_run replaces auth
+        # with RelayAuth afterwards, so both scanner and relay use this client.
+        self.client = ResilientClient(self.store)
+        if hasattr(self.auth, "client"):
+            self.auth.client = self.client
+        self.contract_index = {}
+
+    def public_contracts(self, cfg):
+        rows = super().public_contracts(cfg)
+        self.contract_index = {int(r["contract_id"]): r for r in rows if r.get("contract_id") is not None}
+        return rows
 
     def _push_state(self):
         state = self.store.get("push_state", {})
@@ -148,18 +188,30 @@ class OpportunityMonitor(Monitor):
     def _state_key(channel, recipient_id, contract_id):
         return f"{channel}:{int(recipient_id)}:{int(contract_id)}"
 
-    def _live_verified_rows(self):
+    def _live_spread_rows(self):
+        """Build price-comparison rows directly from verified BPC items, not manufacturing profit."""
         rows = []
-        for rec in self.store.rows("SELECT payload FROM alerts"):
+        cfg = self.store.config()
+        for rec in self.store.rows("SELECT id,items FROM inspected"):
             try:
-                row = __import__("json").loads(rec["payload"])
-                if (
-                    int(row["contract_id"]) in self.active_ids
-                    and int(row["contract_id"]) in self.verified_ids
-                    and stamp(row["expired"]) > time.time()
-                ):
-                    rows.append(row)
-            except (KeyError, TypeError, ValueError):
+                cid = int(rec["id"])
+                contract = self.contract_index.get(cid)
+                if not contract or cid not in self.active_ids or stamp(contract["date_expired"]) <= time.time():
+                    continue
+                items = json.loads(rec["items"])
+                info = extract_blueprints(contract, items, cfg)
+                if not info:
+                    continue
+                rows.append(dict(
+                    **info,
+                    contract_id=cid,
+                    name=BLUEPRINTS[info["bp"]],
+                    location_id=contract["start_location_id"],
+                    expired=contract["date_expired"],
+                    issued=contract.get("date_issued"),
+                    region_id=contract.get("region_id"),
+                ))
+            except (KeyError, TypeError, ValueError, json.JSONDecodeError):
                 continue
         return rows
 
@@ -244,7 +296,7 @@ class OpportunityMonitor(Monitor):
                 lambda r: (r.get("profit50", 0), r.get("profit", 0)),
             )
 
-            spread_rows = build_spread_opportunities(self._live_verified_rows())
+            spread_rows = build_spread_opportunities(self._live_spread_rows())
             self.state["spread_opportunities"] = len(spread_rows)
             self._send_channel(
                 CHANNEL_SPREAD,
