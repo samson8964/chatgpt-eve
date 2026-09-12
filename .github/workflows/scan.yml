@@ -9,6 +9,9 @@ on:
       - 'bpc_contract_benchmark.py'
       - 'apply_buy_only_bpc_policy.py'
       - 'buy_only_contract_scanner.py'
+      - 'buy_only_mail_templates.py'
+      - 'send_eve_mail_buy_only_multi.py'
+      - 'send_multi_item_buy_only_multi.py'
       - 'prepare_mail_candidates.py'
       - 'payload/**'
       - 'requirements.txt'
@@ -97,8 +100,6 @@ jobs:
       - name: Run BPC manufacturing scanner with Jita buy-only revenue
         if: steps.cadence.outputs.run_scan == 'true'
         env:
-          # Products are liquidated into existing Jita buy orders. No broker/relist fee is charged
-          # for placing a sell order because no sell order is placed.
           MARKET_BROKER_FEE_RATE: '0'
           EXPECTED_RELISTS: '0'
         run: python runner.py
@@ -168,7 +169,7 @@ jobs:
           EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
           MAIL_TOP: '10'
           MAIL_LIVE_POOL: '80'
-        run: python send_eve_mail_quality_multi.py
+        run: python send_eve_mail_buy_only_multi.py
 
       - name: Send changed multi-item top-10 digest
         if: steps.cadence.outputs.run_scan == 'true'
@@ -179,7 +180,7 @@ jobs:
           EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
           MAIL_TOP: '10'
           MAIL_LIVE_POOL: '80'
-        run: python send_multi_item_mail_multi.py
+        run: python send_multi_item_buy_only_multi.py
 
       - name: Commit refreshed results safely
         if: steps.cadence.outputs.run_scan == 'true'
