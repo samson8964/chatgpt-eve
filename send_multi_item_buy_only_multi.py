@@ -172,12 +172,18 @@ def main():
         except Exception as exc:
             failures.append((name, exc))
             print(f"::warning::{CHANNEL} failed for {name}: {type(exc).__name__}: {exc}")
+            # Do not save this recipient's signature: the next scan retries the same digest.
 
-    primary_failure = next((exc for name, exc in failures if name.casefold() == primary.casefold()), None)
-    if primary_failure is not None:
-        raise RuntimeError(f"Primary multi-item recipient {primary} mail failed") from primary_failure
     if failures:
-        print("secondary multi-item recipient failures did not invalidate completed scan/results")
+        primary_failures = [
+            exc for name, exc in failures if name.casefold() == primary.casefold()
+        ]
+        print(
+            f"::warning::{CHANNEL} delivery incomplete: failures={len(failures)} "
+            f"primary_failures={len(primary_failures)}; scan results remain valid and will be saved."
+        )
+        for name, exc in failures:
+            print(f"mail failure detail: recipient={name} error={exc}")
 
 
 if __name__ == "__main__":
