@@ -7,9 +7,8 @@ on:
       - 'runner.py'
       - 'scanner_source.py'
       - 'bpc_contract_benchmark.py'
-      - 'contract_deal_scanner.py'
-      - 'filter_reachable_contract_deals.py'
-      - 'multi_item_contract_scanner.py'
+      - 'apply_buy_only_bpc_policy.py'
+      - 'buy_only_contract_scanner.py'
       - 'prepare_mail_candidates.py'
       - 'payload/**'
       - 'requirements.txt'
@@ -30,7 +29,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: eve-arbitrage-scan-v3
+  group: eve-arbitrage-scan-v4-buy-only
   cancel-in-progress: false
 
 jobs:
@@ -63,8 +62,6 @@ jobs:
             last=""
           fi
 
-          # Ten-minute trigger opportunities plus a 25-minute start-age guard normally produce
-          # about one full scan every 30 minutes, while allowing later slots to recover a missed cron.
           if [ -n "$last" ]; then
             age=$((now - last))
           else
@@ -97,8 +94,13 @@ jobs:
         if: steps.cadence.outputs.run_scan == 'true'
         run: pip install -r requirements.txt
 
-      - name: Run fast BPC manufacturing scanner
+      - name: Run BPC manufacturing scanner with Jita buy-only revenue
         if: steps.cadence.outputs.run_scan == 'true'
+        env:
+          # Products are liquidated into existing Jita buy orders. No broker/relist fee is charged
+          # for placing a sell order because no sell order is placed.
+          MARKET_BROKER_FEE_RATE: '0'
+          EXPECTED_RELISTS: '0'
         run: python runner.py
 
       - name: Scan all-space BPC intrinsic value per run
@@ -116,46 +118,29 @@ jobs:
           DEAL_FRIENDLY_REGION_IDS: ''
         run: python bpc_contract_benchmark.py
 
-      - name: Run all-space spot contract deal scanner
+      - name: Enforce BPC price cap, SKIN exclusions and buy-only economics
+        if: steps.cadence.outputs.run_scan == 'true'
+        env:
+          DEAL_MAX_CONTRACT_PRICE: '5000000000'
+        run: python apply_buy_only_bpc_policy.py
+
+      - name: Scan spot and multi-item contracts using Jita buy depth only
         if: steps.cadence.outputs.run_scan == 'true'
         env:
           DEAL_MIN_CONTRACT_PRICE: '1000000'
-          DEAL_MIN_PRELIM_EDGE: '8000000'
-          DEAL_MIN_NET_PROFIT: '15000000'
+          DEAL_MAX_CONTRACT_PRICE: '5000000000'
+          DEAL_MIN_NET_PROFIT: '30000000'
           DEAL_MIN_NET_ROI: '0.10'
-          DEAL_MIN_LIST_NET_PROFIT: '25000000'
-          DEAL_MIN_LIST_NET_ROI: '0.15'
-          DEAL_JITA_NEAR_SECURE_JUMPS: '25'
-          DEAL_LOCATION_PREFILTER_TOP: '500'
-          DEAL_HAUL_BASE_ISK: '2000000'
-          DEAL_HAUL_ISK_PER_M3_JUMP: '200'
-          DEAL_FRIENDLY_CHARACTER_ID: '2124493042'
-          DEAL_FRIENDLY_ALLIANCE_IDS: ''
-          DEAL_FRIENDLY_REGION_IDS: ''
-        run: python contract_deal_scanner.py
-
-      - name: Exclude unreachable contract systems
-        if: steps.cadence.outputs.run_scan == 'true'
-        run: python filter_reachable_contract_deals.py
-
-      - name: Scan reachable multi-item bundle contracts
-        if: steps.cadence.outputs.run_scan == 'true'
-        env:
-          MULTI_MIN_TYPES: '2'
-          MULTI_MIN_CONTRACT_PRICE: '1000000'
-          MULTI_MIN_DISCOUNT: '0.30'
-          MULTI_MIN_VALUE_GAP: '30000000'
-          MULTI_MIN_VALUE_COVERAGE: '0.90'
-          MULTI_MIN_A_BUY_COVERAGE: '0.90'
-          MULTI_MIN_HOURS_TO_EXPIRE: '1'
-          MULTI_HISTORY_WORKERS: '16'
+          DEAL_MIN_HOURS_TO_EXPIRE: '0.5'
+          DEAL_TOP: '250'
           MULTI_TOP: '250'
+          DEAL_SKIN_MAJOR_SHARE: '0.50'
           DEAL_HAUL_BASE_ISK: '2000000'
           DEAL_HAUL_ISK_PER_M3_JUMP: '200'
           DEAL_FRIENDLY_CHARACTER_ID: '2124493042'
           DEAL_FRIENDLY_ALLIANCE_IDS: ''
           DEAL_FRIENDLY_REGION_IDS: ''
-        run: python multi_item_contract_scanner.py
+        run: python buy_only_contract_scanner.py
 
       - name: Prepare mail candidates
         if: steps.cadence.outputs.run_scan == 'true'
