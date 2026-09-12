@@ -112,7 +112,7 @@ def multi_item_html(i, c):
     return (
         f"<b>{i}. 【多件·Jita买单即时兑现】 · {risk}</b><br>"
         f"合同价 {fmt_isk(r.get('contract_price',0))} · <b>净利润 {fmt_isk(profit)}</b> · ROI {roi:.1f}% · {int(_num(r.get('item_type_count',0)))}种物品<br>"
-        f"Jita买单毛值 {fmt_isk(r.get('jita_buy_gross',0))} · 税后/运输后可兑现值 {fmt_isk(r.get('instant_liquidation_net_value',0) - _num(r.get('haul_reserve',0)))}<br>"
+        f"Jita买单毛值 {fmt_isk(r.get('jita_buy_gross',0))} · 税后/运输后可兑现值 {fmt_isk(r.get('chosen_estimated_value',0))}<br>"
         f"买单数量覆盖 {coverage:.1f}% · 压力利润 {fmt_isk(stress)} · SKIN占比 {_num(r.get('skin_value_share',0))*100:.1f}%<br>"
         + (f"主要物品：{items}<br>" if items else "")
         + f"位置 {system} / {station}<br>"
