@@ -11,17 +11,13 @@ DEALS = Path("results/latest/contract_deals.csv")
 BPC = Path("results/latest/ranked_opportunities.csv")
 BPC_VALUE = Path("results/latest/bpc_value_opportunities.csv")
 
-# Spot mail: use current economics directly. No 5% Jita price haircut and no buy-coverage gate.
 SPOT_MIN_PROFIT = float(os.getenv("MAIL_SPOT_MIN_PROFIT", "30000000"))
 SPOT_MIN_ROI = float(os.getenv("MAIL_SPOT_MIN_ROI", "0.10"))
 
-# BPC value track. Comparable contract asks are imperfect, so require several aligned signals.
 BPC_VALUE_MIN_SAMPLES = int(os.getenv("MAIL_BPC_VALUE_MIN_SAMPLES", "5"))
 BPC_VALUE_MIN_AVG_DISCOUNT = float(os.getenv("MAIL_BPC_VALUE_MIN_AVG_DISCOUNT", "0.30"))
 BPC_VALUE_MIN_MEDIAN_DISCOUNT = float(os.getenv("MAIL_BPC_VALUE_MIN_MEDIAN_DISCOUNT", "0.20"))
 BPC_VALUE_MIN_SURPLUS = float(os.getenv("MAIL_BPC_VALUE_MIN_SURPLUS", "20000000"))
-
-# Manufacturing is a separate route into mail, not a prerequisite for BPC-value opportunities.
 BPC_MFG_MIN_PROFIT = float(os.getenv("MAIL_BPC_MFG_MIN_PROFIT", "20000000"))
 BPC_MFG_MIN_ROI = float(os.getenv("MAIL_BPC_MFG_MIN_ROI", "0.10"))
 
@@ -51,8 +47,17 @@ def prepare_spot(df: pd.DataFrame):
     mail_profit = []
     mail_roi = []
     reasons = []
+    has_v2_status = "execution_status" in df.columns
 
     for _, r in df.iterrows():
+        status = str(r.get("execution_status", "SAFE") or "SAFE").upper()
+        if has_v2_status and status != "SAFE":
+            eligible.append(False)
+            mail_profit.append(np.nan)
+            mail_roi.append(np.nan)
+            reasons.append(f"V2_STATUS_{status}")
+            continue
+
         cls = str(r.get("deal_class", ""))
         is_a = cls.startswith("A")
         is_b = cls.startswith("B")
@@ -60,7 +65,7 @@ def prepare_spot(df: pd.DataFrame):
         if is_a:
             profit = finite(r.get("instant_net_profit"), 0.0)
             roi = finite(r.get("instant_net_roi"), 0.0)
-            reason_ok = "A_INSTANT_BUY_ORDER"
+            reason_ok = "A_V2_LIVE_BUY_ORDER" if has_v2_status else "A_INSTANT_BUY_ORDER"
         elif is_b:
             profit = finite(r.get("list_net_profit_est"), 0.0)
             roi = finite(r.get("list_net_roi_est"), 0.0)
@@ -89,7 +94,7 @@ def prepare_spot(df: pd.DataFrame):
     df["mail_eligible"] = eligible
     df["mail_filter_reason"] = reasons
     df.to_csv(DEALS, index=False)
-    print(f"mail gate spot: eligible={int(pd.Series(eligible).sum())}/{len(df)}")
+    print(f"mail gate spot: eligible={int(pd.Series(eligible).sum())}/{len(df)}; SAFE-only={has_v2_status}")
     return df
 
 
@@ -121,8 +126,6 @@ def prepare_bpc_file(path: Path):
             and surplus >= BPC_VALUE_MIN_SURPLUS
         )
         manufacturing_ok = profit >= BPC_MFG_MIN_PROFIT and roi >= BPC_MFG_MIN_ROI and cap >= 1
-
-        # Either route may independently justify a mail. Manufacturing is no longer a veto.
         ok = bool(intrinsic_signal or manufacturing_ok)
         eligible.append(ok)
         intrinsic_signals.append(bool(intrinsic_signal))
