@@ -264399,7 +264399,7 @@
   ]
  },
  "next_mail_at": 1789149515.984461,
- "next_mail_at_booster-manufacturing": 1789255892.3681943,
+ "next_mail_at_booster-manufacturing": 1789262742.8876863,
  "next_mail_at_booster-spread": 1789255898.542925,
  "push_state": {
   "booster-manufacturing:2124493042:234989144": {
@@ -264421,10 +264421,10 @@
    "updated": 1788936390.4225028
   },
   "booster-manufacturing:2124493042:235245495": {
-   "count": 6,
-   "detail": "游戏邮件编号 403115911",
-   "state": "sending",
-   "updated": 1789260938.4441075
+   "count": 7,
+   "detail": "游戏邮件编号 403116225",
+   "state": "sent",
+   "updated": 1789260942.8881466
   },
   "booster-manufacturing:2124493042:235297045": {
    "count": 1,
@@ -264487,16 +264487,16 @@
    "updated": 1788936390.4233763
   },
   "booster-manufacturing:2124493042:235778917": {
-   "count": 6,
-   "detail": "游戏邮件编号 403115911",
-   "state": "sending",
-   "updated": 1789260938.4441075
+   "count": 7,
+   "detail": "游戏邮件编号 403116225",
+   "state": "sent",
+   "updated": 1789260942.8881466
   },
   "booster-manufacturing:2124493042:235778963": {
-   "count": 6,
-   "detail": "游戏邮件编号 403115911",
-   "state": "sending",
-   "updated": 1789260938.4441075
+   "count": 7,
+   "detail": "游戏邮件编号 403116225",
+   "state": "sent",
+   "updated": 1789260942.8881466
   },
   "booster-manufacturing:2124493042:235833767": {
    "count": 1,
@@ -264535,10 +264535,10 @@
    "updated": 1788936390.423219
   },
   "booster-manufacturing:2124493042:235855804": {
-   "count": 6,
-   "detail": "游戏邮件编号 403115911",
-   "state": "sending",
-   "updated": 1789260938.4441075
+   "count": 7,
+   "detail": "游戏邮件编号 403116225",
+   "state": "sent",
+   "updated": 1789260942.8881466
   },
   "booster-manufacturing:2124493042:235861072": {
    "count": 1,
@@ -264547,10 +264547,10 @@
    "updated": 1788941421.1598341
   },
   "booster-manufacturing:2124493042:235865584": {
-   "count": 6,
-   "detail": "游戏邮件编号 403115911",
-   "state": "sending",
-   "updated": 1789260938.4441075
+   "count": 7,
+   "detail": "游戏邮件编号 403116225",
+   "state": "sent",
+   "updated": 1789260942.8881466
   },
   "booster-manufacturing:2124493042:235868834": {
    "count": 1,
@@ -264571,22 +264571,22 @@
    "updated": 1788982286.9446583
   },
   "booster-manufacturing:2124493042:235883716": {
-   "count": 6,
-   "detail": "游戏邮件编号 403115911",
-   "state": "sending",
-   "updated": 1789260938.4441075
+   "count": 7,
+   "detail": "游戏邮件编号 403116225",
+   "state": "sent",
+   "updated": 1789260942.8881466
   },
   "booster-manufacturing:2124493042:235884560": {
-   "count": 6,
-   "detail": "游戏邮件编号 403115911",
-   "state": "sending",
-   "updated": 1789260938.4441075
+   "count": 7,
+   "detail": "游戏邮件编号 403116225",
+   "state": "sent",
+   "updated": 1789260942.8881466
   },
   "booster-manufacturing:2124493042:235884571": {
-   "count": 6,
-   "detail": "游戏邮件编号 403115911",
-   "state": "sending",
-   "updated": 1789260938.4441075
+   "count": 7,
+   "detail": "游戏邮件编号 403116225",
+   "state": "sent",
+   "updated": 1789260942.8881466
   },
   "booster-manufacturing:2124493042:235894165": {
    "count": 1,
@@ -264595,10 +264595,10 @@
    "updated": 1789015642.30904
   },
   "booster-manufacturing:2124493042:235894167": {
-   "count": 6,
-   "detail": "游戏邮件编号 403115911",
-   "state": "sending",
-   "updated": 1789260938.4441075
+   "count": 7,
+   "detail": "游戏邮件编号 403116225",
+   "state": "sent",
+   "updated": 1789260942.8881466
   },
   "booster-manufacturing:2124493042:235934484": {
    "count": 1,
@@ -264613,10 +264613,10 @@
    "updated": 1789134758.842298
   },
   "booster-manufacturing:2124493042:235936661": {
-   "count": 6,
-   "detail": "游戏邮件编号 403115911",
-   "state": "sending",
-   "updated": 1789260938.4441075
+   "count": 7,
+   "detail": "游戏邮件编号 403116225",
+   "state": "sent",
+   "updated": 1789260942.8881466
   },
   "booster-spread:2124493042:235439334": {
    "count": 4,
@@ -264655,5 +264655,5 @@
   "volume_cap": 0.04
  },
  "unavailable_until": {},
- "updated": "2026-09-13T00:55:38.549154+00:00"
+ "updated": "2026-09-13T00:55:42.995360+00:00"
 }
