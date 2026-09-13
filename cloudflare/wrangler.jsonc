@@ -1,0 +1,23 @@
+{
+  "name": "eve-contract-opener",
+  "main": "worker.js",
+  "compatibility_date": "2026-09-02",
+  "preview_urls": false,
+  "keep_vars": true,
+  "vars": {
+    "EVE_CLIENT_ID": "0608347b837b4d8a9385e70e5f17b5b0",
+    "EVE_REDIRECT_URI": "https://eve-contract-opener.99617224.workers.dev/callback"
+  },
+  "kv_namespaces": [
+    {
+      "binding": "AUTH_STORE",
+      "id": "ae1a625432a448c698a493d534b11f56"
+    }
+  ],
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "enabled": true
+    }
+  }
+}
