@@ -1,0 +1,36 @@
+name: Probe EVE Tycoon 4-H
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/tycoon-probe.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Query a few common types at 4-H
+        run: |
+          python - <<'PY'
+          import json, urllib.parse, urllib.request
+          sid=1053970513596
+          for tid in [34,35,38,44992,40520]:
+              url=f'https://evetycoon.com/api/v1/market/orders/{tid}?'+urllib.parse.urlencode({'locationId':sid})
+              try:
+                  req=urllib.request.Request(url,headers={'User-Agent':'chatgpt-eve-probe/1.0','Accept':'application/json'})
+                  with urllib.request.urlopen(req,timeout=15) as r:
+                      data=json.load(r)
+                      orders=data.get('orders',[]) if isinstance(data,dict) else []
+                      sells=[o for o in orders if int(o.get('locationId',0))==sid and not bool(o.get('isBuyOrder'))]
+                      buys=[o for o in orders if int(o.get('locationId',0))==sid and bool(o.get('isBuyOrder'))]
+                      print('type',tid,'http',r.status,'orders',len(orders),'sells',len(sells),'buys',len(buys))
+                      if sells: print(' best sell',min((float(o['price']),o.get('volumeRemain')) for o in sells))
+                      if buys: print(' best buy',max((float(o['price']),o.get('volumeRemain')) for o in buys))
+              except Exception as e:
+                  print('type',tid,'ERROR',repr(e))
+          PY
