@@ -1,0 +1,55 @@
+name: 4-H contract bargain scan
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'four_h_contract_scanner.py'
+      - '.github/workflows/four-h-contract-scan.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Scan 4-H contracts
+        env:
+          EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+          EVE_MARKET_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
+          FOUR_H_STRUCTURE_ID: '1053970513596'
+          FOUR_H_CONTRACT_MIN_PRICE: '1000000'
+          FOUR_H_CONTRACT_MIN_NET_PROFIT: '5000000'
+          FOUR_H_CONTRACT_MIN_NET_ROI: '0.05'
+          FOUR_H_CONTRACT_TOP: '100'
+          ACCOUNTING_LEVEL: '5'
+        run: python four_h_contract_scanner.py
+
+      - name: Add report to workflow summary
+        if: success()
+        run: cat results/latest/four_h_contract_bargains.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload results
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: four-h-contract-bargains
+          path: |
+            results/latest/four_h_contract_bargains.csv
+            results/latest/four_h_contract_bargains.md
+          if-no-files-found: error
+          retention-days: 7
