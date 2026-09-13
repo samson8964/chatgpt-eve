@@ -27,6 +27,25 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Probe public market snapshot for 4-H structure orders
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import pandas as pd
+          from scanner_source import MARKET_ORDERS_INDEX, DATA, latest_file, download, load_market_orders
+          sid = 1053970513596
+          url, modified = latest_file(MARKET_ORDERS_INDEX)
+          path = DATA / Path(url).name
+          if not path.exists(): download(url, path)
+          df = load_market_orders(path)
+          loc = 'location_id' if 'location_id' in df.columns else 'station_id'
+          x = df[pd.to_numeric(df[loc], errors='coerce').eq(sid)]
+          print(f'public_snapshot_modified={modified}')
+          print(f'4-H rows in public market snapshot={len(x)}')
+          if len(x):
+              print(x[['type_id','is_buy_order','price','volume_remain',loc]].head(20).to_string(index=False))
+          PY
+
       - name: Scan live 4-H sells against Jita 4-4 buy depth
         env:
           EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
