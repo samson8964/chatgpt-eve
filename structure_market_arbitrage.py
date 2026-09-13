@@ -5,7 +5,6 @@ from collections import defaultdict
 from pathlib import Path
 
 import pandas as pd
-import requests
 
 from scanner_source import (
     MARKET_ORDERS_INDEX,
@@ -18,81 +17,54 @@ from scanner_source import (
     fetch_many_ref,
     name_en,
     type_volume,
+    truthy_series,
 )
 from contract_deal_scanner import SALES_TAX_RATE
 
 STRUCTURE_ID = int(os.getenv("FOUR_H_STRUCTURE_ID", "1053970513596"))
-WORKER_URL = os.getenv("EVE_MARKET_WORKER_URL", "https://eve-contract-opener.99617224.workers.dev").rstrip("/")
-API_KEY = os.getenv("EVE_MARKET_API_KEY", "")
 MIN_NET_PROFIT = float(os.getenv("FOUR_H_MIN_NET_PROFIT", "10000000"))
 MIN_NET_ROI = float(os.getenv("FOUR_H_MIN_NET_ROI", "0.10"))
 TOP = int(os.getenv("FOUR_H_TOP", "100"))
-REQUEST_TIMEOUT = int(os.getenv("FOUR_H_REQUEST_TIMEOUT", "60"))
 
 RESULT = LATEST / "four_h_to_jita_buy.csv"
 REPORT = LATEST / "four_h_to_jita_buy.md"
 
 
-def fetch_structure_page(page: int) -> dict:
-    if not API_KEY:
-        raise RuntimeError("Missing EVE_MARKET_API_KEY")
-    r = requests.get(
-        f"{WORKER_URL}/api/structure-market",
-        params={"structure_id": STRUCTURE_ID, "page": int(page)},
-        headers={"Authorization": f"Bearer {API_KEY}", "Accept": "application/json"},
-        timeout=REQUEST_TIMEOUT,
-    )
-    try:
-        payload = r.json()
-    except Exception:
-        raise RuntimeError(f"Worker returned HTTP {r.status_code}: {r.text[:500]}")
-    if r.status_code != 200 or not payload.get("ok"):
-        if r.status_code == 403:
-            raise RuntimeError(
-                "4-H structure market access is not authorized. Re-authorize the EVE character at /auth "
-                "with esi-markets.structure_markets.v1 and ensure the character can access the structure."
-            )
-        raise RuntimeError(f"Worker structure market error HTTP {r.status_code}: {payload}")
-    return payload
+def load_structure_sells_from_snapshot(orders: pd.DataFrame) -> tuple[dict[int, list[dict]], int, int]:
+    """Build 4-H sell books from the same universe snapshot used for Jita buy orders."""
+    loc_col = "location_id" if "location_id" in orders.columns else "station_id"
+    loc = pd.to_numeric(orders[loc_col], errors="coerce")
+    is_buy = truthy_series(orders["is_buy_order"])
+    mask_all = loc.eq(STRUCTURE_ID)
+    mask_sell = mask_all & ~is_buy
 
-
-def load_structure_sells() -> tuple[dict[int, list[dict]], int, str | None]:
-    first = fetch_structure_page(1)
-    pages = max(1, int(first.get("pages") or 1))
-    all_orders = list(first.get("orders") or [])
-    expires = first.get("expires")
-    for page in range(2, pages + 1):
-        data = fetch_structure_page(page)
-        all_orders.extend(data.get("orders") or [])
+    optional = [c for c in ("order_id", "issued") if c in orders.columns]
+    cols = ["type_id", "price", "volume_remain", "min_volume", *optional]
+    frame = orders.loc[mask_sell, cols].copy()
+    frame["type_id"] = pd.to_numeric(frame["type_id"], errors="coerce").fillna(0).astype(int)
+    frame["price"] = pd.to_numeric(frame["price"], errors="coerce").fillna(0.0)
+    frame["volume_remain"] = pd.to_numeric(frame["volume_remain"], errors="coerce").fillna(0).astype(int)
+    frame["min_volume"] = pd.to_numeric(frame["min_volume"], errors="coerce").fillna(1).astype(int)
+    frame = frame[(frame["type_id"] > 0) & (frame["price"] > 0) & (frame["volume_remain"] > 0)]
 
     sells: dict[int, list[dict]] = defaultdict(list)
-    for row in all_orders:
-        if bool(row.get("is_buy_order")):
-            continue
-        try:
-            tid = int(row["type_id"])
-            price = float(row["price"])
-            vol = int(row.get("volume_remain") or 0)
-            min_vol = int(row.get("min_volume") or 1)
-        except Exception:
-            continue
-        if tid <= 0 or price <= 0 or vol <= 0:
-            continue
-        sells[tid].append(
+    for r in frame.itertuples(index=False):
+        sells[int(r.type_id)].append(
             {
-                "price": price,
-                "vol": vol,
-                "min": max(1, min_vol),
-                "order_id": int(row.get("order_id") or 0),
-                "issued": row.get("issued") or "",
+                "price": float(r.price),
+                "vol": int(r.volume_remain),
+                "min": max(1, int(r.min_volume)),
+                "order_id": int(getattr(r, "order_id", 0) or 0),
+                "issued": str(getattr(r, "issued", "") or ""),
             }
         )
     for book in sells.values():
         book.sort(key=lambda x: (x["price"], x["order_id"]))
-    return sells, len(all_orders), expires
+    return sells, int(mask_all.sum()), int(mask_sell.sum())
 
 
 def match_profitable(asks: list[dict], bids: list[dict]) -> dict | None:
+    """Greedily match cheapest 4-H asks into highest Jita 4-4 bids while marginal ROI clears floor."""
     if not asks or not bids:
         return None
     ai = bi = 0
@@ -106,7 +78,7 @@ def match_profitable(asks: list[dict], bids: list[dict]) -> dict | None:
     worst_ask = first_ask
     worst_bid = first_bid
     source_order_ids: set[int] = set()
-    jita_orders_used = 0
+    bid_indexes_used: set[int] = set()
 
     while ai < len(asks) and bi < len(bids):
         ask = asks[ai]
@@ -122,6 +94,8 @@ def match_profitable(asks: list[dict], bids: list[dict]) -> dict | None:
         take = min(ask_left, bid_left)
         bid_min = max(1, int(bid.get("min", 1)))
         if take < bid_min:
+            # Jita buy orders are normally min-volume 1. If a special order cannot be
+            # filled by the currently available chunk, skip it rather than overstate executable profit.
             bi += 1
             if bi >= len(bids):
                 break
@@ -134,7 +108,7 @@ def match_profitable(asks: list[dict], bids: list[dict]) -> dict | None:
         worst_ask = ask_price
         worst_bid = bid_price
         source_order_ids.add(int(ask.get("order_id") or 0))
-        jita_orders_used += 1
+        bid_indexes_used.add(bi)
 
         ask_left -= take
         bid_left -= take
@@ -166,7 +140,7 @@ def match_profitable(asks: list[dict], bids: list[dict]) -> dict | None:
         "jita_best_buy": first_bid,
         "jita_worst_matched_buy": worst_bid,
         "source_orders_used": len(source_order_ids),
-        "jita_orders_used": jita_orders_used,
+        "jita_orders_used": len(bid_indexes_used),
     }
 
 
@@ -183,21 +157,24 @@ def fmt_isk(v: float) -> str:
 
 def main() -> None:
     LATEST.mkdir(parents=True, exist_ok=True)
-    print(f"1) Reading live 4-H structure market {STRUCTURE_ID} via authenticated ESI proxy")
-    sell_books, structure_order_count, structure_expires = load_structure_sells()
-    print(f"   structure orders={structure_order_count:,}, sell types={len(sell_books):,}, expires={structure_expires}")
-
-    print("2) Loading latest universe market-order snapshot and Jita 4-4 buy depth")
+    print("1) Loading latest EVERef universe market-order snapshot")
     market_url, market_modified = latest_file(MARKET_ORDERS_INDEX)
     market_path = DATA / Path(market_url).name
     if not market_path.exists():
         download(market_url, market_path)
     market_orders = load_market_orders(market_path)
+    print(f"   snapshot={market_modified}")
+
+    print(f"2) Building 4-H sell books for structure {STRUCTURE_ID} and Jita 4-4 buy depth")
+    sell_books, structure_order_count, structure_sell_count = load_structure_sells_from_snapshot(market_orders)
     _, jita_buys = prepare_jita_books(market_orders)
     del market_orders
-    print(f"   market snapshot={market_modified}")
+    print(
+        f"   4-H all orders={structure_order_count:,}, sell orders={structure_sell_count:,}, "
+        f"sell types={len(sell_books):,}"
+    )
 
-    print("3) Matching 4-H asks directly into Jita buy-order depth")
+    print("3) Matching 4-H asks directly into Jita 4-4 buy-order depth")
     rows = []
     candidate_ids = []
     for tid, asks in sell_books.items():
@@ -227,11 +204,12 @@ def main() -> None:
         "# 4-HWWF → Jita 4-4 direct-buy arbitrage",
         "",
         f"- Structure ID: `{STRUCTURE_ID}`",
-        f"- 4-H ESI cache expiry: `{structure_expires}`",
-        f"- Jita market snapshot: `{market_modified}`",
+        f"- Shared market snapshot: `{market_modified}`",
+        f"- 4-H orders in snapshot: `{structure_order_count}` (sell orders `{structure_sell_count}`)",
         f"- Sales tax used: `{SALES_TAX_RATE:.4%}`",
         f"- Filters: net profit ≥ {fmt_isk(MIN_NET_PROFIT)} ISK, ROI ≥ {MIN_NET_ROI:.1%}",
         "- Revenue assumes immediate liquidation into visible Jita 4-4 buy-order depth; no Jita sell orders are used.",
+        "- Net profit here is after Jita sales tax but before hauling cost/risk reserve.",
         "",
     ]
     if not rows:
@@ -251,10 +229,11 @@ def main() -> None:
 
     print(f"4) opportunities={len(rows)}")
     if rows:
-        for i, r in enumerate(rows[:20], 1):
+        for i, r in enumerate(rows[:30], 1):
             print(
                 f"{i:02d}. {r['item_name']} | qty={r['quantity']} | 4-H={fmt_isk(r['four_h_best_sell'])} | "
-                f"JitaBuy={fmt_isk(r['jita_best_buy'])} | net={fmt_isk(r['net_profit'])} | ROI={r['net_roi']:.1%}"
+                f"JitaBuy={fmt_isk(r['jita_best_buy'])} | worstBid={fmt_isk(r['jita_worst_matched_buy'])} | "
+                f"net={fmt_isk(r['net_profit'])} | ROI={r['net_roi']:.1%} | profit/m3={fmt_isk(r['profit_per_m3'])}"
             )
     print(f"wrote {RESULT} and {REPORT}")
 
