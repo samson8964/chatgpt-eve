@@ -1,0 +1,29 @@
+name: V2 SAFE mail gate tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - opportunity-engine-v2
+    paths:
+      - 'prepare_mail_candidates.py'
+      - 'test_prepare_mail_candidates_v2.py'
+      - '.github/workflows/v2-mail-gate-test.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: opportunity-engine-v2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - run: pip install -r requirements.txt
+      - run: python -m unittest -v test_prepare_mail_candidates_v2.py
