@@ -18,6 +18,31 @@ def _short(v, n=160):
     return s if len(s) <= n else s[: n - 1] + "…"
 
 
+def _v2_line(r):
+    if not str(r.get("engine_version", "")).startswith("Opportunity Engine V2"):
+        return ""
+    status = html.escape(_short(r.get("execution_status", ""), 16))
+    grade = html.escape(_short(r.get("score_grade", ""), 4))
+    score = _num(r.get("opportunity_score", r.get("deal_score", 0)), 0.0)
+    liq = html.escape(_short(r.get("liquidity_label", "unknown"), 24))
+    fill_days = _num(r.get("estimated_fill_time_days"), 0.0)
+    hist_fill = _num(r.get("historical_fill_rate_30d"), 0.0)
+    trips = int(_num(r.get("transport_trips"), 0))
+    hours = _num(r.get("estimated_execution_hours"), 0.0)
+    iskph = _num(r.get("estimated_isk_per_hour"), 0.0)
+    change = _num(r.get("snapshot_change_pct"), 0.0) * 100
+    slip = _num(r.get("jita_buy_max_slippage_pct"), 0.0) * 100
+    rigs = int(_num(r.get("excluded_rig_qty"), 0))
+    return (
+        f"<b>V2 {grade}级 · {status} · 评分 {score:.1f}</b><br>"
+        f"实时复核相对快照 {change:+.1f}% · 买单滑点最高 {slip:.1f}% · "
+        f"流动性 {liq}" + (f" / 预计{fill_days:.2f}天" if fill_days > 0 else "") + "<br>"
+        f"历史成交覆盖 {hist_fill:.0f}% · 运输约 {trips} 趟 / {hours:.1f}h · {fmt_isk(iskph)}/h"
+        + (f" · 已剔除疑似装船Rig {rigs}件" if rigs else "")
+        + "<br>"
+    )
+
+
 def deal_html(i, r):
     cid = int(float(r["contract_id"]))
     items = html.escape(_short(r.get("items", ""), 190))
@@ -34,11 +59,12 @@ def deal_html(i, r):
     skin = _num(r.get("skin_value_share"), 0.0) * 100
     return (
         f"<b>{i}. 【Jita买单即时兑现】 · {risk}</b><br>"
-        f"{items}<br>"
+        + _v2_line(r)
+        + f"{items}<br>"
         f"合同价 {fmt_isk(r.get('contract_price',0))} · <b>净利润 {fmt_isk(profit)}</b> · ROI {roi:.1f}%<br>"
         f"Jita买单毛值 {fmt_isk(r.get('jita_buy_gross',0))} · 销售税 {fmt_isk(r.get('sales_tax_if_instant',0))} · 运输预留 {fmt_isk(r.get('haul_reserve',0))}<br>"
-        f"买单数量覆盖 {coverage:.1f}% · 删除各物品最佳一档买单后压力利润 {fmt_isk(stress)}<br>"
-        f"SKIN/SKINR价值占比 {skin:.1f}%（≥50%已在扫描阶段剔除）<br>"
+        f"买单数量覆盖 {coverage:.1f}% · 删除最佳整档买单后压力利润 {fmt_isk(stress)}<br>"
+        f"SKIN/SKINR价值占比 {skin:.1f}%（≥50%已剔除）<br>"
         f"位置 {system} / {station} · 安全 {sec:.1f} · Jita最短 {jumps if jumps >= 0 else '未知'}跳<br>"
         + (f"主要买单价值：{top}<br>" if top else "")
         + f"<url=contract:0//{cid}><b>打开合同</b></url><br><br>"
@@ -111,7 +137,8 @@ def multi_item_html(i, c):
     stress = _num(r.get("stress_net_profit"), 0.0)
     return (
         f"<b>{i}. 【多件·Jita买单即时兑现】 · {risk}</b><br>"
-        f"合同价 {fmt_isk(r.get('contract_price',0))} · <b>净利润 {fmt_isk(profit)}</b> · ROI {roi:.1f}% · {int(_num(r.get('item_type_count',0)))}种物品<br>"
+        + _v2_line(r)
+        + f"合同价 {fmt_isk(r.get('contract_price',0))} · <b>净利润 {fmt_isk(profit)}</b> · ROI {roi:.1f}% · {int(_num(r.get('item_type_count',0)))}种物品<br>"
         f"Jita买单毛值 {fmt_isk(r.get('jita_buy_gross',0))} · 税后/运输后可兑现值 {fmt_isk(r.get('chosen_estimated_value',0))}<br>"
         f"买单数量覆盖 {coverage:.1f}% · 压力利润 {fmt_isk(stress)} · SKIN占比 {_num(r.get('skin_value_share',0))*100:.1f}%<br>"
         + (f"主要物品：{items}<br>" if items else "")
