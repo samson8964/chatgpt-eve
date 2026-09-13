@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - 'cloudflare/worker.js'
+      - 'cloudflare/wrangler.jsonc'
       - '.github/workflows/deploy-cloudflare-worker.yml'
 
 permissions:
@@ -31,18 +32,14 @@ jobs:
       - name: Validate Worker bundle
         shell: bash
         run: |
-          npx --yes wrangler@latest deploy cloudflare/worker.js \
-            --name eve-contract-opener \
-            --compatibility-date 2026-09-08 \
-            --keep-vars \
+          npx --yes wrangler@latest deploy \
+            --config cloudflare/wrangler.jsonc \
             --strict \
             --dry-run
 
       - name: Deploy Worker safely
         shell: bash
         run: |
-          npx --yes wrangler@latest deploy cloudflare/worker.js \
-            --name eve-contract-opener \
-            --compatibility-date 2026-09-08 \
-            --keep-vars \
+          npx --yes wrangler@latest deploy \
+            --config cloudflare/wrangler.jsonc \
             --strict
