@@ -31,7 +31,6 @@ def safe_recipient_key(name: str) -> str:
 
 
 def state_path(name: str) -> Path:
-    # New state namespace intentionally forces one fresh mail after the strategy migration.
     return Path("results/state") / f"mail_last_multi_buyonly_top10_{safe_recipient_key(name)}.csv"
 
 
@@ -120,26 +119,48 @@ def send_with_retry(recipient_id, subject, body, name):
             time.sleep(delay)
 
 
+def _safe_v2_candidates(candidates):
+    """V2 never auto-mails CHANGED/DANGER opportunities.
+
+    Legacy rows without execution_status remain eligible so rollback/old result files
+    continue to work without changing this sender again.
+    """
+    out = []
+    removed = 0
+    for c in candidates:
+        row = c.get("row")
+        status = "SAFE"
+        if row is not None and "execution_status" in row.index:
+            status = str(row.get("execution_status", "SAFE") or "SAFE").upper()
+        if status != "SAFE":
+            removed += 1
+            continue
+        out.append(c)
+    if removed:
+        print(f"{CHANNEL}: V2 status gate removed={removed} non-SAFE candidates")
+    return out
+
+
 def render(stamp, candidates, picked, removed, history):
     if not picked:
         return (
             f"多件合同捡漏·Jita买单 {stamp} · 暂无强机会",
-            f"<b>多件物品合同捡漏 · Buy-Only</b><br>{stamp}<br><br>"
-            f"当前无满足条件且仍有效的合同；候选 {len(candidates)}，发送前失效/不可见 {removed}。<br>"
-            "仅按Jita 4-4真实买单深度估值；合同价≤50亿、净利润≥30M、ROI≥10%，不参考卖价。",
+            f"<b>多件物品合同捡漏 · Buy-Only V2</b><br>{stamp}<br><br>"
+            f"当前无满足条件且仍有效的 SAFE 合同；候选 {len(candidates)}，发送前失效/不可见 {removed}。<br>"
+            "V2仅自动推送实时复核为SAFE的机会；Jita按真实买单深度估值。",
         )
 
     parts = [
-        f"<b>多件物品合同捡漏 · Jita买单 TOP{len(picked)}</b><br>{stamp}<br>",
-        f"强候选 {len(candidates)} · 发送前失效/不可见 {removed}<br>",
-        "仅按Jita 4-4真实买单深度估值；买单吃不掉的剩余数量按0。不参考卖价。<br>",
+        f"<b>多件物品合同捡漏 · Opportunity Engine V2 · TOP{len(picked)}</b><br>{stamp}<br>",
+        f"SAFE强候选 {len(candidates)} · 发送前失效/不可见 {removed}<br>",
+        "最终估值使用实时Jita 4-4买单深度；CHANGED/DANGER不会自动推送。<br>",
         "合同价>50亿、SKIN/SKINR价值占比≥50%、不可达或未确认可访问的陌生玩家建筑已剔除。<br><br>",
     ]
     for i, c in enumerate(picked, 1):
         count = push_count(history, c["contract_id"]) + 1
         parts.append(f"<b>本合同累计推送：第 {count} 次</b><br>")
         parts.append(templates.multi_item_html(i, c))
-    return f"多件合同捡漏·Jita买单 {stamp} · TOP{len(picked)}", "".join(parts)
+    return f"多件合同捡漏V2 {stamp} · TOP{len(picked)}", "".join(parts)
 
 
 def main():
@@ -149,7 +170,7 @@ def main():
     names = recipient_names()
     primary = os.getenv("EVE_MAIL_RECIPIENT_NAME", "").strip() or names[0]
     recipients = [(name, resolve_character(name)) for name in names]
-    candidates = base_multi.build_candidates()
+    candidates = _safe_v2_candidates(base_multi.build_candidates())
     picked, removed = base_multi.live_pick(candidates)
     signature = [int(c["contract_id"]) for c in picked]
     history = load_history()
@@ -172,12 +193,9 @@ def main():
         except Exception as exc:
             failures.append((name, exc))
             print(f"::warning::{CHANNEL} failed for {name}: {type(exc).__name__}: {exc}")
-            # Do not save this recipient's signature: the next scan retries the same digest.
 
     if failures:
-        primary_failures = [
-            exc for name, exc in failures if name.casefold() == primary.casefold()
-        ]
+        primary_failures = [exc for name, exc in failures if name.casefold() == primary.casefold()]
         print(
             f"::warning::{CHANNEL} delivery incomplete: failures={len(failures)} "
             f"primary_failures={len(primary_failures)}; scan results remain valid and will be saved."
