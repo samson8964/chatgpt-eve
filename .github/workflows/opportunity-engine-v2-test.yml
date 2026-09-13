@@ -58,11 +58,7 @@ jobs:
               if not p.exists():
                   print('missing')
                   continue
-              try:
-                  df = pd.read_csv(p)
-              except Exception as e:
-                  print('read error', e)
-                  continue
+              df = pd.read_csv(p)
               print('rows=', len(df))
               if 'v2_status' in df:
                   print(df['v2_status'].value_counts(dropna=False).to_dict())
@@ -70,8 +66,6 @@ jobs:
                   print(df[cols].head(10).to_string(index=False))
               if 'v2_value_status' in df:
                   print(df['v2_value_status'].value_counts(dropna=False).to_dict())
-                  cols=[c for c in ['contract_id','blueprint_name','v2_value_status','v2_value_score','v2_value_confidence','bpc_intrinsic_value_surplus'] if c in df]
-                  print(df[cols].head(10).to_string(index=False))
           PY
 
       - name: Upload V2 smoke outputs
@@ -82,3 +76,111 @@ jobs:
             results/latest/ranked_opportunities_v2.csv
             results/latest/bpc_value_opportunities_v2.csv
           if-no-files-found: warn
+
+  bpc-end-to-end:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - name: Checkout V2 branch
+        uses: actions/checkout@v4
+        with:
+          ref: opportunity-engine-v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build fresh BPC manufacturing baseline
+        env:
+          MARKET_BROKER_FEE_RATE: '0'
+          EXPECTED_RELISTS: '0'
+          DEAL_MAX_CONTRACT_PRICE: '5000000000'
+          PREFILTER_TOP: '250'
+          HIGHSEC_FACTORY_CANDIDATES: '2'
+          ACCOUNTING_LEVEL: '5'
+        run: python runner_buy_only.py
+
+      - name: Build fresh BPC intrinsic-value baseline
+        env:
+          BPC_VALUE_MIN_SAMPLES: '3'
+          BPC_VALUE_MIN_EXACT_SAMPLES: '3'
+          BPC_VALUE_MIN_DISCOUNT: '0.25'
+          BPC_VALUE_MIN_MEDIAN_DISCOUNT: '0.10'
+          BPC_VALUE_MIN_SURPLUS: '10000000'
+          BPC_VALUE_MIN_HOURS_TO_EXPIRE: '2'
+          BPC_VALUE_TOP: '200'
+          DEAL_MAX_CONTRACT_PRICE: '5000000000'
+          DEAL_FRIENDLY_CHARACTER_ID: '2124493042'
+        run: python bpc_contract_benchmark_buy_only.py
+
+      - name: Apply BPC buy-only policy
+        env:
+          DEAL_MAX_CONTRACT_PRICE: '5000000000'
+        run: python apply_buy_only_bpc_policy.py
+
+      - name: Run BPC V2 against fresh scan
+        env:
+          BPC_V2_LIVE_POOL: '30'
+          BPC_V2_LIVE_WORKERS: '10'
+          BPC_V2_MIN_NET_PROFIT: '20000000'
+          BPC_V2_MIN_NET_ROI: '0.10'
+          BPC_V2_MAX_SLIPPAGE: '0.05'
+          BPC_V2_MAX_CHANGE: '0.15'
+          BPC_V2_LIQUIDITY_PARTICIPATION: '0.35'
+        run: python bpc_opportunity_engine_v2.py
+
+      - name: Validate fresh V2 outputs
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import pandas as pd
+
+          m = Path('results/latest/ranked_opportunities_v2.csv')
+          v = Path('results/latest/bpc_value_opportunities_v2.csv')
+          assert m.exists(), 'missing manufacturing V2 output'
+          assert v.exists(), 'missing intrinsic V2 output'
+          mdf = pd.read_csv(m)
+          vdf = pd.read_csv(v)
+          required_m = {
+              'contract_id','v2_status','v2_grade','v2_score','v2_live_net_profit',
+              'v2_live_net_roi','v2_stress_net_profit','v2_orderbook_complete',
+              'v2_product_vwap','v2_material_max_slippage','v2_est_fill_days'
+          }
+          required_v = {
+              'contract_id','v2_value_status','v2_value_score','v2_value_confidence','v2_contract_live'
+          }
+          assert required_m.issubset(mdf.columns), sorted(required_m - set(mdf.columns))
+          assert required_v.issubset(vdf.columns), sorted(required_v - set(vdf.columns))
+          if not mdf.empty:
+              assert mdf['v2_status'].isin(['SAFE','CHANGED','DANGER']).all()
+              safe = mdf[mdf['v2_status'].eq('SAFE')]
+              if not safe.empty:
+                  assert (pd.to_numeric(safe['v2_live_net_profit'], errors='coerce') >= 20_000_000).all()
+                  assert (pd.to_numeric(safe['v2_live_net_roi'], errors='coerce') >= 0.10).all()
+                  assert safe['v2_orderbook_complete'].astype(bool).all()
+              print('manufacturing status counts:', mdf['v2_status'].value_counts().to_dict())
+              cols=[c for c in ['contract_id','products','v2_status','v2_grade','v2_score','v2_live_net_profit','v2_live_net_roi','v2_stress_net_profit','v2_product_slippage','v2_material_max_slippage','v2_est_fill_days'] if c in mdf]
+              print(mdf[cols].head(20).to_string(index=False))
+          if not vdf.empty:
+              assert vdf['v2_value_status'].isin(['VALUE_SIGNAL','WATCH']).all()
+              print('value status counts:', vdf['v2_value_status'].value_counts().to_dict())
+          print('BPC V2 end-to-end validation passed')
+          PY
+
+      - name: Upload fresh BPC V2 outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: bpc-v2-end-to-end
+          path: |
+            results/latest/ranked_opportunities.csv
+            results/latest/ranked_opportunities_v2.csv
+            results/latest/bpc_value_opportunities.csv
+            results/latest/bpc_value_opportunities_v2.csv
+            results/latest/meta.json
+          if-no-files-found: error
