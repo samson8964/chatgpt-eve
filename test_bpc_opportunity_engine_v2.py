@@ -8,6 +8,7 @@ import pandas as pd
 
 import bpc_opportunity_engine_v2 as bpc
 import export_bpc_v2_safe as safe_export
+import build_bpc_v2_safe_mail_preview as preview
 
 
 class BpcOpportunityEngineV2Tests(unittest.TestCase):
@@ -93,6 +94,16 @@ class BpcOpportunityEngineV2Tests(unittest.TestCase):
                 safe_export.main()
             got = pd.read_csv(out)
         self.assertEqual(list(got["contract_id"]), [1])
+
+    def test_safe_mail_preview_excludes_non_safe_rows(self):
+        rows = [
+            {"contract_id": 11, "products": "5x Test Module II", "v2_status": "SAFE", "v2_grade": "A", "v2_score": 80, "v2_live_net_profit": 60_000_000, "v2_live_net_roi": 0.20, "v2_stress_net_profit": 30_000_000, "v2_orderbook_complete": True, "v2_est_fill_days": 1.5, "v2_product_vwap": 20_000_000, "v2_product_slippage": 0.01, "v2_material_max_slippage": 0.02},
+            {"contract_id": 12, "products": "5x Fragile Module II", "v2_status": "CHANGED", "v2_grade": "C", "v2_score": 50, "v2_live_net_profit": 100_000_000, "v2_live_net_roi": 0.30, "v2_stress_net_profit": -5_000_000, "v2_orderbook_complete": True, "v2_est_fill_days": 1.0, "v2_product_vwap": 30_000_000, "v2_product_slippage": 0.08, "v2_material_max_slippage": 0.01},
+        ]
+        body = preview.render(pd.DataFrame(rows))
+        self.assertIn('Test Module II', body)
+        self.assertNotIn('Fragile Module II', body)
+        self.assertIn('contract:0//11', body)
 
 
 if __name__ == "__main__":
