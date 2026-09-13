@@ -1,8 +1,13 @@
 import math
+import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
+import pandas as pd
+
 import bpc_opportunity_engine_v2 as bpc
+import export_bpc_v2_safe as safe_export
 
 
 class BpcOpportunityEngineV2Tests(unittest.TestCase):
@@ -23,7 +28,6 @@ class BpcOpportunityEngineV2Tests(unittest.TestCase):
             job, err = bpc.build_job(items)
         self.assertEqual(err, "")
         self.assertIsNotNone(job)
-        # 10 units/run * 5 runs * 90% = 45 per copy; two copies => 90.
         self.assertEqual(job["materials"][1], 90)
         self.assertEqual(job["products"][2], 10)
 
@@ -45,7 +49,6 @@ class BpcOpportunityEngineV2Tests(unittest.TestCase):
         self.assertTrue(q["complete"])
         self.assertAlmostEqual(q["value"], 44.0)
         self.assertAlmostEqual(q["rows"][0]["vwap"], 11.0)
-        # Stress removes the whole best-price level (10.0), then fills at 12/14.
         self.assertTrue(q["stress_complete"])
         self.assertAlmostEqual(q["stress_value"], 50.0)
 
@@ -72,9 +75,24 @@ class BpcOpportunityEngineV2Tests(unittest.TestCase):
             h = bpc.history_metrics(123, 35)
         self.assertEqual(h["days"], 30)
         self.assertAlmostEqual(h["avg_daily"], 100.0)
-        # participation defaults to 35%, so 35 units is one day of executable flow.
         self.assertAlmostEqual(h["fill_days"], 1.0)
         self.assertEqual(h["liquidity_label"], "high")
+
+    def test_safe_export_only_keeps_strict_safe_rows(self):
+        rows = [
+            {"contract_id": 1, "v2_status": "SAFE", "v2_live_net_profit": 50_000_000, "v2_live_net_roi": 0.20, "v2_stress_net_profit": 20_000_000, "v2_orderbook_complete": True, "v2_score": 90},
+            {"contract_id": 2, "v2_status": "CHANGED", "v2_live_net_profit": 80_000_000, "v2_live_net_roi": 0.30, "v2_stress_net_profit": 10_000_000, "v2_orderbook_complete": True, "v2_score": 80},
+            {"contract_id": 3, "v2_status": "SAFE", "v2_live_net_profit": 10_000_000, "v2_live_net_roi": 0.20, "v2_stress_net_profit": 8_000_000, "v2_orderbook_complete": True, "v2_score": 70},
+            {"contract_id": 4, "v2_status": "SAFE", "v2_live_net_profit": 60_000_000, "v2_live_net_roi": 0.15, "v2_stress_net_profit": -1, "v2_orderbook_complete": True, "v2_score": 60},
+        ]
+        with tempfile.TemporaryDirectory() as td:
+            source = Path(td) / "in.csv"
+            out = Path(td) / "out.csv"
+            pd.DataFrame(rows).to_csv(source, index=False)
+            with patch.object(safe_export, "SOURCE", source), patch.object(safe_export, "OUT", out):
+                safe_export.main()
+            got = pd.read_csv(out)
+        self.assertEqual(list(got["contract_id"]), [1])
 
 
 if __name__ == "__main__":
