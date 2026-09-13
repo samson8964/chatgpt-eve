@@ -1,0 +1,54 @@
+name: 4-H to Jita direct-buy scan
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'structure_market_arbitrage.py'
+      - '.github/workflows/four-h-market-scan.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Scan live 4-H sells against Jita 4-4 buy depth
+        env:
+          EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+          EVE_MARKET_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
+          FOUR_H_STRUCTURE_ID: '1053970513596'
+          FOUR_H_MIN_NET_PROFIT: '10000000'
+          FOUR_H_MIN_NET_ROI: '0.10'
+          FOUR_H_TOP: '100'
+          ACCOUNTING_LEVEL: '5'
+        run: python structure_market_arbitrage.py
+
+      - name: Add report to workflow summary
+        if: success()
+        run: cat results/latest/four_h_to_jita_buy.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload scan results
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: four-h-to-jita-buy
+          path: |
+            results/latest/four_h_to_jita_buy.csv
+            results/latest/four_h_to_jita_buy.md
+          if-no-files-found: error
+          retention-days: 7
