@@ -2,7 +2,7 @@ const SSO_AUTHORIZE = "https://login.eveonline.com/v2/oauth/authorize";
 const SSO_TOKEN = "https://login.eveonline.com/v2/oauth/token";
 const ESI_BASE = "https://esi.evetech.net/latest";
 const ESI_SKILLS_BASE = "https://esi.evetech.net/v4";
-const SCOPE = "esi-ui.open_window.v1 esi-mail.send_mail.v1 esi-skills.read_skills.v1";
+const SCOPE = "esi-ui.open_window.v1 esi-mail.send_mail.v1 esi-skills.read_skills.v1 esi-markets.structure_markets.v1";
 
 export default {
   async fetch(request, env) {
@@ -22,6 +22,7 @@ export default {
         <p>状态：<b>${hasToken ? "已授权" : "尚未授权"}</b>${name ? ` · ${escapeHtml(name)} (${escapeHtml(id || "")})` : ""}</p>
         <p>权限：<code>${escapeHtml(SCOPE)}</code></p>
         <p>技能读取接口：<code>/api/skills</code>（需要 API Key）</p>
+        <p>建筑市场接口：<code>/api/structure-market?structure_id=1053970513596&page=1</code>（需要 API Key）</p>
         <p>打开合同：<code>/c/合同ID</code></p>
         <p>打开市场：<code>/m/物品Type ID</code></p>
         <p><a href="/auth">重新授权角色</a> · <a href="/logout">清除授权</a></p>`);
@@ -34,6 +35,7 @@ export default {
     if (url.pathname === "/auth") return startAuth(env, null);
     if (url.pathname === "/callback") return handleCallback(request, env);
     if (url.pathname === "/api/skills") return handleSkills(request, env);
+    if (url.pathname === "/api/structure-market") return handleStructureMarket(request, env);
     if (url.pathname === "/api/send-mail") return handleSendMail(request, env);
 
     const contractMatch = url.pathname.match(/^\/c\/(\d+)\/?$/);
@@ -44,11 +46,17 @@ export default {
   },
 };
 
-async function handleSkills(request, env) {
-  if (request.method !== "GET") return text("Method not allowed", 405);
+function requireApiKey(request, env) {
   if (!env.MAIL_API_KEY) return text("缺少 Cloudflare Secret：MAIL_API_KEY", 500);
   const auth = request.headers.get("Authorization") || "";
   if (auth !== `Bearer ${env.MAIL_API_KEY}`) return text("Unauthorized", 401);
+  return null;
+}
+
+async function handleSkills(request, env) {
+  if (request.method !== "GET") return text("Method not allowed", 405);
+  const denied = requireApiKey(request, env);
+  if (denied) return denied;
 
   const characterId = Number(await env.AUTH_STORE.get("character_id") || 0);
   const characterName = await env.AUTH_STORE.get("character_name") || "unknown";
@@ -102,6 +110,52 @@ async function handleSkills(request, env) {
   });
 }
 
+async function handleStructureMarket(request, env) {
+  if (request.method !== "GET") return text("Method not allowed", 405);
+  const denied = requireApiKey(request, env);
+  if (denied) return denied;
+
+  const url = new URL(request.url);
+  const structureId = Number(url.searchParams.get("structure_id") || "1053970513596");
+  const page = Number(url.searchParams.get("page") || "1");
+  if (!Number.isSafeInteger(structureId) || structureId <= 0 || !Number.isSafeInteger(page) || page < 1) {
+    return json({ ok: false, error: "invalid_structure_id_or_page" }, 400);
+  }
+
+  const token = await getFreshToken(env);
+  if (!token.ok) {
+    return json({ ok: false, error: "token_refresh_failed", detail: token.detail || token.status, auth_url: "/auth" }, 401);
+  }
+
+  const resp = await fetch(`${ESI_BASE}/markets/structures/${structureId}/?datasource=tranquility&page=${page}`, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token.access_token}`, Accept: "application/json" },
+  });
+  const detail = await resp.text();
+  if (resp.status !== 200) {
+    return json({
+      ok: false,
+      error: resp.status === 403 ? "missing_scope_or_structure_access" : "esi_error",
+      status: resp.status,
+      detail,
+      structure_id: structureId,
+      page,
+      auth_url: "/auth",
+    }, resp.status === 403 ? 403 : 502);
+  }
+
+  let orders;
+  try { orders = JSON.parse(detail); } catch { return text("EVE structure market returned invalid JSON", 502); }
+  return json({
+    ok: true,
+    structure_id: structureId,
+    page,
+    pages: Math.max(1, Number(resp.headers.get("X-Pages") || 1)),
+    expires: resp.headers.get("Expires") || null,
+    orders: Array.isArray(orders) ? orders : [],
+  });
+}
+
 async function handleOpen(env, action) {
   const token = await getFreshToken(env);
   if (!token.ok) return startAuth(env, action);
@@ -110,9 +164,8 @@ async function handleOpen(env, action) {
 
 async function handleSendMail(request, env) {
   if (request.method !== "POST") return text("Method not allowed", 405);
-  if (!env.MAIL_API_KEY) return text("缺少 Cloudflare Secret：MAIL_API_KEY", 500);
-  const auth = request.headers.get("Authorization") || "";
-  if (auth !== `Bearer ${env.MAIL_API_KEY}`) return text("Unauthorized", 401);
+  const denied = requireApiKey(request, env);
+  if (denied) return denied;
 
   let payload;
   try { payload = await request.json(); } catch { return text("Invalid JSON", 400); }
@@ -189,7 +242,7 @@ async function handleCallback(request, env) {
   const headers = new Headers({ "Content-Type": "text/html; charset=utf-8" });
   headers.append("Set-Cookie", expiredCookie("eve_state"));
   headers.append("Set-Cookie", expiredCookie("eve_action"));
-  return new Response(`<!doctype html><meta charset='utf-8'><h2>EVE 授权成功。</h2><p>角色：${escapeHtml(claims.name || characterId || "unknown")}</p><p>已申请合同窗口 + 发送邮件 + 读取技能权限。</p><p><a href='/'>返回状态页</a></p>`, { status: 200, headers });
+  return new Response(`<!doctype html><meta charset='utf-8'><h2>EVE 授权成功。</h2><p>角色：${escapeHtml(claims.name || characterId || "unknown")}</p><p>已申请合同窗口 + 发送邮件 + 读取技能 + 玩家建筑市场权限。</p><p><a href='/'>返回状态页</a></p>`, { status: 200, headers });
 }
 
 async function getFreshToken(env) {
