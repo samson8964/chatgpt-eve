@@ -300,4 +300,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    from four_h_contract_scanner_v2 import main as v2_main
+    v2_main()
