@@ -234,4 +234,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    from four_h_market_scanner_v2 import main as v2_main
+    v2_main()
