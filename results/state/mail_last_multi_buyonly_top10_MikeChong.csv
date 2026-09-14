@@ -1,1 +1,2 @@
-rank,contract_id
+rank,contract_id,policy_version,metric,roi,status,grade,sent_at
+1,236052514,buyonly-v2-exec-2,77133852.66624999,0.9228092488390864,SAFE,B,2026-09-14T20:03:26.163515+00:00
