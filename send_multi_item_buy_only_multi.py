@@ -14,6 +14,11 @@ from send_eve_mail_fast import resolve_character
 
 HISTORY = Path("results/state/mail_push_history.csv")
 CHANNEL = "multi-item-buy-only"
+POLICY_VERSION = "buyonly-v2-exec-2"
+RESEND_ABS_PROFIT = float(os.getenv("MAIL_RESEND_ABS_PROFIT", "20000000"))
+RESEND_REL_PROFIT = float(os.getenv("MAIL_RESEND_REL_PROFIT", "0.10"))
+RESEND_ROI_DELTA = float(os.getenv("MAIL_RESEND_ROI_DELTA", "0.02"))
+REMIND_AFTER_HOURS = float(os.getenv("MAIL_REMIND_AFTER_HOURS", "6"))
 
 
 def recipient_names():
@@ -43,6 +48,31 @@ def read_csv(path: Path):
         return pd.DataFrame()
 
 
+def _text(v, default=""):
+    if v is None:
+        return default
+    s = str(v).strip()
+    if not s or s.lower() in {"nan", "none"}:
+        return default
+    return s
+
+
+def _snapshot(c):
+    row = c.get("row")
+    status = "SAFE"
+    grade = ""
+    if row is not None:
+        status = _text(row.get("execution_status"), "SAFE").upper()
+        grade = _text(row.get("score_grade"), _text(row.get("recommendation"), ""))
+    return {
+        "contract_id": int(c["contract_id"]),
+        "metric": float(c.get("gap", 0.0) or 0.0),
+        "roi": float(c.get("roi", 0.0) or 0.0),
+        "status": status,
+        "grade": grade,
+    }
+
+
 def load_signature(path: Path):
     df = read_csv(path)
     if df.empty or "contract_id" not in df.columns:
@@ -52,10 +82,120 @@ def load_signature(path: Path):
     return [int(x) for x in pd.to_numeric(df["contract_id"], errors="coerce").dropna().astype(int).tolist()]
 
 
+def should_suppress(path: Path, picked):
+    current = [_snapshot(c) for c in picked]
+    current_ids = [x["contract_id"] for x in current]
+
+    if not path.exists():
+        print(f"{CHANNEL} reminder trigger: no prior recipient state")
+        return False
+
+    state = read_csv(path)
+    previous_ids = load_signature(path)
+    if current_ids != previous_ids:
+        print(f"{CHANNEL} reminder trigger: TOP membership/rank changed")
+        return False
+
+    # Avoid periodic empty digests. A transition from non-empty to empty is caught above.
+    if not current:
+        return True
+
+    required = {"policy_version", "metric", "roi", "status", "grade", "sent_at"}
+    if state.empty or not required.issubset(state.columns):
+        print(f"{CHANNEL} reminder trigger: policy/state upgraded")
+        return False
+    if "rank" in state.columns:
+        state = state.sort_values("rank")
+    if any(str(v) != POLICY_VERSION for v in state["policy_version"].fillna("")):
+        print(f"{CHANNEL} reminder trigger: policy version changed")
+        return False
+
+    old_by_id = {}
+    for _, r in state.iterrows():
+        try:
+            old_by_id[int(float(r["contract_id"]))] = r
+        except Exception:
+            continue
+
+    for cur in current:
+        cid = cur["contract_id"]
+        old = old_by_id.get(cid)
+        if old is None:
+            print(f"{CHANNEL} reminder trigger: new contract {cid}")
+            return False
+
+        old_metric = float(pd.to_numeric(old.get("metric"), errors="coerce") or 0.0)
+        delta = abs(cur["metric"] - old_metric)
+        rel = delta / max(abs(old_metric), 1.0)
+        if delta >= RESEND_ABS_PROFIT or rel >= RESEND_REL_PROFIT:
+            print(
+                f"{CHANNEL} reminder trigger: contract {cid} value changed "
+                f"delta={delta:.0f} rel={rel:.1%}"
+            )
+            return False
+
+        old_roi = float(pd.to_numeric(old.get("roi"), errors="coerce") or 0.0)
+        if abs(cur["roi"] - old_roi) >= RESEND_ROI_DELTA:
+            print(
+                f"{CHANNEL} reminder trigger: contract {cid} ROI changed "
+                f"delta={abs(cur['roi']-old_roi):.2%}"
+            )
+            return False
+
+        if cur["status"] != _text(old.get("status"), "SAFE").upper():
+            print(f"{CHANNEL} reminder trigger: contract {cid} execution status changed")
+            return False
+        if cur["grade"] != _text(old.get("grade"), ""):
+            print(f"{CHANNEL} reminder trigger: contract {cid} grade changed")
+            return False
+
+    try:
+        sent = pd.to_datetime(state["sent_at"], utc=True, errors="coerce").dropna()
+        if sent.empty:
+            print(f"{CHANNEL} reminder trigger: missing last-sent timestamp")
+            return False
+        age_h = (pd.Timestamp.now(tz="UTC") - sent.max()).total_seconds() / 3600.0
+        if age_h >= REMIND_AFTER_HOURS:
+            print(f"{CHANNEL} reminder trigger: still SAFE after {age_h:.1f}h")
+            return False
+    except Exception:
+        print(f"{CHANNEL} reminder trigger: unreadable last-sent timestamp")
+        return False
+
+    return True
+
+
 def save_signature(path: Path, picked):
     path.parent.mkdir(parents=True, exist_ok=True)
-    rows = [{"rank": i, "contract_id": int(c["contract_id"])} for i, c in enumerate(picked, 1)]
-    pd.DataFrame(rows, columns=["rank", "contract_id"]).to_csv(path, index=False)
+    sent_at = pd.Timestamp.now(tz="UTC").isoformat()
+    rows = []
+    for i, c in enumerate(picked, 1):
+        snap = _snapshot(c)
+        rows.append(
+            {
+                "rank": i,
+                "contract_id": snap["contract_id"],
+                "policy_version": POLICY_VERSION,
+                "metric": snap["metric"],
+                "roi": snap["roi"],
+                "status": snap["status"],
+                "grade": snap["grade"],
+                "sent_at": sent_at,
+            }
+        )
+    pd.DataFrame(
+        rows,
+        columns=[
+            "rank",
+            "contract_id",
+            "policy_version",
+            "metric",
+            "roi",
+            "status",
+            "grade",
+            "sent_at",
+        ],
+    ).to_csv(path, index=False)
 
 
 def load_history():
@@ -154,6 +294,7 @@ def render(stamp, candidates, picked, removed, history):
         f"<b>多件物品合同捡漏 · Opportunity Engine V2 · TOP{len(picked)}</b><br>{stamp}<br>",
         f"SAFE强候选 {len(candidates)} · 发送前失效/不可见 {removed}<br>",
         "最终估值使用实时Jita 4-4买单深度；CHANGED/DANGER不会自动推送。<br>",
+        "同一合同净价值变化≥20M或≥10%、ROI变化≥2个百分点、等级变化，或持续SAFE满6小时会再次提醒。<br>"
         "合同价>50亿、SKIN/SKINR价值占比≥50%、不可达或未确认可访问的陌生玩家建筑已剔除。<br><br>",
     ]
     for i, c in enumerate(picked, 1):
@@ -172,7 +313,6 @@ def main():
     recipients = [(name, resolve_character(name)) for name in names]
     candidates = _safe_v2_candidates(base_multi.build_candidates())
     picked, removed = base_multi.live_pick(candidates)
-    signature = [int(c["contract_id"]) for c in picked]
     history = load_history()
     stamp = pd.Timestamp.now(tz="Asia/Shanghai").strftime("%m-%d %H:%M")
     cycle_recorded = False
@@ -180,8 +320,8 @@ def main():
 
     for name, recipient_id in recipients:
         path = state_path(name)
-        if signature == load_signature(path):
-            print(f"{CHANNEL} skipped for {name}: unchanged TOP{len(signature)}")
+        if should_suppress(path, picked):
+            print(f"{CHANNEL} skipped for {name}: no material change TOP{len(picked)}")
             continue
         subject, body = render(stamp, candidates, picked, removed, history)
         try:
