@@ -11,6 +11,12 @@ on:
       - 'bpc_contract_benchmark_buy_only.py'
       - 'apply_buy_only_bpc_policy.py'
       - 'buy_only_contract_scanner.py'
+      - 'buy_only_contract_scanner_v2.py'
+      - 'opportunity_engine_v2.py'
+      - 'bpc_opportunity_engine_v2.py'
+      - 'runner_bpc_v2.py'
+      - 'export_bpc_v2_safe.py'
+      - 'build_bpc_v2_safe_mail_preview.py'
       - 'buy_only_mail_templates.py'
       - 'send_eve_mail_buy_only_multi.py'
       - 'send_multi_item_buy_only_multi.py'
@@ -130,7 +136,7 @@ jobs:
           DEAL_MAX_CONTRACT_PRICE: '5000000000'
         run: python apply_buy_only_bpc_policy.py
 
-      - name: Scan spot and multi-item contracts using Jita buy depth only
+      - name: Scan spot and multi-item contracts with Opportunity Engine V2
         if: steps.cadence.outputs.run_scan == 'true'
         env:
           DEAL_MIN_CONTRACT_PRICE: '1000000'
@@ -146,7 +152,9 @@ jobs:
           DEAL_FRIENDLY_CHARACTER_ID: '2124493042'
           DEAL_FRIENDLY_ALLIANCE_IDS: ''
           DEAL_FRIENDLY_REGION_IDS: ''
-        run: python buy_only_contract_scanner.py
+          V2_LIVE_REVALIDATE_LIMIT: '120'
+          V2_HISTORY_CANDIDATE_LIMIT: '60'
+        run: python buy_only_contract_scanner_v2.py
 
       - name: Prepare mail candidates
         if: steps.cadence.outputs.run_scan == 'true'
