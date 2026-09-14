@@ -10,7 +10,7 @@ import send_eve_mail_quality as quality
 import send_eve_mail_quality_multi as multi
 from send_eve_mail_fast import resolve_character
 
-POLICY_VERSION = "buyonly-v1"
+POLICY_VERSION = "buyonly-v2-exec-1"
 
 
 def transform_content(subject: str, body: str, channel_key: str):
@@ -29,10 +29,14 @@ def transform_content(subject: str, body: str, channel_key: str):
             "说明：剩余买单深度不足的物品按0估值；合同价>50亿、SKIN/SKINR价值占比≥50%的合同已剔除。完全相同的TOP列表不会重复发邮件。",
         )
     elif channel_key == "bpc-value":
-        subject = subject.replace("BPC捡漏", "BPC捡漏·买单制造/蓝图价差")
+        subject = subject.replace("BPC捡漏", "BPC制造捡漏·V2 SAFE")
+        body = (
+            "<b>Opportunity Engine V2：自动邮件仅包含 SAFE 制造套利；CHANGED/DANGER 与蓝图挂牌价低估信号不自动推荐。</b><br><br>"
+            + body
+        )
         body = body.replace(
             "排序：制造利润按100%计；蓝图自身价值差按可比样本数折算可信度后参与排名（3/5/10/20+样本约为50%/65%/80%/90%）。",
-            "制造利润仅按成品打Jita买单计算；蓝图同类挂牌价差是独立低估信号，不当作可兑现利润。合同价>50亿及SKIN/SKINR相关蓝图已剔除。",
+            "排序：仅按V2实时复核后的制造机会；材料与成品均按实时Jita订单深度、VWAP、滑点和压力测试计算。",
         )
     return subject, body
 
@@ -68,8 +72,6 @@ def main():
                 return original_send(recipient_id, subject, body, channel_key)
             except requests.exceptions.HTTPError as exc:
                 status = exc.response.status_code if exc.response is not None else 0
-                # Explicit upstream 5xx responses are safe to retry. Unknown connection-loss
-                # outcomes are not retried automatically because EVE may already have accepted mail.
                 if status < 500 or attempt >= 3:
                     raise
                 delay = 2 * attempt
@@ -97,7 +99,6 @@ def main():
                 return result
 
             quality.base.send_mail = send_one
-            # Exactly one successful recipient increments the shared opportunity push count.
             quality.record_history = (
                 original_record_history
                 if not push_count_recorded
@@ -119,7 +120,6 @@ def main():
                     f"::warning::{channel_name} mail failed for {name}: "
                     f"{type(exc).__name__}: {exc}"
                 )
-                # Keep that recipient's TOP state unchanged so the next scan retries the digest.
 
         if history_after_counted_send is not None:
             shared_history = history_after_counted_send
