@@ -32,15 +32,17 @@ on:
       - 'send_multi_item_mail_multi.py'
       - '.github/workflows/scan.yml'
   schedule:
-    - cron: '7,17,27,37,47,57 * * * *'
+    # Two direct scheduled scans per hour, 30 minutes apart. Off-peak minutes reduce
+    # GitHub Actions scheduler congestion compared with :00/:30.
+    - cron: '11,41 * * * *'
 
 permissions:
   contents: write
 
-# Code edits should validate only the newest revision. Scheduled scans use a different group and
-# are never cancelled by a later schedule tick, so a long normal scan can finish and persist data.
+# Push validation and scheduled production scans use separate concurrency groups.
+# A normal scan takes about 12-18 minutes, so a 30-minute schedule should not overlap.
 concurrency:
-  group: eve-arbitrage-v5-${{ github.event_name }}
+  group: eve-arbitrage-v6-${{ github.event_name }}
   cancel-in-progress: ${{ github.event_name == 'push' }}
 
 jobs:
@@ -54,38 +56,13 @@ jobs:
           ref: main
           fetch-depth: 20
 
-      - name: Cadence gate
+      - name: Half-hour schedule gate
         id: cadence
         shell: bash
         run: |
           set -euo pipefail
-          if [ "${{ github.event_name }}" != "schedule" ]; then
-            echo "run_scan=true" >> "$GITHUB_OUTPUT"
-            echo "Manual/push event: run immediately."
-            exit 0
-          fi
-
-          stamp="results/state/last_scan_started_epoch.txt"
-          now="$(date -u +%s)"
-          if [ -f "$stamp" ]; then
-            last="$(tr -dc '0-9' < "$stamp")"
-          else
-            last=""
-          fi
-
-          if [ -n "$last" ]; then
-            age=$((now - last))
-          else
-            age=999999
-          fi
-
-          if [ "$age" -lt 1500 ]; then
-            echo "run_scan=false" >> "$GITHUB_OUTPUT"
-            echo "Skip full scan: previous scan started ${age}s ago (<25m)."
-          else
-            echo "run_scan=true" >> "$GITHUB_OUTPUT"
-            echo "Run full scan: previous scan started ${age}s ago."
-          fi
+          echo "run_scan=true" >> "$GITHUB_OUTPUT"
+          echo "Run full scan for event=${{ github.event_name }}. Scheduled cadence is twice hourly (30 minutes apart)."
 
       - name: Record scan start
         if: steps.cadence.outputs.run_scan == 'true'
