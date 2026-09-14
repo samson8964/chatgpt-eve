@@ -86,35 +86,71 @@ def _bpc_market_html(r):
     )
 
 
+def _bpc_v2_html(r):
+    status = str(r.get("v2_status", "") or "").upper()
+    if not status:
+        return ""
+    grade = html.escape(_short(r.get("v2_grade", ""), 4))
+    score = _num(r.get("v2_score"), 0.0)
+    profit = _num(r.get("v2_live_net_profit"), 0.0)
+    roi = _num(r.get("v2_live_net_roi"), 0.0) * 100
+    stress = _num(r.get("v2_stress_net_profit"), 0.0)
+    gross = _num(r.get("v2_live_gross_revenue"), 0.0)
+    material = _num(r.get("v2_live_material_cost"), 0.0)
+    tax = _num(r.get("v2_live_sales_tax"), 0.0)
+    vwap = _num(r.get("v2_product_vwap"), 0.0)
+    pslip = _num(r.get("v2_product_slippage"), 0.0) * 100
+    mslip = _num(r.get("v2_material_max_slippage"), 0.0) * 100
+    fill_days = _num(r.get("v2_est_fill_days"), 0.0)
+    hist = _num(r.get("v2_historical_fill_rate"), 0.0) * 100
+    liq = html.escape(_short(r.get("v2_liquidity_label", "unknown"), 24))
+    lock_days = _num(r.get("v2_capital_lock_days"), 0.0)
+    change = _num(r.get("v2_profit_change_pct"), 0.0) * 100
+    verified = html.escape(_short(r.get("v2_verified_at", ""), 48))
+    return (
+        f"<b>Opportunity Engine V2 · {grade}级 · {html.escape(status)} · 评分 {score:.1f}</b><br>"
+        f"实时净利润 <b>{fmt_isk(profit)}</b> · ROI {roi:.1f}% · 压力测试利润 {fmt_isk(stress)}<br>"
+        f"实时成品收入 {fmt_isk(gross)} · 实时材料 {fmt_isk(material)} · 税 {fmt_isk(tax)}<br>"
+        f"成品VWAP {fmt_isk(vwap)} · 成品滑点 {pslip:.2f}% · 材料最大滑点 {mslip:.2f}%<br>"
+        f"相对扫描快照利润变化 {change:+.1f}% · 流动性 {liq} · 预计清算 {fill_days:.2f}天 · 30日覆盖 {hist:.0f}%<br>"
+        f"预计资金占用 {lock_days:.2f}天" + (f" · 实时复核 {verified}" if verified else "") + "<br>"
+    )
+
+
 def bpc_html(i, r):
     cid = int(float(r["contract_id"]))
     name = _short(r.get("blueprint_name") or r.get("blueprints") or r.get("products") or "BPC", 130)
     name = html.escape(name)
     runs = int(_num(r.get("total_bpc_runs"), 0))
     copies = int(_num(r.get("bpc_copy_count"), 0))
-    profit = r.get("net_profit")
-    roi = r.get("net_roi")
+    v2 = _bpc_v2_html(r)
 
     lines = [
         f"<b>{i}. {name}</b> · 总流程 {runs}" + (f" · {copies}张" if copies else "") + "<br>",
         f"合同价 {fmt_isk(r.get('contract_price',0))}<br>",
-        _bpc_market_html(r),
     ]
 
-    try:
-        has_mfg = float(profit) == float(profit) and float(roi) == float(roi)
-    except Exception:
-        has_mfg = False
-    if has_mfg:
-        lines.extend(
-            [
-                f"<b>制造后Jita买单即时兑现：</b>毛收入 {fmt_isk(r.get('gross_revenue',0))} · 净利润 {fmt_isk(profit)} · ROI {float(roi)*100:.1f}%<br>",
-                f"材料买入 {fmt_isk(r.get('material_cost_jita_depth',0))} · 制造费 {fmt_isk(r.get('manufacturing_job_cost',0))} · 销售税 {fmt_isk(r.get('sales_tax',0))} · 运输 {fmt_isk(r.get('configured_haul_cost',0))}<br>",
-                f"Broker 0 · 改价预留 0 · 买盘容量约 {_num(r.get('market_capacity_contracts',0)):.0f} 批 · 最差成交买价 {fmt_isk(r.get('worst_buy_price_used',0))}<br>",
-            ]
-        )
+    if v2:
+        lines.append(v2)
+        lines.append("蓝图挂牌价低估信号当前仅观察，不参与自动推荐。<br>")
     else:
-        lines.append("制造路径：当前未进入制造利润候选；蓝图挂牌价差信号仍可独立成立。<br>")
+        lines.append(_bpc_market_html(r))
+        profit = r.get("net_profit")
+        roi = r.get("net_roi")
+        try:
+            has_mfg = float(profit) == float(profit) and float(roi) == float(roi)
+        except Exception:
+            has_mfg = False
+        if has_mfg:
+            lines.extend(
+                [
+                    f"<b>制造后Jita买单即时兑现：</b>毛收入 {fmt_isk(r.get('gross_revenue',0))} · 净利润 {fmt_isk(profit)} · ROI {float(roi)*100:.1f}%<br>",
+                    f"材料买入 {fmt_isk(r.get('material_cost_jita_depth',0))} · 制造费 {fmt_isk(r.get('manufacturing_job_cost',0))} · 销售税 {fmt_isk(r.get('sales_tax',0))} · 运输 {fmt_isk(r.get('configured_haul_cost',0))}<br>",
+                    f"Broker 0 · 改价预留 0 · 买盘容量约 {_num(r.get('market_capacity_contracts',0)):.0f} 批 · 最差成交买价 {fmt_isk(r.get('worst_buy_price_used',0))}<br>",
+                ]
+            )
+        else:
+            lines.append("制造路径：当前未进入制造利润候选；蓝图挂牌价差信号仍可独立成立。<br>")
 
     system = _short(r.get("system_name", ""), 45)
     station = _short(r.get("station_name", ""), 70)
