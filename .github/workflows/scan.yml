@@ -31,18 +31,14 @@ on:
       - 'send_multi_item_mail.py'
       - 'send_multi_item_mail_multi.py'
       - '.github/workflows/scan.yml'
-  schedule:
-    # Two direct scheduled scans per hour, 30 minutes apart. Off-peak minutes reduce
-    # GitHub Actions scheduler congestion compared with :00/:30.
-    - cron: '11,41 * * * *'
 
 permissions:
   contents: write
 
-# Push validation and scheduled production scans use separate concurrency groups.
-# A normal scan takes about 12-18 minutes, so a 30-minute schedule should not overlap.
+# Cloudflare Cron is the sole production scheduler. Push events only validate code/config changes.
+# Normal production runs arrive as workflow_dispatch events every 30 minutes.
 concurrency:
-  group: eve-arbitrage-v6-${{ github.event_name }}
+  group: eve-arbitrage-v7-${{ github.event_name }}
   cancel-in-progress: ${{ github.event_name == 'push' }}
 
 jobs:
@@ -56,13 +52,13 @@ jobs:
           ref: main
           fetch-depth: 20
 
-      - name: Half-hour schedule gate
+      - name: Cloudflare/manual dispatch gate
         id: cadence
         shell: bash
         run: |
           set -euo pipefail
           echo "run_scan=true" >> "$GITHUB_OUTPUT"
-          echo "Run full scan for event=${{ github.event_name }}. Scheduled cadence is twice hourly (30 minutes apart)."
+          echo "Run full scan for event=${{ github.event_name }}. Cloudflare owns the half-hour production cadence."
 
       - name: Record scan start
         if: steps.cadence.outputs.run_scan == 'true'
