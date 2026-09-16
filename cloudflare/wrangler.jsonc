@@ -1,6 +1,6 @@
 {
   "name": "eve-contract-opener",
-  "main": "worker.js",
+  "main": "worker_mail_sender.js",
   "compatibility_date": "2026-09-02",
   "preview_urls": false,
   "keep_vars": true,
