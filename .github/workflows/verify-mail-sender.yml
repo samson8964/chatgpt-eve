@@ -1,0 +1,50 @@
+name: Verify EVE mail sender
+
+on:
+  push:
+    paths:
+      - '.github/workflows/verify-mail-sender.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    if: github.event.head_commit.message == 'test: verify LadyGuaGua mail sender'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Send one verification mail
+        env:
+          EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, urllib.request, uuid
+
+          url = 'https://eve-contract-opener.99617224.workers.dev/api/send-mail'
+          payload = {
+              'recipient_id': 2124493042,
+              'subject': 'LadyGuaGua 发件角色验证',
+              'body': '这是一封自动验证邮件。预期：发件人 LadyGuaGua → 收件人 MikeChong。',
+              'idempotency_key': 'verify-ladyguagua-' + str(uuid.uuid4()),
+          }
+          req = urllib.request.Request(
+              url,
+              data=json.dumps(payload).encode('utf-8'),
+              headers={
+                  'Authorization': 'Bearer ' + os.environ['EVE_MAIL_API_KEY'],
+                  'Content-Type': 'application/json',
+              },
+              method='POST',
+          )
+          with urllib.request.urlopen(req, timeout=30) as r:
+              body = r.read().decode('utf-8')
+              print('HTTP', r.status, body)
+              data = json.loads(body)
+          assert data.get('ok') is True, data
+          assert data.get('sender_name') == 'LadyGuaGua', data
+          assert int(data.get('recipient_id', 0)) == 2124493042, data
+          print('VERIFIED: LadyGuaGua -> MikeChong')
+          PY
