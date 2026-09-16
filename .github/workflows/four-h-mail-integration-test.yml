@@ -1,0 +1,90 @@
+name: 4-H V2 mail integration test
+
+on:
+  push:
+    paths:
+      - '.github/workflows/four-h-mail-integration-test.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    if: github.event.head_commit.message == 'test: run 4-H V2 mail integration'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout latest main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 20
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Scan 4-H contracts V2
+        env:
+          EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+          EVE_MARKET_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
+          FOUR_H_STRUCTURE_ID: '1053970513596'
+          FOUR_H_CONTRACT_MIN_PRICE: '1000000'
+          FOUR_H_CONTRACT_MIN_NET_PROFIT: '5000000'
+          FOUR_H_CONTRACT_MIN_NET_ROI: '0.05'
+          FOUR_H_CONTRACT_TOP: '100'
+          ACCOUNTING_LEVEL: '5'
+        run: python four_h_contract_scanner.py
+
+      - name: Scan 4-H market V2
+        env:
+          EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+          EVE_MARKET_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
+          FOUR_H_STRUCTURE_ID: '1053970513596'
+          FOUR_H_MIN_NET_PROFIT: '10000000'
+          FOUR_H_MIN_NET_ROI: '0.10'
+          FOUR_H_TOP: '100'
+          ACCOUNTING_LEVEL: '5'
+          V2_FOUR_H_MARKET_LIVE_LIMIT: '150'
+          V2_FOUR_H_MARKET_HISTORY_LIMIT: '80'
+        run: python structure_market_arbitrage.py
+
+      - name: Send 4-H V2 mail to MikeChong
+        env:
+          EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+          EVE_MAIL_RECIPIENT_NAME: MikeChong
+          EVE_MAIL_RECIPIENT_NAMES: 'MikeChong'
+          EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
+          MAIL_TOP: '10'
+        run: python send_four_h_mail_multi.py
+
+      - name: Persist 4-H results and mail state
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "eve-arbitrage-bot"
+          git config user.email "eve-arbitrage-bot@users.noreply.github.com"
+          SNAP="$(mktemp -d)"
+          mkdir -p "$SNAP/latest" "$SNAP/state"
+          cp -f results/latest/four_h_contract_bargains.csv "$SNAP/latest/" 2>/dev/null || true
+          cp -f results/latest/four_h_contract_bargains.md "$SNAP/latest/" 2>/dev/null || true
+          cp -f results/latest/four_h_to_jita_buy.csv "$SNAP/latest/" 2>/dev/null || true
+          cp -f results/latest/four_h_to_jita_buy.md "$SNAP/latest/" 2>/dev/null || true
+          cp -f results/state/mail_last_four-h-* "$SNAP/state/" 2>/dev/null || true
+          git fetch origin main
+          git reset --hard origin/main
+          mkdir -p results/latest results/state
+          cp -f "$SNAP/latest/"* results/latest/ 2>/dev/null || true
+          cp -f "$SNAP/state/"* results/state/ 2>/dev/null || true
+          git add results/latest/four_h_* results/state/mail_last_four-h-* 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "No 4-H result/state changes to persist."
+            exit 0
+          fi
+          git commit -m "data: persist 4-H V2 mail integration results"
+          git push origin HEAD:main
