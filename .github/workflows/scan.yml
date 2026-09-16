@@ -40,8 +40,8 @@ on:
 permissions:
   contents: write
 
-# Cloudflare Cron is the sole production scheduler. Push events validate code/config changes.
-# Normal production runs arrive as workflow_dispatch events every 30 minutes.
+# Cloudflare Cron is the sole production scheduler.
+# Push events load/validate the workflow but never run production scans or send mail.
 concurrency:
   group: eve-arbitrage-v8-${{ github.event_name }}
   cancel-in-progress: ${{ github.event_name == 'push' }}
@@ -62,8 +62,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          echo "run_scan=true" >> "$GITHUB_OUTPUT"
-          echo "Run full scan for event=${{ github.event_name }}. Cloudflare owns the half-hour production cadence."
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "run_scan=true" >> "$GITHUB_OUTPUT"
+            echo "Run full production scan. Cloudflare owns the half-hour cadence."
+          else
+            echo "run_scan=false" >> "$GITHUB_OUTPUT"
+            echo "Push validation only: production scan and mail are intentionally skipped."
+          fi
 
       - name: Record scan start
         if: steps.cadence.outputs.run_scan == 'true'
