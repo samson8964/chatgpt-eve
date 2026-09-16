@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   verify:
-    if: github.event.head_commit.message == 'test: verify LadyGuaGua mail sender'
+    if: "${{ github.event.head_commit.message == 'test: verify LadyGuaGua mail sender v2' }}"
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
