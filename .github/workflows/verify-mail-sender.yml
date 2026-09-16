@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   verify:
-    if: "${{ github.event.head_commit.message == 'test: verify LadyGuaGua mail sender v2' }}"
+    if: "${{ github.event.head_commit.message == 'test: diagnose LadyGuaGua mail sender' }}"
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -21,7 +21,7 @@ jobs:
         run: |
           set -euo pipefail
           python - <<'PY'
-          import json, os, urllib.request, uuid
+          import json, os, urllib.request, urllib.error, uuid, sys
 
           url = 'https://eve-contract-opener.99617224.workers.dev/api/send-mail'
           payload = {
@@ -36,13 +36,22 @@ jobs:
               headers={
                   'Authorization': 'Bearer ' + os.environ['EVE_MAIL_API_KEY'],
                   'Content-Type': 'application/json',
+                  'Accept': 'application/json',
+                  'User-Agent': 'eve-arbitrage-mail-verifier/1.0',
               },
               method='POST',
           )
-          with urllib.request.urlopen(req, timeout=30) as r:
-              body = r.read().decode('utf-8')
-              print('HTTP', r.status, body)
-              data = json.loads(body)
+          try:
+              with urllib.request.urlopen(req, timeout=30) as r:
+                  body = r.read().decode('utf-8')
+                  status = r.status
+          except urllib.error.HTTPError as e:
+              body = e.read().decode('utf-8', errors='replace')
+              status = e.code
+          print('HTTP', status, body)
+          if status != 200:
+              sys.exit(2)
+          data = json.loads(body)
           assert data.get('ok') is True, data
           assert data.get('sender_name') == 'LadyGuaGua', data
           assert int(data.get('recipient_id', 0)) == 2124493042, data
