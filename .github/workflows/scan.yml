@@ -20,7 +20,12 @@ on:
       - 'buy_only_mail_templates.py'
       - 'send_eve_mail_buy_only_multi.py'
       - 'send_multi_item_buy_only_multi.py'
+      - 'send_four_h_mail_multi.py'
       - 'prepare_mail_candidates.py'
+      - 'four_h_contract_scanner.py'
+      - 'four_h_contract_scanner_v2.py'
+      - 'structure_market_arbitrage.py'
+      - 'four_h_market_scanner_v2.py'
       - 'payload/**'
       - 'requirements.txt'
       - 'add_action_links.py'
@@ -35,10 +40,10 @@ on:
 permissions:
   contents: write
 
-# Cloudflare Cron is the sole production scheduler. Push events only validate code/config changes.
+# Cloudflare Cron is the sole production scheduler. Push events validate code/config changes.
 # Normal production runs arrive as workflow_dispatch events every 30 minutes.
 concurrency:
-  group: eve-arbitrage-v7-${{ github.event_name }}
+  group: eve-arbitrage-v8-${{ github.event_name }}
   cancel-in-progress: ${{ github.event_name == 'push' }}
 
 jobs:
@@ -129,6 +134,33 @@ jobs:
           V2_HISTORY_CANDIDATE_LIMIT: '60'
         run: python buy_only_contract_scanner_v2.py
 
+      - name: Scan 4-H contracts with Opportunity Engine V2
+        if: steps.cadence.outputs.run_scan == 'true'
+        env:
+          EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+          EVE_MARKET_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
+          FOUR_H_STRUCTURE_ID: '1053970513596'
+          FOUR_H_CONTRACT_MIN_PRICE: '1000000'
+          FOUR_H_CONTRACT_MIN_NET_PROFIT: '5000000'
+          FOUR_H_CONTRACT_MIN_NET_ROI: '0.05'
+          FOUR_H_CONTRACT_TOP: '100'
+          ACCOUNTING_LEVEL: '5'
+        run: python four_h_contract_scanner.py
+
+      - name: Scan 4-H market to Jita with Opportunity Engine V2
+        if: steps.cadence.outputs.run_scan == 'true'
+        env:
+          EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+          EVE_MARKET_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
+          FOUR_H_STRUCTURE_ID: '1053970513596'
+          FOUR_H_MIN_NET_PROFIT: '10000000'
+          FOUR_H_MIN_NET_ROI: '0.10'
+          FOUR_H_TOP: '100'
+          ACCOUNTING_LEVEL: '5'
+          V2_FOUR_H_MARKET_LIVE_LIMIT: '150'
+          V2_FOUR_H_MARKET_HISTORY_LIMIT: '80'
+        run: python structure_market_arbitrage.py
+
       - name: Prepare mail candidates
         if: steps.cadence.outputs.run_scan == 'true'
         env:
@@ -151,7 +183,7 @@ jobs:
         env:
           EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
           EVE_MAIL_RECIPIENT_NAME: MikeChong
-          EVE_MAIL_RECIPIENT_NAMES: 'MikeChong,Vektor Yang'
+          EVE_MAIL_RECIPIENT_NAMES: 'MikeChong'
           EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
           MAIL_TOP: '10'
           MAIL_LIVE_POOL: '80'
@@ -162,11 +194,21 @@ jobs:
         env:
           EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
           EVE_MAIL_RECIPIENT_NAME: MikeChong
-          EVE_MAIL_RECIPIENT_NAMES: 'MikeChong,Vektor Yang'
+          EVE_MAIL_RECIPIENT_NAMES: 'MikeChong'
           EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
           MAIL_TOP: '10'
           MAIL_LIVE_POOL: '80'
         run: python send_multi_item_buy_only_multi.py
+
+      - name: Send changed 4-H contract and market digests
+        if: steps.cadence.outputs.run_scan == 'true'
+        env:
+          EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+          EVE_MAIL_RECIPIENT_NAME: MikeChong
+          EVE_MAIL_RECIPIENT_NAMES: 'MikeChong'
+          EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
+          MAIL_TOP: '10'
+        run: python send_four_h_mail_multi.py
 
       - name: Commit refreshed results safely
         if: steps.cadence.outputs.run_scan == 'true'
