@@ -3,8 +3,11 @@ name: Deploy Cloudflare EVE Worker
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
     paths:
       - 'cloudflare/worker.js'
+      - 'cloudflare/worker_mail_sender.js'
       - 'cloudflare/wrangler.jsonc'
       - '.github/workflows/deploy-cloudflare-worker.yml'
 
