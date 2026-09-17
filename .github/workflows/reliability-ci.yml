@@ -1,0 +1,59 @@
+name: Reliability CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '*.py'
+      - 'cloudflare/**'
+      - '.github/workflows/scan.yml'
+      - '.github/workflows/deploy-cloudflare-worker.yml'
+      - '.github/workflows/reliability-ci.yml'
+      - 'requirements.txt'
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout branch under test
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Compile Python sources
+        run: python -m compileall -q .
+
+      - name: Run Opportunity Engine and mail policy unit tests
+        run: |
+          python -m unittest -v \
+            test_opportunity_engine_v2.py \
+            test_bpc_opportunity_engine_v2.py \
+            test_mail_reminder_policy.py
+
+      - name: Check Worker JavaScript syntax
+        run: |
+          node --check cloudflare/worker.js
+          node --check cloudflare/worker_mail_sender.js
+
+      - name: Validate Cloudflare Worker bundle without deploying
+        run: |
+          npx --yes wrangler@latest deploy \
+            --config cloudflare/wrangler.jsonc \
+            --strict \
+            --dry-run
