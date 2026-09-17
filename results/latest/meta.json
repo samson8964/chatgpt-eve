@@ -1,7 +1,7 @@
 {
-  "generated_at_utc": "2026-09-17T22:18:31.515563+00:00",
-  "contracts_snapshot": "2026-09-17T22:01:15.598Z",
-  "market_snapshot": "2026-09-17T21:48:28.946Z",
+  "generated_at_utc": "2026-09-17T22:50:53.316920+00:00",
+  "contracts_snapshot": "2026-09-17T22:31:14.544Z",
+  "market_snapshot": "2026-09-17T22:18:25.753Z",
   "accounting_level": 5,
   "transaction_tax_rate": 0.033749999999999995,
   "market_broker_fee_rate": 0.0,
