@@ -1,5 +1,4 @@
 product_type_id,product_name,last_seen,opportunity_class,opportunity_score,recommendation,persistence_7d,scan_days_7d,profitable_days_7d,avg_daily_volume_30d,vwap_30d,current_bid_premium_vs_30d,best_current_net_roi,best_current_net_profit,current_profitable_contracts,eve_market_url
-42244,10x Porpoise,2026-09-17,周期机会,66.8,B+：可重点做,1.0,4,4,45.43333333333333,98620821.71641964,-0.0681481009734953,0.0958151308902277,77789919.5,28,https://eve-contract-opener.99617224.workers.dev/m/42244
-47139,50x Standup Firbolg I,2026-09-17,深度不足型瞬时机会,59.6,C：抢单型，先确认买盘,1.0,1,1,54.21428571428572,9817988.800586296,-0.1031768136184677,0.1832765359756303,65896411.75,2,https://eve-contract-opener.99617224.workers.dev/m/47139
-9950,250x Standard Blue Pill Booster,2026-09-17,排除：盈利买盘不足,58.1,D：不做,1.0,1,1,2029.5,1627488.0676685555,0.1066133360842438,0.1313749137518355,59016200.0,1,https://eve-contract-opener.99617224.workers.dev/m/9950
-634,100x Exequror,2026-09-17,深度不足型瞬时机会,37.2,C：抢单型，先确认买盘,1.0,2,2,64.96666666666667,9657195.998060543,-0.1272829088596114,0.0827766233326433,62379597.5,2,https://eve-contract-opener.99617224.workers.dev/m/634
+42244,10x Porpoise,2026-09-17,周期机会,66.7,B+：可重点做,1.0,4,4,45.43333333333333,98620821.71641964,-0.0681481009734953,0.0953779916469016,77465919.5,28,https://eve-contract-opener.99617224.workers.dev/m/42244
+47139,50x Standup Firbolg I,2026-09-17,深度不足型瞬时机会,59.6,C：抢单型，先确认买盘,1.0,1,1,54.21428571428572,9817988.800586296,-0.1031768136184677,0.1829878188807629,65808661.75,2,https://eve-contract-opener.99617224.workers.dev/m/47139
+634,100x Exequror,2026-09-17,深度不足型瞬时机会,37.1,C：抢单型，先确认买盘,1.0,2,2,64.96666666666667,9657195.998060543,-0.1272829088596114,0.0823364561452578,62077903.75,2,https://eve-contract-opener.99617224.workers.dev/m/634
