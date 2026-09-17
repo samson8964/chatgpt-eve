@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - 'cloudflare/worker.js'
+      - 'cloudflare/worker_mail_sender.js'
       - 'cloudflare/wrangler.jsonc'
       - '.github/workflows/deploy-cloudflare-worker.yml'
 
