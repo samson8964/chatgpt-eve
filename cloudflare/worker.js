@@ -3,6 +3,11 @@ const SSO_TOKEN = "https://login.eveonline.com/v2/oauth/token";
 const ESI_BASE = "https://esi.evetech.net/latest";
 const ESI_SKILLS_BASE = "https://esi.evetech.net/v4";
 const SCOPE = "esi-ui.open_window.v1 esi-mail.send_mail.v1 esi-skills.read_skills.v1 esi-markets.structure_markets.v1";
+const ACCESS_TOKEN_CACHE_KEY = "https://eve-contract-opener.internal/access-token";
+
+let memoryAccessToken = "";
+let memoryAccessTokenExp = 0;
+let refreshInFlight = null;
 
 export default {
   async fetch(request, env) {
@@ -29,6 +34,8 @@ export default {
     }
 
     if (url.pathname === "/logout") {
+      memoryAccessToken = "";
+      memoryAccessTokenExp = 0;
       await Promise.all(["refresh_token","character_id","character_name"].map(k => env.AUTH_STORE.delete(k)));
       return html("<!doctype html><meta charset='utf-8'><h2>已清除 EVE 授权。</h2><p><a href='/'>返回</a></p>");
     }
@@ -236,6 +243,8 @@ async function handleCallback(request, env) {
   const characterId = String(claims.sub || "").split(":").pop();
   if (/^\d+$/.test(characterId || "")) await env.AUTH_STORE.put("character_id", characterId);
   if (claims.name) await env.AUTH_STORE.put("character_name", String(claims.name));
+  rememberAccessToken(resp.access_token, claims);
+  await cacheAccessToken(resp.access_token, claims);
 
   const action = cookies.eve_action || null;
   if (action) return openInEve(resp.access_token, action, true);
@@ -245,17 +254,90 @@ async function handleCallback(request, env) {
   return new Response(`<!doctype html><meta charset='utf-8'><h2>EVE 授权成功。</h2><p>角色：${escapeHtml(claims.name || characterId || "unknown")}</p><p>已申请合同窗口 + 发送邮件 + 读取技能 + 玩家建筑市场权限。</p><p><a href='/'>返回状态页</a></p>`, { status: 200, headers });
 }
 
-async function getFreshToken(env) {
+function rememberAccessToken(accessToken, claims = {}) {
+  const nowSec = Math.floor(Date.now() / 1000);
+  memoryAccessToken = accessToken || "";
+  memoryAccessTokenExp = Number(claims.exp || 0) || (nowSec + 900);
+}
+
+async function readCachedAccessToken() {
+  const nowSec = Math.floor(Date.now() / 1000);
+  if (memoryAccessToken && memoryAccessTokenExp > nowSec + 60) {
+    return { ok: true, access_token: memoryAccessToken, cached: "memory" };
+  }
+  try {
+    const cached = await caches.default.match(ACCESS_TOKEN_CACHE_KEY);
+    if (!cached) return null;
+    const data = await cached.json();
+    if (!data || !data.access_token || Number(data.exp || 0) <= nowSec + 60) return null;
+    memoryAccessToken = String(data.access_token);
+    memoryAccessTokenExp = Number(data.exp);
+    return { ok: true, access_token: memoryAccessToken, cached: "edge" };
+  } catch (err) {
+    console.warn("access token cache read failed", String(err));
+    return null;
+  }
+}
+
+async function cacheAccessToken(accessToken, claims = {}) {
+  if (!accessToken) return;
+  const nowSec = Math.floor(Date.now() / 1000);
+  const exp = Number(claims.exp || 0) || (nowSec + 900);
+  const ttl = Math.max(60, Math.min(1100, exp - nowSec - 60));
+  try {
+    const response = new Response(JSON.stringify({ access_token: accessToken, exp }), {
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": `public, max-age=${ttl}`,
+      },
+    });
+    await caches.default.put(ACCESS_TOKEN_CACHE_KEY, response);
+  } catch (err) {
+    console.warn("access token cache write failed", String(err));
+  }
+}
+
+async function refreshAccessToken(env) {
   const refreshToken = await env.AUTH_STORE.get("refresh_token");
   if (!refreshToken) return { ok: false, status: 401, detail: "no refresh token" };
-  const result = await tokenRequest(env, new URLSearchParams({ grant_type: "refresh_token", refresh_token: refreshToken }));
+
+  let result;
+  try {
+    result = await tokenRequest(env, new URLSearchParams({ grant_type: "refresh_token", refresh_token: refreshToken }));
+  } catch (err) {
+    return { ok: false, status: 502, detail: `token request exception: ${String(err)}` };
+  }
   if (!result.ok) return result;
-  if (result.refresh_token && result.refresh_token !== refreshToken) await env.AUTH_STORE.put("refresh_token", result.refresh_token);
+
   const claims = decodeJwtClaims(result.access_token);
-  const characterId = String(claims.sub || "").split(":").pop();
-  if (/^\d+$/.test(characterId || "")) await env.AUTH_STORE.put("character_id", characterId);
-  if (claims.name) await env.AUTH_STORE.put("character_name", String(claims.name));
+  rememberAccessToken(result.access_token, claims);
+  await cacheAccessToken(result.access_token, claims);
+
+  if (result.refresh_token && result.refresh_token !== refreshToken) {
+    try {
+      await env.AUTH_STORE.put("refresh_token", result.refresh_token);
+    } catch (err) {
+      // KV free-tier write exhaustion must not crash all market scans. The current
+      // access token remains usable; a later /auth can restore persistence if needed.
+      console.warn("refresh token persistence failed", String(err));
+    }
+  }
+
+  // character_id/name are written during /auth callback only. Rewriting them on
+  // every market page previously burned KV writes without changing the values.
   return result;
+}
+
+async function getFreshToken(env) {
+  const cached = await readCachedAccessToken();
+  if (cached) return cached;
+
+  if (!refreshInFlight) refreshInFlight = refreshAccessToken(env);
+  try {
+    return await refreshInFlight;
+  } finally {
+    refreshInFlight = null;
+  }
 }
 
 async function tokenRequest(env, body) {
