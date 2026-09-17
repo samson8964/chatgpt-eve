@@ -196,7 +196,7 @@ jobs:
         env:
           EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
           EVE_MAIL_RECIPIENT_NAME: MikeChong
-          EVE_MAIL_RECIPIENT_NAMES: 'MikeChong'
+          EVE_MAIL_RECIPIENT_NAMES: 'MikeChong,Vektor Yang'
           EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
           MAIL_TOP: '10'
           MAIL_LIVE_POOL: '80'
@@ -216,7 +216,7 @@ jobs:
         env:
           EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
           EVE_MAIL_RECIPIENT_NAME: MikeChong
-          EVE_MAIL_RECIPIENT_NAMES: 'MikeChong'
+          EVE_MAIL_RECIPIENT_NAMES: 'MikeChong,Vektor Yang'
           EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
           MAIL_TOP: '10'
           MAIL_LIVE_POOL: '80'
@@ -236,7 +236,7 @@ jobs:
         env:
           EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
           EVE_MAIL_RECIPIENT_NAME: MikeChong
-          EVE_MAIL_RECIPIENT_NAMES: 'MikeChong'
+          EVE_MAIL_RECIPIENT_NAMES: 'MikeChong,Vektor Yang'
           EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
           MAIL_TOP: '10'
         shell: bash
