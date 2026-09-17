@@ -19,6 +19,8 @@ jobs:
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+      WORKER_URL: https://eve-contract-opener.99617224.workers.dev
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,6 +31,7 @@ jobs:
           set -euo pipefail
           test -n "${CLOUDFLARE_API_TOKEN:-}" || { echo 'Missing GitHub secret: CLOUDFLARE_API_TOKEN'; exit 2; }
           test -n "${CLOUDFLARE_ACCOUNT_ID:-}" || { echo 'Missing GitHub secret: CLOUDFLARE_ACCOUNT_ID'; exit 2; }
+          test -n "${EVE_MAIL_API_KEY:-}" || { echo 'Missing GitHub secret: EVE_MAIL_API_KEY'; exit 2; }
 
       - name: Validate Worker bundle
         shell: bash
@@ -44,3 +47,25 @@ jobs:
           npx --yes wrangler@latest deploy \
             --config cloudflare/wrangler.jsonc \
             --strict
+
+      - name: Verify deployed Worker health
+        shell: bash
+        run: |
+          set -euo pipefail
+          sleep 3
+          health_status=$(curl -sS -o /tmp/health.txt -w '%{http_code}' "$WORKER_URL/health")
+          mail_status=$(curl -sS -o /tmp/mail-health.txt -w '%{http_code}' \
+            -H "Authorization: Bearer $EVE_MAIL_API_KEY" \
+            "$WORKER_URL/api/mail-health")
+          echo "health_status=$health_status"
+          echo "mail_health_status=$mail_status"
+          cat /tmp/mail-health.txt
+          test "$health_status" = "200"
+          test "$mail_status" = "200"
+          python - <<'PY'
+          import json
+          data = json.load(open('/tmp/mail-health.txt', encoding='utf-8'))
+          assert data.get('ok') is True, data
+          assert data.get('sender_name') == 'LadyGuaGua', data
+          print('mail sender verified:', data.get('sender_name'), data.get('sender_id'), data.get('token_source'))
+          PY
