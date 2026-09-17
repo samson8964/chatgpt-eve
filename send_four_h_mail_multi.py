@@ -141,8 +141,10 @@ def should_suppress(channel: str, recipient_name: str, picked) -> bool:
     old = old.sort_values("rank")
     current_ids = [int(x["id"]) for x in picked]
     old_ids = [int(x) for x in pd.to_numeric(old["id"], errors="coerce").dropna().astype(int).tolist()]
-    if current_ids != old_ids:
-        print(f"{channel} reminder trigger: TOP membership/rank changed")
+    # Ranking-only churn is not actionable. Re-send only when membership changes;
+    # meaningful profit/ROI/status/grade changes are evaluated below per ID.
+    if len(current_ids) != len(old_ids) or set(current_ids) != set(old_ids):
+        print(f"{channel} reminder trigger: TOP membership changed")
         return False
     if not picked:
         return True
@@ -293,6 +295,7 @@ def main():
         print(f"::warning::4-H mail delivery incomplete: failures={len(failures)}")
         for channel, name, exc in failures:
             print(f"mail failure detail: channel={channel} recipient={name} error={exc}")
+        raise RuntimeError(f"4-H mail delivery failed for {len(failures)} channel/recipient attempt(s)")
 
 
 if __name__ == "__main__":
