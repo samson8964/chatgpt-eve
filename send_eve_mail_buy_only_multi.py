@@ -86,8 +86,10 @@ def _smart_top_is_unchanged(state, channel: str, picked):
 
     current_ids = [int(x.get("id", 0)) for x in current]
     previous_ids = [int(x.get("id", 0)) for x in previous]
-    if current_ids != previous_ids:
-        print(f"{channel} reminder trigger: TOP membership/rank changed")
+    # Ranking-only movement is noise. Membership changes remain actionable;
+    # meaningful value/ROI/status/grade changes are evaluated below per contract.
+    if len(current_ids) != len(previous_ids) or set(current_ids) != set(previous_ids):
+        print(f"{channel} reminder trigger: TOP membership changed")
         return False
 
     # Do not periodically send empty digests. A change from non-empty to empty is
@@ -296,6 +298,9 @@ def main():
         )
         for channel, name, exc in failures:
             print(f"mail failure detail: channel={channel} recipient={name} error={exc}")
+        if primary_failures:
+            failed_channels = ",".join(channel for channel, _ in primary_failures)
+            raise RuntimeError(f"primary recipient mail delivery failed for channel(s): {failed_channels}")
 
 
 if __name__ == "__main__":
