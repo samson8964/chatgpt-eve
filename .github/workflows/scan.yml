@@ -189,8 +189,34 @@ jobs:
         if: steps.cadence.outputs.run_scan == 'true'
         run: python add_action_links.py
 
-      - name: Send changed spot and BPC top-10 digests
+      - name: Verify LadyGuaGua mail sender health
+        id: mail_health
+        continue-on-error: true
         if: steps.cadence.outputs.run_scan == 'true'
+        shell: bash
+        env:
+          EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+        run: |
+          set -euo pipefail
+          status=$(curl -sS -o /tmp/mail-health.json -w '%{http_code}' \
+            -H "Authorization: Bearer ${EVE_MAIL_API_KEY}" \
+            https://eve-contract-opener.99617224.workers.dev/api/mail-health)
+          echo "mail_health_http=${status}"
+          cat /tmp/mail-health.json
+          test "$status" = "200"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data = json.loads(Path('/tmp/mail-health.json').read_text())
+          assert data.get('ok') is True, data
+          assert data.get('sender_name') == 'LadyGuaGua', data
+          print('mail_sender_verified=LadyGuaGua')
+          PY
+
+      - name: Send changed spot and BPC top-10 digests
+        id: core_mail
+        continue-on-error: true
+        if: steps.cadence.outputs.run_scan == 'true' && steps.mail_health.outcome == 'success'
         env:
           EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
           EVE_MAIL_RECIPIENT_NAME: MikeChong
@@ -201,7 +227,9 @@ jobs:
         run: python send_eve_mail_buy_only_multi.py
 
       - name: Send changed multi-item top-10 digest
-        if: steps.cadence.outputs.run_scan == 'true'
+        id: multi_mail
+        continue-on-error: true
+        if: steps.cadence.outputs.run_scan == 'true' && steps.mail_health.outcome == 'success'
         env:
           EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
           EVE_MAIL_RECIPIENT_NAME: MikeChong
@@ -212,7 +240,9 @@ jobs:
         run: python send_multi_item_buy_only_multi.py
 
       - name: Send changed 4-H contract and market digests
-        if: steps.cadence.outputs.run_scan == 'true' && steps.four_h_contract.outcome == 'success' && steps.four_h_market.outcome == 'success'
+        id: four_h_mail
+        continue-on-error: true
+        if: steps.cadence.outputs.run_scan == 'true' && steps.mail_health.outcome == 'success' && steps.four_h_contract.outcome == 'success' && steps.four_h_market.outcome == 'success'
         env:
           EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
           EVE_MAIL_RECIPIENT_NAME: MikeChong
@@ -222,13 +252,14 @@ jobs:
         run: python send_four_h_mail_multi.py
 
       - name: Report degraded 4-H scan without blocking core alerts
-        if: steps.cadence.outputs.run_scan == 'true' && (steps.four_h_contract.outcome != 'success' || steps.four_h_market.outcome != 'success')
+        if: always() && steps.cadence.outputs.run_scan == 'true' && (steps.four_h_contract.outcome != 'success' || steps.four_h_market.outcome != 'success')
         shell: bash
         run: |
           echo "::warning::4-H scan degraded: contract=${{ steps.four_h_contract.outcome }}, market=${{ steps.four_h_market.outcome }}. Core BPC/spot/multi alerts were not blocked."
 
       - name: Commit refreshed results safely
-        if: steps.cadence.outputs.run_scan == 'true'
+        id: result_commit
+        if: always() && steps.cadence.outputs.run_scan == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -265,3 +296,42 @@ jobs:
 
           echo "Failed to push refreshed results after 3 attempts."
           exit 1
+
+      - name: Final delivery health gate
+        if: always() && steps.cadence.outputs.run_scan == 'true'
+        shell: bash
+        env:
+          MAIL_HEALTH: ${{ steps.mail_health.outcome }}
+          CORE_MAIL: ${{ steps.core_mail.outcome }}
+          MULTI_MAIL: ${{ steps.multi_mail.outcome }}
+          FOUR_H_CONTRACT: ${{ steps.four_h_contract.outcome }}
+          FOUR_H_MARKET: ${{ steps.four_h_market.outcome }}
+          FOUR_H_MAIL: ${{ steps.four_h_mail.outcome }}
+          RESULT_COMMIT: ${{ steps.result_commit.outcome }}
+        run: |
+          set -euo pipefail
+          failed=0
+          if [ "$MAIL_HEALTH" != "success" ]; then
+            echo "::error::LadyGuaGua mail sender health check failed: $MAIL_HEALTH"
+            failed=1
+          fi
+          if [ "$CORE_MAIL" != "success" ]; then
+            echo "::error::Core spot/BPC mail delivery step was not successful: $CORE_MAIL"
+            failed=1
+          fi
+          if [ "$MULTI_MAIL" != "success" ]; then
+            echo "::error::Multi-item mail delivery step was not successful: $MULTI_MAIL"
+            failed=1
+          fi
+          if [ "$FOUR_H_CONTRACT" = "success" ] && [ "$FOUR_H_MARKET" = "success" ] && [ "$FOUR_H_MAIL" != "success" ]; then
+            echo "::error::4-H data was fresh but 4-H mail delivery failed: $FOUR_H_MAIL"
+            failed=1
+          fi
+          if [ "$RESULT_COMMIT" != "success" ]; then
+            echo "::error::Result persistence failed: $RESULT_COMMIT"
+            failed=1
+          fi
+          if [ "$failed" -ne 0 ]; then
+            exit 1
+          fi
+          echo "Production scan health: data persisted and all required mail delivery paths are healthy."
