@@ -4,6 +4,11 @@ const SSO_AUTHORIZE = "https://login.eveonline.com/v2/oauth/authorize";
 const SSO_TOKEN = "https://login.eveonline.com/v2/oauth/token";
 const ESI_BASE = "https://esi.evetech.net/latest";
 const MAIL_SCOPE = "esi-mail.send_mail.v1";
+const MAIL_ACCESS_TOKEN_CACHE_KEY = "https://eve-contract-opener.internal/mail-access-token";
+
+let memoryMailAccessToken = "";
+let memoryMailAccessTokenExp = 0;
+let mailRefreshInFlight = null;
 
 export default {
   async fetch(request, env) {
@@ -12,6 +17,7 @@ export default {
     if (url.pathname === "/auth-mail") return startMailAuth(env);
     if (url.pathname === "/logout-mail") return logoutMail(env);
     if (url.pathname === "/mail-status") return mailStatus(env);
+    if (url.pathname === "/api/mail-health") return handleMailHealth(request, env);
 
     if (url.pathname === "/callback") {
       const cookies = parseCookies(request.headers.get("Cookie") || "");
@@ -59,9 +65,16 @@ async function handleMailCallback(request, env, cookies) {
   const characterName = String(claims.name || "");
   if (!/^\d+$/.test(characterId || "")) return text("无法识别授权角色 ID。", 502);
 
-  await env.AUTH_STORE.put("mail_refresh_token", resp.refresh_token);
-  await env.AUTH_STORE.put("mail_character_id", characterId);
-  if (characterName) await env.AUTH_STORE.put("mail_character_name", characterName);
+  try {
+    await env.AUTH_STORE.put("mail_refresh_token", resp.refresh_token);
+    await env.AUTH_STORE.put("mail_character_id", characterId);
+    if (characterName) await env.AUTH_STORE.put("mail_character_name", characterName);
+  } catch (err) {
+    return text(`保存邮件角色授权失败：${String(err)}`, 503);
+  }
+
+  rememberMailAccessToken(resp.access_token, claims);
+  await cacheMailAccessToken(resp.access_token, claims);
 
   const headers = new Headers({ "Content-Type": "text/html; charset=utf-8" });
   headers.append("Set-Cookie", expiredCookie("eve_mail_state"));
@@ -76,6 +89,8 @@ async function handleMailCallback(request, env, cookies) {
 
 async function logoutMail(env) {
   if (!env.AUTH_STORE) return text("Worker 未绑定 KV：AUTH_STORE。", 500);
+  memoryMailAccessToken = "";
+  memoryMailAccessTokenExp = 0;
   await Promise.all([
     "mail_refresh_token",
     "mail_character_id",
@@ -105,6 +120,26 @@ function requireApiKey(request, env) {
   return null;
 }
 
+async function handleMailHealth(request, env) {
+  if (request.method !== "GET") return text("Method not allowed", 405);
+  const denied = requireApiKey(request, env);
+  if (denied) return denied;
+  if (!env.AUTH_STORE) return json({ ok: false, error: "auth_store_missing" }, 500);
+
+  const senderId = Number(await env.AUTH_STORE.get("mail_character_id") || 0);
+  const senderName = await env.AUTH_STORE.get("mail_character_name") || "";
+  const hasRefreshToken = Boolean(await env.AUTH_STORE.get("mail_refresh_token"));
+  if (!senderId || !hasRefreshToken) {
+    return json({ ok: false, error: "mail_sender_not_authorized", sender_id: senderId || null, sender_name: senderName || null, auth_url: "/auth-mail" }, 409);
+  }
+
+  const token = await getFreshMailToken(env);
+  if (!token.ok) {
+    return json({ ok: false, error: "mail_sender_token_refresh_failed", detail: token.detail || token.status, sender_id: senderId, sender_name: senderName, auth_url: "/auth-mail" }, 502);
+  }
+  return json({ ok: true, sender_id: senderId, sender_name: senderName, token_source: token.cached || "refresh" });
+}
+
 async function handleSendMail(request, env) {
   if (request.method !== "POST") return text("Method not allowed", 405);
   const denied = requireApiKey(request, env);
@@ -121,8 +156,14 @@ async function handleSendMail(request, env) {
   }
 
   const idem = String(payload.idempotency_key || "").slice(0, 200);
-  if (idem && await env.AUTH_STORE.get(`mail_sent:${idem}`)) {
-    return json({ ok: true, skipped: true, reason: "duplicate" });
+  if (idem) {
+    try {
+      if (await env.AUTH_STORE.get(`mail_sent:${idem}`)) {
+        return json({ ok: true, skipped: true, reason: "duplicate" });
+      }
+    } catch (err) {
+      console.warn("mail idempotency read failed", String(err));
+    }
   }
 
   const senderId = Number(await env.AUTH_STORE.get("mail_character_id") || 0);
@@ -136,24 +177,39 @@ async function handleSendMail(request, env) {
     return json({ ok: false, error: "mail_sender_token_refresh_failed", detail: token.detail || token.status, auth_url: "/auth-mail" }, 502);
   }
 
-  const resp = await fetch(`${ESI_BASE}/characters/${senderId}/mail/?datasource=tranquility`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token.access_token}`,
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify({
-      approved_cost: 0,
-      subject,
-      body,
-      recipients: [{ recipient_id: recipientId, recipient_type: "character" }],
-    }),
-  });
+  let resp;
+  try {
+    resp = await fetch(`${ESI_BASE}/characters/${senderId}/mail/?datasource=tranquility`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token.access_token}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        approved_cost: 0,
+        subject,
+        body,
+        recipients: [{ recipient_id: recipientId, recipient_type: "character" }],
+      }),
+    });
+  } catch (err) {
+    return json({ ok: false, error: "eve_mail_request_exception", detail: String(err) }, 502);
+  }
+
   const detail = await resp.text();
   if (resp.status !== 201) return text(`EVE mail failed (${resp.status}): ${detail}`, 502);
 
-  if (idem) await env.AUTH_STORE.put(`mail_sent:${idem}`, "1", { expirationTtl: 172800 });
+  // Once EVE returns 201 the mail is already accepted. Idempotency persistence is
+  // best-effort only; never turn a successful send into HTTP 500 and trigger duplicates.
+  if (idem) {
+    try {
+      await env.AUTH_STORE.put(`mail_sent:${idem}`, "1", { expirationTtl: 172800 });
+    } catch (err) {
+      console.warn("mail idempotency persistence failed after successful send", String(err));
+    }
+  }
+
   return json({
     ok: true,
     mail_id: Number(detail),
@@ -163,24 +219,84 @@ async function handleSendMail(request, env) {
   });
 }
 
-async function getFreshMailToken(env) {
+function rememberMailAccessToken(accessToken, claims = {}) {
+  const nowSec = Math.floor(Date.now() / 1000);
+  memoryMailAccessToken = accessToken || "";
+  memoryMailAccessTokenExp = Number(claims.exp || 0) || (nowSec + 900);
+}
+
+async function readCachedMailAccessToken() {
+  const nowSec = Math.floor(Date.now() / 1000);
+  if (memoryMailAccessToken && memoryMailAccessTokenExp > nowSec + 60) {
+    return { ok: true, access_token: memoryMailAccessToken, cached: "memory" };
+  }
+  try {
+    const cached = await caches.default.match(MAIL_ACCESS_TOKEN_CACHE_KEY);
+    if (!cached) return null;
+    const data = await cached.json();
+    if (!data || !data.access_token || Number(data.exp || 0) <= nowSec + 60) return null;
+    memoryMailAccessToken = String(data.access_token);
+    memoryMailAccessTokenExp = Number(data.exp);
+    return { ok: true, access_token: memoryMailAccessToken, cached: "edge" };
+  } catch (err) {
+    console.warn("mail access token cache read failed", String(err));
+    return null;
+  }
+}
+
+async function cacheMailAccessToken(accessToken, claims = {}) {
+  if (!accessToken) return;
+  const nowSec = Math.floor(Date.now() / 1000);
+  const exp = Number(claims.exp || 0) || (nowSec + 900);
+  const ttl = Math.max(60, Math.min(1100, exp - nowSec - 60));
+  try {
+    const response = new Response(JSON.stringify({ access_token: accessToken, exp }), {
+      headers: { "Content-Type": "application/json", "Cache-Control": `public, max-age=${ttl}` },
+    });
+    await caches.default.put(MAIL_ACCESS_TOKEN_CACHE_KEY, response);
+  } catch (err) {
+    console.warn("mail access token cache write failed", String(err));
+  }
+}
+
+async function refreshMailAccessToken(env) {
   const refreshToken = await env.AUTH_STORE.get("mail_refresh_token");
   if (!refreshToken) return { ok: false, status: 401, detail: "no mail refresh token" };
 
-  const result = await tokenRequest(env, new URLSearchParams({
-    grant_type: "refresh_token",
-    refresh_token: refreshToken,
-  }));
+  let result;
+  try {
+    result = await tokenRequest(env, new URLSearchParams({ grant_type: "refresh_token", refresh_token: refreshToken }));
+  } catch (err) {
+    return { ok: false, status: 502, detail: `token request exception: ${String(err)}` };
+  }
   if (!result.ok) return result;
 
-  if (result.refresh_token && result.refresh_token !== refreshToken) {
-    await env.AUTH_STORE.put("mail_refresh_token", result.refresh_token);
-  }
   const claims = decodeJwtClaims(result.access_token);
-  const characterId = String(claims.sub || "").split(":").pop();
-  if (/^\d+$/.test(characterId || "")) await env.AUTH_STORE.put("mail_character_id", characterId);
-  if (claims.name) await env.AUTH_STORE.put("mail_character_name", String(claims.name));
+  rememberMailAccessToken(result.access_token, claims);
+  await cacheMailAccessToken(result.access_token, claims);
+
+  // Rotated refresh tokens must be persisted, but a temporary KV write failure must
+  // not crash the current request because the new access token is already valid.
+  if (result.refresh_token && result.refresh_token !== refreshToken) {
+    try {
+      await env.AUTH_STORE.put("mail_refresh_token", result.refresh_token);
+    } catch (err) {
+      console.warn("mail refresh token persistence failed", String(err));
+    }
+  }
   return result;
+}
+
+async function getFreshMailToken(env) {
+  const cached = await readCachedMailAccessToken();
+  if (cached) return cached;
+
+  if (!mailRefreshInFlight) mailRefreshInFlight = refreshMailAccessToken(env);
+  try {
+    return await mailRefreshInFlight;
+  } finally {
+    mailRefreshInFlight = null;
+  }
 }
 
 async function tokenRequest(env, body) {
