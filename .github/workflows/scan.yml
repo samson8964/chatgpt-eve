@@ -45,7 +45,7 @@ permissions:
 # 4-H depends on an authenticated Cloudflare/ESI path and is deliberately isolated:
 # an outage there must never suppress BPC/spot/multi alerts.
 concurrency:
-  group: eve-arbitrage-v9-${{ github.event_name }}
+  group: eve-arbitrage-v10-${{ github.event_name }}
   cancel-in-progress: ${{ github.event_name == 'push' }}
 
 jobs:
@@ -190,6 +190,8 @@ jobs:
         run: python add_action_links.py
 
       - name: Send changed spot and BPC top-10 digests
+        id: mail_core
+        continue-on-error: true
         if: steps.cadence.outputs.run_scan == 'true'
         env:
           EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
@@ -198,9 +200,18 @@ jobs:
           EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
           MAIL_TOP: '10'
           MAIL_LIVE_POOL: '80'
-        run: python send_eve_mail_buy_only_multi.py
+        shell: bash
+        run: |
+          set -o pipefail
+          python send_eve_mail_buy_only_multi.py 2>&1 | tee /tmp/mail-core.log
+          if grep -q 'mail delivery incomplete:' /tmp/mail-core.log; then
+            echo 'Core mail delivery reported failure.'
+            exit 2
+          fi
 
       - name: Send changed multi-item top-10 digest
+        id: mail_multi
+        continue-on-error: true
         if: steps.cadence.outputs.run_scan == 'true'
         env:
           EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
@@ -209,9 +220,18 @@ jobs:
           EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
           MAIL_TOP: '10'
           MAIL_LIVE_POOL: '80'
-        run: python send_multi_item_buy_only_multi.py
+        shell: bash
+        run: |
+          set -o pipefail
+          python send_multi_item_buy_only_multi.py 2>&1 | tee /tmp/mail-multi.log
+          if grep -q 'delivery incomplete:' /tmp/mail-multi.log; then
+            echo 'Multi-item mail delivery reported failure.'
+            exit 2
+          fi
 
       - name: Send changed 4-H contract and market digests
+        id: mail_four_h
+        continue-on-error: true
         if: steps.cadence.outputs.run_scan == 'true' && steps.four_h_contract.outcome == 'success' && steps.four_h_market.outcome == 'success'
         env:
           EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
@@ -219,7 +239,14 @@ jobs:
           EVE_MAIL_RECIPIENT_NAMES: 'MikeChong'
           EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
           MAIL_TOP: '10'
-        run: python send_four_h_mail_multi.py
+        shell: bash
+        run: |
+          set -o pipefail
+          python send_four_h_mail_multi.py 2>&1 | tee /tmp/mail-four-h.log
+          if grep -q '4-H mail delivery incomplete:' /tmp/mail-four-h.log; then
+            echo '4-H mail delivery reported failure.'
+            exit 2
+          fi
 
       - name: Report degraded 4-H scan without blocking core alerts
         if: steps.cadence.outputs.run_scan == 'true' && (steps.four_h_contract.outcome != 'success' || steps.four_h_market.outcome != 'success')
@@ -228,6 +255,7 @@ jobs:
           echo "::warning::4-H scan degraded: contract=${{ steps.four_h_contract.outcome }}, market=${{ steps.four_h_market.outcome }}. Core BPC/spot/multi alerts were not blocked."
 
       - name: Commit refreshed results safely
+        id: persist_results
         if: steps.cadence.outputs.run_scan == 'true'
         shell: bash
         run: |
@@ -265,3 +293,42 @@ jobs:
 
           echo "Failed to push refreshed results after 3 attempts."
           exit 1
+
+      - name: Final production health gate
+        if: always() && steps.cadence.outputs.run_scan == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          failed=0
+          echo "four_h_contract=${{ steps.four_h_contract.outcome }}"
+          echo "four_h_market=${{ steps.four_h_market.outcome }}"
+          echo "mail_core=${{ steps.mail_core.outcome }}"
+          echo "mail_multi=${{ steps.mail_multi.outcome }}"
+          echo "mail_four_h=${{ steps.mail_four_h.outcome }}"
+          echo "persist_results=${{ steps.persist_results.outcome }}"
+
+          if [ "${{ steps.persist_results.outcome }}" != "success" ]; then
+            echo "::error::Result persistence failed."
+            failed=1
+          fi
+          if [ "${{ steps.mail_core.outcome }}" = "failure" ]; then
+            echo "::error::Core spot/BPC mail delivery failed."
+            failed=1
+          fi
+          if [ "${{ steps.mail_multi.outcome }}" = "failure" ]; then
+            echo "::error::Multi-item mail delivery failed."
+            failed=1
+          fi
+          if [ "${{ steps.four_h_contract.outcome }}" != "success" ] || [ "${{ steps.four_h_market.outcome }}" != "success" ]; then
+            echo "::error::4-H scan is degraded."
+            failed=1
+          elif [ "${{ steps.mail_four_h.outcome }}" = "failure" ]; then
+            echo "::error::4-H mail delivery failed."
+            failed=1
+          fi
+
+          if [ "$failed" -ne 0 ]; then
+            echo "Production scan completed with degraded delivery/health. Results were preserved where possible."
+            exit 1
+          fi
+          echo "Production scan health OK."
