@@ -42,8 +42,10 @@ permissions:
 
 # Cloudflare Cron is the sole production scheduler.
 # Push events load/validate the workflow but never run production scans or send mail.
+# 4-H depends on an authenticated Cloudflare/ESI path and is deliberately isolated:
+# an outage there must never suppress BPC/spot/multi alerts.
 concurrency:
-  group: eve-arbitrage-v8-${{ github.event_name }}
+  group: eve-arbitrage-v9-${{ github.event_name }}
   cancel-in-progress: ${{ github.event_name == 'push' }}
 
 jobs:
@@ -140,6 +142,8 @@ jobs:
         run: python buy_only_contract_scanner_v2.py
 
       - name: Scan 4-H contracts with Opportunity Engine V2
+        id: four_h_contract
+        continue-on-error: true
         if: steps.cadence.outputs.run_scan == 'true'
         env:
           EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
@@ -153,6 +157,8 @@ jobs:
         run: python four_h_contract_scanner.py
 
       - name: Scan 4-H market to Jita with Opportunity Engine V2
+        id: four_h_market
+        continue-on-error: true
         if: steps.cadence.outputs.run_scan == 'true'
         env:
           EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
@@ -206,7 +212,7 @@ jobs:
         run: python send_multi_item_buy_only_multi.py
 
       - name: Send changed 4-H contract and market digests
-        if: steps.cadence.outputs.run_scan == 'true'
+        if: steps.cadence.outputs.run_scan == 'true' && steps.four_h_contract.outcome == 'success' && steps.four_h_market.outcome == 'success'
         env:
           EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
           EVE_MAIL_RECIPIENT_NAME: MikeChong
@@ -214,6 +220,12 @@ jobs:
           EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
           MAIL_TOP: '10'
         run: python send_four_h_mail_multi.py
+
+      - name: Report degraded 4-H scan without blocking core alerts
+        if: steps.cadence.outputs.run_scan == 'true' && (steps.four_h_contract.outcome != 'success' || steps.four_h_market.outcome != 'success')
+        shell: bash
+        run: |
+          echo "::warning::4-H scan degraded: contract=${{ steps.four_h_contract.outcome }}, market=${{ steps.four_h_market.outcome }}. Core BPC/spot/multi alerts were not blocked."
 
       - name: Commit refreshed results safely
         if: steps.cadence.outputs.run_scan == 'true'
