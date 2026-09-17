@@ -4,6 +4,9 @@ on:
   workflow_dispatch:
   push:
     paths:
+      - 'cloudflare/worker.js'
+      - 'cloudflare/worker_mail_sender.js'
+      - 'cloudflare/wrangler.jsonc'
       - '.github/workflows/worker-smoke-test.yml'
 
 permissions:
@@ -14,32 +17,45 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
-      CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+      WORKER_URL: https://eve-contract-opener.99617224.workers.dev
+      FOUR_H_STRUCTURE_ID: '1053970513596'
     steps:
-      - name: Check Cloudflare deploy credentials
+      - name: Require API credential
         shell: bash
         run: |
-          if [ -n "${CF_API_TOKEN:-}" ]; then echo 'cloudflare_api_token=present'; else echo 'cloudflare_api_token=missing'; fi
-          if [ -n "${CF_ACCOUNT_ID:-}" ]; then echo 'cloudflare_account_id=present'; else echo 'cloudflare_account_id=missing'; fi
+          set -euo pipefail
+          test -n "${EVE_MAIL_API_KEY:-}" || { echo 'Missing GitHub secret: EVE_MAIL_API_KEY'; exit 2; }
 
       - name: Check live Worker routes
         shell: bash
         run: |
           set -euo pipefail
-          base='https://eve-contract-opener.99617224.workers.dev'
-          health_status=$(curl -sS -o /tmp/health.txt -w '%{http_code}' "$base/health")
-          skills_status=$(curl -sS -o /tmp/skills.txt -w '%{http_code}' "$base/api/skills")
+          health_status=$(curl -sS -o /tmp/health.txt -w '%{http_code}' "$WORKER_URL/health")
+          mail_status=$(curl -sS -o /tmp/mail.txt -w '%{http_code}' \
+            -H "Authorization: Bearer $EVE_MAIL_API_KEY" \
+            "$WORKER_URL/api/mail-health")
+          market_status=$(curl -sS -o /tmp/market.txt -w '%{http_code}' \
+            -H "Authorization: Bearer $EVE_MAIL_API_KEY" \
+            "$WORKER_URL/api/structure-market?structure_id=$FOUR_H_STRUCTURE_ID&page=1")
+
           echo "health_status=$health_status"
-          echo "skills_status=$skills_status"
+          echo "mail_status=$mail_status"
+          echo "market_status=$market_status"
+          cat /tmp/mail.txt
           test "$health_status" = "200"
-          if [ "$skills_status" = "401" ]; then
-            echo 'New protected skills endpoint is live.'
-          elif [ "$skills_status" = "404" ]; then
-            echo 'Skills endpoint is not deployed yet.'
-            exit 2
-          else
-            echo "Unexpected /api/skills status: $skills_status"
-            cat /tmp/skills.txt
-            exit 1
-          fi
+          test "$mail_status" = "200"
+          test "$market_status" = "200"
+
+          python - <<'PY'
+          import json
+          mail = json.load(open('/tmp/mail.txt', encoding='utf-8'))
+          market = json.load(open('/tmp/market.txt', encoding='utf-8'))
+          assert mail.get('ok') is True, mail
+          assert mail.get('sender_name') == 'LadyGuaGua', mail
+          assert market.get('ok') is True, market
+          assert int(market.get('pages') or 0) >= 1, market
+          assert isinstance(market.get('orders'), list), market
+          print('mail sender:', mail.get('sender_name'))
+          print('4-H pages:', market.get('pages'), 'page1 orders:', len(market.get('orders') or []))
+          PY
