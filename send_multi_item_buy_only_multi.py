@@ -92,8 +92,10 @@ def should_suppress(path: Path, picked):
 
     state = read_csv(path)
     previous_ids = load_signature(path)
-    if current_ids != previous_ids:
-        print(f"{CHANNEL} reminder trigger: TOP membership/rank changed")
+    # Ranking-only churn is noise. Membership changes remain actionable; material
+    # value/ROI/status/grade changes are evaluated below for each contract.
+    if len(current_ids) != len(previous_ids) or set(current_ids) != set(previous_ids):
+        print(f"{CHANNEL} reminder trigger: TOP membership changed")
         return False
 
     # Avoid periodic empty digests. A transition from non-empty to empty is caught above.
@@ -342,6 +344,8 @@ def main():
         )
         for name, exc in failures:
             print(f"mail failure detail: recipient={name} error={exc}")
+        if primary_failures:
+            raise RuntimeError(f"{CHANNEL} delivery failed for primary recipient")
 
 
 if __name__ == "__main__":
