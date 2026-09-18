@@ -10,7 +10,7 @@ import pandas as pd
 import requests
 
 from send_eve_mail_dual import send_mail
-from send_eve_mail_fast import fmt_isk, resolve_character
+from send_eve_mail_fast import contract_is_live, fmt_isk, resolve_character
 
 LATEST = Path("results/latest")
 STATE = Path("results/state")
@@ -119,11 +119,20 @@ def build_candidates(channel: str):
     df = df[(df["_profit"] > 0) & (df["_roi"] > 0)].copy()
     df.sort_values(["_score", "_profit", "_roi"], ascending=False, inplace=True)
     out = []
-    for _, r in df.head(MAIL_TOP).iterrows():
+    candidate_limit = MAIL_TOP * 3 if cfg["kind"] == "contract" else MAIL_TOP
+    for _, r in df.head(candidate_limit).iterrows():
         try:
             ident = int(float(r[cfg["id_col"]]))
         except Exception:
             continue
+        if cfg["kind"] == "contract":
+            try:
+                if not contract_is_live(ident):
+                    print(f"{channel}: skip stale contract {ident}")
+                    continue
+            except Exception as exc:
+                print(f"{channel}: live check failed closed for {ident}: {type(exc).__name__}: {exc}")
+                continue
         out.append(
             {
                 "id": ident,
@@ -134,6 +143,8 @@ def build_candidates(channel: str):
                 "row": r,
             }
         )
+        if len(out) >= MAIL_TOP:
+            break
     return out
 
 
