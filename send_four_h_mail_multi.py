@@ -15,7 +15,8 @@ from send_eve_mail_fast import fmt_isk, resolve_character
 LATEST = Path("results/latest")
 STATE = Path("results/state")
 MAIL_TOP = int(os.getenv("MAIL_TOP", "10"))
-POLICY_VERSION = "fourh-v2-exec-1"
+POLICY_VERSION = "fourh-v2-incremental-1"
+PREVIOUS_POLICY_VERSIONS = {"fourh-v2-exec-1", POLICY_VERSION}
 RESEND_ABS_PROFIT = float(os.getenv("MAIL_RESEND_ABS_PROFIT", "20000000"))
 RESEND_REL_PROFIT = float(os.getenv("MAIL_RESEND_REL_PROFIT", "0.10"))
 RESEND_ROI_DELTA = float(os.getenv("MAIL_RESEND_ROI_DELTA", "0.02"))
@@ -123,66 +124,140 @@ def build_candidates(channel: str):
     return out
 
 
-def should_suppress(channel: str, recipient_name: str, picked) -> bool:
+def _old_state_rows(channel: str, recipient_name: str):
     path = state_path(channel, recipient_name)
     if not path.exists():
-        # Do not send an initial empty digest.
-        return not picked
-
+        return None
     old = _read(path)
     if old.empty:
-        return not picked
+        return None
     required = {"policy_version", "rank", "id", "profit", "roi", "status", "grade", "sent_at"}
     if not required.issubset(old.columns):
-        return False
-    if any(str(v) != POLICY_VERSION for v in old["policy_version"].fillna("")):
-        return False
+        return "invalid"
+    versions = {str(v) for v in old["policy_version"].fillna("")}
+    if not versions.issubset(PREVIOUS_POLICY_VERSIONS):
+        return "invalid"
+    return old.sort_values("rank")
 
-    old = old.sort_values("rank")
-    current_ids = [int(x["id"]) for x in picked]
-    old_ids = [int(x) for x in pd.to_numeric(old["id"], errors="coerce").dropna().astype(int).tolist()]
-    # Ranking-only churn is not actionable. Re-send only when membership changes;
-    # meaningful profit/ROI/status/grade changes are evaluated below per ID.
-    if len(current_ids) != len(old_ids) or set(current_ids) != set(old_ids):
-        print(f"{channel} reminder trigger: TOP membership changed")
-        return False
-    if not picked:
-        return True
+
+def notification_plan(channel: str, recipient_name: str, picked):
+    """Return only actionable deltas.
+
+    Membership churn no longer causes the complete TOP list to be resent. The plan
+    contains newly-entered items, materially-changed existing items, and IDs that
+    left the current pushed TOP. A six-hour reminder is retained as a compact
+    periodic full reminder, not a half-hour membership-churn resend.
+    """
+    old = _old_state_rows(channel, recipient_name)
+    if old is None:
+        if not picked:
+            return None
+        return {
+            "mode": "initial",
+            "added": [dict(x, change_kind="新增") for x in picked],
+            "changed": [],
+            "removed": [],
+            "current": picked,
+        }
+    if isinstance(old, str):
+        if not picked:
+            return None
+        return {
+            "mode": "refresh",
+            "added": [dict(x, change_kind="当前") for x in picked],
+            "changed": [],
+            "removed": [],
+            "current": picked,
+        }
 
     old_by_id = {}
-    for _, r in old.iterrows():
+    for _, row in old.iterrows():
         try:
-            old_by_id[int(float(r["id"]))] = r
+            old_by_id[int(float(row["id"]))] = row
         except Exception:
             continue
+    cur_by_id = {int(x["id"]): x for x in picked}
+
+    added = []
+    changed = []
+    removed = []
 
     for cur in picked:
-        prev = old_by_id.get(cur["id"])
+        ident = int(cur["id"])
+        prev = old_by_id.get(ident)
         if prev is None:
-            return False
+            added.append(dict(cur, change_kind="新增"))
+            continue
+
+        reasons = []
         old_profit = _num(prev.get("profit"))
         delta = abs(cur["profit"] - old_profit)
         rel = delta / max(abs(old_profit), 1.0)
         if delta >= RESEND_ABS_PROFIT or rel >= RESEND_REL_PROFIT:
-            print(f"{channel} reminder trigger: {cur['id']} profit changed delta={delta:.0f} rel={rel:.1%}")
-            return False
+            reasons.append(f"利润 {fmt_isk(old_profit)}→{fmt_isk(cur['profit'])}")
         old_roi = _num(prev.get("roi"))
         if abs(cur["roi"] - old_roi) >= RESEND_ROI_DELTA:
-            print(f"{channel} reminder trigger: {cur['id']} ROI changed")
-            return False
-        if cur["status"] != _text(prev.get("status"), "SAFE").upper():
-            return False
-        if cur["grade"] != _text(prev.get("grade"), ""):
-            return False
+            reasons.append(f"ROI {old_roi:.1%}→{cur['roi']:.1%}")
+        old_status = _text(prev.get("status"), "SAFE").upper()
+        if cur["status"] != old_status:
+            reasons.append(f"状态 {old_status}→{cur['status']}")
+        old_grade = _text(prev.get("grade"), "")
+        if cur["grade"] != old_grade:
+            reasons.append(f"评级 {old_grade or '-'}→{cur['grade'] or '-'}")
+        if reasons:
+            item = dict(cur, change_kind="变化")
+            item["change_reason"] = "；".join(reasons)
+            changed.append(item)
+
+    for ident, prev in old_by_id.items():
+        if ident in cur_by_id:
+            continue
+        removed.append({
+            "id": ident,
+            "profit": _num(prev.get("profit")),
+            "roi": _num(prev.get("roi")),
+            "status": _text(prev.get("status"), "SAFE").upper(),
+            "grade": _text(prev.get("grade"), ""),
+        })
+
+    if added or changed or removed:
+        print(
+            f"{channel} incremental trigger: "
+            f"added={len(added)} changed={len(changed)} removed={len(removed)}"
+        )
+        return {
+            "mode": "incremental",
+            "added": added,
+            "changed": changed,
+            "removed": removed,
+            "current": picked,
+        }
 
     sent = pd.to_datetime(old["sent_at"], utc=True, errors="coerce").dropna()
     if sent.empty:
-        return False
+        return {
+            "mode": "refresh",
+            "added": [dict(x, change_kind="当前") for x in picked],
+            "changed": [],
+            "removed": [],
+            "current": picked,
+        } if picked else None
+
     age_h = (pd.Timestamp.now(tz="UTC") - sent.max()).total_seconds() / 3600.0
-    if age_h >= REMIND_AFTER_HOURS:
+    if age_h >= REMIND_AFTER_HOURS and picked:
         print(f"{channel} reminder trigger: still SAFE after {age_h:.1f}h")
-        return False
-    return True
+        return {
+            "mode": "reminder",
+            "added": [dict(x, change_kind="持续") for x in picked],
+            "changed": [],
+            "removed": [],
+            "current": picked,
+        }
+    return None
+
+
+def should_suppress(channel: str, recipient_name: str, picked) -> bool:
+    return notification_plan(channel, recipient_name, picked) is None
 
 
 def save_state(channel: str, recipient_name: str, picked):
@@ -201,60 +276,106 @@ def save_state(channel: str, recipient_name: str, picked):
             "grade": c["grade"],
             "sent_at": sent_at,
         })
-    pd.DataFrame(rows, columns=["policy_version", "rank", "id", "profit", "roi", "status", "grade", "sent_at"]).to_csv(path, index=False)
+    pd.DataFrame(
+        rows,
+        columns=["policy_version", "rank", "id", "profit", "roi", "status", "grade", "sent_at"],
+    ).to_csv(path, index=False)
 
 
-def render_contract(stamp: str, picked):
-    subject = f"4-H合同捡漏V2 {stamp} · TOP{len(picked)}"
-    if not picked:
-        return subject, f"<b>4-H合同捡漏 · Opportunity Engine V2</b><br>{stamp}<br><br>当前没有 SAFE 机会。"
-    parts = [
-        f"<b>4-H合同捡漏 · Opportunity Engine V2 · TOP{len(picked)}</b><br>{stamp}<br>",
-        "仅推送实时复核为 SAFE 的合同；支持 4-H 本地买单或 Jita 实时买单兑现。<br><br>",
-    ]
-    for i, c in enumerate(picked, 1):
-        r = c["row"]
-        cid = c["id"]
-        title = html.escape(_text(r.get("title"), "无标题"))
-        route = html.escape(_text(r.get("best_route"), ""))
-        items = html.escape(_text(r.get("top_items"), ""))
-        stress = _num(r.get("stress_net_profit"))
-        vol = _num(r.get("packaged_volume_m3"))
-        score = _num(r.get("opportunity_score"))
+def _render_contract_item(c):
+    r = c["row"]
+    cid = c["id"]
+    title = html.escape(_text(r.get("title"), "无标题"))
+    route = html.escape(_text(r.get("best_route"), ""))
+    items = html.escape(_text(r.get("top_items"), ""))
+    stress = _num(r.get("stress_net_profit"))
+    vol = _num(r.get("packaged_volume_m3"))
+    score = _num(r.get("opportunity_score"))
+    change = html.escape(_text(c.get("change_kind"), ""))
+    reason = html.escape(_text(c.get("change_reason"), ""))
+    prefix = f"<b>[{change}]</b> " if change else ""
+    reason_line = f"变化：{reason}<br>" if reason else ""
+    return (
+        f"{prefix}<b>[{html.escape(c['grade'] or '-')}] {title}</b><br>"
+        f"合同价 {fmt_isk(r.get('price',0))} · 净利 {fmt_isk(c['profit'])} · ROI {c['roi']:.1%}<br>"
+        f"路线 {route} · 压力净利 {fmt_isk(stress)} · 评分 {score:.1f} · 体积 {vol:.0f}m3<br>"
+        + reason_line
+        + (f"主要物品：{items}<br>" if items else "")
+        + f"<url=contract:0//{cid}><b>打开合同</b></url><br><br>"
+    )
+
+
+def _render_market_item(c):
+    r = c["row"]
+    tid = c["id"]
+    name = html.escape(_text(r.get("item_name"), str(tid)))
+    qty = int(_num(r.get("quantity"), 0))
+    stress = _num(r.get("stress_net_profit"))
+    fill_days = _num(r.get("estimated_fill_time_days"))
+    liq = html.escape(_text(r.get("liquidity_label"), ""))
+    score = _num(r.get("opportunity_score"))
+    change = html.escape(_text(c.get("change_kind"), ""))
+    reason = html.escape(_text(c.get("change_reason"), ""))
+    prefix = f"<b>[{change}]</b> " if change else ""
+    reason_line = f"变化：{reason}<br>" if reason else ""
+    return (
+        f"{prefix}<b>[{html.escape(c['grade'] or '-')}] {name} ×{qty:,}</b><br>"
+        f"4-H买入 {fmt_isk(r.get('four_h_best_sell',0))}/件 · Jita买单 {fmt_isk(r.get('jita_best_buy',0))}/件<br>"
+        f"净利 {fmt_isk(c['profit'])} · ROI {c['roi']:.1%} · 压力净利 {fmt_isk(stress)} · 评分 {score:.1f}<br>"
+        f"流动性 {liq or '-'} · 预计消化 {fill_days:.2f}天 · 总体积 {_num(r.get('total_volume_m3')):.0f}m3<br>"
+        + reason_line
+        + f"<url=showinfo:{tid}><b>查看物品</b></url><br><br>"
+    )
+
+
+def _render_removed(channel: str, removed):
+    if not removed:
+        return ""
+    parts = ["<b>退出当前推送TOP</b><br>"]
+    noun = "合同" if channel == "four-h-contract" else "物品"
+    for r in removed:
         parts.append(
-            f"<b>{i}. [{html.escape(c['grade'] or '-')}] {title}</b><br>"
-            f"合同价 {fmt_isk(r.get('price',0))} · 净利 {fmt_isk(c['profit'])} · ROI {c['roi']:.1%}<br>"
-            f"路线 {route} · 压力净利 {fmt_isk(stress)} · 评分 {score:.1f} · 体积 {vol:.0f}m3<br>"
-            + (f"主要物品：{items}<br>" if items else "")
-            + f"<url=contract:0//{cid}><b>打开合同</b></url><br><br>"
+            f"{noun}ID {r['id']} · 上次净利 {fmt_isk(r['profit'])} · ROI {r['roi']:.1%}"
+            f" · 评级 {html.escape(r['grade'] or '-')}<br>"
         )
-    return subject, "".join(parts)
+    parts.append("注：退出推送TOP不一定代表机会完全消失，也可能只是跌出当前TOP排名。<br><br>")
+    return "".join(parts)
 
 
-def render_market(stamp: str, picked):
-    subject = f"4-H市场套利V2 {stamp} · TOP{len(picked)}"
-    if not picked:
-        return subject, f"<b>4-H市场 → Jita 套利 · Opportunity Engine V2</b><br>{stamp}<br><br>当前没有 SAFE 机会。"
-    parts = [
-        f"<b>4-H市场 → Jita 4-4 · Opportunity Engine V2 · TOP{len(picked)}</b><br>{stamp}<br>",
-        "4-H 真实卖单买入 → Jita 实时买单卖出；仅推送 SAFE，已计销售税。<br><br>",
-    ]
-    for i, c in enumerate(picked, 1):
-        r = c["row"]
-        tid = c["id"]
-        name = html.escape(_text(r.get("item_name"), str(tid)))
-        qty = int(_num(r.get("quantity"), 0))
-        stress = _num(r.get("stress_net_profit"))
-        fill_days = _num(r.get("estimated_fill_time_days"))
-        liq = html.escape(_text(r.get("liquidity_label"), ""))
-        score = _num(r.get("opportunity_score"))
-        parts.append(
-            f"<b>{i}. [{html.escape(c['grade'] or '-')}] {name} ×{qty:,}</b><br>"
-            f"4-H买入 {fmt_isk(r.get('four_h_best_sell',0))}/件 · Jita买单 {fmt_isk(r.get('jita_best_buy',0))}/件<br>"
-            f"净利 {fmt_isk(c['profit'])} · ROI {c['roi']:.1%} · 压力净利 {fmt_isk(stress)} · 评分 {score:.1f}<br>"
-            f"流动性 {liq or '-'} · 预计消化 {fill_days:.2f}天 · 总体积 {_num(r.get('total_volume_m3')):.0f}m3<br>"
-            f"<url=showinfo:{tid}><b>查看物品</b></url><br><br>"
+def render_notification(channel: str, stamp: str, plan):
+    cfg = CHANNELS[channel]
+    mode = plan["mode"]
+    added = plan["added"]
+    changed = plan["changed"]
+    removed = plan["removed"]
+
+    if mode == "incremental":
+        subject = (
+            f"{cfg['title']} 变动 {stamp} · "
+            f"+{len(added)} ~{len(changed)} -{len(removed)}"
         )
+        parts = [
+            f"<b>{cfg['title']} · 增量变化提醒</b><br>{stamp}<br>",
+            "本邮件只列本轮新增、重大变化和退出当前推送TOP的项目，不再重复发送整张旧榜单。<br><br>",
+        ]
+        current_delta = added + changed
+    elif mode == "reminder":
+        subject = f"{cfg['title']} 持续SAFE {stamp} · {len(added)}项"
+        parts = [
+            f"<b>{cfg['title']} · 6小时持续SAFE提醒</b><br>{stamp}<br><br>",
+        ]
+        current_delta = added
+    else:
+        subject = f"{cfg['title']} {stamp} · TOP{len(added)}"
+        parts = [
+            f"<b>{cfg['title']} · 当前SAFE机会</b><br>{stamp}<br><br>",
+        ]
+        current_delta = added
+
+    renderer = _render_contract_item if channel == "four-h-contract" else _render_market_item
+    for c in current_delta:
+        parts.append(renderer(c))
+    parts.append(_render_removed(channel, removed))
     return subject, "".join(parts)
 
 
@@ -280,10 +401,11 @@ def main():
         picked = build_candidates(channel)
         print(f"{channel}: SAFE candidates={len(picked)}")
         for name, recipient_id in recipients:
-            if should_suppress(channel, name, picked):
-                print(f"{channel} skipped for {name}: no material change TOP{len(picked)}")
+            plan = notification_plan(channel, name, picked)
+            if plan is None:
+                print(f"{channel} skipped for {name}: no material incremental change TOP{len(picked)}")
                 continue
-            subject, body = render_contract(stamp, picked) if channel == "four-h-contract" else render_market(stamp, picked)
+            subject, body = render_notification(channel, stamp, plan)
             try:
                 send_with_retry(recipient_id, subject, body, channel, name)
                 save_state(channel, name, picked)
