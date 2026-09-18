@@ -18,6 +18,7 @@ from opportunity_engine_v2 import (
     opportunity_score,
     score_grade,
     snapshot_change_pct,
+    walk_book,
 )
 from scanner_source import LATEST, fetch_many_ref, name_en, type_group_id, type_volume
 
@@ -27,6 +28,27 @@ HAUL_BASE = float(os.getenv("V31_FOUR_H_HAUL_BASE", "10000000"))
 HAUL_ISK_PER_M3 = float(os.getenv("V31_FOUR_H_HAUL_ISK_PER_M3", "500"))
 RESULT = LATEST / "v31_four_h_to_jita_buy.csv"
 REPORT = LATEST / "v31_four_h_to_jita_buy.md"
+
+
+def _fixed_qty_quote(asks, bids, qty, unit_m3):
+    qty = int(qty)
+    if qty <= 0:
+        return None
+    source = walk_book(asks, qty)
+    dest = walk_book(bids, qty)
+    if not source.complete or not dest.complete:
+        return None
+    haul = HAUL_BASE + max(0.0, unit_m3) * qty * HAUL_ISK_PER_M3
+    tax = dest.value * SALES_TAX_RATE
+    net = dest.value - tax - source.value - haul
+    invested = source.value + haul
+    return {
+        "net_profit": net,
+        "net_roi": net / invested if invested > 0 else 0.0,
+        "haul_cost": haul,
+        "source_cost": source.value,
+        "destination_gross": dest.value,
+    }
 
 
 def _with_base_haul(q):
@@ -84,17 +106,25 @@ def main():
         if not q or q["net_profit"] < legacy.MIN_NET_PROFIT or q["net_roi"] < legacy.MIN_NET_ROI:
             continue
 
-        stress = _with_base_haul(
-            cross_book_arbitrage(
-                source_books.get(tid, []),
-                drop_best_price_level(live_books.get(tid, [])),
-                SALES_TAX_RATE,
-                min_marginal_roi=legacy.MIN_NET_ROI,
-                unit_volume_m3=unit_m3,
-                haul_cost_per_m3=HAUL_ISK_PER_M3,
-            )
+        # Stress the exact planned quantity on each side independently.
+        # Re-optimizing to a smaller trade after the best level disappears can make
+        # a fragile opportunity look safer than the quantity we actually recommended.
+        stress_source = _fixed_qty_quote(
+            drop_best_price_level(source_books.get(tid, [])),
+            live_books.get(tid, []),
+            q["quantity"],
+            unit_m3,
         )
-        stress_profit = stress["net_profit"] if stress else -q["source_cost"]
+        stress_dest = _fixed_qty_quote(
+            source_books.get(tid, []),
+            drop_best_price_level(live_books.get(tid, [])),
+            q["quantity"],
+            unit_m3,
+        )
+        if stress_source and stress_dest:
+            stress_profit = min(stress_source["net_profit"], stress_dest["net_profit"])
+        else:
+            stress_profit = -q["source_cost"]
         snapshot_gross = float(r.get("jita_buy_gross", 0) or 0)
         change = snapshot_change_pct(snapshot_gross, q["destination_gross"])
         status = classify_execution_status(
