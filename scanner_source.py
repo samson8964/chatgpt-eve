@@ -66,9 +66,9 @@ class Fill:
 
 
 def truthy_series(s: pd.Series) -> pd.Series:
-    if s.dtype == bool:
-        return s.fillna(False)
-    return s.fillna(False).astype(str).str.lower().isin(["true", "1", "t", "yes"])
+    if pd.api.types.is_bool_dtype(s.dtype):
+        return s.astype("boolean").fillna(False).astype(bool)
+    return s.astype("string").str.lower().isin(["true", "1", "t", "yes"]).fillna(False)
 
 
 def get_json(url, params=None, timeout=60, tries=4):

@@ -251,6 +251,11 @@ def enrich_manufacturing(path=MFG_SOURCE, out=MFG_V2):
         stress_revenue = product_q["stress_value"]
         stress_tax = stress_revenue * SALES_TAX_RATE
         stress_profit = stress_revenue - stress_tax - material_q["stress_value"] - fixed
+        stress_complete = material_q["stress_complete"] and product_q["stress_complete"]
+        if not stress_complete:
+            # A pressure test that cannot fill the planned quantity must never remain SAFE.
+            # Keep the live opportunity valid, but force the robustness classification to CHANGED.
+            stress_profit = min(stress_profit, -1.0)
         change_pct = (live_profit - snapshot_profit) / abs(snapshot_profit) if snapshot_profit else (0.0 if live_profit == 0 else 1.0)
         max_slip = max(material_q["max_slippage"], product_q["max_slippage"])
         complete = material_q["complete"] and product_q["complete"]
@@ -262,7 +267,7 @@ def enrich_manufacturing(path=MFG_SOURCE, out=MFG_V2):
             "v2_status": status,
             "v2_grade": grade(v2_score, status),
             "v2_score": v2_score,
-            "v2_warning": "" if status == "SAFE" else "live_revalidation_changed_or_failed",
+            "v2_warning": "" if status == "SAFE" else ("stress_orderbook_incomplete" if not stress_complete else "live_revalidation_changed_or_failed"),
             "v2_live_material_cost": material_q["value"],
             "v2_live_gross_revenue": live_revenue,
             "v2_live_sales_tax": live_tax,
@@ -276,6 +281,7 @@ def enrich_manufacturing(path=MFG_SOURCE, out=MFG_V2):
             "v2_product_vwap": product_q["rows"][0]["vwap"] if product_q["rows"] else 0.0,
             "v2_product_worst_buy": product_q["rows"][0]["worst"] if product_q["rows"] else 0.0,
             "v2_orderbook_complete": complete,
+            "v2_stress_orderbook_complete": stress_complete,
             "v2_avg_daily_volume_30d": hist["avg_daily"],
             "v2_est_fill_days": hist["fill_days"] if math.isfinite(hist["fill_days"]) else 999.0,
             "v2_historical_fill_rate": hist["fill_rate"],
