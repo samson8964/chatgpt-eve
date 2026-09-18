@@ -216,6 +216,9 @@ def main():
         if profit < legacy.MIN_NET_PROFIT or roi < legacy.MIN_NET_ROI:
             continue
         stress_profit = float(q["stress_net_after_tax"] or 0) - p["haul"] - p["contract_price"]
+        if not q.get("stress_complete", False):
+            # The pressure scenario must still be able to fill the planned bundle.
+            stress_profit = min(stress_profit, -1.0)
         change = snapshot_change_pct(p["snapshot"]["gross"], q["gross"])
         failed_here = sorted(set(p["itemq"]).intersection(failed_types))
         status = classify_execution_status(q["complete"], profit, roi, stress_profit, change, ["live_jita_fetch_failed"] if failed_here else [])
@@ -268,6 +271,7 @@ def main():
             "instant_net_roi": p["roi"],
             "stress_jita_buy_gross": q["stress_gross"],
             "stress_net_profit": p["stress_profit"],
+            "stress_orderbook_complete": bool(q.get("stress_complete", False)),
             "buy_unit_coverage": q["coverage"],
             "buy_filled_units": q["filled_units"],
             "total_units": q["requested_units"],
