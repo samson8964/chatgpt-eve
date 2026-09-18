@@ -1,3 +1,3 @@
 channel,signature,updated_at
-spot-deals,"buyonly-v2-exec-2|[{""id"":236150588,""metric"":551979567.02,""roi"":0.136403,""status"":""SAFE"",""grade"":""B""}]",2026-09-18T03:24:57.277841+00:00
-bpc-value,"buyonly-v2-exec-2|[{""id"":236122582,""metric"":64922481.0,""roi"":0.180006,""status"":""SAFE"",""grade"":""B-：当前不错，继续观察""}]",2026-09-18T03:59:04.251259+00:00
+spot-deals,buyonly-v2-exec-2|[],2026-09-18T06:27:25.290541+00:00
+bpc-value,"buyonly-v2-exec-2|[{""id"":235477893,""metric"":71214372.5,""roi"":0.115504,""status"":""SAFE"",""grade"":""C：抢单型，先确认买盘""},{""id"":236122582,""metric"":64173231.0,""roi"":0.17756,""status"":""SAFE"",""grade"":""B-：当前不错，继续观察""}]",2026-09-18T06:27:27.029704+00:00
