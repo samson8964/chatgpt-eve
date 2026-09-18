@@ -166,6 +166,23 @@ def _candidate_snapshot_rows(c, included_groups, requested_groups, buy_books, se
         preliminary_cost = price + (req["cost"] if req["complete"] else 0.0)
         snap_profit = cash["net_after_tax"] - preliminary_cost if req["complete"] else -math.inf
         snap_roi = snap_profit / preliminary_cost if preliminary_cost > 0 and math.isfinite(snap_profit) else -math.inf
+
+        # Separate sell-side prefilter. A contract can have weak buy orders yet still
+        # be a strong conservative listing candidate, so it must not compete only on
+        # the cash-floor metric.
+        list_quote = _snapshot_procure(incq, sell_books)
+        if list_quote["complete"] and list_quote["cost"] > 0:
+            list_gross = float(list_quote["cost"])
+            list_broker = list_gross * BROKER_FEE_RATE
+            list_tax = list_gross * SALES_TAX_RATE
+            list_relist = list_gross * RELIST_RESERVE_RATE
+            snap_list_profit = list_gross - list_broker - list_tax - list_relist - price
+            snap_list_base = price + list_broker + list_relist
+            snap_list_roi = snap_list_profit / snap_list_base if snap_list_base > 0 else -math.inf
+        else:
+            list_gross = 0.0
+            snap_list_profit = -math.inf
+            snap_list_roi = -math.inf
         rows.append(
             {
                 "contract_id": int(cid),
@@ -180,6 +197,9 @@ def _candidate_snapshot_rows(c, included_groups, requested_groups, buy_books, se
                 "snapshot_request": req,
                 "snapshot_profit": snap_profit,
                 "snapshot_roi": snap_roi,
+                "snapshot_list_gross": list_gross,
+                "snapshot_list_profit": snap_list_profit,
+                "snapshot_list_roi": snap_list_roi,
                 "has_requested": bool(reqq),
             }
         )
@@ -245,10 +265,17 @@ def main():
         snapshot_rows,
         total_limit=LIVE_LIMIT,
         per_metric=PER_METRIC,
-        metrics=("snapshot_profit", "snapshot_roi"),
+        metrics=("snapshot_profit", "snapshot_roi", "snapshot_list_profit", "snapshot_list_roi"),
         newest_count=NEWEST_COUNT,
     )
-    print(f"V3 live public-contract pool={len(selected)}")
+    # Barter contracts are rare. Include every one instead of forcing them to win a
+    # ranking contest against tens of thousands of normal item-exchange contracts.
+    selected_by_id = {int(x["contract_id"]): x for x in selected}
+    for row in snapshot_rows:
+        if row["has_requested"]:
+            selected_by_id[int(row["contract_id"])] = row
+    selected = list(selected_by_id.values())
+    print(f"V3 live public-contract pool={len(selected)} (including all barter contracts)")
 
     if not selected:
         for path in (CASH_RESULT, BARTER_RESULT, LIST_RESULT):
@@ -432,10 +459,12 @@ def main():
         if not requested_q:
             listing_candidates.append((p, loc))
 
-    # Listing model: only validate the strongest snapshot candidates plus recent contracts.
+    # Listing candidates rank on their own sell-side snapshot economics, not on
+    # buy-order cash-floor economics.
     listing_candidates.sort(
         key=lambda x: (
-            float(x[0]["snapshot_profit"]) if math.isfinite(float(x[0]["snapshot_profit"])) else -math.inf,
+            float(x[0]["snapshot_list_profit"]) if math.isfinite(float(x[0]["snapshot_list_profit"])) else -math.inf,
+            float(x[0]["snapshot_list_roi"]) if math.isfinite(float(x[0]["snapshot_list_roi"])) else -math.inf,
             str(x[0]["date_issued"]),
         ),
         reverse=True,
