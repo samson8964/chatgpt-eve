@@ -217,10 +217,10 @@ jobs:
           V31_FOUR_H_HAUL_ISK_PER_M3: '500'
           V31_FOUR_H_MARKET_LIVE_LIMIT: '150'
           V31_FOUR_H_MARKET_HISTORY_LIMIT: '80'
-          V3_4H_REVERSE_MIN_PROFIT: '20000000'
-          V3_4H_REVERSE_MIN_ROI: '0.10'
-          V3_4H_REVERSE_HAUL_BASE: '10000000'
-          V3_4H_REVERSE_HAUL_ISK_PER_M3: '500'
+          V31_4H_REVERSE_MIN_PROFIT: '20000000'
+          V31_4H_REVERSE_MIN_ROI: '0.10'
+          V31_4H_REVERSE_HAUL_BASE: '10000000'
+          V31_4H_REVERSE_HAUL_ISK_PER_M3: '500'
         run: |
           mkdir -p results/v31-benchmark
           start=$(date +%s)
@@ -228,7 +228,7 @@ jobs:
           a=$(date +%s)
           python four_h_market_scanner_v31.py
           b=$(date +%s)
-          python four_h_reverse_scanner_v3.py
+          python four_h_reverse_scanner_v31.py
           end=$(date +%s)
           {
             echo "v31_four_h_contract_seconds=$((a-start))"
@@ -266,7 +266,7 @@ jobs:
             results/v31-benchmark/four_h_timing.txt
             results/latest/v31_four_h_*.csv
             results/latest/v31_four_h_*.md
-            results/latest/v3_jita_to_four_h.csv
-            results/latest/v3_jita_to_four_h.md
+            results/latest/v31_jita_to_four_h.csv
+            results/latest/v31_jita_to_four_h.md
           if-no-files-found: warn
           retention-days: 7
