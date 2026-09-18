@@ -1,0 +1,105 @@
+name: Opportunity Engine V3 validation
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'opportunity_engine_v3.py'
+      - 'opportunity_engine_v3_scanner.py'
+      - 'four_h_reverse_scanner_v3.py'
+      - 'send_v3_opportunity_mail.py'
+      - 'test_opportunity_engine_v3.py'
+      - '.github/workflows/v3-validation.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eve-opportunity-v3-validation
+  cancel-in-progress: true
+
+jobs:
+  validate-live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run V3 unit tests
+        run: python -m unittest -v test_opportunity_engine_v3.py
+
+      - name: Run V3 public-contract discovery without mail
+        env:
+          DEAL_MIN_CONTRACT_PRICE: '1000000'
+          DEAL_MAX_CONTRACT_PRICE: '5000000000'
+          DEAL_MIN_HOURS_TO_EXPIRE: '0.5'
+          DEAL_SKIN_MAJOR_SHARE: '0.50'
+          DEAL_HAUL_BASE_ISK: '2000000'
+          DEAL_HAUL_ISK_PER_M3_JUMP: '200'
+          DEAL_FRIENDLY_CHARACTER_ID: '2124493042'
+          DEAL_FRIENDLY_ALLIANCE_IDS: ''
+          DEAL_FRIENDLY_REGION_IDS: ''
+          V3_PUBLIC_LIVE_LIMIT: '300'
+          V3_PUBLIC_PER_METRIC: '110'
+          V3_PUBLIC_NEWEST_COUNT: '60'
+          V3_LIST_HISTORY_LIMIT: '120'
+        run: python opportunity_engine_v3_scanner.py
+
+      - name: Run V3 Jita to 4-H reverse scan without mail
+        env:
+          EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+          EVE_MARKET_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
+          FOUR_H_STRUCTURE_ID: '1053970513596'
+          V3_4H_REVERSE_MIN_PROFIT: '20000000'
+          V3_4H_REVERSE_MIN_ROI: '0.10'
+          V3_4H_REVERSE_HAUL_BASE: '10000000'
+          V3_4H_REVERSE_HAUL_ISK_PER_M3: '500'
+        run: python four_h_reverse_scanner_v3.py
+
+      - name: Summarize V3 outputs
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import pandas as pd
+
+          paths = [
+              Path('results/latest/v3_cash_floor.csv'),
+              Path('results/latest/v3_barter.csv'),
+              Path('results/latest/v3_conservative_listing.csv'),
+              Path('results/latest/v3_jita_to_four_h.csv'),
+          ]
+          for path in paths:
+              try:
+                  df = pd.read_csv(path)
+              except Exception:
+                  df = pd.DataFrame()
+              safe = 0
+              if not df.empty and 'execution_status' in df.columns:
+                  safe = int(df['execution_status'].fillna('').astype(str).str.upper().eq('SAFE').sum())
+              print(f'{path.name}: rows={len(df)} SAFE={safe}')
+              if not df.empty:
+                  cols = [c for c in ['channel','contract_id','type_id','item_name','net_profit','net_roi','stress_net_profit','execution_status','score_grade'] if c in df.columns]
+                  print(df[cols].head(10).to_string(index=False))
+          PY
+
+      - name: Upload V3 validation outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: opportunity-engine-v3-validation
+          path: |
+            results/latest/v3_*.csv
+            results/latest/v3_*.md
+          if-no-files-found: error
+          retention-days: 7

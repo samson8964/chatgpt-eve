@@ -43,6 +43,7 @@ jobs:
         run: |
           python -m unittest -v \
             test_opportunity_engine_v2.py \
+            test_opportunity_engine_v3.py \
             test_bpc_opportunity_engine_v2.py \
             test_mail_reminder_policy.py
 
