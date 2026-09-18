@@ -108,6 +108,8 @@ def main():
         local_stress_books = {tid: drop_best_price_level(local_buys.get(tid, [])) for tid in itemq}
         local_stress = liquidate_bundle(itemq, local_stress_books, SALES_TAX_RATE)
         local_stress_profit = float(local_stress["net_after_tax"] or 0) - price
+        if not local_stress.get("complete", False):
+            local_stress_profit = min(local_stress_profit, -1.0)
 
         jita = None
         jita_profit = jita_roi = jita_stress_profit = float("-inf")
@@ -120,6 +122,8 @@ def main():
             stress_books = {tid: drop_best_price_level(live_jita.get(tid, [])) for tid in itemq}
             jita_stress = liquidate_bundle(itemq, stress_books, SALES_TAX_RATE)
             jita_stress_profit = float(jita_stress["net_after_tax"] or 0) - price - jita_haul
+            if not jita_stress.get("complete", False):
+                jita_stress_profit = min(jita_stress_profit, -1.0)
 
         if local_profit >= jita_profit:
             route, quote = "4-H local buy", local
