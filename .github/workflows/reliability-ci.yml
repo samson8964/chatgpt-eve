@@ -45,7 +45,8 @@ jobs:
             test_opportunity_engine_v2.py \
             test_opportunity_engine_v3.py \
             test_bpc_opportunity_engine_v2.py \
-            test_mail_reminder_policy.py
+            test_mail_reminder_policy.py \
+            test_v31.py
 
       - name: Check Worker JavaScript syntax
         run: |
@@ -58,3 +59,214 @@ jobs:
             --config cloudflare/wrangler.jsonc \
             --strict \
             --dry-run
+
+
+  v31_bpc_benchmark:
+    if: github.event_name == 'pull_request' && github.head_ref == 'opportunity-engine-v3.1-performance'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout V3.1 branch
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run cold V3.1 then warm-cache production-equivalent BPC benchmark
+        env:
+          MARKET_BROKER_FEE_RATE: '0'
+          EXPECTED_RELISTS: '0'
+          DEAL_MAX_CONTRACT_PRICE: '5000000000'
+          PREFILTER_TOP: '500'
+          V31_INDUSTRY_WORKERS: '10'
+          V31_INDUSTRY_RETRY_WORKERS: '3'
+        run: python v31_bpc_benchmark.py
+      - name: Upload V3.1 BPC benchmark
+        uses: actions/upload-artifact@v4
+        with:
+          name: v31-bpc-benchmark
+          path: |
+            results/v31-benchmark/**
+            results/latest/ranked_opportunities.csv
+            results/latest/all_executable_scored.csv
+          if-no-files-found: error
+          retention-days: 7
+
+  v31_public_scan:
+    if: github.event_name == 'pull_request' && github.head_ref == 'opportunity-engine-v3.1-performance'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout V3.1 branch
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run public V2 and V3.1 channels
+        env:
+          DEAL_MIN_CONTRACT_PRICE: '1000000'
+          DEAL_MAX_CONTRACT_PRICE: '5000000000'
+          DEAL_MIN_NET_PROFIT: '30000000'
+          DEAL_MIN_NET_ROI: '0.10'
+          DEAL_MIN_HOURS_TO_EXPIRE: '0.5'
+          DEAL_TOP: '250'
+          MULTI_TOP: '250'
+          DEAL_SKIN_MAJOR_SHARE: '0.50'
+          DEAL_HAUL_BASE_ISK: '2000000'
+          DEAL_HAUL_ISK_PER_M3_JUMP: '200'
+          DEAL_FRIENDLY_CHARACTER_ID: '2124493042'
+          DEAL_FRIENDLY_ALLIANCE_IDS: ''
+          DEAL_FRIENDLY_REGION_IDS: ''
+          V2_LIVE_REVALIDATE_LIMIT: '120'
+          V2_HISTORY_CANDIDATE_LIMIT: '60'
+          V3_PUBLIC_LIVE_LIMIT: '300'
+          V3_PUBLIC_PER_METRIC: '110'
+          V3_PUBLIC_NEWEST_COUNT: '60'
+          V3_LIST_HISTORY_LIMIT: '120'
+        run: |
+          mkdir -p results/v31-benchmark
+          start=$(date +%s)
+          python buy_only_contract_scanner_v2.py
+          mid=$(date +%s)
+          python opportunity_engine_v3_scanner.py
+          end=$(date +%s)
+          {
+            echo "v2_public_seconds=$((mid-start))"
+            echo "v31_public_seconds=$((end-mid))"
+            echo "combined_seconds=$((end-start))"
+          } | tee results/v31-benchmark/public_timing.txt
+      - name: Validate public outputs
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import pandas as pd
+
+          files = [
+              ('results/latest/contract_deals.csv', 'contract_id', 'net_profit', 'net_roi'),
+              ('results/latest/multi_item_contract_deals.csv', 'contract_id', 'net_profit', 'net_roi'),
+              ('results/latest/v3_cash_floor.csv', 'contract_id', 'net_profit', 'net_roi'),
+              ('results/latest/v3_barter.csv', 'contract_id', 'net_profit', 'net_roi'),
+              ('results/latest/v3_conservative_listing.csv', 'contract_id', 'net_profit', 'net_roi'),
+          ]
+          for path, ident, profit, roi in files:
+              try:
+                  df = pd.read_csv(path)
+              except Exception:
+                  df = pd.DataFrame()
+              print(path, 'rows=', len(df))
+              if df.empty:
+                  continue
+              if ident in df:
+                  assert not df[ident].duplicated().any(), f'duplicate ids in {path}'
+              if 'execution_status' in df:
+                  st = set(df['execution_status'].dropna().astype(str))
+                  assert st <= {'SAFE','CHANGED','DANGER'}, (path, st)
+                  safe = df[df['execution_status'].astype(str).eq('SAFE')]
+                  if not safe.empty:
+                      assert (pd.to_numeric(safe[profit], errors='coerce') > 0).all()
+                      assert (pd.to_numeric(safe[roi], errors='coerce') > 0).all()
+          PY
+      - name: Upload public scan outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: v31-public-scan
+          path: |
+            results/v31-benchmark/public_timing.txt
+            results/latest/contract_deals.csv
+            results/latest/multi_item_contract_deals.csv
+            results/latest/v3_*.csv
+            results/latest/v3_*.md
+          if-no-files-found: warn
+          retention-days: 7
+
+  v31_four_h_scan:
+    if: github.event_name == 'pull_request' && github.head_ref == 'opportunity-engine-v3.1-performance' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout V3.1 branch
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run logistics-aware 4-H V3.1 scans
+        env:
+          EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+          EVE_MARKET_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
+          FOUR_H_STRUCTURE_ID: '1053970513596'
+          FOUR_H_CONTRACT_MIN_PRICE: '1000000'
+          FOUR_H_CONTRACT_MIN_NET_PROFIT: '5000000'
+          FOUR_H_CONTRACT_MIN_NET_ROI: '0.05'
+          FOUR_H_CONTRACT_TOP: '100'
+          FOUR_H_MIN_NET_PROFIT: '10000000'
+          FOUR_H_MIN_NET_ROI: '0.10'
+          FOUR_H_TOP: '100'
+          ACCOUNTING_LEVEL: '5'
+          V31_FOUR_H_HAUL_BASE: '10000000'
+          V31_FOUR_H_HAUL_ISK_PER_M3: '500'
+          V31_FOUR_H_MARKET_LIVE_LIMIT: '150'
+          V31_FOUR_H_MARKET_HISTORY_LIMIT: '80'
+          V3_4H_REVERSE_MIN_PROFIT: '20000000'
+          V3_4H_REVERSE_MIN_ROI: '0.10'
+          V3_4H_REVERSE_HAUL_BASE: '10000000'
+          V3_4H_REVERSE_HAUL_ISK_PER_M3: '500'
+        run: |
+          mkdir -p results/v31-benchmark
+          start=$(date +%s)
+          python four_h_contract_scanner_v31.py
+          a=$(date +%s)
+          python four_h_market_scanner_v31.py
+          b=$(date +%s)
+          python four_h_reverse_scanner_v3.py
+          end=$(date +%s)
+          {
+            echo "v31_four_h_contract_seconds=$((a-start))"
+            echo "v31_four_h_market_seconds=$((b-a))"
+            echo "v31_reverse_seconds=$((end-b))"
+            echo "combined_seconds=$((end-start))"
+          } | tee results/v31-benchmark/four_h_timing.txt
+      - name: Validate 4-H logistics invariants
+        run: |
+          python - <<'PY'
+          import pandas as pd
+
+          for path in ['results/latest/v31_four_h_to_jita_buy.csv', 'results/latest/v31_four_h_contract_bargains.csv']:
+              try:
+                  df = pd.read_csv(path)
+              except Exception:
+                  df = pd.DataFrame()
+              print(path, 'rows=', len(df))
+              if df.empty:
+                  continue
+              if 'execution_status' in df:
+                  assert set(df['execution_status'].dropna().astype(str)) <= {'SAFE','CHANGED','DANGER'}
+              if path.endswith('v31_four_h_to_jita_buy.csv'):
+                  assert (pd.to_numeric(df['haul_cost'], errors='coerce') >= 10_000_000).all()
+              else:
+                  jita = df[df['best_route'].astype(str).str.startswith('Jita')]
+                  if not jita.empty:
+                      assert (pd.to_numeric(jita['haul_cost'], errors='coerce') >= 10_000_000).all()
+          PY
+      - name: Upload V3.1 4-H outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: v31-four-h-scan
+          path: |
+            results/v31-benchmark/four_h_timing.txt
+            results/latest/v31_four_h_*.csv
+            results/latest/v31_four_h_*.md
+            results/latest/v3_jita_to_four_h.csv
+            results/latest/v3_jita_to_four_h.md
+          if-no-files-found: warn
+          retention-days: 7
