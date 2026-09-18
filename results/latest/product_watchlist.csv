@@ -1,3 +1,4 @@
 product_type_id,product_name,last_seen,opportunity_class,opportunity_score,recommendation,persistence_7d,scan_days_7d,profitable_days_7d,avg_daily_volume_30d,vwap_30d,current_bid_premium_vs_30d,best_current_net_roi,best_current_net_profit,current_profitable_contracts,eve_market_url
-42244,10x Porpoise,2026-09-18,持续机会,68.3,A：重点关注,1.0,5,5,46.06666666666667,98511179.44964544,-0.0642686392043621,0.0942989186134181,76762440.74000001,28,https://eve-contract-opener.99617224.workers.dev/m/42244
-47139,50x Standup Firbolg I,2026-09-18,新机会/待观察,60.4,B-：当前不错，继续观察,1.0,2,2,53.285714285714285,9872189.00744638,-0.1077966605626863,0.1809285256795,65202704.24000001,2,https://eve-contract-opener.99617224.workers.dev/m/47139
+21039,40x Capital Siege Array,2026-09-18,周期机会,74.8,B+：可重点做,1.0,4,4,110.16666666666669,11188812.102644475,-0.112595697477726,0.1535469615327035,51124913.610000014,1,https://eve-contract-opener.99617224.workers.dev/m/21039
+42244,10x Porpoise,2026-09-18,持续机会,68.3,A：重点关注,1.0,5,5,46.06666666666667,98511179.44964544,-0.0642686392043621,0.0942560956474933,76730584.11000001,28,https://eve-contract-opener.99617224.workers.dev/m/42244
+47139,50x Standup Firbolg I,2026-09-18,新机会/待观察,60.3,B-：当前不错，继续观察,1.0,2,2,53.285714285714285,9872189.00744638,-0.1077966605626863,0.1807537474219928,65149360.110000014,2,https://eve-contract-opener.99617224.workers.dev/m/47139
