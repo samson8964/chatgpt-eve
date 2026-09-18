@@ -47,8 +47,17 @@ def apply_v31_performance(source: str) -> str:
         '                key=futs[fut]\n'
         '                try: quote_cache[key]=fut.result()\n'
         '                except Exception: quote_cache[key]=None\n'
+        '    failed_quote_keys=[key for key,q in quote_cache.items() if not q]\n'
+        '    if failed_quote_keys:\n'
+        '        retry_workers=min(max(1,int(os.getenv("V31_INDUSTRY_RETRY_WORKERS","3"))),len(failed_quote_keys))\n'
+        '        with ThreadPoolExecutor(max_workers=retry_workers) as ex:\n'
+        '            futs={ex.submit(industry_quote,*key):key for key in failed_quote_keys}\n'
+        '            for fut in as_completed(futs):\n'
+        '                key=futs[fut]\n'
+        '                try: quote_cache[key]=fut.result()\n'
+        '                except Exception: quote_cache[key]=None\n'
         '    quote_ok=sum(1 for q in quote_cache.values() if q)\n'
-        '    print(f"5c) unique industry quotes={len(quote_specs)} ok={quote_ok} workers={min(max(1,int(os.getenv(\'V31_INDUSTRY_WORKERS\',\'10\'))),max(1,len(quote_specs)))}")\n\n'
+        '    print(f"5c) unique industry quotes={len(quote_specs)} ok={quote_ok} failed={len(quote_specs)-quote_ok} workers={min(max(1,int(os.getenv(\'V31_INDUSTRY_WORKERS\',\'10\'))),max(1,len(quote_specs)))}")\n\n'
         '    print("6) exact fees")\n',
         "parallel industry quote prefetch",
     )
