@@ -13,6 +13,10 @@ on:
       - 'buy_only_contract_scanner.py'
       - 'buy_only_contract_scanner_v2.py'
       - 'opportunity_engine_v2.py'
+      - 'opportunity_engine_v3.py'
+      - 'opportunity_engine_v3_scanner.py'
+      - 'four_h_reverse_scanner_v3.py'
+      - 'send_v3_opportunity_mail.py'
       - 'bpc_opportunity_engine_v2.py'
       - 'runner_bpc_v2.py'
       - 'export_bpc_v2_safe.py'
@@ -45,7 +49,7 @@ permissions:
 # 4-H depends on an authenticated Cloudflare/ESI path and is deliberately isolated:
 # an outage there must never suppress BPC/spot/multi alerts.
 concurrency:
-  group: eve-arbitrage-v10-${{ github.event_name }}
+  group: eve-arbitrage-v11-${{ github.event_name }}
   cancel-in-progress: ${{ github.event_name == 'push' }}
 
 jobs:
@@ -172,6 +176,40 @@ jobs:
           V2_FOUR_H_MARKET_HISTORY_LIMIT: '80'
         run: python structure_market_arbitrage.py
 
+      - name: Scan V3 public missed-opportunity channels
+        id: v3_public
+        continue-on-error: true
+        if: steps.cadence.outputs.run_scan == 'true'
+        env:
+          DEAL_MIN_CONTRACT_PRICE: '1000000'
+          DEAL_MAX_CONTRACT_PRICE: '5000000000'
+          DEAL_MIN_HOURS_TO_EXPIRE: '0.5'
+          DEAL_SKIN_MAJOR_SHARE: '0.50'
+          DEAL_HAUL_BASE_ISK: '2000000'
+          DEAL_HAUL_ISK_PER_M3_JUMP: '200'
+          DEAL_FRIENDLY_CHARACTER_ID: '2124493042'
+          DEAL_FRIENDLY_ALLIANCE_IDS: ''
+          DEAL_FRIENDLY_REGION_IDS: ''
+          V3_PUBLIC_LIVE_LIMIT: '300'
+          V3_PUBLIC_PER_METRIC: '110'
+          V3_PUBLIC_NEWEST_COUNT: '60'
+          V3_LIST_HISTORY_LIMIT: '120'
+        run: python opportunity_engine_v3_scanner.py
+
+      - name: Scan V3 Jita to 4-H reverse market
+        id: v3_reverse
+        continue-on-error: true
+        if: steps.cadence.outputs.run_scan == 'true'
+        env:
+          EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+          EVE_MARKET_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
+          FOUR_H_STRUCTURE_ID: '1053970513596'
+          V3_4H_REVERSE_MIN_PROFIT: '20000000'
+          V3_4H_REVERSE_MIN_ROI: '0.10'
+          V3_4H_REVERSE_HAUL_BASE: '10000000'
+          V3_4H_REVERSE_HAUL_ISK_PER_M3: '500'
+        run: python four_h_reverse_scanner_v3.py
+
       - name: Prepare mail candidates
         if: steps.cadence.outputs.run_scan == 'true'
         env:
@@ -248,6 +286,44 @@ jobs:
             exit 2
           fi
 
+      - name: Send V3 public SAFE digests
+        id: mail_v3_public
+        continue-on-error: true
+        if: steps.cadence.outputs.run_scan == 'true' && steps.v3_public.outcome == 'success'
+        env:
+          EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+          EVE_MAIL_RECIPIENT_NAME: MikeChong
+          EVE_MAIL_RECIPIENT_NAMES: 'MikeChong,Vektor Yang'
+          EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
+          MAIL_TOP: '10'
+          V3_CHANNELS: 'v3-cash-floor,v3-barter,v3-conservative-list'
+        shell: bash
+        run: |
+          set -o pipefail
+          python send_v3_opportunity_mail.py 2>&1 | tee /tmp/mail-v3-public.log
+
+      - name: Send V3 Jita to 4-H SAFE digest
+        id: mail_v3_reverse
+        continue-on-error: true
+        if: steps.cadence.outputs.run_scan == 'true' && steps.v3_reverse.outcome == 'success'
+        env:
+          EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+          EVE_MAIL_RECIPIENT_NAME: MikeChong
+          EVE_MAIL_RECIPIENT_NAMES: 'MikeChong,Vektor Yang'
+          EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
+          MAIL_TOP: '10'
+          V3_CHANNELS: 'v3-jita-to-4h'
+        shell: bash
+        run: |
+          set -o pipefail
+          python send_v3_opportunity_mail.py 2>&1 | tee /tmp/mail-v3-reverse.log
+
+      - name: Report degraded V3 scan without blocking V2 alerts
+        if: steps.cadence.outputs.run_scan == 'true' && (steps.v3_public.outcome != 'success' || steps.v3_reverse.outcome != 'success')
+        shell: bash
+        run: |
+          echo "::warning::V3 scan degraded: public=${{ steps.v3_public.outcome }}, reverse=${{ steps.v3_reverse.outcome }}. Existing V2 alerts were not blocked."
+
       - name: Report degraded 4-H scan without blocking core alerts
         if: steps.cadence.outputs.run_scan == 'true' && (steps.four_h_contract.outcome != 'success' || steps.four_h_market.outcome != 'success')
         shell: bash
@@ -302,9 +378,13 @@ jobs:
           failed=0
           echo "four_h_contract=${{ steps.four_h_contract.outcome }}"
           echo "four_h_market=${{ steps.four_h_market.outcome }}"
+          echo "v3_public=${{ steps.v3_public.outcome }}"
+          echo "v3_reverse=${{ steps.v3_reverse.outcome }}"
           echo "mail_core=${{ steps.mail_core.outcome }}"
           echo "mail_multi=${{ steps.mail_multi.outcome }}"
           echo "mail_four_h=${{ steps.mail_four_h.outcome }}"
+          echo "mail_v3_public=${{ steps.mail_v3_public.outcome }}"
+          echo "mail_v3_reverse=${{ steps.mail_v3_reverse.outcome }}"
           echo "persist_results=${{ steps.persist_results.outcome }}"
 
           if [ "${{ steps.persist_results.outcome }}" != "success" ]; then
@@ -324,6 +404,20 @@ jobs:
             failed=1
           elif [ "${{ steps.mail_four_h.outcome }}" = "failure" ]; then
             echo "::error::4-H mail delivery failed."
+            failed=1
+          fi
+          if [ "${{ steps.v3_public.outcome }}" != "success" ]; then
+            echo "::error::V3 public opportunity scan is degraded."
+            failed=1
+          elif [ "${{ steps.mail_v3_public.outcome }}" = "failure" ]; then
+            echo "::error::V3 public mail delivery failed."
+            failed=1
+          fi
+          if [ "${{ steps.v3_reverse.outcome }}" != "success" ]; then
+            echo "::error::V3 Jita-to-4-H reverse scan is degraded."
+            failed=1
+          elif [ "${{ steps.mail_v3_reverse.outcome }}" = "failure" ]; then
+            echo "::error::V3 reverse mail delivery failed."
             failed=1
           fi
 

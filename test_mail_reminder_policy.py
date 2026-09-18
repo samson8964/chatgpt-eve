@@ -62,6 +62,52 @@ class MailReminderPolicyTests(unittest.TestCase):
             finally:
                 four_h_mail.STATE = old_state
 
+    def test_four_h_membership_change_is_incremental(self):
+        with tempfile.TemporaryDirectory() as td:
+            old_state = four_h_mail.STATE
+            four_h_mail.STATE = Path(td)
+            try:
+                path = four_h_mail.state_path("four-h-market", "MikeChong")
+                now = pd.Timestamp.now(tz="UTC").isoformat()
+                pd.DataFrame([
+                    {"policy_version": "fourh-v2-exec-1", "rank": 1, "id": 10, "profit": 100.0, "roi": 0.20, "status": "SAFE", "grade": "A", "sent_at": now},
+                    {"policy_version": "fourh-v2-exec-1", "rank": 2, "id": 20, "profit": 80.0, "roi": 0.15, "status": "SAFE", "grade": "B", "sent_at": now},
+                ]).to_csv(path, index=False)
+                picked = [
+                    {"id": 10, "profit": 100.0, "roi": 0.20, "status": "SAFE", "grade": "A", "row": pd.Series(dtype=object)},
+                    {"id": 30, "profit": 70.0, "roi": 0.14, "status": "SAFE", "grade": "B", "row": pd.Series(dtype=object)},
+                ]
+                plan = four_h_mail.notification_plan("four-h-market", "MikeChong", picked)
+                self.assertEqual(plan["mode"], "incremental")
+                self.assertEqual([x["id"] for x in plan["added"]], [30])
+                self.assertEqual([x["id"] for x in plan["changed"]], [])
+                self.assertEqual([x["id"] for x in plan["removed"]], [20])
+            finally:
+                four_h_mail.STATE = old_state
+
+    def test_four_h_profit_change_only_sends_changed_item(self):
+        with tempfile.TemporaryDirectory() as td:
+            old_state = four_h_mail.STATE
+            four_h_mail.STATE = Path(td)
+            try:
+                path = four_h_mail.state_path("four-h-market", "MikeChong")
+                now = pd.Timestamp.now(tz="UTC").isoformat()
+                pd.DataFrame([
+                    {"policy_version": four_h_mail.POLICY_VERSION, "rank": 1, "id": 10, "profit": 100_000_000.0, "roi": 0.20, "status": "SAFE", "grade": "A", "sent_at": now},
+                    {"policy_version": four_h_mail.POLICY_VERSION, "rank": 2, "id": 20, "profit": 80_000_000.0, "roi": 0.15, "status": "SAFE", "grade": "B", "sent_at": now},
+                ]).to_csv(path, index=False)
+                picked = [
+                    {"id": 10, "profit": 125_000_000.0, "roi": 0.20, "status": "SAFE", "grade": "A", "row": pd.Series(dtype=object)},
+                    {"id": 20, "profit": 80_000_000.0, "roi": 0.15, "status": "SAFE", "grade": "B", "row": pd.Series(dtype=object)},
+                ]
+                plan = four_h_mail.notification_plan("four-h-market", "MikeChong", picked)
+                self.assertEqual(plan["mode"], "incremental")
+                self.assertEqual([x["id"] for x in plan["changed"]], [10])
+                self.assertEqual(plan["added"], [])
+                self.assertEqual(plan["removed"], [])
+            finally:
+                four_h_mail.STATE = old_state
+
     def test_multi_rank_only_change_is_suppressed(self):
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "state.csv"
