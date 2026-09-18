@@ -1,8 +1,8 @@
-# EVE 捡漏监控 / Opportunity Engine V2
+# EVE 捡漏监控 / Opportunity Engine V2 + V3
 
 面向《EVE Online》宁静服务器的自动化捡漏发现、实时复核、排序和游戏内邮件提醒系统。
 
-当前生产版已经从“静态价差扫描”升级为 **Opportunity Engine V2**：候选机会先广泛发现，再使用实时订单深度、滑点、压力测试、流动性、运输约束和执行可行性做二次复核，只把达到 `SAFE` 的机会自动推送。
+当前生产版同时运行 **Opportunity Engine V2 + V3**：V2负责高确定性的完整兑现机会，V3专门补充V2结构性容易漏掉的现金底价、以物换物、保守挂卖和 Jita→4-H 反向套利。两套引擎都经过实时订单、压力测试和执行可行性复核，只把达到 `SAFE` 的机会自动推送。
 
 > 本项目只负责发现、分析和提醒，不会自动接受合同、买入、运输、生产或出售物品。
 
@@ -18,10 +18,10 @@ flowchart LR
   structure["4-H 玩家建筑市场"] --> cf["Cloudflare EVE Worker"]
   cf --> gha
 
-  gha --> engine["Opportunity Engine V2"]
+  gha --> engine["Opportunity Engine V2 + V3"]
   engine --> results["results/"]
   engine --> mailworker["Cloudflare Mail Worker"]
-  mailworker --> eve["EVE 游戏邮件\nLadyGuaGua → MikeChong"]
+  mailworker --> eve["EVE 游戏邮件\nLadyGuaGua → MikeChong / Vektor Yang"]
 
   ref --> booster["独立药品制造 / 蓝图监控"]
   esi --> booster
@@ -42,7 +42,7 @@ flowchart LR
 
 ## 当前自动提醒频道
 
-正式捡漏邮件统一由 **LadyGuaGua** 发送给 **MikeChong**。
+正式捡漏邮件统一由 **LadyGuaGua** 同时发送给 **MikeChong** 和 **Vektor Yang**。
 
 | 频道 | 当前逻辑 | 自动邮件 |
 |---|---|---|
@@ -51,6 +51,10 @@ flowchart LR
 | 多件合同捡漏 V2 | 多物品合同按实时 Jita 买单深度逐项兑现 | 是，SAFE only |
 | 4-H 合同捡漏 V2 | 4-H 合同按 4-H 本地买盘 / Jita 买盘执行复核 | 是，SAFE only |
 | 4-H 市场套利 V2 | 4-H 实际卖单买入 → Jita 实际买单卖出 | 是，SAFE only |
+| V3 现金底价捡漏 | 只给当前真实买单可立即兑现的部分估值，其余按0 ISK | 是，SAFE only |
+| V3 以物换物捡漏 | 计算需提供物品的实时采购成本 + 收到物品的实时兑现价值 | 是，SAFE only |
+| V3 保守挂卖套利 | 当前卖价 + 7/30日成交参考 + 折价 + 税费/改价/资金占用 | 是，SAFE only |
+| V3 Jita→4-H 反向套利 | Jita实时卖单买入 → 4-H真实买单卖出，并计物流与双边压力测试 | 是，SAFE only |
 | BPC 蓝图挂牌低估 | 同类 BPC 公开合同挂牌价比较 | 仅研究输出，当前不自动邮件 |
 | 超强增效剂制造 | 独立药品制造利润监控 | 独立工作流 |
 | 超强增效剂蓝图价差 | 同种增效剂 BPC 每流程价格断层 | 独立工作流 |
@@ -225,7 +229,7 @@ Jita真实买单即时卖出
 TOP6 → TOP5 → TOP6
 ```
 
-如果只是排序波动而没有实质变化，不再反复发邮件。
+如果只是排序波动而没有实质变化，不再反复发邮件。**4-H 频道进一步采用增量变化提醒**：成员变化时只发送本轮新增、重大变化和退出当前推送TOP的项目，不再因为末位成员进出而重发整张旧榜单；持续约6小时仍有效时才发送一次持续SAFE提醒。
 
 ## 邮件 Worker 与 EVE SSO
 
@@ -235,6 +239,7 @@ Cloudflare Worker 当前将“主要 EVE 功能授权”和“邮件发件角色
 
 ```text
 LadyGuaGua → MikeChong
+LadyGuaGua → Vektor Yang
 ```
 
 邮件 Worker 已加入：
@@ -322,13 +327,16 @@ Smoke test 会实际检查：
 4. `buy_only_contract_scanner_v2.py` — 现货 + 多件合同 V2；
 5. `four_h_contract_scanner.py` — 4-H 合同 V2；
 6. `structure_market_arbitrage.py` — 4-H 市场 → Jita V2；
-7. `prepare_mail_candidates.py` — SAFE 邮件门槛；
-8. `add_action_links.py` — EVE 客户端快捷链接；
-9. 现货 + BPC 邮件；
-10. 多件合同邮件；
-11. 4-H 合同 + 市场邮件；
-12. 安全提交 `results/`；
-13. Final production health gate。
+7. `opportunity_engine_v3_scanner.py` — V3 现金底价 / 以物换物 / 保守挂卖；
+8. `four_h_reverse_scanner_v3.py` — V3 Jita → 4-H 反向套利；
+9. `prepare_mail_candidates.py` — V2 SAFE 邮件门槛；
+10. `add_action_links.py` — EVE 客户端快捷链接；
+11. 现货 + BPC 邮件；
+12. 多件合同邮件；
+13. 4-H 合同 + 市场增量邮件；
+14. V3 SAFE 邮件；
+15. 安全提交 `results/`；
+16. Final production health gate。
 
 ## 主要输出
 
@@ -343,6 +351,10 @@ Smoke test 会实际检查：
 | `results/latest/bpc_value_opportunities_v2.csv` | BPC 低估 V2 置信度结果 |
 | `results/latest/four_h_contract_bargains.csv` | 4-H 合同 V2 结果 |
 | `results/latest/four_h_to_jita_buy.csv` | 4-H 市场 → Jita 结果 |
+| `results/latest/v3_cash_floor.csv` | V3 现金底价机会 |
+| `results/latest/v3_barter.csv` | V3 以物换物机会 |
+| `results/latest/v3_conservative_listing.csv` | V3 保守挂卖机会 |
+| `results/latest/v3_jita_to_four_h.csv` | V3 Jita → 4-H 反向套利 |
 | `results/state/mail_push_history.csv` | 邮件推送历史 |
 | `results/state/mail_last_*` | 各频道 / 收件人的提醒去重状态 |
 | `results/state/last_scan_started_epoch.txt` | 最近生产扫描开始时间 |
