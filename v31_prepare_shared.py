@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import shutil
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -114,6 +115,10 @@ def _append_github_env(values: dict[str, str]) -> None:
 
 def main() -> None:
     root = Path(os.getenv("EVE_V31_RUN_ROOT", ".run/v31")).resolve()
+    # A run cache must never survive into a new snapshot generation. This also makes
+    # manual reruns inside the same workspace deterministic instead of reusing old live data.
+    if root.exists():
+        shutil.rmtree(root)
     snapshots = root / "snapshots"
     cache = root / "cache"
     logs = root / "logs"
