@@ -6,6 +6,7 @@ import os
 import re
 import sys
 import tarfile
+import tempfile
 import time
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -17,6 +18,8 @@ from typing import Dict, Iterable
 import numpy as np
 import pandas as pd
 import requests
+
+from run_cache_v31 import cached_market_json
 
 PUBLIC_CONTRACTS_INDEX = "https://data.everef.net/public-contracts/index.json"
 MARKET_ORDERS_INDEX = "https://data.everef.net/market-orders/index.json"
@@ -72,20 +75,33 @@ def truthy_series(s: pd.Series) -> pd.Series:
 
 
 def get_json(url, params=None, timeout=60, tries=4):
-    last = None
-    for i in range(tries):
-        try:
-            r = requests.get(url, params=params, headers={"User-Agent": UA}, timeout=timeout)
-            r.raise_for_status()
-            return r.json(), r.headers
-        except Exception as e:
-            last = e
-            if i + 1 < tries:
-                time.sleep(1.2 * (i + 1))
-    raise RuntimeError(f"GET failed: {url}: {last}")
+    def _network_fetch():
+        last = None
+        for i in range(tries):
+            try:
+                r = requests.get(url, params=params, headers={"User-Agent": UA}, timeout=timeout)
+                r.raise_for_status()
+                return r.json(), r.headers
+            except Exception as e:
+                last = e
+                if i + 1 < tries:
+                    time.sleep(1.2 * (i + 1))
+        raise RuntimeError(f"GET failed: {url}: {last}")
+
+    return cached_market_json(str(url), params, _network_fetch)
 
 
 def latest_file(index_url):
+    manifest_path = os.getenv("EVE_RUN_SNAPSHOT_MANIFEST", "").strip()
+    if manifest_path and Path(manifest_path).exists():
+        try:
+            manifest = json.loads(Path(manifest_path).read_text("utf-8"))
+            key = "public_contracts" if index_url == PUBLIC_CONTRACTS_INDEX else "market_orders" if index_url == MARKET_ORDERS_INDEX else ""
+            entry = (manifest.get("datasets") or {}).get(key) if key else None
+            if entry and entry.get("source_url"):
+                return str(entry["source_url"]), str(entry.get("last_modified") or "")
+        except Exception as exc:
+            print(f"shared snapshot manifest ignored for {index_url}: {exc}")
     idx, _ = get_json(index_url, params={"_": int(time.time())})
     files = idx.get("files") or []
     if not files:
@@ -145,7 +161,20 @@ def cache_get(kind, obj_id):
 
 
 def cache_put(kind, obj_id, data):
-    cache_file(kind, obj_id).write_text(json.dumps(data, ensure_ascii=False), "utf-8")
+    path = cache_file(kind, obj_id)
+    payload = json.dumps(data, ensure_ascii=False)
+    fd, tmp_name = tempfile.mkstemp(prefix=path.name + ".", suffix=".tmp", dir=str(path.parent))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(payload)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp_name, path)
+    finally:
+        try:
+            os.unlink(tmp_name)
+        except FileNotFoundError:
+            pass
 
 
 def fetch_ref_obj(kind: str, obj_id: int):
