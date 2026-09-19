@@ -69,9 +69,9 @@ class Fill:
 
 
 def truthy_series(s: pd.Series) -> pd.Series:
-    if s.dtype == bool:
-        return s.fillna(False)
-    return s.fillna(False).astype(str).str.lower().isin(["true", "1", "t", "yes"])
+    if pd.api.types.is_bool_dtype(s.dtype):
+        return s.astype("boolean").fillna(False).astype(bool)
+    return s.astype("string").str.lower().isin(["true", "1", "t", "yes"]).fillna(False)
 
 
 def get_json(url, params=None, timeout=60, tries=4):
@@ -458,8 +458,8 @@ def market_history(type_id: int):
         df = pd.DataFrame(arr)
         df["date"] = pd.to_datetime(df["date"], utc=True)
         df = df.sort_values("date")
-        cutoff30 = pd.Timestamp.now(tz="UTC").normalize() - pd.Timedelta(days=30)
-        cutoff7 = pd.Timestamp.now(tz="UTC").normalize() - pd.Timedelta(days=7)
+        cutoff30 = pd.Timestamp.now(tz="UTC").normalize() - pd.Timedelta("30D")
+        cutoff7 = pd.Timestamp.now(tz="UTC").normalize() - pd.Timedelta("7D")
         d30 = df[df["date"] >= cutoff30]
         d7 = df[df["date"] >= cutoff7]
         def agg(x):
