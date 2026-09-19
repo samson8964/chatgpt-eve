@@ -1,0 +1,182 @@
+name: Opportunity Engine V3.1 speed trial
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - opportunity-engine-v3.1-speed
+    paths:
+      - 'v31_*.py'
+      - 'scanner_source.py'
+      - 'four_h_contract_scanner.py'
+      - 'structure_market_arbitrage.py'
+      - 'opportunity_engine_v3_scanner.py'
+      - '.github/workflows/v31-validation.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eve-opportunity-v31-speed
+  cancel-in-progress: true
+
+jobs:
+  trial:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      PYTHONUNBUFFERED: '1'
+      V31_PARSED_CACHE_DIR: '.cache/v31/parsed'
+      V31_STRUCTURE_ORDERS_CACHE: '.cache/v31/four_h_orders.json'
+      V31_STRUCTURE_CACHE_MAX_AGE: '900'
+
+      EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+      EVE_MARKET_WORKER_URL: 'https://eve-contract-opener.99617224.workers.dev'
+      FOUR_H_STRUCTURE_ID: '1053970513596'
+      ACCOUNTING_LEVEL: '5'
+
+      MARKET_BROKER_FEE_RATE: '0'
+      EXPECTED_RELISTS: '0'
+      PREFILTER_TOP: '500'
+
+      DEAL_MIN_CONTRACT_PRICE: '1000000'
+      DEAL_MAX_CONTRACT_PRICE: '5000000000'
+      DEAL_MIN_NET_PROFIT: '30000000'
+      DEAL_MIN_NET_ROI: '0.10'
+      DEAL_MIN_HOURS_TO_EXPIRE: '0.5'
+      DEAL_TOP: '250'
+      MULTI_TOP: '250'
+      DEAL_SKIN_MAJOR_SHARE: '0.50'
+      DEAL_HAUL_BASE_ISK: '2000000'
+      DEAL_HAUL_ISK_PER_M3_JUMP: '200'
+      DEAL_FRIENDLY_CHARACTER_ID: '2124493042'
+      DEAL_FRIENDLY_ALLIANCE_IDS: ''
+      DEAL_FRIENDLY_REGION_IDS: ''
+      V2_LIVE_REVALIDATE_LIMIT: '120'
+      V2_HISTORY_CANDIDATE_LIMIT: '60'
+
+      BPC_VALUE_MIN_SAMPLES: '3'
+      BPC_VALUE_MIN_EXACT_SAMPLES: '3'
+      BPC_VALUE_MIN_DISCOUNT: '0.25'
+      BPC_VALUE_MIN_MEDIAN_DISCOUNT: '0.10'
+      BPC_VALUE_MIN_SURPLUS: '10000000'
+      BPC_VALUE_MIN_HOURS_TO_EXPIRE: '2'
+      BPC_VALUE_TOP: '200'
+      BPC_V2_LIVE_POOL: '50'
+      BPC_V2_LIVE_WORKERS: '16'
+      BPC_V2_MIN_NET_PROFIT: '20000000'
+      BPC_V2_MIN_NET_ROI: '0.10'
+      BPC_V2_MAX_SLIPPAGE: '0.05'
+      BPC_V2_MAX_CHANGE: '0.15'
+      BPC_V2_LIQUIDITY_PARTICIPATION: '0.35'
+
+      FOUR_H_CONTRACT_MIN_PRICE: '1000000'
+      FOUR_H_CONTRACT_MIN_NET_PROFIT: '5000000'
+      FOUR_H_CONTRACT_MIN_NET_ROI: '0.05'
+      FOUR_H_CONTRACT_TOP: '100'
+      FOUR_H_MIN_NET_PROFIT: '10000000'
+      FOUR_H_MIN_NET_ROI: '0.10'
+      FOUR_H_TOP: '100'
+      V2_FOUR_H_MARKET_LIVE_LIMIT: '150'
+      V2_FOUR_H_MARKET_HISTORY_LIMIT: '80'
+
+      V3_PUBLIC_LIVE_LIMIT: '300'
+      V3_PUBLIC_PER_METRIC: '110'
+      V3_PUBLIC_NEWEST_COUNT: '60'
+      V3_LIST_HISTORY_LIMIT: '120'
+      V3_4H_REVERSE_MIN_PROFIT: '20000000'
+      V3_4H_REVERSE_MIN_ROI: '0.10'
+      V3_4H_REVERSE_HAUL_BASE: '10000000'
+      V3_4H_REVERSE_HAUL_ISK_PER_M3: '500'
+
+      MAIL_SPOT_MIN_PROFIT: '30000000'
+      MAIL_SPOT_MIN_ROI: '0.10'
+      MAIL_BPC_VALUE_MIN_SAMPLES: '5'
+      MAIL_BPC_VALUE_MIN_AVG_DISCOUNT: '0.30'
+      MAIL_BPC_VALUE_MIN_MEDIAN_DISCOUNT: '0.20'
+      MAIL_BPC_VALUE_MIN_SURPLUS: '20000000'
+      MAIL_BPC_MFG_MIN_PROFIT: '20000000'
+      MAIL_BPC_MFG_MIN_ROI: '0.10'
+
+    steps:
+      - name: Checkout V3.1 branch
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Compile all Python
+        run: python -m compileall -q .
+
+      - name: Run existing engine regression tests
+        run: |
+          python -m unittest -v \
+            test_opportunity_engine_v2.py \
+            test_opportunity_engine_v3.py \
+            test_bpc_opportunity_engine_v2.py \
+            test_mail_reminder_policy.py \
+            test_v31_speed.py
+
+      - name: Prefetch shared V3.1 snapshots
+        run: python v31_prefetch.py
+
+      - name: Run V3.1 parallel scan prototype
+        run: python v31_orchestrator.py
+
+      - name: Validate V3.1 result invariants
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import pandas as pd
+
+          timing = json.loads(Path('results/latest/v31_timing.json').read_text('utf-8'))
+          assert timing['engine_version'].startswith('Opportunity Engine V3.1')
+          assert timing['production_merged'] is False
+          assert timing['scan_wall_seconds'] > 0
+          assert timing['prefetch_plus_scan_seconds'] > 0
+
+          status_files = [
+              ('results/latest/ranked_opportunities_v2.csv', 'v2_status'),
+              ('results/latest/contract_deals.csv', 'execution_status'),
+              ('results/latest/multi_item_contract_deals.csv', 'execution_status'),
+              ('results/latest/four_h_contract_bargains.csv', 'execution_status'),
+              ('results/latest/four_h_to_jita_buy.csv', 'execution_status'),
+              ('results/latest/v3_cash_floor.csv', 'execution_status'),
+              ('results/latest/v3_barter.csv', 'execution_status'),
+              ('results/latest/v3_conservative_listing.csv', 'execution_status'),
+              ('results/latest/v3_jita_to_four_h.csv', 'execution_status'),
+          ]
+          allowed={'SAFE','CHANGED','DANGER'}
+          for path, col in status_files:
+              p=Path(path)
+              if not p.exists() or p.stat().st_size == 0:
+                  continue
+              try:
+                  df=pd.read_csv(p)
+              except pd.errors.EmptyDataError:
+                  continue
+              if df.empty or col not in df.columns:
+                  continue
+              values=set(df[col].dropna().astype(str).str.upper())
+              assert values <= allowed, (path, values)
+          print(Path('results/latest/v31_timing.md').read_text('utf-8'))
+          PY
+
+      - name: Upload V3.1 trial package
+        uses: actions/upload-artifact@v4
+        with:
+          name: opportunity-engine-v3.1-speed-trial
+          path: |
+            results/latest/v31_*.json
+            results/latest/v31_*.md
+            results/latest/*.csv
+            results/v31/logs/*.log
+          if-no-files-found: error
+          retention-days: 7
