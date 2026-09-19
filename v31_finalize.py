@@ -111,6 +111,7 @@ def run_mail_once() -> dict:
         raise RuntimeError(f"V3.1 mail preflight missing environment: {', '.join(missing)}")
 
     outcomes = {}
+    failures = []
     for name, cmd, patch in MAIL_COMMANDS:
         env = os.environ.copy()
         env.update(patch)
@@ -123,7 +124,9 @@ def run_mail_once() -> dict:
             "stderr_tail": proc.stderr[-2000:],
         }
         if proc.returncode != 0:
-            raise RuntimeError(f"Unified V3.1 mail stage failed: {name}")
+            failures.append(name)
+    if failures:
+        raise RuntimeError(f"Unified V3.1 mail stage failed after attempting all channels: {', '.join(failures)}")
     return {"enabled": True, "outcomes": outcomes}
 
 
