@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import os
+import time
 from pathlib import Path
 
 import pandas as pd
@@ -26,6 +28,8 @@ API_KEY = os.getenv("EVE_MARKET_API_KEY", "")
 MIN_NET_PROFIT = float(os.getenv("FOUR_H_MIN_NET_PROFIT", "10000000"))
 MIN_NET_ROI = float(os.getenv("FOUR_H_MIN_NET_ROI", "0.10"))
 TOP = int(os.getenv("FOUR_H_TOP", "100"))
+V31_STRUCTURE_ORDERS_CACHE = os.getenv("V31_STRUCTURE_ORDERS_CACHE", "").strip()
+V31_STRUCTURE_CACHE_MAX_AGE = int(os.getenv("V31_STRUCTURE_CACHE_MAX_AGE", "600"))
 
 RESULT = LATEST / "four_h_to_jita_buy.csv"
 REPORT = LATEST / "four_h_to_jita_buy.md"
@@ -52,12 +56,37 @@ def fetch_structure_page(page: int) -> dict:
     return data
 
 
+def _read_v31_structure_cache():
+    if not V31_STRUCTURE_ORDERS_CACHE:
+        return None
+    path = Path(V31_STRUCTURE_ORDERS_CACHE)
+    if not path.exists():
+        return None
+    try:
+        if time.time() - path.stat().st_mtime > V31_STRUCTURE_CACHE_MAX_AGE:
+            return None
+        payload = json.loads(path.read_text("utf-8"))
+        if int(payload.get("structure_id") or 0) != STRUCTURE_ID:
+            return None
+        rows = payload.get("orders")
+        return rows if isinstance(rows, list) else None
+    except Exception:
+        return None
+
+
 def load_four_h_sells() -> tuple[dict[int, list[dict]], int, str | None]:
-    first = fetch_structure_page(1)
-    pages = max(1, int(first.get("pages") or 1))
-    raw = list(first.get("orders") or [])
-    for page in range(2, pages + 1):
-        raw.extend(fetch_structure_page(page).get("orders") or [])
+    cached = _read_v31_structure_cache()
+    expires = None
+    if cached is not None:
+        raw = cached
+        print(f"   V3.1 shared 4-H snapshot hit: {len(raw):,} orders")
+    else:
+        first = fetch_structure_page(1)
+        pages = max(1, int(first.get("pages") or 1))
+        raw = list(first.get("orders") or [])
+        for page in range(2, pages + 1):
+            raw.extend(fetch_structure_page(page).get("orders") or [])
+        expires = first.get("expires")
 
     books: dict[int, list[dict]] = {}
     for row in raw:
@@ -80,7 +109,7 @@ def load_four_h_sells() -> tuple[dict[int, list[dict]], int, str | None]:
         })
     for book in books.values():
         book.sort(key=lambda x: (x["price"], x["order_id"]))
-    return books, len(raw), first.get("expires")
+    return books, len(raw), expires
 
 
 def match_profitable(asks: list[dict], bids: list[dict]) -> dict | None:
