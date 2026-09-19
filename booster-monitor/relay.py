@@ -15,13 +15,20 @@ class RelayAuth:
         self.client = client
 
     def access(self):
-        if not os.environ.get('EVE_MAIL_API_KEY'):
-            raise ValueError('缺少旧邮件通道的 EVE_MAIL_API_KEY，未发送邮件')
-        status, _, raw = self.client.request(RELAY+'/health')
-        plain = re.sub('<[^>]+>', ' ', raw.decode('utf-8'))
-        if (status != 200 or '尚未授权' in plain or '已授权' not in plain
-                or not re.search(r'LadyGuaGua\s*\(\s*2124679425\s*\)', plain)):
-            raise ValueError('旧邮件服务当前角色不是已确认的 LadyGuaGua，已停止发信')
+        key = os.environ.get('EVE_MAIL_API_KEY')
+        if not key:
+            raise ValueError('缺少邮件通道的 EVE_MAIL_API_KEY，未发送邮件')
+        try:
+            status, _, raw = self.client.request(
+                RELAY+'/api/mail-health',
+                headers={'Authorization':'Bearer '+key, 'Accept':'application/json'})
+            result = json.loads(raw)
+        except (ApiError, json.JSONDecodeError, UnicodeDecodeError, TypeError, ValueError):
+            raise ValueError('邮件服务健康检查失败，已停止发信') from None
+        if (status != 200 or result.get('ok') is not True
+                or result.get('sender_id') != SENDER_ID
+                or result.get('sender_name') != 'LadyGuaGua'):
+            raise ValueError('邮件服务当前发件角色不是已确认的 LadyGuaGua，已停止发信')
         return dict(character_id=SENDER_ID)
 
     def recipient(self):
