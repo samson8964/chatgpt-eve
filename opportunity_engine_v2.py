@@ -10,6 +10,8 @@ from typing import Any, Iterable
 
 import requests
 
+from run_cache_v31 import cached_market_json
+
 ESI = "https://esi.evetech.net/latest"
 THE_FORGE = 10000002
 JITA_44 = 60003760
@@ -334,21 +336,24 @@ def cross_book_arbitrage(
     }
 
 
-def _esi_get_json(url: str, params: dict | None = None, tries: int = 3) -> tuple[Any, requests.structures.CaseInsensitiveDict]:
-    last: Exception | None = None
-    for attempt in range(tries):
-        try:
-            r = requests.get(url, params=params, headers={"User-Agent": UA, "Accept": "application/json"}, timeout=HTTP_TIMEOUT)
-            if r.status_code in {420, 429, 500, 502, 503, 504} and attempt + 1 < tries:
-                time.sleep(1.0 + attempt)
-                continue
-            r.raise_for_status()
-            return r.json(), r.headers
-        except Exception as exc:
-            last = exc
-            if attempt + 1 < tries:
-                time.sleep(0.7 * (attempt + 1))
-    raise RuntimeError(f"ESI request failed: {url}: {last}")
+def _esi_get_json(url: str, params: dict | None = None, tries: int = 3) -> tuple[Any, dict]:
+    def _network_fetch():
+        last: Exception | None = None
+        for attempt in range(tries):
+            try:
+                r = requests.get(url, params=params, headers={"User-Agent": UA, "Accept": "application/json"}, timeout=HTTP_TIMEOUT)
+                if r.status_code in {420, 429, 500, 502, 503, 504} and attempt + 1 < tries:
+                    time.sleep(1.0 + attempt)
+                    continue
+                r.raise_for_status()
+                return r.json(), r.headers
+            except Exception as exc:
+                last = exc
+                if attempt + 1 < tries:
+                    time.sleep(0.7 * (attempt + 1))
+        raise RuntimeError(f"ESI request failed: {url}: {last}")
+
+    return cached_market_json(url, params, _network_fetch)
 
 
 def _fetch_live_jita_buy_book(type_id: int) -> tuple[int, list[dict], str | None]:
