@@ -2,7 +2,6 @@
 import hashlib
 import json
 import os
-import re
 
 from core import ApiError, UncertainSend
 
