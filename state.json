@@ -337177,8 +337177,8 @@
   "booster-spread:2124493042:236135339": {
    "count": 1,
    "detail": "游戏邮件编号 403153348",
-   "state": "sent",
-   "updated": 1789791008.8228233
+   "state": "sending",
+   "updated": 1789810497.7561002
   }
  },
  "region_cursor": 10000002,
@@ -337205,9 +337205,10 @@
   "snapshot_error": null,
   "snapshot_modified": "2026-09-19T09:31:18.042Z",
   "snapshot_target_contracts": 70,
+  "spread_opportunities": 1,
   "stage": "等待下一次检查",
   "volume_cap": 0.04
  },
  "unavailable_until": {},
- "updated": "2026-09-19T09:34:54.979584+00:00"
+ "updated": "2026-09-19T09:34:57.899838+00:00"
 }
