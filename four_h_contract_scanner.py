@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from collections import defaultdict
 from pathlib import Path
@@ -38,6 +39,15 @@ REPORT = LATEST / "four_h_contract_bargains.md"
 
 
 def fetch_structure_orders():
+    shared_path = os.getenv("EVE_RUN_4H_ORDERS_PATH", "").strip()
+    if shared_path and Path(shared_path).exists():
+        try:
+            rows = json.loads(Path(shared_path).read_text("utf-8"))
+            if not isinstance(rows, list):
+                raise ValueError("shared 4-H snapshot is not a list")
+            return rows
+        except Exception as exc:
+            raise RuntimeError(f"Invalid shared 4-H snapshot: {exc}")
     if not API_KEY:
         raise RuntimeError("Missing EVE_MARKET_API_KEY")
     page = 1
