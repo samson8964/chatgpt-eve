@@ -100,6 +100,16 @@ def run_mail_once() -> dict:
     enabled = os.getenv("V31_SEND_MAIL", "0").strip().lower() in {"1", "true", "yes"}
     if not enabled:
         return {"enabled": False, "outcomes": {}}
+
+    required = {
+        "EVE_MAIL_API_KEY": os.getenv("EVE_MAIL_API_KEY", "").strip(),
+        "EVE_MAIL_WORKER_URL": os.getenv("EVE_MAIL_WORKER_URL", "").strip(),
+        "EVE_MAIL_RECIPIENT_NAMES": os.getenv("EVE_MAIL_RECIPIENT_NAMES", "").strip(),
+    }
+    missing = [key for key, value in required.items() if not value]
+    if missing:
+        raise RuntimeError(f"V3.1 mail preflight missing environment: {', '.join(missing)}")
+
     outcomes = {}
     for name, cmd, patch in MAIL_COMMANDS:
         env = os.environ.copy()
