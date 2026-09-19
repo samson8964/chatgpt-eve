@@ -59,7 +59,7 @@ def _atomic_json_write(path: Path, value: Any) -> None:
             pass
 
 
-def _update_stats(event: str, namespace: str, waited_seconds: float = 0.0) -> None:
+def _update_stats(result: str, namespace: str, waited_seconds: float = 0.0) -> None:
     root = _root()
     if root is None:
         return
@@ -80,21 +80,21 @@ def _update_stats(event: str, namespace: str, waited_seconds: float = 0.0) -> No
             stats.setdefault("lock_wait_seconds", 0.0)
             stats.setdefault("by_namespace", {})
             ns = stats["by_namespace"].setdefault(namespace, {"requests": 0, "hits": 0, "misses": 0, "writes": 0})
-            if event == "request":
-                stats["requests"] += 1
-                ns["requests"] += 1
-            elif event == "hit":
+            stats["requests"] += 1
+            ns["requests"] += 1
+            if result == "hit":
                 stats["hits"] += 1
                 ns["hits"] += 1
-            elif event == "miss":
+            elif result == "miss":
                 stats["misses"] += 1
-                ns["misses"] += 1
-            elif event == "write":
                 stats["writes"] += 1
+                ns["misses"] += 1
                 ns["writes"] += 1
             stats["lock_wait_seconds"] = round(float(stats.get("lock_wait_seconds", 0.0)) + max(0.0, waited_seconds), 6)
             stats["updated_at_epoch"] = time.time()
-            _atomic_json_write(stats_path, stats)
+            # Statistics are diagnostic only. The lock protects concurrent writers;
+            # avoid fsync-per-request because that would erase the speedup we are measuring.
+            stats_path.write_text(json.dumps(stats, ensure_ascii=False, separators=(",", ":")), "utf-8")
         finally:
             fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
 
@@ -116,7 +116,6 @@ def cached_market_json(
         return payload, dict(headers)
 
     namespace = _namespace(url)
-    _update_stats("request", namespace)
     key = _canonical_key(url, params)
     data_path = root / "http" / namespace / f"{key}.json"
     lock_path = root / "locks" / f"{key}.lock"
@@ -134,7 +133,6 @@ def cached_market_json(
             finally:
                 fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
 
-        _update_stats("miss", namespace, waited)
         try:
             payload, headers = fetcher()
             record = {
@@ -145,7 +143,7 @@ def cached_market_json(
                 "fetched_at_epoch": time.time(),
             }
             _atomic_json_write(data_path, record)
-            _update_stats("write", namespace)
+            _update_stats("miss", namespace, waited)
             return payload, dict(headers)
         finally:
             fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
