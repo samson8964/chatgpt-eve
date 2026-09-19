@@ -6,6 +6,8 @@ import tempfile
 import threading
 import time
 import unittest
+
+import pandas as pd
 from pathlib import Path
 from unittest.mock import patch
 
@@ -151,6 +153,33 @@ class SharedSnapshotV31Tests(unittest.TestCase):
             self.assertEqual(count, 2)
             self.assertEqual(expires, "test-expiry")
             self.assertIn(34, sells)
+
+
+class CompatibilityV31Tests(unittest.TestCase):
+    def test_truthy_series_preserves_boolean_and_string_semantics(self):
+        import scanner_source
+
+        bools = pd.Series([True, False, None], dtype="boolean")
+        strings = pd.Series(["TRUE", "1", "yes", "false", None], dtype="object")
+        self.assertEqual(scanner_source.truthy_series(bools).tolist(), [True, False, False])
+        self.assertEqual(scanner_source.truthy_series(strings).tolist(), [True, True, True, False, False])
+
+    def test_mail_preflight_fails_before_any_sender_when_env_missing(self):
+        import v31_finalize
+
+        with patch.dict(
+            os.environ,
+            {
+                "V31_SEND_MAIL": "1",
+                "EVE_MAIL_API_KEY": "",
+                "EVE_MAIL_WORKER_URL": "",
+                "EVE_MAIL_RECIPIENT_NAMES": "",
+            },
+            clear=False,
+        ):
+            with patch.object(v31_finalize.subprocess, "run", side_effect=AssertionError("mail sender must not start")):
+                with self.assertRaisesRegex(RuntimeError, "mail preflight missing"):
+                    v31_finalize.run_mail_once()
 
 
 if __name__ == "__main__":
