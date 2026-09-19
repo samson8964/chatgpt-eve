@@ -74,6 +74,16 @@ def fetch_structure_orders_once() -> tuple[list[dict], str | None, int]:
             for fut in as_completed(futs):
                 page = futs[fut]
                 data = fut.result()
+                page_count = max(1, int(data.get("pages") or 1))
+                page_expires = data.get("expires")
+                if page_count != pages:
+                    raise RuntimeError(
+                        f"4-H page-count changed during snapshot: page={page} expected={pages} got={page_count}"
+                    )
+                if expires and page_expires and page_expires != expires:
+                    raise RuntimeError(
+                        f"4-H cache expiry changed during snapshot: page={page} expected={expires} got={page_expires}"
+                    )
                 by_page[page] = list(data.get("orders") or [])
 
     raw: list[dict] = []
