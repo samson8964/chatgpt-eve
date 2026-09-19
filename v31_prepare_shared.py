@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import requests
@@ -30,30 +31,56 @@ def sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
+def _fetch_structure_page(page: int) -> dict:
+    last = None
+    for attempt in range(3):
+        try:
+            r = requests.get(
+                f"{WORKER_URL}/api/structure-market",
+                params={"structure_id": STRUCTURE_ID, "page": page},
+                headers={"Authorization": f"Bearer {API_KEY}", "Accept": "application/json"},
+                timeout=60,
+            )
+            try:
+                data = r.json()
+            except Exception:
+                raise RuntimeError(f"Structure market HTTP {r.status_code}: {r.text[:500]}")
+            if r.status_code == 200 and data.get("ok"):
+                return data
+            last = RuntimeError(f"Structure market error HTTP {r.status_code}: {data}")
+            if r.status_code not in {420, 429, 500, 502, 503, 504}:
+                raise last
+        except Exception as exc:
+            last = exc
+        if attempt < 2:
+            time.sleep(0.8 * (attempt + 1))
+    raise RuntimeError(f"Structure market page {page} failed: {last}")
+
+
 def fetch_structure_orders_once() -> tuple[list[dict], str | None, int]:
     if not API_KEY:
         raise RuntimeError("Missing EVE_MARKET_API_KEY")
-    page = 1
-    pages = 1
+    first = _fetch_structure_page(1)
+    pages = max(1, int(first.get("pages") or 1))
+    expires = first.get("expires")
+    by_page = {1: list(first.get("orders") or [])}
+
+    # One logical 4-H snapshot read, with bounded parallel pagination. The page
+    # number is retained so the merged snapshot is deterministic.
+    if pages > 1:
+        workers = min(8, pages - 1)
+        with ThreadPoolExecutor(max_workers=workers) as ex:
+            futs = {ex.submit(_fetch_structure_page, page): page for page in range(2, pages + 1)}
+            for fut in as_completed(futs):
+                page = futs[fut]
+                data = fut.result()
+                by_page[page] = list(data.get("orders") or [])
+
     raw: list[dict] = []
-    expires = None
-    while page <= pages:
-        r = requests.get(
-            f"{WORKER_URL}/api/structure-market",
-            params={"structure_id": STRUCTURE_ID, "page": page},
-            headers={"Authorization": f"Bearer {API_KEY}", "Accept": "application/json"},
-            timeout=60,
-        )
-        try:
-            data = r.json()
-        except Exception:
-            raise RuntimeError(f"Structure market HTTP {r.status_code}: {r.text[:500]}")
-        if r.status_code != 200 or not data.get("ok"):
-            raise RuntimeError(f"Structure market error HTTP {r.status_code}: {data}")
-        pages = max(1, int(data.get("pages") or 1))
-        expires = expires or data.get("expires")
-        raw.extend(data.get("orders") or [])
-        page += 1
+    for page in range(1, pages + 1):
+        if page not in by_page:
+            raise RuntimeError(f"Structure market snapshot missing page {page}/{pages}")
+        raw.extend(by_page[page])
     return raw, expires, pages
 
 
