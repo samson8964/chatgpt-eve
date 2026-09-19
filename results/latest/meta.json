@@ -1,7 +1,7 @@
 {
-  "generated_at_utc": "2026-09-19T15:21:13.684734+00:00",
-  "contracts_snapshot": "2026-09-19T15:01:15.783Z",
-  "market_snapshot": "2026-09-19T14:48:36.800Z",
+  "generated_at_utc": "2026-09-19T15:51:20.201270+00:00",
+  "contracts_snapshot": "2026-09-19T15:31:18.640Z",
+  "market_snapshot": "2026-09-19T15:18:39.416Z",
   "accounting_level": 5,
   "transaction_tax_rate": 0.033749999999999995,
   "market_broker_fee_rate": 0.0,
@@ -22,10 +22,10 @@
       "system_name": "Keikaken",
       "station_id": 60002845,
       "station_name": "Keikaken I - Sukuuvestaa Corporation Production Plant",
-      "sci": 0.0114,
+      "sci": 0.0113,
       "jumps": 11
     }
   ],
-  "ranked_count": 9,
-  "all_executable_count": 70
+  "ranked_count": 10,
+  "all_executable_count": 69
 }
