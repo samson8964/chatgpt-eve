@@ -60,7 +60,7 @@ def load_four_h_sells() -> tuple[dict[int, list[dict]], int, str | None]:
             raw = json.loads(Path(shared_path).read_text("utf-8"))
             if not isinstance(raw, list):
                 raise ValueError("shared 4-H snapshot is not a list")
-            expires = None
+            expires = os.getenv("EVE_RUN_4H_EXPIRES", "").strip() or None
         except Exception as exc:
             raise RuntimeError(f"Invalid shared 4-H snapshot: {exc}")
     else:
