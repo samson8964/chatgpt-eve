@@ -24,12 +24,18 @@ def enabled() -> bool:
     return _root() is not None
 
 
-def _is_market_request(url: str) -> bool:
+def _is_cacheable_request(url: str) -> bool:
     u = str(url)
-    return "/markets/" in u and ("/orders/" in u or "/history/" in u)
+    if "/markets/" in u and ("/orders/" in u or "/history/" in u):
+        return True
+    # Manufacturing cost quotes are immutable enough within a single scan and the
+    # same blueprint/run/factory tuple often appears in many competing contracts.
+    return "api.everef.net/v1/industry/cost" in u
 
 
 def _namespace(url: str) -> str:
+    if "api.everef.net/v1/industry/cost" in url:
+        return "industry_cost"
     if "/orders/" in url:
         return "jita_orders"
     if "/history/" in url:
@@ -104,14 +110,14 @@ def cached_market_json(
     params: dict | None,
     fetcher: Callable[[], tuple[Any, Any]],
 ) -> tuple[Any, dict]:
-    """Run-scoped single-flight cache for ESI market orders/history.
+    """Run-scoped single-flight cache for market reads and manufacturing quotes.
 
     Different scanner subprocesses share this directory. Per-key flock guarantees that
     the first process performs the network request and all later consumers reuse the
     exact payload and response headers from the same run.
     """
     root = _root()
-    if root is None or not _is_market_request(url):
+    if root is None or not _is_cacheable_request(url):
         payload, headers = fetcher()
         return payload, dict(headers)
 
