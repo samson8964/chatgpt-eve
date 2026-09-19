@@ -1,11 +1,11 @@
 # Opportunity Engine V3 — missed-opportunity channels
 
-- Contracts snapshot: `2026-09-19T14:31:16.565Z`
-- Market snapshot: `2026-09-19T14:48:36.800Z`
-- Live pool: `130`; feasible: `84`
-- CASH_FLOOR: `1`
+- Contracts snapshot: `2026-09-19T15:01:15.783Z`
+- Market snapshot: `2026-09-19T15:18:39.416Z`
+- Live pool: `113`; feasible: `66`
+- CASH_FLOOR: `0`
 - BARTER: `0`
-- CONSERVATIVE_LIST: `1`
+- CONSERVATIVE_LIST: `0`
 
 V3 is additive. Existing V2 SAFE channels are unchanged.
 Cash-floor leftovers are explicitly valued at zero.
