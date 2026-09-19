@@ -160,8 +160,11 @@ def test_relay_rejects_wrong_sender_and_uncertain_post():
     class FakeClient:
         name='LadyGuaGua'; posts=0; fail=False
         def request(self,url,**kw):
-            if url.endswith('/health'):
-                return 200,{},f'已授权 · {self.name} ({SENDER_ID})'.encode()
+            if url.endswith('/api/mail-health'):
+                assert kw.get('headers',{}).get('Authorization') == 'Bearer synthetic-test-key'
+                return 200,{},json.dumps(dict(
+                    ok=True, sender_id=SENDER_ID, sender_name=self.name
+                )).encode()
             if url.endswith('/universe/ids'):
                 return 200,{},json.dumps({'characters':[{'name':'MikeChong','id':RECIPIENT_ID}]}).encode()
             self.posts+=1
