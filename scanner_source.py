@@ -45,6 +45,7 @@ HIGHSEC_FACTORY_CANDIDATES = int(os.getenv("HIGHSEC_FACTORY_CANDIDATES", "6"))
 NPC_FACILITY_TAX = float(os.getenv("NPC_FACILITY_TAX", "0.0025"))
 HIGHSEC_HAUL_ISK_PER_M3 = float(os.getenv("HIGHSEC_HAUL_ISK_PER_M3", "0"))
 WORKERS = int(os.getenv("WORKERS", "12"))
+V31_PARSED_CACHE_DIR = os.getenv("V31_PARSED_CACHE_DIR", "").strip()
 
 RESULTS = Path("results")
 LATEST = RESULTS / "latest"
@@ -66,9 +67,11 @@ class Fill:
 
 
 def truthy_series(s: pd.Series) -> pd.Series:
-    if s.dtype == bool:
-        return s.fillna(False)
-    return s.fillna(False).astype(str).str.lower().isin(["true", "1", "t", "yes"])
+    # Nullable boolean/object columns are common in EVERef CSVs. Normalize without
+    # pandas' deprecated silent downcasting so parallel V3.1 runs stay warning-free.
+    if pd.api.types.is_bool_dtype(s.dtype):
+        return s.astype("boolean").fillna(False).astype(bool)
+    return s.astype("string").str.lower().isin(["true", "1", "t", "yes"]).fillna(False)
 
 
 def get_json(url, params=None, timeout=60, tries=4):
@@ -112,7 +115,37 @@ def download(url, path: Path):
     tmp.replace(path)
 
 
+def _v31_pickle_path(source: Path, suffix: str) -> Path | None:
+    if not V31_PARSED_CACHE_DIR:
+        return None
+    root = Path(V31_PARSED_CACHE_DIR)
+    root.mkdir(parents=True, exist_ok=True)
+    safe_name = re.sub(r"[^A-Za-z0-9_.-]+", "_", source.name)
+    return root / f"{safe_name}.{suffix}.pkl"
+
+
+def _atomic_pickle(df: pd.DataFrame, path: Path) -> None:
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.{time.time_ns()}.tmp")
+    try:
+        df.to_pickle(tmp)
+        os.replace(tmp, path)
+    finally:
+        try:
+            tmp.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+
 def load_contracts(tar_path: Path):
+    contracts_cache = _v31_pickle_path(tar_path, "contracts")
+    items_cache = _v31_pickle_path(tar_path, "contract_items")
+    if contracts_cache and items_cache and contracts_cache.exists() and items_cache.exists():
+        try:
+            return pd.read_pickle(contracts_cache), pd.read_pickle(items_cache)
+        except Exception:
+            # A stale/corrupt optimization cache must never affect correctness.
+            pass
+
     with tarfile.open(tar_path, mode="r:bz2") as tf:
         names = tf.getnames()
         c_name = next((n for n in names if n.rstrip("/").endswith("contracts.csv")), None)
@@ -121,11 +154,24 @@ def load_contracts(tar_path: Path):
             raise RuntimeError("Archive missing contracts.csv / contract_items.csv")
         contracts = pd.read_csv(tf.extractfile(c_name), low_memory=False)
         items = pd.read_csv(tf.extractfile(i_name), low_memory=False)
+
+    if contracts_cache and items_cache:
+        _atomic_pickle(contracts, contracts_cache)
+        _atomic_pickle(items, items_cache)
     return contracts, items
 
 
 def load_market_orders(path: Path):
-    return pd.read_csv(path, compression="bz2", low_memory=False)
+    cache = _v31_pickle_path(path, "market_orders")
+    if cache and cache.exists():
+        try:
+            return pd.read_pickle(cache)
+        except Exception:
+            pass
+    orders = pd.read_csv(path, compression="bz2", low_memory=False)
+    if cache:
+        _atomic_pickle(orders, cache)
+    return orders
 
 
 def cache_file(kind: str, obj_id) -> Path:
@@ -145,7 +191,18 @@ def cache_get(kind, obj_id):
 
 
 def cache_put(kind, obj_id, data):
-    cache_file(kind, obj_id).write_text(json.dumps(data, ensure_ascii=False), "utf-8")
+    # Multiple V3.1 scanner subprocesses may warm the same reference object at the
+    # same time. Write to a unique temp file and atomically replace the destination.
+    path = cache_file(kind, obj_id)
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.{time.time_ns()}.tmp")
+    try:
+        tmp.write_text(json.dumps(data, ensure_ascii=False), "utf-8")
+        os.replace(tmp, path)
+    finally:
+        try:
+            tmp.unlink(missing_ok=True)
+        except Exception:
+            pass
 
 
 def fetch_ref_obj(kind: str, obj_id: int):
