@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 
@@ -53,11 +54,22 @@ def fetch_structure_page(page: int) -> dict:
 
 
 def load_four_h_sells() -> tuple[dict[int, list[dict]], int, str | None]:
-    first = fetch_structure_page(1)
-    pages = max(1, int(first.get("pages") or 1))
-    raw = list(first.get("orders") or [])
-    for page in range(2, pages + 1):
-        raw.extend(fetch_structure_page(page).get("orders") or [])
+    shared_path = os.getenv("EVE_RUN_4H_ORDERS_PATH", "").strip()
+    if shared_path and Path(shared_path).exists():
+        try:
+            raw = json.loads(Path(shared_path).read_text("utf-8"))
+            if not isinstance(raw, list):
+                raise ValueError("shared 4-H snapshot is not a list")
+            expires = None
+        except Exception as exc:
+            raise RuntimeError(f"Invalid shared 4-H snapshot: {exc}")
+    else:
+        first = fetch_structure_page(1)
+        pages = max(1, int(first.get("pages") or 1))
+        raw = list(first.get("orders") or [])
+        for page in range(2, pages + 1):
+            raw.extend(fetch_structure_page(page).get("orders") or [])
+        expires = first.get("expires")
 
     books: dict[int, list[dict]] = {}
     for row in raw:
@@ -80,7 +92,7 @@ def load_four_h_sells() -> tuple[dict[int, list[dict]], int, str | None]:
         })
     for book in books.values():
         book.sort(key=lambda x: (x["price"], x["order_id"]))
-    return books, len(raw), first.get("expires")
+    return books, len(raw), expires
 
 
 def match_profitable(asks: list[dict], bids: list[dict]) -> dict | None:
