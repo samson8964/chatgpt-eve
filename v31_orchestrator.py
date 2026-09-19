@@ -72,7 +72,7 @@ def main() -> None:
     started = time.monotonic()
 
     lanes = {
-        "bpc": [
+        "bpc_manufacturing": [
             (
                 "bpc_manufacturing",
                 [py, "runner_buy_only.py"],
@@ -82,7 +82,9 @@ def main() -> None:
                     "DEAL_MAX_CONTRACT_PRICE": "5000000000",
                     "PREFILTER_TOP": "500",
                 },
-            ),
+            )
+        ],
+        "bpc_intrinsic": [
             (
                 "bpc_intrinsic",
                 [py, "bpc_contract_benchmark_buy_only.py"],
@@ -99,12 +101,7 @@ def main() -> None:
                     "DEAL_FRIENDLY_ALLIANCE_IDS": "",
                     "DEAL_FRIENDLY_REGION_IDS": "",
                 },
-            ),
-            (
-                "bpc_policy",
-                [py, "apply_buy_only_bpc_policy.py"],
-                {"DEAL_MAX_CONTRACT_PRICE": "5000000000"},
-            ),
+            )
         ],
         "v2_public": [
             (
@@ -228,6 +225,16 @@ def main() -> None:
     # candidates cannot see a half-updated mixture of V2/V3/4-H outputs.
     post_started = time.monotonic()
     post = []
+    # BPC policy depends on both BPC discovery products, so it runs once after the
+    # manufacturing and intrinsic lanes have completed. Keeping it out of either lane
+    # removes an unnecessary 90s+ serialization from the critical path.
+    post.append(
+        run_cmd(
+            "bpc_policy",
+            [py, "apply_buy_only_bpc_policy.py"],
+            {"DEAL_MAX_CONTRACT_PRICE": "5000000000"},
+        )
+    )
     post.append(
         run_cmd(
             "prepare_mail_candidates",
