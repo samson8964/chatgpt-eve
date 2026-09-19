@@ -1,0 +1,140 @@
+name: Opportunity Engine V3.1 shared-run trial
+
+on:
+  push:
+    branches:
+      - opportunity-engine-v3.1-shared-run
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eve-v31-shared-run-trial
+  cancel-in-progress: true
+
+jobs:
+  trial:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+      EVE_MARKET_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
+      FOUR_H_STRUCTURE_ID: '1053970513596'
+      EVE_V31_RUN_ROOT: .run/v31
+      V31_SEND_MAIL: '0'
+
+    steps:
+      - name: Checkout V3.1 experiment branch
+        uses: actions/checkout@v4
+        with:
+          ref: opportunity-engine-v3.1-shared-run
+          fetch-depth: 20
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Compile all Python
+        run: python -m compileall -q .
+
+      - name: Run V2 V3 and V3.1 regression tests
+        run: |
+          python -m unittest -v \
+            test_opportunity_engine_v2.py \
+            test_opportunity_engine_v3.py \
+            test_bpc_opportunity_engine_v2.py \
+            test_mail_reminder_policy.py \
+            test_v31_run_context.py
+
+      - name: Check Worker JavaScript syntax
+        run: |
+          node --check cloudflare/worker.js
+          node --check cloudflare/worker_mail_sender.js
+
+      - name: Validate Worker bundle without deployment
+        run: |
+          npx --yes wrangler@latest deploy \
+            --config cloudflare/wrangler.jsonc \
+            --strict \
+            --dry-run
+
+      - name: Prepare one immutable shared source snapshot
+        run: python v31_prepare_shared.py
+
+      - name: Run V3.1 parallel scanners and unified finalizer
+        run: python v31_orchestrator.py
+
+      - name: Validate V3.1 trial artifacts and invariants
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          root=Path(os.environ['EVE_V31_RUN_ROOT']).resolve()
+          manifest=json.loads((root/'manifest.json').read_text('utf-8'))
+          metrics=json.loads((root/'stage_metrics.json').read_text('utf-8'))
+          summary=json.loads(Path('results/latest/v31_run_summary.json').read_text('utf-8'))
+
+          assert metrics.get('errors') == [], metrics.get('errors')
+          assert len(metrics.get('lanes', {})) == 6, metrics.get('lanes', {}).keys()
+          assert summary.get('mail', {}).get('enabled') is False
+          assert all(v.get('ok') for v in summary.get('shared_inputs', {}).values())
+          assert set(manifest.get('datasets', {})) == {'public_contracts','market_orders','four_h_market'}
+
+          for key, entry in manifest['datasets'].items():
+              p=Path(entry['path'])
+              assert p.exists(), (key, p)
+              assert p.stat().st_mode & 0o222 == 0, f'{key} snapshot unexpectedly writable'
+
+          required=[
+              'results/latest/contract_deals.csv',
+              'results/latest/multi_item_contract_deals.csv',
+              'results/latest/bpc_v2_safe_candidates.csv',
+              'results/latest/four_h_contract_bargains.csv',
+              'results/latest/four_h_to_jita_buy.csv',
+              'results/latest/v3_cash_floor.csv',
+              'results/latest/v3_barter.csv',
+              'results/latest/v3_conservative_listing.csv',
+              'results/latest/v3_jita_to_four_h.csv',
+              'results/latest/v31_run_summary.md',
+          ]
+          for name in required:
+              assert Path(name).exists(), f'missing {name}'
+
+          cache=summary.get('cache', {})
+          print('V3.1 total scan seconds:', metrics.get('total_scan_seconds'))
+          print('V3.1 total with finalize seconds:', metrics.get('total_with_finalize_seconds'))
+          print('Cache:', cache)
+          print('Channels:', json.dumps(summary.get('channels', {}), ensure_ascii=False, indent=2))
+          PY
+
+      - name: Show scanner log tails
+        if: always()
+        run: |
+          for f in .run/v31/logs/*.log; do
+            echo "===== $f ====="
+            tail -n 35 "$f" || true
+          done
+
+      - name: Upload V3.1 trial outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: opportunity-engine-v3.1-shared-run-trial
+          path: |
+            .run/v31/manifest.json
+            .run/v31/stage_metrics.json
+            .run/v31/cache/stats.json
+            .run/v31/logs/*.log
+            results/latest/*.csv
+            results/latest/*.md
+            results/latest/v31_run_summary.json
+          if-no-files-found: warn
+          retention-days: 7
