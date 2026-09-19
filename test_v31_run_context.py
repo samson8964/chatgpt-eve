@@ -71,6 +71,20 @@ class RunCacheV31Tests(unittest.TestCase):
         cached_market_json(base, {"type_id": 34, "order_type": "sell", "page": 1}, fetcher)
         self.assertEqual(counter["n"], 3)
 
+    def test_industry_cost_quote_is_cached_by_full_parameters(self):
+        counter = {"n": 0}
+
+        def fetcher():
+            counter["n"] += 1
+            return {"manufacturing": {"34": {"total_job_cost": 1}}}, {}
+
+        url = "https://api.everef.net/v1/industry/cost"
+        params = {"blueprint_id": 1, "product_id": 34, "runs": 10, "system_id": 30000142}
+        first = cached_market_json(url, params, fetcher)
+        second = cached_market_json(url, dict(reversed(list(params.items()))), fetcher)
+        self.assertEqual(counter["n"], 1)
+        self.assertEqual(first[0], second[0])
+
     def test_non_market_requests_are_not_cached(self):
         counter = {"n": 0}
 
