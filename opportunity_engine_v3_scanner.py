@@ -230,7 +230,7 @@ def main():
     ].copy()
     if "date_expired" in c.columns:
         exp = pd.to_datetime(c["date_expired"], utc=True, errors="coerce")
-        c = c[exp.isna() | (exp > pd.Timestamp.now(tz="UTC") + pd.Timedelta(hours=legacy.MIN_HOURS_TO_EXPIRE))].copy()
+        c = c[exp.isna() | (exp > pd.Timestamp.now(tz="UTC") + pd.Timedelta(hours=float(legacy.MIN_HOURS_TO_EXPIRE)))].copy()
 
     valid = set(c["contract_id"].dropna().astype(int))
     ii = items[items["contract_id"].isin(valid)].copy()
