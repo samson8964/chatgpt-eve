@@ -1,1 +1,2 @@
-
+engine_version,contract_id,title,price,best_route,execution_status,score_grade,opportunity_score,best_net_profit,best_roi,stress_net_profit,packaged_volume_m3,profit_per_m3,excluded_rig_types,excluded_rig_qty,highsec_restricted_ship,live_revalidated_at,top_items
+Opportunity Engine V2,235972613,nan,60000000.0,Jita 4-4 live buy,SAFE,C,41.3,5100301.540950008,0.08500502568250012,4350120.307700001,10320.7425,494.17971051501456,3,3,False,2026-09-19T20:55:31.352696+00:00,Exequror Navy Issue x1 @ 36.09M; Nanite Repair Paste x318 @ 25.3K; Caldari Navy Antimatter Charge M x2669 @ 2.2K; 250mm Railgun II x4 @ 1.17M; Magnetic Field Stabilizer II x2 @ 755.2K
