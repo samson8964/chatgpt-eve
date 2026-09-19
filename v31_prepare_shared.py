@@ -86,8 +86,15 @@ def main() -> None:
     started = time.monotonic()
     print("V3.1 shared-source preparation")
     print("1) resolve public snapshot versions")
-    c_url, c_modified = latest_file(PUBLIC_CONTRACTS_INDEX)
-    m_url, m_modified = latest_file(MARKET_ORDERS_INDEX)
+    # Preparation is authoritative for a new run. Never let an inherited manifest
+    # pin the job to a previous run's snapshot versions.
+    inherited_manifest = os.environ.pop("EVE_RUN_SNAPSHOT_MANIFEST", None)
+    try:
+        c_url, c_modified = latest_file(PUBLIC_CONTRACTS_INDEX)
+        m_url, m_modified = latest_file(MARKET_ORDERS_INDEX)
+    finally:
+        if inherited_manifest:
+            os.environ["EVE_RUN_SNAPSHOT_MANIFEST"] = inherited_manifest
 
     c_path = snapshots / Path(c_url).name
     m_path = snapshots / Path(m_url).name
