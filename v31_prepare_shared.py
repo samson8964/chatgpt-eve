@@ -162,6 +162,7 @@ def main() -> None:
     values = {
         "EVE_RUN_SNAPSHOT_MANIFEST": str(manifest_path),
         "EVE_RUN_4H_ORDERS_PATH": str(four_h_path),
+        "EVE_RUN_4H_EXPIRES": str(four_h_expires or ""),
         "EVE_RUN_CACHE_DIR": str(cache),
         "EVE_V31_RUN_ROOT": str(root),
         "EVE_V31_ENABLED": "1",
