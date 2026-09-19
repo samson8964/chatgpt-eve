@@ -20,6 +20,10 @@ jobs:
     env:
       EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
       EVE_MARKET_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
+      EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+      EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
+      EVE_MAIL_RECIPIENT_NAME: MikeChong
+      EVE_MAIL_RECIPIENT_NAMES: 'MikeChong,Vektor Yang'
       FOUR_H_STRUCTURE_ID: '1053970513596'
       EVE_V31_RUN_ROOT: .run/v31
       V31_SEND_MAIL: '0'
@@ -83,7 +87,7 @@ jobs:
           summary=json.loads(Path('results/latest/v31_run_summary.json').read_text('utf-8'))
 
           assert metrics.get('errors') == [], metrics.get('errors')
-          assert len(metrics.get('lanes', {})) == 6, metrics.get('lanes', {}).keys()
+          assert len(metrics.get('lanes', {})) == 7, metrics.get('lanes', {}).keys()
           assert summary.get('mail', {}).get('enabled') is False
           assert all(v.get('ok') for v in summary.get('shared_inputs', {}).values())
           assert set(manifest.get('datasets', {})) == {'public_contracts','market_orders','four_h_market'}
