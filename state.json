@@ -344764,7 +344764,8 @@
   "region_errors": {},
   "regions_checked": 114,
   "regions_total": 114,
-  "running": true,
+  "round_completed": 1,
+  "running": false,
   "scanned": 23772,
   "snapshot_error": null,
   "snapshot_modified": "2026-09-20T18:31:13.449Z",
@@ -344774,5 +344775,5 @@
   "volume_cap": 0.04
  },
  "unavailable_until": {},
- "updated": "2026-09-20T18:58:54.546507+00:00"
+ "updated": "2026-09-20T18:58:56.841539+00:00"
 }
