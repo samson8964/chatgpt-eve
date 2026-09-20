@@ -342620,14 +342620,14 @@
   "booster-spread:2124493042:236135339": {
    "count": 10,
    "detail": "游戏邮件编号 403163091",
-   "state": "sent",
-   "updated": 1789906740.5425165
+   "state": "sending",
+   "updated": 1789921360.835696
   },
   "booster-spread:2124493042:236226961": {
    "count": 1,
    "detail": "游戏邮件编号 403163091",
-   "state": "sent",
-   "updated": 1789906740.5425165
+   "state": "sending",
+   "updated": 1789921360.835696
   }
  },
  "region_cursor": 10000002,
@@ -342654,9 +342654,10 @@
   "snapshot_error": null,
   "snapshot_modified": "2026-09-20T16:01:14.959Z",
   "snapshot_target_contracts": 65,
+  "spread_opportunities": 2,
   "stage": "等待下一次检查",
   "volume_cap": 0.04
  },
  "unavailable_until": {},
- "updated": "2026-09-20T16:22:37.959670+00:00"
+ "updated": "2026-09-20T16:22:40.984712+00:00"
 }
