@@ -1,1 +1,2 @@
-
+engine_version,contract_id,title,price,best_route,execution_status,score_grade,opportunity_score,best_net_profit,best_roi,stress_net_profit,packaged_volume_m3,profit_per_m3,excluded_rig_types,excluded_rig_qty,highsec_restricted_ship,live_revalidated_at,top_items
+Opportunity Engine V2,236239699,nan,100000000.0,4-H local buy,SAFE,A,75.1,39070664.60550001,0.3907066460550001,37898837.381249994,51743.270000000004,755.0868858017673,0,0,False,2026-09-20T15:58:21.056606+00:00,Precious Metals x48000 @ 871; Electrolytes x75351 @ 550; Toxic Metals x76231 @ 438; Reactive Metals x72751 @ 374
