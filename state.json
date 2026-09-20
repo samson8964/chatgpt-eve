@@ -344460,7 +344460,7 @@
  },
  "next_mail_at": 1789149515.984461,
  "next_mail_at_booster-manufacturing": 1789932528.3000062,
- "next_mail_at_booster-spread": 1789923164.5505838,
+ "next_mail_at_booster-spread": 1789932534.4009085,
  "push_state": {
   "booster-manufacturing:2124493042:234989144": {
    "count": 1,
@@ -344733,16 +344733,16 @@
    "updated": 1789278207.9807746
   },
   "booster-spread:2124493042:236135339": {
-   "count": 11,
-   "detail": "游戏邮件编号 403164739",
-   "state": "sending",
-   "updated": 1789930731.055098
+   "count": 12,
+   "detail": "游戏邮件编号 403165697",
+   "state": "sent",
+   "updated": 1789930734.4012692
   },
   "booster-spread:2124493042:236226961": {
-   "count": 2,
-   "detail": "游戏邮件编号 403164739",
-   "state": "sending",
-   "updated": 1789930731.055098
+   "count": 3,
+   "detail": "游戏邮件编号 403165697",
+   "state": "sent",
+   "updated": 1789930734.4012692
   }
  },
  "region_cursor": 10000002,
@@ -344774,5 +344774,5 @@
   "volume_cap": 0.04
  },
  "unavailable_until": {},
- "updated": "2026-09-20T18:58:51.199272+00:00"
+ "updated": "2026-09-20T18:58:54.546507+00:00"
 }
