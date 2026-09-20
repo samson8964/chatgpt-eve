@@ -344735,14 +344735,14 @@
   "booster-spread:2124493042:236135339": {
    "count": 11,
    "detail": "游戏邮件编号 403164739",
-   "state": "sent",
-   "updated": 1789921364.5509353
+   "state": "sending",
+   "updated": 1789930731.055098
   },
   "booster-spread:2124493042:236226961": {
    "count": 2,
    "detail": "游戏邮件编号 403164739",
-   "state": "sent",
-   "updated": 1789921364.5509353
+   "state": "sending",
+   "updated": 1789930731.055098
   }
  },
  "region_cursor": 10000002,
@@ -344769,9 +344769,10 @@
   "snapshot_error": null,
   "snapshot_modified": "2026-09-20T18:31:13.449Z",
   "snapshot_target_contracts": 65,
+  "spread_opportunities": 2,
   "stage": "等待下一次检查",
   "volume_cap": 0.04
  },
  "unavailable_until": {},
- "updated": "2026-09-20T18:58:48.447876+00:00"
+ "updated": "2026-09-20T18:58:51.199272+00:00"
 }
