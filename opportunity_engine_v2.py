@@ -603,16 +603,15 @@ def _fragmented_unit_type_ids(item_rows: list[dict]) -> set[int]:
     the same type are therefore treated conservatively as instance items rather
     than one pristine market stack.
     """
-    counts: dict[int, int] = {}
-    all_one: dict[int, bool] = {}
+    unit_counts: dict[int, int] = {}
     for row in item_rows:
         tid = safe_int(row.get("type_id"), 0)
         qty = safe_int(row.get("quantity"), 0)
         if tid <= 0 or qty <= 0:
             continue
-        counts[tid] = counts.get(tid, 0) + 1
-        all_one[tid] = all_one.get(tid, True) and qty == 1
-    return {tid for tid, n in counts.items() if n >= 2 and all_one.get(tid, False)}
+        if qty == 1:
+            unit_counts[tid] = unit_counts.get(tid, 0) + 1
+    return {tid for tid, n in unit_counts.items() if n >= 2}
 
 
 def aggregate_market_executable_items(
@@ -646,7 +645,7 @@ def aggregate_market_executable_items(
         is_ship = _is_ship(tobj, gobj)
         explicit_singleton = _truthy(row.get("is_singleton", row.get("singleton", False)))
         damageable_single_crystal = qty == 1 and _is_damageable_crystal(tobj)
-        fragmented_instance = tid in fragmented
+        fragmented_instance = qty == 1 and tid in fragmented
 
         if not is_ship and (explicit_singleton or fragmented_instance or damageable_single_crystal):
             excluded[tid] = excluded.get(tid, 0) + qty
@@ -701,7 +700,7 @@ def analyze_contract_items(item_rows: list[dict], type_objs: dict[int, dict], gr
                 continue
 
         damageable_single_crystal = qty == 1 and _is_damageable_crystal(tobj)
-        fragmented_instance = tid in fragmented
+        fragmented_instance = qty == 1 and tid in fragmented
 
         if not is_ship and (explicit_singleton or fragmented_instance or damageable_single_crystal):
             excluded_market_singletons[tid] = excluded_market_singletons.get(tid, 0) + qty
