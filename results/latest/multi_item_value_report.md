@@ -1,9 +1,9 @@
 # Independent multi-item value engine
 
-- Multi-item universe: `6,862`
+- Multi-item universe: `6,869`
 - Live candidate pool: `149`
-- Feasible after location/item checks: `97`
-- Live Jita type books: `991`
+- Feasible after location/item checks: `100`
+- Live Jita type books: `1,029`
 - Final A instant: `0`
 - Final B cash-floor: `1`
 - SAFE: `1`; CHANGED: `0`
@@ -13,4 +13,4 @@
 
 | # | Class | Status | Grade | Contract | Price | Net | ROI | Coverage | Types | Risk |
 |---:|---|---|---|---:|---:|---:|---:|---:|---:|---|
-| 1 | B 多件现金底价 | SAFE | B | 236264938 | 300.0M | 209.3M | 67.4% | 99.4% | 47 | D 非友军00高风险 |
+| 1 | B 多件现金底价 | SAFE | B | 236264938 | 300.0M | 209.4M | 67.5% | 99.4% | 47 | D 非友军00高风险 |
