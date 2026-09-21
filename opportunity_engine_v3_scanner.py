@@ -20,6 +20,7 @@ from contract_deal_scanner import (
     sovereignty_owners,
 )
 from opportunity_engine_v2 import (
+    aggregate_market_executable_items,
     analyze_contract_items,
     drop_best_price_level,
     opportunity_score,
@@ -79,6 +80,28 @@ def _metadata(type_ids):
     gids = {type_group_id(v) for v in types.values()}
     gids.discard(None)
     return types, fetch_many_ref("groups", gids)
+
+
+def _prefilter_market_executable_groups(df):
+    if df.empty:
+        return {}, {}
+    singleton_tids = set()
+    for row in df.to_dict("records"):
+        raw = row.get("is_singleton", row.get("singleton", False))
+        if str(raw or "").strip().lower() in {"1", "true", "t", "yes", "y"}:
+            tid = int(row.get("type_id") or 0)
+            if tid > 0:
+                singleton_tids.add(tid)
+    singleton_types, singleton_groups = _metadata(singleton_tids) if singleton_tids else ({}, {})
+    grouped = {}
+    excluded = {}
+    for cid, g in df.groupby("contract_id", sort=False):
+        q, ex = aggregate_market_executable_items(g.to_dict("records"), singleton_types, singleton_groups)
+        if q:
+            grouped[int(cid)] = q
+        if ex:
+            excluded[int(cid)] = ex
+    return grouped, excluded
 
 
 def _resolve_locations(candidates):
@@ -249,10 +272,15 @@ def main():
 
     included = ii[ii["_included"]].copy()
     requested = ii[~ii["_included"]].copy()
-    included_groups = {int(cid): _aggregate(g) for cid, g in included.groupby("contract_id", sort=False)}
+    included_groups, early_singletons = _prefilter_market_executable_groups(included)
     requested_groups = {int(cid): _aggregate(g) for cid, g in requested.groupby("contract_id", sort=False)}
+    early_singleton_qty = sum(sum(x.values()) for x in early_singletons.values())
 
-    print(f"V3 contracts={len(c):,}; BPC-containing excluded={len(bpc_ids):,}; barter={len(requested_groups):,}")
+    print(
+        f"V3 contracts={len(c):,}; BPC-containing excluded={len(bpc_ids):,}; "
+        f"barter={len(requested_groups):,}; market-ineligible singleton contracts={len(early_singletons):,} "
+        f"qty={early_singleton_qty:,}"
+    )
 
     orders = load_market_orders(m_path)
     snapshot_sells, snapshot_buys = prepare_jita_books(orders)
@@ -294,7 +322,7 @@ def main():
     types, groups = _metadata(all_tids)
 
     feasible = []
-    skin_removed = capital_removed = 0
+    skin_removed = capital_removed = singleton_adjusted = 0
     for p in selected:
         cid = int(p["contract_id"])
         raw_inc = included[included["contract_id"] == cid].to_dict("records")
@@ -304,6 +332,8 @@ def main():
             continue
         if not f.adjusted_itemq:
             continue
+        if f.excluded_market_singletons:
+            singleton_adjusted += 1
         # SKIN-heavy bundles remain excluded from automated recommendations.
         snap = _snapshot_partial(f.adjusted_itemq, snapshot_buys)
         gross = float(snap["gross"] or 0)
@@ -318,9 +348,14 @@ def main():
         p = dict(p)
         p["included"] = f.adjusted_itemq
         p["feasibility"] = f
+        p["excluded_market_singleton_types"] = len(f.excluded_market_singletons)
+        p["excluded_market_singleton_qty"] = sum(f.excluded_market_singletons.values())
         feasible.append(p)
 
-    print(f"V3 feasible={len(feasible)} capital_removed={capital_removed} skin_removed={skin_removed}")
+    print(
+        f"V3 feasible={len(feasible)} capital_removed={capital_removed} "
+        f"skin_removed={skin_removed} singleton_adjusted={singleton_adjusted}"
+    )
     all_tids = {
         int(tid)
         for p in feasible
