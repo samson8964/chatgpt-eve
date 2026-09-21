@@ -311,6 +311,7 @@ def main():
     live_books, failed_types, live_at = fetch_live_jita_buy_books(live_type_ids)
 
     rows = []
+    diagnostics = []
     a_count = b_count = safe_count = changed_count = 0
     for p in feasible:
         itemq = p["itemq"]
