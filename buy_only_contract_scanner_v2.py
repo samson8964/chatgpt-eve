@@ -63,32 +63,42 @@ def _metadata(type_ids):
 
 
 def _prefilter_market_executable_groups(df):
-    """Remove non-ship singleton instances before snapshot ranking.
-
-    Only singleton type metadata is needed here. Non-singleton rows remain
-    unchanged, while unknown singleton types fail closed and contribute zero.
-    """
+    """Conservatively remove instance-like rows before candidate ranking."""
     if df.empty:
         return {}, {}
-    singleton_tids = set()
-    for row in df.to_dict("records"):
-        raw = row.get("is_singleton", row.get("singleton", False))
-        if str(raw or "").strip().lower() in {"1", "true", "t", "yes", "y"}:
-            tid = int(row.get("type_id") or 0)
-            if tid > 0:
-                singleton_tids.add(tid)
-    singleton_types, singleton_groups = _metadata(singleton_tids) if singleton_tids else ({}, {})
+
+    candidate_meta_tids = set()
+    for _, g in df.groupby("contract_id", sort=False):
+        records = g.to_dict("records")
+        counts = {}
+        all_one = {}
+        for row in records:
+            try:
+                tid = int(row.get("type_id") or 0)
+                qty = int(row.get("quantity") or 0)
+            except Exception:
+                continue
+            if tid <= 0 or qty <= 0:
+                continue
+            counts[tid] = counts.get(tid, 0) + 1
+            all_one[tid] = all_one.get(tid, True) and qty == 1
+            raw = row.get("is_singleton", row.get("singleton", False))
+            if str(raw or "").strip().lower() in {"1", "true", "t", "yes", "y"}:
+                candidate_meta_tids.add(tid)
+        for tid, n in counts.items():
+            if n >= 2 and all_one.get(tid, False):
+                candidate_meta_tids.add(tid)
+
+    meta_types, meta_groups = _metadata(candidate_meta_tids) if candidate_meta_tids else ({}, {})
     grouped = {}
     excluded = {}
     for cid, g in df.groupby("contract_id", sort=False):
-        rows = g.to_dict("records")
-        q, ex = aggregate_market_executable_items(rows, singleton_types, singleton_groups)
+        q, ex = aggregate_market_executable_items(g.to_dict("records"), meta_types, meta_groups)
         if q:
             grouped[int(cid)] = q
         if ex:
             excluded[int(cid)] = ex
     return grouped, excluded
-
 
 def _resolve_locations(candidates):
     friendly, aid, aname, aticker = current_friendly_alliances()
