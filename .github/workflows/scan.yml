@@ -145,6 +145,29 @@ jobs:
           V2_HISTORY_CANDIDATE_LIMIT: '60'
         run: python buy_only_contract_scanner_v2.py
 
+      - name: Scan multi-item value contracts independently
+        if: steps.cadence.outputs.run_scan == 'true'
+        env:
+          MULTI_MIN_TYPES: '2'
+          MULTI_MIN_CONTRACT_PRICE: '1000000'
+          MULTI_MAX_CONTRACT_PRICE: '5000000000'
+          MULTI_MIN_HOURS_TO_EXPIRE: '0.5'
+          MULTI_LIVE_LIMIT: '300'
+          MULTI_PER_METRIC: '120'
+          MULTI_NEWEST_COUNT: '60'
+          MULTI_INSTANT_MIN_PROFIT: '30000000'
+          MULTI_INSTANT_MIN_ROI: '0.10'
+          MULTI_CASH_FLOOR_MIN_PROFIT: '30000000'
+          MULTI_CASH_FLOOR_MIN_ROI: '0.10'
+          MULTI_SAFE_PRICE_CHANGE_PCT: '0.15'
+          DEAL_SKIN_MAJOR_SHARE: '0.50'
+          DEAL_HAUL_BASE_ISK: '2000000'
+          DEAL_HAUL_ISK_PER_M3_JUMP: '200'
+          DEAL_FRIENDLY_CHARACTER_ID: '2124493042'
+          DEAL_FRIENDLY_ALLIANCE_IDS: ''
+          DEAL_FRIENDLY_REGION_IDS: ''
+        run: python multi_item_contract_scanner.py
+
       - name: Scan 4-H contracts with Opportunity Engine V2
         id: four_h_contract
         continue-on-error: true
