@@ -1,0 +1,115 @@
+name: Singleton marketability regression
+
+on:
+  push:
+    branches:
+      - fix-market-ineligible-singletons
+    paths:
+      - 'opportunity_engine_v2.py'
+      - 'buy_only_contract_scanner_v2.py'
+      - 'multi_item_contract_scanner.py'
+      - 'opportunity_engine_v3_scanner.py'
+      - 'buy_only_mail_templates.py'
+      - '.github/workflows/singleton-regression.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Unit-check market executability rule
+        run: |
+          python - <<'PY'
+          from opportunity_engine_v2 import aggregate_market_executable_items, analyze_contract_items
+
+          types = {
+              100: {"name": "Used Faction Crystal", "group_id": 10, "category_id": 8},
+              200: {"name": "Cruiser Hull", "group_id": 20, "category_id": 6},
+              300: {"name": "Normal Ammo", "group_id": 10, "category_id": 8},
+          }
+          groups = {
+              10: {"name": "Frequency Crystal", "category_id": 8},
+              20: {"name": "Cruiser", "category_id": 6},
+          }
+          rows = [
+              {"type_id": 100, "quantity": 7, "is_singleton": True},
+              {"type_id": 200, "quantity": 1, "is_singleton": True},
+              {"type_id": 300, "quantity": 50, "is_singleton": False},
+          ]
+          q, excluded = aggregate_market_executable_items(rows, types, groups)
+          assert 100 not in q and excluded.get(100) == 7, (q, excluded)
+          assert q.get(200) == 1, (q, excluded)
+          assert q.get(300) == 50, (q, excluded)
+
+          f = analyze_contract_items(rows, types, groups)
+          assert 100 not in f.adjusted_itemq
+          assert f.excluded_market_singletons.get(100) == 7
+          assert f.adjusted_itemq.get(200) == 1
+          assert f.adjusted_itemq.get(300) == 50
+          print("UNIT_OK", f)
+          PY
+
+      - name: Run V2 real-data regression
+        env:
+          DEAL_FRIENDLY_CHARACTER_ID: '2124493042'
+          V2_LIVE_REVALIDATE_LIMIT: '120'
+          V2_HISTORY_CANDIDATE_LIMIT: '60'
+        run: python buy_only_contract_scanner_v2.py
+
+      - name: Assert used-crystal contract absent from V2
+        run: |
+          python - <<'PY'
+          import pandas as pd
+          target = 236253300
+          for p in ["results/latest/contract_deals_all.csv", "results/latest/contract_deals.csv"]:
+              try:
+                  df = pd.read_csv(p)
+              except Exception:
+                  df = pd.DataFrame()
+              ids = set(pd.to_numeric(df.get("contract_id", pd.Series(dtype=float)), errors="coerce").dropna().astype(int))
+              print(p, "rows=", len(df), "target_present=", target in ids)
+              assert target not in ids, f"used-crystal false positive still present in {p}"
+          PY
+
+      - name: Run independent multi-item real-data regression
+        env:
+          DEAL_FRIENDLY_CHARACTER_ID: '2124493042'
+          MULTI_MIN_TYPES: '2'
+          MULTI_MIN_CONTRACT_PRICE: '1000000'
+          MULTI_MAX_CONTRACT_PRICE: '5000000000'
+          MULTI_MIN_HOURS_TO_EXPIRE: '0.5'
+          MULTI_LIVE_LIMIT: '300'
+          MULTI_PER_METRIC: '120'
+          MULTI_NEWEST_COUNT: '60'
+          MULTI_INSTANT_MIN_PROFIT: '30000000'
+          MULTI_INSTANT_MIN_ROI: '0.10'
+          MULTI_CASH_FLOOR_MIN_PROFIT: '30000000'
+          MULTI_CASH_FLOOR_MIN_ROI: '0.10'
+        run: python multi_item_contract_scanner.py
+
+      - name: Assert used-crystal contract absent from multi-item
+        run: |
+          python - <<'PY'
+          import pandas as pd
+          target = 236253300
+          for p in ["results/latest/multi_item_contract_all.csv", "results/latest/multi_item_contract_deals.csv"]:
+              try:
+                  df = pd.read_csv(p)
+              except Exception:
+                  df = pd.DataFrame()
+              ids = set(pd.to_numeric(df.get("contract_id", pd.Series(dtype=float)), errors="coerce").dropna().astype(int))
+              print(p, "rows=", len(df), "target_present=", target in ids)
+              assert target not in ids, f"used-crystal false positive still present in {p}"
+          PY
