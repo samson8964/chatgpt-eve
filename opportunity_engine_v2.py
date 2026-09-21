@@ -577,58 +577,92 @@ def _rig_size_class(type_obj: dict | None) -> int:
     return 0
 
 
-def aggregate_market_executable_items(
-    item_rows: list[dict],
-    type_objs: dict[int, dict] | None = None,
-    group_objs: dict[int, dict] | None = None,
-) -> tuple[dict[int, int], dict[int, int]]:
-    """Aggregate only items that are safe to value against normal market orders.
+CRYSTALS_TAKE_DAMAGE_ATTRIBUTE_ID = 786
 
-    EVE contract rows marked singleton are item instances rather than ordinary
-    stackable/repackaged market goods. They may be damaged/used crystals,
-    damaged modules, fitted modules, etc. Those rows must not inherit the
-    pristine type_id market price. Assembled ships are the deliberate exception:
-    the hull can be repackaged after stripping fittings, and ship-specific rig
-    handling is performed later by analyze_contract_items().
 
-    Missing metadata is fail-closed for singleton rows: if we cannot prove that
-    a singleton is a ship, it contributes zero market value.
+def _dogma_attribute_value(type_obj: dict | None, attribute_id: int, default: float = 0.0) -> float:
+    if not type_obj:
+        return default
+    attrs = type_obj.get("dogma_attributes") or {}
+    raw = attrs.get(str(attribute_id), attrs.get(attribute_id))
+    if isinstance(raw, dict):
+        raw = raw.get("value")
+    return safe_float(raw, default)
+
+
+def _is_damageable_crystal(type_obj: dict | None) -> bool:
+    """EVE dogma attribute 786: Crystals Take Damage."""
+    return _dogma_attribute_value(type_obj, CRYSTALS_TAKE_DAMAGE_ATTRIBUTE_ID, 0.0) > 0.5
+
+
+def _fragmented_unit_type_ids(item_rows: list[dict]) -> set[int]:
+    """Types represented by multiple independent quantity=1 contract rows.
+
+    Public-contract data does not expose item damage. Damaged/unstackable items
+    nevertheless appear as separate item instances. Repeated one-unit rows of
+    the same type are therefore treated conservatively as instance items rather
+    than one pristine market stack.
     """
-    type_objs = type_objs or {}
-    group_objs = group_objs or {}
-    aggregate: dict[int, int] = {}
-    excluded: dict[int, int] = {}
+    counts: dict[int, int] = {}
+    all_one: dict[int, bool] = {}
     for row in item_rows:
         tid = safe_int(row.get("type_id"), 0)
         qty = safe_int(row.get("quantity"), 0)
         if tid <= 0 or qty <= 0:
             continue
-        singleton = _truthy(row.get("is_singleton", row.get("singleton", False)))
-        if singleton:
-            tobj = type_objs.get(tid)
-            gobj = group_objs.get(_group_id(tobj))
-            if not _is_ship(tobj, gobj):
-                excluded[tid] = excluded.get(tid, 0) + qty
-                continue
+        counts[tid] = counts.get(tid, 0) + 1
+        all_one[tid] = all_one.get(tid, True) and qty == 1
+    return {tid for tid, n in counts.items() if n >= 2 and all_one.get(tid, False)}
+
+
+def aggregate_market_executable_items(
+    item_rows: list[dict],
+    type_objs: dict[int, dict] | None = None,
+    group_objs: dict[int, dict] | None = None,
+) -> tuple[dict[int, int], dict[int, int]]:
+    """Aggregate only items safe to value against normal market orders.
+
+    We deliberately fail closed for:
+    - explicit singleton non-ship rows, if a source provides that field;
+    - repeated quantity=1 instances of the same non-ship type;
+    - any one-unit crystal whose dogma attribute 786 says it takes damage.
+
+    Assembled ship hulls are exempt here because the hull can be stripped and
+    repackaged; fitted-rig handling remains in analyze_contract_items().
+    """
+    type_objs = type_objs or {}
+    group_objs = group_objs or {}
+    fragmented = _fragmented_unit_type_ids(item_rows)
+    aggregate: dict[int, int] = {}
+    excluded: dict[int, int] = {}
+
+    for row in item_rows:
+        tid = safe_int(row.get("type_id"), 0)
+        qty = safe_int(row.get("quantity"), 0)
+        if tid <= 0 or qty <= 0:
+            continue
+        tobj = type_objs.get(tid)
+        gobj = group_objs.get(_group_id(tobj))
+        is_ship = _is_ship(tobj, gobj)
+        explicit_singleton = _truthy(row.get("is_singleton", row.get("singleton", False)))
+        damageable_single_crystal = qty == 1 and _is_damageable_crystal(tobj)
+        fragmented_instance = tid in fragmented
+
+        if not is_ship and (explicit_singleton or fragmented_instance or damageable_single_crystal):
+            excluded[tid] = excluded.get(tid, 0) + qty
+            continue
         aggregate[tid] = aggregate.get(tid, 0) + qty
+
     return aggregate, excluded
 
 
 def analyze_contract_items(item_rows: list[dict], type_objs: dict[int, dict], group_objs: dict[int, dict]) -> ContractFeasibility:
-    """Apply conservative market-executability rules to contract contents.
-
-    Non-ship singleton instances are excluded from normal market valuation.
-    This prevents used/damaged frequency crystals and damaged/fitted modules
-    from being valued as pristine market goods. Assembled ship hulls remain
-    eligible, while likely fitted rigs are excluded separately.
-    """
+    """Apply conservative market-executability rules to contract contents."""
     ship_sizes: set[int] = set()
     restricted = False
     has_ship = False
     warnings: list[str] = []
 
-    # First identify ships so the second pass can distinguish assembled hulls
-    # and likely fitted rigs from other singleton item instances.
     for row in item_rows:
         tid = safe_int(row.get("type_id"), 0)
         qty = safe_int(row.get("quantity"), 0)
@@ -644,6 +678,7 @@ def analyze_contract_items(item_rows: list[dict], type_objs: dict[int, dict], gr
             if _is_highsec_restricted_ship(tobj, gobj):
                 restricted = True
 
+    fragmented = _fragmented_unit_type_ids(item_rows)
     aggregate: dict[int, int] = {}
     excluded_rigs: dict[int, int] = {}
     excluded_market_singletons: dict[int, int] = {}
@@ -655,20 +690,20 @@ def analyze_contract_items(item_rows: list[dict], type_objs: dict[int, dict], gr
             continue
         tobj = type_objs.get(tid)
         gobj = group_objs.get(_group_id(tobj))
-        singleton = _truthy(row.get("is_singleton", row.get("singleton", False)))
+        explicit_singleton = _truthy(row.get("is_singleton", row.get("singleton", False)))
         is_ship = _is_ship(tobj, gobj)
 
-        # Keep the existing fitted-rig safeguard. It takes precedence over the
-        # generic singleton rule so reporting can still identify rig exclusions.
+        # Keep fitted-rig logic separate so installed rigs never inflate hull value.
         if has_ship and _is_rig(tobj, gobj):
             rig_size = _rig_size_class(tobj)
-            if singleton or (rig_size > 0 and rig_size in ship_sizes):
+            if explicit_singleton or tid in fragmented or (rig_size > 0 and rig_size in ship_sizes):
                 excluded_rigs[tid] = excluded_rigs.get(tid, 0) + qty
                 continue
 
-        # Market buy/sell orders are for normal marketable items, not singleton
-        # instances. A non-ship singleton therefore gets zero executable value.
-        if singleton and not is_ship:
+        damageable_single_crystal = qty == 1 and _is_damageable_crystal(tobj)
+        fragmented_instance = tid in fragmented
+
+        if not is_ship and (explicit_singleton or fragmented_instance or damageable_single_crystal):
             excluded_market_singletons[tid] = excluded_market_singletons.get(tid, 0) + qty
             continue
 
@@ -677,7 +712,7 @@ def analyze_contract_items(item_rows: list[dict], type_objs: dict[int, dict], gr
     if excluded_rigs:
         warnings.append("likely_fitted_rigs_excluded")
     if excluded_market_singletons:
-        warnings.append("market_ineligible_singletons_excluded")
+        warnings.append("market_ineligible_instances_excluded")
     if restricted:
         warnings.append("highsec_restricted_ship")
     if has_ship:
