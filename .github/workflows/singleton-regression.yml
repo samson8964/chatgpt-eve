@@ -29,6 +29,36 @@ jobs:
 
       - run: pip install -r requirements.txt
 
+      - name: Inspect real used-crystal contract rows
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import pandas as pd
+          from scanner_source import PUBLIC_CONTRACTS_INDEX, DATA, latest_file, download, load_contracts
+
+          target = 236253300
+          url, _ = latest_file(PUBLIC_CONTRACTS_INDEX)
+          path = DATA / Path(url).name
+          if not path.exists():
+              download(url, path)
+          _, items = load_contracts(path)
+          items["contract_id"] = pd.to_numeric(items["contract_id"], errors="coerce").astype("Int64")
+          g = items[items["contract_id"] == target].copy()
+          print("RAW_COLUMNS", list(g.columns))
+          print("RAW_ROWS", len(g))
+          show = [x for x in ["record_id","item_id","type_id","quantity","is_included","is_singleton","singleton","is_blueprint_copy"] if x in g.columns]
+          print(g[show].head(40).to_string(index=False))
+          if not g.empty:
+              agg = g.groupby("type_id").agg(
+                  row_count=("quantity","size"),
+                  qty_sum=("quantity","sum"),
+                  qty_min=("quantity","min"),
+                  qty_max=("quantity","max"),
+              ).sort_values(["row_count","qty_sum"], ascending=False)
+              print("TYPE_STRUCTURE")
+              print(agg.head(60).to_string())
+          PY
+
       - name: Unit-check market executability rule
         run: |
           python - <<'PY'
