@@ -40,4 +40,8 @@ jobs:
           print(g[cols].head(50).to_string(index=False))
           if not g.empty:
               print(g.groupby("type_id").agg(row_count=("quantity","size"),qty_sum=("quantity","sum"),qty_min=("quantity","min"),qty_max=("quantity","max")).sort_values(["row_count","qty_sum"],ascending=False).head(80).to_string())
+          from scanner_source import fetch_many_ref
+          import json
+          obj = fetch_many_ref("types", [23089]).get(23089, {})
+          print("TYPE23089_JSON", json.dumps(obj, ensure_ascii=False, sort_keys=True))
           PY
