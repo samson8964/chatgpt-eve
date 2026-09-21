@@ -1,211 +1,177 @@
 from __future__ import annotations
 
+import json
 import math
 import os
-from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import pandas as pd
 
-from scanner_source import (
-    PUBLIC_CONTRACTS_INDEX,
-    MARKET_ORDERS_INDEX,
-    DATA,
-    LATEST,
-    latest_file,
-    download,
-    load_contracts,
-    load_market_orders,
-    prepare_jita_books,
-    fill_book,
-    truthy_series,
-    fetch_many_ref,
-    name_en,
-    type_volume,
-    esi_get,
-)
+import buy_only_contract_scanner as legacy
 from contract_deal_scanner import (
     SALES_TAX_RATE,
-    BROKER_FEE_RATE,
-    RELIST_RESERVE_RATE,
     current_friendly_alliances,
-    sovereignty_owners,
+    haul_reserve,
     load_structures,
     resolve_location,
-    haul_reserve,
+    sovereignty_owners,
 )
-
-THE_FORGE_REGION_ID = 10000002
-RESULT = LATEST / "multi_item_contract_deals.csv"
-ALL_RESULT = LATEST / "multi_item_contract_all.csv"
+from opportunity_engine_v2 import (
+    analyze_contract_items,
+    classify_execution_status,
+    drop_best_price_level,
+    estimate_transport,
+    fetch_live_jita_buy_books,
+    liquidate_bundle,
+    opportunity_score,
+    score_grade,
+    snapshot_change_pct,
+)
+from opportunity_engine_v3 import partial_liquidation
+from scanner_source import (
+    DATA,
+    LATEST,
+    MARKET_ORDERS_INDEX,
+    PUBLIC_CONTRACTS_INDEX,
+    download,
+    fetch_many_ref,
+    latest_file,
+    load_contracts,
+    load_market_orders,
+    name_en,
+    prepare_jita_books,
+    truthy_series,
+    type_group_id,
+    type_volume,
+)
 
 MIN_TYPES = int(os.getenv("MULTI_MIN_TYPES", "2"))
 MIN_CONTRACT_PRICE = float(os.getenv("MULTI_MIN_CONTRACT_PRICE", "1000000"))
-MIN_DISCOUNT = float(os.getenv("MULTI_MIN_DISCOUNT", "0.30"))
-MIN_VALUE_GAP = float(os.getenv("MULTI_MIN_VALUE_GAP", "30000000"))
-MIN_VALUE_COVERAGE = float(os.getenv("MULTI_MIN_VALUE_COVERAGE", "0.90"))
-MIN_HOURS_TO_EXPIRE = float(os.getenv("MULTI_MIN_HOURS_TO_EXPIRE", "1"))
-HISTORY_WORKERS = int(os.getenv("MULTI_HISTORY_WORKERS", "16"))
+MAX_CONTRACT_PRICE = float(os.getenv("MULTI_MAX_CONTRACT_PRICE", "5000000000"))
+MIN_HOURS_TO_EXPIRE = float(os.getenv("MULTI_MIN_HOURS_TO_EXPIRE", "0.5"))
+LIVE_LIMIT = int(os.getenv("MULTI_LIVE_LIMIT", "300"))
+PER_METRIC = int(os.getenv("MULTI_PER_METRIC", "120"))
+NEWEST_COUNT = int(os.getenv("MULTI_NEWEST_COUNT", "60"))
 TOP_OUTPUT = int(os.getenv("MULTI_TOP", "250"))
+SKIN_MAJOR_SHARE = float(os.getenv("DEAL_SKIN_MAJOR_SHARE", "0.50"))
+
+INSTANT_MIN_PROFIT = float(os.getenv("MULTI_INSTANT_MIN_PROFIT", "30000000"))
+INSTANT_MIN_ROI = float(os.getenv("MULTI_INSTANT_MIN_ROI", "0.10"))
+CASH_MIN_PROFIT = float(os.getenv("MULTI_CASH_FLOOR_MIN_PROFIT", "30000000"))
+CASH_MIN_ROI = float(os.getenv("MULTI_CASH_FLOOR_MIN_ROI", "0.10"))
+SAFE_PRICE_CHANGE_PCT = float(os.getenv("MULTI_SAFE_PRICE_CHANGE_PCT", "0.15"))
+
+RESULT = LATEST / "multi_item_contract_deals.csv"
+ALL_RESULT = LATEST / "multi_item_contract_all.csv"
+REPORT = LATEST / "multi_item_value_report.md"
 
 
-def safe_num(v, default=0.0):
-    try:
-        x = float(v)
-        return x if math.isfinite(x) else default
-    except Exception:
-        return default
+def _aggregate(df: pd.DataFrame) -> dict[int, int]:
+    return legacy.aggregate_items(df)
 
 
-def aggregate_items(items: pd.DataFrame):
-    out = defaultdict(int)
-    for r in items.itertuples(index=False):
-        try:
-            tid = int(r.type_id)
-            qty = int(r.quantity)
-        except Exception:
-            continue
-        if tid > 0 and qty > 0:
-            out[tid] += qty
-    return dict(out)
+def _metadata(type_ids):
+    types = fetch_many_ref("types", type_ids)
+    gids = {type_group_id(v) for v in types.values()}
+    gids.discard(None)
+    groups = fetch_many_ref("groups", gids)
+    return types, groups
 
 
-def market_price_fallbacks():
-    try:
-        rows = esi_get("/markets/prices/", {"datasource": "tranquility"}, refresh=True)
-    except Exception as e:
-        print(f"multi market-price fallback failed: {e}")
-        return {}
+def _resolve_locations(candidates):
+    friendly, aid, aname, aticker = current_friendly_alliances()
+    sov = sovereignty_owners()
+    lids = sorted({int(x["start_location_id"]) for x in candidates})
+    structures = load_structures([x for x in lids if x >= 1_000_000_000_000])
     out = {}
-    for r in rows or []:
-        try:
-            tid = int(r["type_id"])
-            p = safe_num(r.get("average_price"), 0.0) or safe_num(r.get("adjusted_price"), 0.0)
-            if p > 0:
-                out[tid] = p
-        except Exception:
-            pass
-    return out
+    with ThreadPoolExecutor(max_workers=min(legacy.LOCATION_WORKERS, max(1, len(lids)))) as ex:
+        futs = {ex.submit(resolve_location, lid, structures, friendly, sov): lid for lid in lids}
+        for fut in as_completed(futs):
+            lid = futs[fut]
+            try:
+                out[lid] = fut.result()
+            except Exception:
+                out[lid] = None
+    return out, aid, aname, aticker
 
 
-def raw_value(itemq, buy_books, sell_books, fallback_prices):
-    buy_gross = 0.0
-    sell_gross = 0.0
-    buy_filled_units = 0
-    total_units = 0
-    priced_sell_value = 0.0
-    fallback_missing_value = 0.0
-    unknown_types = 0
-    type_rows = []
-
-    for tid, qty in itemq.items():
-        total_units += qty
-        bf = fill_book(buy_books.get(int(tid), []), qty)
-        sf = fill_book(sell_books.get(int(tid), []), qty)
-        fallback = safe_num(fallback_prices.get(int(tid)), 0.0)
-
-        buy_gross += safe_num(bf.value, 0.0)
-        buy_filled_units += int(bf.filled or 0)
-        sell_gross += safe_num(sf.value, 0.0)
-        priced_sell_value += safe_num(sf.value, 0.0)
-
-        missing = max(0, qty - int(sf.filled or 0))
-        if missing > 0:
-            if fallback > 0:
-                fallback_missing_value += fallback * missing
-            else:
-                unknown_types += 1
-
-        type_rows.append({
-            "type_id": int(tid),
-            "quantity": int(qty),
-            "buy_value": safe_num(bf.value, 0.0),
-            "buy_filled": int(bf.filled or 0),
-            "sell_value": safe_num(sf.value, 0.0),
-            "sell_filled": int(sf.filled or 0),
-            "fallback_price": fallback,
-        })
-
-    denom = priced_sell_value + fallback_missing_value
-    coverage = priced_sell_value / denom if denom > 0 else 0.0
-    if unknown_types:
-        # Unknown-price types cannot silently count as covered. This conservative cap prevents
-        # a bundle from passing merely because the unpriced items have no fallback value.
-        type_ratio = max(0.0, (len(itemq) - unknown_types) / max(1, len(itemq)))
-        coverage = min(coverage, type_ratio)
-
-    return {
-        "jita_buy_gross": buy_gross,
-        "jita_sell_gross_raw": sell_gross,
-        "buy_unit_coverage": buy_filled_units / total_units if total_units else 0.0,
-        "value_coverage": coverage,
-        "unknown_price_types": unknown_types,
-        "type_rows": type_rows,
-    }
+def _safe_location(loc):
+    if not loc:
+        return False
+    if int(legacy.safe_num(loc.get("system_id"), 0)) <= 0:
+        return False
+    if int(legacy.safe_num(loc.get("shortest_jumps_to_jita"), -1)) < 0:
+        return False
+    if bool(loc.get("is_player_structure")) and not bool(loc.get("friendly_sov")) and not bool(loc.get("friendly_region")):
+        return False
+    return True
 
 
-def history_for_type(type_id):
-    try:
-        rows = esi_get(
-            f"/markets/{THE_FORGE_REGION_ID}/history/",
-            {"datasource": "tranquility", "type_id": int(type_id)},
-            cache_key=f"multi_history_{type_id}",
-        )
-    except Exception:
-        return {"avg_daily_volume": 0.0, "traded_days": 0}
-    if not rows:
-        return {"avg_daily_volume": 0.0, "traded_days": 0}
-
-    df = pd.DataFrame(rows)
-    if df.empty or "date" not in df.columns or "volume" not in df.columns:
-        return {"avg_daily_volume": 0.0, "traded_days": 0}
-    df["date"] = pd.to_datetime(df["date"], utc=True, errors="coerce")
-    df["volume"] = pd.to_numeric(df["volume"], errors="coerce").fillna(0.0)
-    cutoff = pd.Timestamp.now(tz="UTC") - pd.Timedelta(days=30)
-    df = df[df["date"] >= cutoff].copy()
-    if df.empty:
-        return {"avg_daily_volume": 0.0, "traded_days": 0}
-    return {
-        "avg_daily_volume": float(df["volume"].sum()) / 30.0,
-        "traded_days": int((df["volume"] > 0).sum()),
-    }
+def _partial_stress(itemq, books):
+    stressed = {int(tid): drop_best_price_level(books.get(int(tid), [])) for tid in itemq}
+    return partial_liquidation(itemq, stressed, SALES_TAX_RATE)
 
 
-def liquidity_factor(qty, history):
-    avg = safe_num(history.get("avg_daily_volume"), 0.0)
-    if avg <= 0:
-        return 0.50
-    days_to_sell = qty / avg
-    if days_to_sell <= 3:
-        return 1.00
-    if days_to_sell <= 10:
-        return 0.90
-    if days_to_sell <= 30:
-        return 0.70
-    return 0.50
+def _volume(itemq, types):
+    return sum(max(0.0, type_volume(types.get(int(tid)))) * int(qty) for tid, qty in itemq.items())
 
 
-def major_type_ids(type_rows):
-    rows = sorted(type_rows, key=lambda x: safe_num(x.get("sell_value"), 0.0), reverse=True)
-    total = sum(safe_num(r.get("sell_value"), 0.0) for r in rows)
-    if total <= 0:
-        return {int(r["type_id"]) for r in rows[:10]}
-    out = set()
-    acc = 0.0
-    for r in rows:
-        v = safe_num(r.get("sell_value"), 0.0)
-        out.add(int(r["type_id"]))
-        acc += v
-        if len(out) >= 10 or acc / total >= 0.95:
+def _top_value_lines(quote, types, limit=12):
+    rows = sorted(quote.get("rows", []), key=lambda r: float(r.get("gross", 0) or 0), reverse=True)
+    out = []
+    for r in rows[:limit]:
+        gross = float(r.get("gross", 0) or 0)
+        if gross <= 0:
+            continue
+        tid = int(r["type_id"])
+        filled = int(r.get("filled", r.get("quantity", 0)) or 0)
+        requested = int(r.get("quantity", 0) or 0)
+        out.append(f"{name_en(types.get(tid), str(tid))} {filled}/{requested}≈{gross/1e6:.1f}M")
+    return " | ".join(out)
+
+
+def _diverse_candidates(rows):
+    selected = {}
+    metrics = ("snapshot_profit", "snapshot_roi", "snapshot_value_ratio")
+    for metric in metrics:
+        ranked = sorted(rows, key=lambda r: float(r.get(metric, -math.inf)), reverse=True)
+        for row in ranked[:PER_METRIC]:
+            selected[int(row["contract_id"])] = row
+    newest = sorted(rows, key=lambda r: str(r.get("date_issued", "")), reverse=True)
+    for row in newest[:NEWEST_COUNT]:
+        selected[int(row["contract_id"])] = row
+    ranked_all = sorted(rows, key=lambda r: (r["snapshot_profit"], r["snapshot_roi"]), reverse=True)
+    for row in ranked_all:
+        if len(selected) >= LIVE_LIMIT:
             break
-    return out
+        selected.setdefault(int(row["contract_id"]), row)
+    out = list(selected.values())
+    out.sort(key=lambda r: (r["snapshot_profit"], r["snapshot_roi"]), reverse=True)
+    return out[:LIVE_LIMIT]
+
+
+def _cash_status(profit, roi, stress_profit, change_pct, fatal=False):
+    if fatal or profit < CASH_MIN_PROFIT or roi < CASH_MIN_ROI:
+        return "DANGER"
+    if stress_profit <= 0 or abs(change_pct) > SAFE_PRICE_CHANGE_PCT:
+        return "CHANGED"
+    return "SAFE"
+
+
+def _write_empty(message: str):
+    LATEST.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame().to_csv(ALL_RESULT, index=False)
+    pd.DataFrame().to_csv(RESULT, index=False)
+    REPORT.write_text(f"# Independent multi-item value engine\n\n{message}\n", encoding="utf-8")
 
 
 def main():
-    print("multi 1) latest contract + Jita datasets")
-    c_url, _ = latest_file(PUBLIC_CONTRACTS_INDEX)
-    m_url, _ = latest_file(MARKET_ORDERS_INDEX)
+    LATEST.mkdir(parents=True, exist_ok=True)
+    print("Independent multi-item value engine: INSTANT + CASH_FLOOR")
+
+    c_url, c_modified = latest_file(PUBLIC_CONTRACTS_INDEX)
+    m_url, m_modified = latest_file(MARKET_ORDERS_INDEX)
     c_path = DATA / Path(c_url).name
     m_path = DATA / Path(m_url).name
     if not c_path.exists():
@@ -217,16 +183,18 @@ def main():
     contracts["contract_id"] = pd.to_numeric(contracts["contract_id"], errors="coerce").astype("Int64")
     contracts["price"] = pd.to_numeric(contracts["price"], errors="coerce").fillna(0.0)
     contracts["start_location_id"] = pd.to_numeric(contracts["start_location_id"], errors="coerce").astype("Int64")
-
-    c = contracts[(contracts["type"] == "item_exchange") & (contracts["price"] >= MIN_CONTRACT_PRICE)].copy()
-    c = c[c["start_location_id"].notna()].copy()
-    now = pd.Timestamp.now(tz="UTC")
+    c = contracts[
+        (contracts["type"] == "item_exchange")
+        & (contracts["price"] >= MIN_CONTRACT_PRICE)
+        & (contracts["price"] <= MAX_CONTRACT_PRICE)
+        & contracts["start_location_id"].notna()
+    ].copy()
     if "date_expired" in c.columns:
         exp = pd.to_datetime(c["date_expired"], utc=True, errors="coerce")
-        c = c[exp.isna() | (exp > now + pd.Timedelta(hours=MIN_HOURS_TO_EXPIRE))].copy()
+        c = c[exp.isna() | (exp > pd.Timestamp.now(tz="UTC") + pd.Timedelta(hours=MIN_HOURS_TO_EXPIRE))].copy()
 
-    valid_ids = set(c["contract_id"].dropna().astype(int))
-    ii = items[items["contract_id"].isin(valid_ids)].copy()
+    valid = set(c["contract_id"].dropna().astype(int))
+    ii = items[items["contract_id"].isin(valid)].copy()
     ii["contract_id"] = pd.to_numeric(ii["contract_id"], errors="coerce").astype("Int64")
     ii["_included"] = truthy_series(ii["is_included"])
     ii["_bpc"] = truthy_series(ii["is_blueprint_copy"])
@@ -234,211 +202,326 @@ def main():
     ii["type_id"] = pd.to_numeric(ii["type_id"], errors="coerce").fillna(0).astype(int)
 
     requested_ids = set(ii.loc[~ii["_included"], "contract_id"].dropna().astype(int))
-    bpc_ids = set(ii.loc[ii["_included"] & ii["_bpc"], "contract_id"].dropna().astype(int))
-    usable_ids = valid_ids - requested_ids - bpc_ids
-    inc = ii[ii["contract_id"].isin(usable_ids) & ii["_included"] & (ii["quantity"] > 0) & (ii["type_id"] > 0)].copy()
-
-    grouped = {int(cid): aggregate_items(g) for cid, g in inc.groupby("contract_id", sort=False)}
+    bpc_ids = set(ii.loc[ii["_bpc"], "contract_id"].dropna().astype(int))
+    usable = valid - requested_ids - bpc_ids
+    inc = ii[ii["contract_id"].isin(usable) & ii["_included"] & (ii["quantity"] > 0) & (ii["type_id"] > 0)].copy()
+    grouped = {int(cid): _aggregate(g) for cid, g in inc.groupby("contract_id", sort=False)}
     grouped = {cid: q for cid, q in grouped.items() if len(q) >= MIN_TYPES}
-    c = c[c["contract_id"].isin(grouped.keys())].copy()
+    raw_groups = {int(cid): g.to_dict("records") for cid, g in inc.groupby("contract_id", sort=False) if int(cid) in grouped}
+    c = c[c["contract_id"].isin(grouped)].copy()
+    print(f"multi universe={len(grouped):,} contracts with >= {MIN_TYPES} item types")
+    if c.empty:
+        _write_empty("No eligible multi-item contracts.")
+        return
+
     c_by_id = c.set_index("contract_id", drop=False)
-    print(f"multi contracts with >= {MIN_TYPES} item types: {len(grouped)}")
+    market = load_market_orders(m_path)
+    _, snapshot_buys = prepare_jita_books(market)
+    del market
 
-    print("multi 2) Jita books + broad valuation")
-    orders = load_market_orders(m_path)
-    sell_books, buy_books = prepare_jita_books(orders)
-    del orders
-    fallback_prices = market_price_fallbacks()
-
-    prelim = []
+    broad_rows = []
     for cid, itemq in grouped.items():
-        r = raw_value(itemq, buy_books, sell_books, fallback_prices)
-        price = safe_num(c_by_id.loc[cid, "price"], 0.0)
-        raw_value_est = safe_num(r["jita_sell_gross_raw"], 0.0)
-        raw_gap = raw_value_est - price
-        raw_discount = raw_gap / raw_value_est if raw_value_est > 0 else -1.0
-        if r["value_coverage"] < MIN_VALUE_COVERAGE:
-            continue
-        if raw_gap < MIN_VALUE_GAP or raw_discount < MIN_DISCOUNT:
-            continue
-        prelim.append({
+        cm = c_by_id.loc[cid]
+        if isinstance(cm, pd.DataFrame):
+            cm = cm.iloc[0]
+        price = legacy.safe_num(cm.get("price"))
+        cash = partial_liquidation(itemq, snapshot_buys, SALES_TAX_RATE)
+        profit = float(cash["net_after_tax"] or 0) - price
+        roi = profit / price if price > 0 else -math.inf
+        ratio = float(cash["net_after_tax"] or 0) / price if price > 0 else 0.0
+        broad_rows.append({
             "contract_id": cid,
             "contract_price": price,
-            "start_location_id": int(c_by_id.loc[cid, "start_location_id"]),
-            "item_type_count": len(itemq),
-            "itemq": itemq,
-            **r,
-            "raw_gap": raw_gap,
-            "raw_discount": raw_discount,
+            "start_location_id": int(cm["start_location_id"]),
+            "date_issued": cm.get("date_issued", ""),
+            "date_expired": cm.get("date_expired", ""),
+            "title": cm.get("title", ""),
+            "itemq_raw": itemq,
+            "snapshot_cash": cash,
+            "snapshot_profit": profit,
+            "snapshot_roi": roi,
+            "snapshot_value_ratio": ratio,
         })
-    prelim.sort(key=lambda x: x["raw_gap"], reverse=True)
-    print(f"multi broad value candidates={len(prelim)}")
 
-    print("multi 3) resolve reachable locations")
-    friendly_ids, _, _, _ = current_friendly_alliances()
-    sov_map = sovereignty_owners()
-    structure_ids = {r["start_location_id"] for r in prelim if r["start_location_id"] >= 1_000_000_000_000}
-    structures = load_structures(structure_ids)
-    reachable = []
-    for r in prelim:
-        loc = resolve_location(r["start_location_id"], structures, friendly_ids, sov_map)
-        if not loc:
+    selected = _diverse_candidates(broad_rows)
+    print(f"multi live candidate pool={len(selected):,} from universe={len(broad_rows):,}")
+    if not selected:
+        _write_empty("No live candidates selected.")
+        return
+
+    locations, own_aid, own_name, own_ticker = _resolve_locations(selected)
+    location_removed = 0
+    selected2 = []
+    for p in selected:
+        loc = locations.get(int(p["start_location_id"]))
+        if not _safe_location(loc):
+            location_removed += 1
             continue
-        if int(safe_num(loc.get("system_id"), 0.0)) <= 0:
+        q = dict(p)
+        q["loc"] = loc
+        selected2.append(q)
+    selected = selected2
+    print(f"multi reachable/fail-closed candidates={len(selected):,}; location_removed={location_removed}")
+    if not selected:
+        _write_empty("All selected candidates failed location/access checks.")
+        return
+
+    all_tids = {int(tid) for p in selected for tid in p["itemq_raw"]}
+    types, groups = _metadata(all_tids)
+
+    feasible = []
+    capital_removed = skin_removed = rig_adjusted = 0
+    for p in selected:
+        f = analyze_contract_items(raw_groups.get(int(p["contract_id"]), []), types, groups)
+        if f.has_highsec_restricted_ship:
+            capital_removed += 1
             continue
-        if int(safe_num(loc.get("shortest_jumps_to_jita"), -1.0)) < 0:
+        if not f.adjusted_itemq or len(f.adjusted_itemq) < MIN_TYPES:
             continue
-        rr = dict(r)
-        rr["location"] = loc
-        reachable.append(rr)
-    print(f"multi reachable candidates={len(reachable)}")
-
-    print("multi 4) liquidity history + type metadata")
-    wanted_types = set()
-    all_reachable_types = set()
-    for r in reachable:
-        wanted_types |= major_type_ids(r["type_rows"])
-        all_reachable_types |= {int(tid) for tid in r["itemq"]}
-
-    histories = {}
-    if wanted_types:
-        with ThreadPoolExecutor(max_workers=min(HISTORY_WORKERS, len(wanted_types))) as ex:
-            futs = {ex.submit(history_for_type, tid): tid for tid in wanted_types}
-            for fut in as_completed(futs):
-                tid = futs[fut]
-                try:
-                    histories[tid] = fut.result()
-                except Exception:
-                    histories[tid] = {"avg_daily_volume": 0.0, "traded_days": 0}
-    type_refs = fetch_many_ref("types", all_reachable_types) if all_reachable_types else {}
-    print(f"multi history types={len(histories)} metadata types={len(type_refs)}")
-
-    print("multi 5) final A/B economics")
-    final_rows = []
-    all_rows = []
-    for r in reachable:
-        itemq = r["itemq"]
-        major = major_type_ids(r["type_rows"])
-        adjusted_rows = []
-        adjusted_market_gross = 0.0
-        for tr in r["type_rows"]:
-            tid = int(tr["type_id"])
-            qty = int(tr["quantity"])
-            if tid in major:
-                hist = histories.get(tid, {"avg_daily_volume": 0.0, "traded_days": 0})
-                factor = liquidity_factor(qty, hist)
-                avg_daily = safe_num(hist.get("avg_daily_volume"), 0.0)
-            else:
-                # Small tail positions get a mild haircut without spending one history request each.
-                factor = 0.90
-                avg_daily = 0.0
-            adjusted_value = safe_num(tr.get("sell_value"), 0.0) * factor
-            adjusted_market_gross += adjusted_value
-            adjusted_rows.append({**tr, "liquidity_factor": factor, "avg_daily_volume": avg_daily, "adjusted_value": adjusted_value})
-
-        loc = r["location"]
-        total_m3 = 0.0
-        for tid, qty in itemq.items():
-            total_m3 += max(0.0, safe_num(type_volume(type_refs.get(int(tid))), 0.0)) * qty
-        haul = haul_reserve(total_m3, loc)
-        price = r["contract_price"]
-
-        # A: value only what can actually hit current Jita buy orders. Unfilled leftovers are
-        # valued at zero here, so the estimate stays conservative without a separate coverage veto.
-        a_gross = safe_num(r["jita_buy_gross"], 0.0)
-        a_tax = a_gross * SALES_TAX_RATE
-        a_net_value = a_gross - a_tax - haul
-        a_gap = a_net_value - price
-        a_discount = a_gap / a_net_value if a_net_value > 0 else -1.0
-        a_roi = a_gap / price if price > 0 else -1.0
-        a_ok = a_gap >= MIN_VALUE_GAP and a_discount >= MIN_DISCOUNT
-
-        # B: Jita sell-side replacement value, haircut by 30-day liquidity, then normal selling
-        # costs and haul reserve. This is a conservative market-value estimate, not instant cash.
-        b_broker = adjusted_market_gross * BROKER_FEE_RATE
-        b_tax = adjusted_market_gross * SALES_TAX_RATE
-        b_relist = adjusted_market_gross * RELIST_RESERVE_RATE
-        b_net_value = adjusted_market_gross - b_broker - b_tax - b_relist - haul
-        b_gap = b_net_value - price
-        b_discount = b_gap / b_net_value if b_net_value > 0 else -1.0
-        b_roi = b_gap / price if price > 0 else -1.0
-        b_ok = b_gap >= MIN_VALUE_GAP and b_discount >= MIN_DISCOUNT
-
-        deal_class = "A 多件即时兑现" if a_ok else ("B 多件价值低估" if b_ok else "")
-        chosen_value = a_net_value if a_ok else b_net_value
-        chosen_gap = a_gap if a_ok else b_gap
-        chosen_discount = a_discount if a_ok else b_discount
-        chosen_roi = a_roi if a_ok else b_roi
-
-        adjusted_sorted = sorted(adjusted_rows, key=lambda x: safe_num(x.get("adjusted_value"), 0.0), reverse=True)
-        total_adj = sum(safe_num(x.get("adjusted_value"), 0.0) for x in adjusted_sorted)
-        top1_share = safe_num(adjusted_sorted[0].get("adjusted_value"), 0.0) / total_adj if adjusted_sorted and total_adj > 0 else 0.0
-        top3_share = sum(safe_num(x.get("adjusted_value"), 0.0) for x in adjusted_sorted[:3]) / total_adj if total_adj > 0 else 0.0
-
-        base_row = {
-            "contract_id": int(r["contract_id"]),
-            "deal_class": deal_class,
-            "contract_price": price,
-            "item_type_count": int(r["item_type_count"]),
-            "value_coverage": safe_num(r["value_coverage"], 0.0),
-            "unknown_price_types": int(r["unknown_price_types"]),
-            "buy_unit_coverage": safe_num(r["buy_unit_coverage"], 0.0),
-            "jita_buy_gross": a_gross,
-            "instant_liquidation_net_value": a_net_value,
-            "instant_value_gap": a_gap,
-            "instant_discount": a_discount,
-            "instant_roi": a_roi,
-            "jita_sell_gross_raw": safe_num(r["jita_sell_gross_raw"], 0.0),
-            "liquidity_adjusted_market_gross": adjusted_market_gross,
-            "market_net_value": b_net_value,
-            "market_value_gap": b_gap,
-            "market_discount": b_discount,
-            "market_roi": b_roi,
-            "chosen_estimated_value": chosen_value,
-            "chosen_value_gap": chosen_gap,
-            "chosen_discount": chosen_discount,
-            "chosen_roi": chosen_roi,
-            "sales_tax_if_instant": a_tax,
-            "list_broker_fee": b_broker,
-            "list_sales_tax": b_tax,
-            "list_relist_reserve": b_relist,
-            "haul_reserve": haul,
-            "total_m3": total_m3,
-            "top1_value_share": top1_share,
-            "top3_value_share": top3_share,
-            **loc,
-        }
-        all_rows.append(base_row)
-        if not deal_class:
+        if f.excluded_rigs:
+            rig_adjusted += 1
+        snap = partial_liquidation(f.adjusted_itemq, snapshot_buys, SALES_TAX_RATE)
+        gross = float(snap["gross"] or 0)
+        skin_value = sum(
+            float(r.get("gross", 0) or 0)
+            for r in snap["rows"]
+            if legacy.is_skin_related(int(r["type_id"]), types, groups)
+        )
+        skin_share = skin_value / gross if gross > 0 else 0.0
+        if gross > 0 and skin_share >= SKIN_MAJOR_SHARE:
+            skin_removed += 1
             continue
+        q = dict(p)
+        q["itemq"] = f.adjusted_itemq
+        q["feasibility"] = f
+        q["skin_value_share"] = skin_share
+        q["snapshot_cash_adjusted"] = snap
+        feasible.append(q)
 
-        item_bits = []
-        for tr in adjusted_sorted:
-            tid = int(tr["type_id"])
-            name = name_en(type_refs.get(tid), str(tid))
-            item_bits.append(
-                f"{name} x{int(tr['quantity'])}≈{safe_num(tr['adjusted_value'],0.0):.0f} "
-                f"(liq×{safe_num(tr['liquidity_factor'],0.0):.2f})"
-            )
-        base_row["item_breakdown"] = " | ".join(item_bits)
-        base_row["top_value_items"] = " | ".join(item_bits[:6])
-        final_rows.append(base_row)
-
-    all_df = pd.DataFrame(all_rows)
-    if not all_df.empty:
-        all_df.sort_values(["market_value_gap", "instant_value_gap"], ascending=False, inplace=True)
-    ALL_RESULT.parent.mkdir(parents=True, exist_ok=True)
-    all_df.to_csv(ALL_RESULT, index=False)
-
-    out = pd.DataFrame(final_rows)
-    if not out.empty:
-        out.sort_values(["chosen_value_gap", "chosen_roi"], ascending=False, inplace=True)
-        out = out.head(TOP_OUTPUT).copy()
-    out.to_csv(RESULT, index=False)
     print(
-        f"multi done: final={len(out)} output={RESULT}; "
-        f"threshold discount>={MIN_DISCOUNT:.0%} gap>={MIN_VALUE_GAP/1e6:.0f}M coverage>={MIN_VALUE_COVERAGE:.0%}"
+        f"multi feasible={len(feasible):,}; capital_removed={capital_removed} "
+        f"skin_removed={skin_removed} rig_adjusted={rig_adjusted}"
     )
+    if not feasible:
+        _write_empty("No feasible candidates after item checks.")
+        return
+
+    live_type_ids = {int(tid) for p in feasible for tid in p["itemq"]}
+    print(f"multi live Jita buy books: contracts={len(feasible):,} unique_types={len(live_type_ids):,}")
+    live_books, failed_types, live_at = fetch_live_jita_buy_books(live_type_ids)
+
+    rows = []
+    diagnostics = []
+    a_count = b_count = safe_count = changed_count = 0
+    for p in feasible:
+        itemq = p["itemq"]
+        loc = p["loc"]
+        price = float(p["contract_price"])
+        total_m3 = _volume(itemq, types)
+        full_haul = haul_reserve(total_m3, loc)
+
+        full = liquidate_bundle(itemq, live_books, SALES_TAX_RATE)
+        full_profit = float(full["net_after_tax"] or 0) - full_haul - price
+        full_base = price + full_haul
+        full_roi = full_profit / full_base if full_base > 0 else 0.0
+        full_stress_profit = float(full["stress_net_after_tax"] or 0) - full_haul - price
+        full_change = snapshot_change_pct(p["snapshot_cash_adjusted"]["gross"], full["gross"])
+        full_failed = bool(set(itemq).intersection(failed_types))
+        full_status = classify_execution_status(
+            bool(full["complete"]), full_profit, full_roi, full_stress_profit, full_change,
+            ["live_jita_fetch_failed"] if full_failed else [],
+        )
+        a_ok = bool(full["complete"]) and full_profit >= INSTANT_MIN_PROFIT and full_roi >= INSTANT_MIN_ROI and full_status != "DANGER"
+
+        cash = partial_liquidation(itemq, live_books, SALES_TAX_RATE)
+        matched_q = {int(tid): int(qty) for tid, qty in cash.get("matched_itemq", {}).items() if int(qty) > 0}
+        matched_m3 = _volume(matched_q, types)
+        cash_haul = haul_reserve(matched_m3, loc)
+        cash_profit = float(cash["net_after_tax"] or 0) - cash_haul - price
+        cash_base = price + cash_haul
+        cash_roi = cash_profit / cash_base if cash_base > 0 else 0.0
+        stress_cash = _partial_stress(itemq, live_books)
+        stress_cash_profit = float(stress_cash["net_after_tax"] or 0) - cash_haul - price
+        cash_change = snapshot_change_pct(p["snapshot_cash_adjusted"]["gross"], cash["gross"])
+        cash_status = _cash_status(
+            cash_profit, cash_roi, stress_cash_profit, cash_change,
+            fatal=(cash.get("filled_units", 0) <= 0),
+        )
+        b_ok = cash_profit >= CASH_MIN_PROFIT and cash_roi >= CASH_MIN_ROI and cash_status != "DANGER"
+
+        diagnostics.append({
+            "contract_id": int(p["contract_id"]),
+            "contract_price": price,
+            "item_type_count": len(itemq),
+            "full_complete": bool(full["complete"]),
+            "full_profit": full_profit,
+            "full_roi": full_roi,
+            "full_status": full_status,
+            "cash_profit": cash_profit,
+            "cash_roi": cash_roi,
+            "cash_status": cash_status,
+            "cash_coverage": float(cash.get("coverage", 0) or 0),
+            "cash_unvalued_units": max(0, int(cash.get("requested_units", 0) or 0) - int(cash.get("filled_units", 0) or 0)),
+            "risk_tier": loc.get("risk_tier", ""),
+            "system_name": loc.get("system_name", ""),
+        })
+
+        if not (a_ok or b_ok):
+            continue
+
+        if a_ok:
+            deal_class = "A 多件即时兑现"
+            status = full_status
+            chosen = full
+            chosen_profit = full_profit
+            chosen_roi = full_roi
+            chosen_stress = full_stress_profit
+            chosen_change = full_change
+            chosen_haul = full_haul
+            chosen_m3 = total_m3
+            matched_for_display = {int(tid): int(qty) for tid, qty in itemq.items()}
+            a_count += 1
+        else:
+            deal_class = "B 多件现金底价"
+            status = cash_status
+            chosen = cash
+            chosen_profit = cash_profit
+            chosen_roi = cash_roi
+            chosen_stress = stress_cash_profit
+            chosen_change = cash_change
+            chosen_haul = cash_haul
+            chosen_m3 = matched_m3
+            matched_for_display = matched_q
+            b_count += 1
+
+        if status == "SAFE":
+            safe_count += 1
+        elif status == "CHANGED":
+            changed_count += 1
+
+        transport = estimate_transport(chosen_m3, int(legacy.safe_num(loc.get("shortest_jumps_to_jita"), 0)), chosen_profit)
+        density = chosen_profit / chosen_m3 if chosen_m3 > 0 else chosen_profit
+        score = opportunity_score(
+            chosen_profit,
+            chosen_roi,
+            density,
+            80.0 if deal_class.startswith("A") else 70.0,
+            chosen_stress,
+            loc.get("risk_rank", 5),
+            transport.hours,
+            chosen_change,
+            status,
+        )
+        rows.append({
+            "engine_version": "Independent Multi Value V1",
+            "deal_class": deal_class,
+            "valuation_basis": "LIVE_JITA_FULL_LIQUIDATION" if deal_class.startswith("A") else "LIVE_JITA_PARTIAL_CASH_FLOOR_LEFTOVERS_ZERO",
+            "execution_status": status,
+            "score_grade": score_grade(score),
+            "opportunity_score": score,
+            "contract_id": int(p["contract_id"]),
+            "contract_price": price,
+            "item_type_count": len(itemq),
+            "item_total_units": sum(itemq.values()),
+            "type_quantities_json": json.dumps(itemq, sort_keys=True, separators=(",", ":")),
+            "matched_type_quantities_json": json.dumps(matched_for_display, sort_keys=True, separators=(",", ":")),
+            "top_value_items": _top_value_lines(chosen, types),
+            "jita_buy_gross": float(chosen.get("gross", 0) or 0),
+            "sales_tax_if_instant": float(chosen.get("sales_tax", 0) or 0),
+            "instant_liquidation_net_value": float(chosen.get("net_after_tax", 0) or 0) - chosen_haul,
+            "instant_net_profit": chosen_profit,
+            "instant_net_roi": chosen_roi,
+            "chosen_estimated_value": float(chosen.get("net_after_tax", 0) or 0) - chosen_haul,
+            "chosen_value_gap": chosen_profit,
+            "chosen_discount": chosen_profit / max(1.0, float(chosen.get("net_after_tax", 0) or 0) - chosen_haul),
+            "chosen_roi": chosen_roi,
+            "stress_net_profit": chosen_stress,
+            "snapshot_jita_buy_gross": float(p["snapshot_cash_adjusted"]["gross"] or 0),
+            "snapshot_change_pct": chosen_change,
+            "live_revalidated_at": live_at,
+            "buy_unit_coverage": float(chosen.get("coverage", 0) or 0),
+            "buy_filled_units": int(chosen.get("filled_units", 0) or 0),
+            "total_units": int(chosen.get("requested_units", 0) or 0),
+            "unvalued_units_zero": max(0, int(chosen.get("requested_units", 0) or 0) - int(chosen.get("filled_units", 0) or 0)),
+            "matched_volume_m3": chosen_m3,
+            "total_m3": total_m3,
+            "haul_reserve": chosen_haul,
+            "profit_per_m3": density,
+            "skin_value_share": p["skin_value_share"],
+            "excluded_rig_types": len(p["feasibility"].excluded_rigs),
+            "excluded_rig_qty": sum(p["feasibility"].excluded_rigs.values()),
+            "has_assembled_ship": p["feasibility"].has_ship,
+            "highsec_restricted_ship": p["feasibility"].has_highsec_restricted_ship,
+            "transport_trips": transport.trips,
+            "estimated_execution_hours": transport.hours,
+            "estimated_isk_per_hour": transport.isk_per_hour,
+            "contract_title": p.get("title", ""),
+            "date_expired": p.get("date_expired", ""),
+            "contracts_snapshot_modified": c_modified,
+            "market_snapshot_modified": m_modified,
+            "friendly_alliance_id": own_aid,
+            "friendly_alliance_name": own_name,
+            "friendly_alliance_ticker": own_ticker,
+            "eve_contract_url": f"https://eve-contract-opener.99617224.workers.dev/c/{p['contract_id']}",
+            **loc,
+        })
+
+    df = pd.DataFrame(rows)
+    if not df.empty:
+        status_rank = {"SAFE": 0, "CHANGED": 1}
+        class_rank = {"A 多件即时兑现": 0, "B 多件现金底价": 1}
+        df["_sr"] = df["execution_status"].map(status_rank).fillna(9)
+        df["_cr"] = df["deal_class"].map(class_rank).fillna(9)
+        df.sort_values(["_sr", "_cr", "opportunity_score", "chosen_value_gap"], ascending=[True, True, False, False], inplace=True)
+        df.drop(columns=["_sr", "_cr"], inplace=True)
+    df.to_csv(ALL_RESULT, index=False)
+    df.head(TOP_OUTPUT).to_csv(RESULT, index=False)
+
+    lines = [
+        "# Independent multi-item value engine",
+        "",
+        f"- Multi-item universe: `{len(grouped):,}`",
+        f"- Live candidate pool: `{len(selected):,}`",
+        f"- Feasible after location/item checks: `{len(feasible):,}`",
+        f"- Live Jita type books: `{len(live_type_ids):,}`",
+        f"- Final A instant: `{a_count}`",
+        f"- Final B cash-floor: `{b_count}`",
+        f"- SAFE: `{safe_count}`; CHANGED: `{changed_count}`",
+        f"- Instant threshold: profit >= `{INSTANT_MIN_PROFIT:,.0f}` ISK, ROI >= `{INSTANT_MIN_ROI:.1%}`",
+        f"- Cash-floor threshold: profit >= `{CASH_MIN_PROFIT:,.0f}` ISK, ROI >= `{CASH_MIN_ROI:.1%}`",
+        "- Cash-floor values unmatched leftovers at zero and only reserves hauling for the matched cash-producing subset.",
+        "",
+    ]
+    if not df.empty:
+        lines += [
+            "| # | Class | Status | Grade | Contract | Price | Net | ROI | Coverage | Types | Risk |",
+            "|---:|---|---|---|---:|---:|---:|---:|---:|---:|---|",
+        ]
+        for i, r in enumerate(df.head(30).to_dict("records"), 1):
+            lines.append(
+                f"| {i} | {r['deal_class']} | {r['execution_status']} | {r['score_grade']} | {int(r['contract_id'])} | "
+                f"{r['contract_price']/1e6:.1f}M | {r['chosen_value_gap']/1e6:.1f}M | {r['chosen_roi']:.1%} | "
+                f"{r['buy_unit_coverage']:.1%} | {int(r['item_type_count'])} | {r.get('risk_tier','')} |"
+            )
+    else:
+        lines.append("No opportunity passed the live thresholds.")
+    REPORT.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    print(
+        f"multi independent done: rows={len(df)} A={a_count} B={b_count} "
+        f"SAFE={safe_count} CHANGED={changed_count} -> {RESULT}"
+    )
+    if diagnostics:
+        diag = pd.DataFrame(diagnostics)
+        diag.sort_values(["cash_profit", "cash_roi"], ascending=[False, False], inplace=True)
+        print("multi near-miss cash-floor TOP20:")
+        print(diag.head(20).to_string(index=False))
+        diag_roi = diag.sort_values(["cash_roi", "cash_profit"], ascending=[False, False])
+        print("multi near-miss cash-floor ROI TOP20:")
+        print(diag_roi.head(20).to_string(index=False))
+    if not df.empty:
+        cols = ["contract_id", "deal_class", "execution_status", "contract_price", "chosen_value_gap", "chosen_roi", "buy_unit_coverage", "item_type_count", "risk_tier"]
+        print(df[cols].head(20).to_string(index=False))
 
 
 if __name__ == "__main__":

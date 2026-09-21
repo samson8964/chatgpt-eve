@@ -262,7 +262,7 @@ def send_with_retry(recipient_id, subject, body, name):
 
 
 def _safe_v2_candidates(candidates):
-    """V2 never auto-mails CHANGED/DANGER opportunities.
+    """Independent multi-item channel never auto-mails CHANGED/DANGER opportunities.
 
     Legacy rows without execution_status remain eligible so rollback/old result files
     continue to work without changing this sender again.
@@ -287,15 +287,15 @@ def render(stamp, candidates, picked, removed, history):
     if not picked:
         return (
             f"多件合同捡漏·Jita买单 {stamp} · 暂无强机会",
-            f"<b>多件物品合同捡漏 · Buy-Only V2</b><br>{stamp}<br><br>"
+            f"<b>多件物品合同捡漏 · 独立价值引擎</b><br>{stamp}<br><br>"
             f"当前无满足条件且仍有效的 SAFE 合同；候选 {len(candidates)}，发送前失效/不可见 {removed}。<br>"
-            "V2仅自动推送实时复核为SAFE的机会；Jita按真实买单深度估值。",
+            "仅自动推送实时复核为SAFE的机会；A=整包即时兑现，B=现金底价（未成交剩余按0）。",
         )
 
     parts = [
-        f"<b>多件物品合同捡漏 · Opportunity Engine V2 · TOP{len(picked)}</b><br>{stamp}<br>",
+        f"<b>多件物品合同捡漏 · 独立价值引擎 · TOP{len(picked)}</b><br>{stamp}<br>",
         f"SAFE强候选 {len(candidates)} · 发送前失效/不可见 {removed}<br>",
-        "最终估值使用实时Jita 4-4买单深度；CHANGED/DANGER不会自动推送。<br>",
+        "A类要求整包按实时Jita 4-4买单完整兑现；B类仅计算可立即兑现部分，剩余按0；CHANGED/DANGER不会自动推送。<br>",
         "同一合同净价值变化≥20M或≥10%、ROI变化≥2个百分点、等级变化，或持续SAFE满6小时会再次提醒。<br>"
         "合同价>50亿、SKIN/SKINR价值占比≥50%、不可达或未确认可访问的陌生玩家建筑已剔除。<br><br>",
     ]

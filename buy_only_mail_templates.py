@@ -171,13 +171,35 @@ def multi_item_html(i, c):
     roi = _num(r.get("instant_net_roi", r.get("chosen_roi", 0)), 0.0) * 100
     coverage = _num(r.get("buy_unit_coverage"), 0.0) * 100
     stress = _num(r.get("stress_net_profit"), 0.0)
+    klass = str(r.get("deal_class", "") or "")
+    independent = str(r.get("engine_version", "") or "").startswith("Independent Multi")
+    if klass.startswith("B"):
+        tag = "【多件·现金底价】"
+        explainer = "仅把当前能立刻砸入Jita买单的部分计价；未成交剩余物品按0估值。"
+    else:
+        tag = "【多件·即时兑现】"
+        explainer = "整包按当前Jita 4-4真实买单深度可完整兑现。"
+    engine_line = ""
+    if independent:
+        status = html.escape(_short(r.get("execution_status", ""), 16))
+        grade = html.escape(_short(r.get("score_grade", ""), 4))
+        score = _num(r.get("opportunity_score"), 0.0)
+        change = _num(r.get("snapshot_change_pct"), 0.0) * 100
+        unvalued = int(_num(r.get("unvalued_units_zero"), 0))
+        engine_line = (
+            f"<b>独立多件引擎 · {grade}级 · {status} · 评分 {score:.1f}</b><br>"
+            f"实时复核相对快照 {change:+.1f}% · 未计价剩余 {unvalued}件（按0）<br>"
+        )
+    else:
+        engine_line = _v2_line(r)
     return (
-        f"<b>{i}. 【多件·Jita买单即时兑现】 · {risk}</b><br>"
-        + _v2_line(r)
+        f"<b>{i}. {tag} · {risk}</b><br>"
+        + engine_line
         + f"合同价 {fmt_isk(r.get('contract_price',0))} · <b>净利润 {fmt_isk(profit)}</b> · ROI {roi:.1f}% · {int(_num(r.get('item_type_count',0)))}种物品<br>"
-        f"Jita买单毛值 {fmt_isk(r.get('jita_buy_gross',0))} · 税后/运输后可兑现值 {fmt_isk(r.get('chosen_estimated_value',0))}<br>"
+        f"Jita当前可兑现毛值 {fmt_isk(r.get('jita_buy_gross',0))} · 税后/运输后现金值 {fmt_isk(r.get('chosen_estimated_value',0))}<br>"
         f"买单数量覆盖 {coverage:.1f}% · 压力利润 {fmt_isk(stress)} · SKIN占比 {_num(r.get('skin_value_share',0))*100:.1f}%<br>"
-        + (f"主要物品：{items}<br>" if items else "")
+        f"{explainer}<br>"
+        + (f"主要兑现物品：{items}<br>" if items else "")
         + f"位置 {system} / {station}<br>"
         + f"<url=contract:0//{cid}><b>打开合同</b></url><br><br>"
     )
