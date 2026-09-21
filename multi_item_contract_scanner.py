@@ -348,6 +348,23 @@ def main():
         )
         b_ok = cash_profit >= CASH_MIN_PROFIT and cash_roi >= CASH_MIN_ROI and cash_status != "DANGER"
 
+        diagnostics.append({
+            "contract_id": int(p["contract_id"]),
+            "contract_price": price,
+            "item_type_count": len(itemq),
+            "full_complete": bool(full["complete"]),
+            "full_profit": full_profit,
+            "full_roi": full_roi,
+            "full_status": full_status,
+            "cash_profit": cash_profit,
+            "cash_roi": cash_roi,
+            "cash_status": cash_status,
+            "cash_coverage": float(cash.get("coverage", 0) or 0),
+            "cash_unvalued_units": max(0, int(cash.get("requested_units", 0) or 0) - int(cash.get("filled_units", 0) or 0)),
+            "risk_tier": loc.get("risk_tier", ""),
+            "system_name": loc.get("system_name", ""),
+        })
+
         if not (a_ok or b_ok):
             continue
 
@@ -493,6 +510,14 @@ def main():
         f"multi independent done: rows={len(df)} A={a_count} B={b_count} "
         f"SAFE={safe_count} CHANGED={changed_count} -> {RESULT}"
     )
+    if diagnostics:
+        diag = pd.DataFrame(diagnostics)
+        diag.sort_values(["cash_profit", "cash_roi"], ascending=[False, False], inplace=True)
+        print("multi near-miss cash-floor TOP20:")
+        print(diag.head(20).to_string(index=False))
+        diag_roi = diag.sort_values(["cash_roi", "cash_profit"], ascending=[False, False])
+        print("multi near-miss cash-floor ROI TOP20:")
+        print(diag_roi.head(20).to_string(index=False))
     if not df.empty:
         cols = ["contract_id", "deal_class", "execution_status", "contract_price", "chosen_value_gap", "chosen_roi", "buy_unit_coverage", "item_type_count", "risk_tier"]
         print(df[cols].head(20).to_string(index=False))
