@@ -341106,14 +341106,16 @@
   "region_errors": {},
   "regions_checked": 114,
   "regions_total": 114,
-  "running": true,
+  "round_completed": 1,
+  "running": false,
   "scanned": 23636,
   "snapshot_error": null,
   "snapshot_modified": "2026-09-21T22:31:15.587Z",
   "snapshot_target_contracts": 62,
+  "spread_opportunities": 0,
   "stage": "等待下一次检查",
   "volume_cap": 0.04
  },
  "unavailable_until": {},
- "updated": "2026-09-21T22:51:46.202491+00:00"
+ "updated": "2026-09-21T22:51:48.744787+00:00"
 }
