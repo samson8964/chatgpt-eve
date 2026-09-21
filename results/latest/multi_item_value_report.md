@@ -1,17 +1,14 @@
 # Independent multi-item value engine
 
-- Multi-item universe: `7,079`
-- Live candidate pool: `141`
-- Feasible after location/item checks: `83`
-- Live Jita type books: `1,043`
-- Final A instant: `2`
+- Multi-item universe: `6,856`
+- Live candidate pool: `142`
+- Feasible after location/item checks: `92`
+- Live Jita type books: `959`
+- Final A instant: `0`
 - Final B cash-floor: `0`
-- SAFE: `2`; CHANGED: `0`
+- SAFE: `0`; CHANGED: `0`
 - Instant threshold: profit >= `30,000,000` ISK, ROI >= `10.0%`
 - Cash-floor threshold: profit >= `30,000,000` ISK, ROI >= `10.0%`
 - Cash-floor values unmatched leftovers at zero and only reserves hauling for the matched cash-producing subset.
 
-| # | Class | Status | Grade | Contract | Price | Net | ROI | Coverage | Types | Risk |
-|---:|---|---|---|---:|---:|---:|---:|---:|---:|---|
-| 1 | A 多件即时兑现 | SAFE | A | 236253255 | 25.0M | 81.7M | 326.9% | 100.0% | 21 | A2 Jita近郊高安 |
-| 2 | A 多件即时兑现 | SAFE | B | 236253300 | 300.0M | 55.5M | 18.5% | 100.0% | 45 | A2 Jita近郊高安 |
+No opportunity passed the live thresholds.
