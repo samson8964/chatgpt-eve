@@ -33,12 +33,14 @@ def _v2_line(r):
     change = _num(r.get("snapshot_change_pct"), 0.0) * 100
     slip = _num(r.get("jita_buy_max_slippage_pct"), 0.0) * 100
     rigs = int(_num(r.get("excluded_rig_qty"), 0))
+    singletons = int(_num(r.get("excluded_market_singleton_qty"), 0))
     return (
         f"<b>V2 {grade}级 · {status} · 评分 {score:.1f}</b><br>"
         f"实时复核相对快照 {change:+.1f}% · 买单滑点最高 {slip:.1f}% · "
         f"流动性 {liq}" + (f" / 预计{fill_days:.2f}天" if fill_days > 0 else "") + "<br>"
         f"历史成交覆盖 {hist_fill:.0f}% · 运输约 {trips} 趟 / {hours:.1f}h · {fmt_isk(iskph)}/h"
         + (f" · 已剔除疑似装船Rig {rigs}件" if rigs else "")
+        + (f" · 已剔除不可市场化单体 {singletons}件" if singletons else "")
         + "<br>"
     )
 
@@ -186,9 +188,12 @@ def multi_item_html(i, c):
         score = _num(r.get("opportunity_score"), 0.0)
         change = _num(r.get("snapshot_change_pct"), 0.0) * 100
         unvalued = int(_num(r.get("unvalued_units_zero"), 0))
+        singletons = int(_num(r.get("excluded_market_singleton_qty"), 0))
         engine_line = (
             f"<b>独立多件引擎 · {grade}级 · {status} · 评分 {score:.1f}</b><br>"
-            f"实时复核相对快照 {change:+.1f}% · 未计价剩余 {unvalued}件（按0）<br>"
+            f"实时复核相对快照 {change:+.1f}% · 未计价剩余 {unvalued}件（按0）"
+            + (f" · 不可市场化单体剔除 {singletons}件" if singletons else "")
+            + "<br>"
         )
     else:
         engine_line = _v2_line(r)

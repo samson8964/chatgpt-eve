@@ -18,6 +18,7 @@ from contract_deal_scanner import (
     sovereignty_owners,
 )
 from opportunity_engine_v2 import (
+    aggregate_market_executable_items,
     analyze_contract_items,
     classify_execution_status,
     drop_best_price_level,
@@ -78,6 +79,43 @@ def _metadata(type_ids):
     groups = fetch_many_ref("groups", gids)
     return types, groups
 
+
+def _prefilter_market_executable_groups(df):
+    """Conservatively remove instance-like rows before candidate ranking."""
+    if df.empty:
+        return {}, {}
+
+    candidate_meta_tids = set()
+    for _, g in df.groupby("contract_id", sort=False):
+        records = g.to_dict("records")
+        unit_counts = {}
+        for row in records:
+            try:
+                tid = int(row.get("type_id") or 0)
+                qty = int(row.get("quantity") or 0)
+            except Exception:
+                continue
+            if tid <= 0 or qty <= 0:
+                continue
+            if qty == 1:
+                unit_counts[tid] = unit_counts.get(tid, 0) + 1
+            raw = row.get("is_singleton", row.get("singleton", False))
+            if str(raw or "").strip().lower() in {"1", "true", "t", "yes", "y"}:
+                candidate_meta_tids.add(tid)
+        for tid, n in unit_counts.items():
+            if n >= 2:
+                candidate_meta_tids.add(tid)
+
+    meta_types, meta_groups = _metadata(candidate_meta_tids) if candidate_meta_tids else ({}, {})
+    grouped = {}
+    excluded = {}
+    for cid, g in df.groupby("contract_id", sort=False):
+        q, ex = aggregate_market_executable_items(g.to_dict("records"), meta_types, meta_groups)
+        if q:
+            grouped[int(cid)] = q
+        if ex:
+            excluded[int(cid)] = ex
+    return grouped, excluded
 
 def _resolve_locations(candidates):
     friendly, aid, aname, aticker = current_friendly_alliances()
@@ -205,9 +243,15 @@ def main():
     bpc_ids = set(ii.loc[ii["_bpc"], "contract_id"].dropna().astype(int))
     usable = valid - requested_ids - bpc_ids
     inc = ii[ii["contract_id"].isin(usable) & ii["_included"] & (ii["quantity"] > 0) & (ii["type_id"] > 0)].copy()
-    grouped = {int(cid): _aggregate(g) for cid, g in inc.groupby("contract_id", sort=False)}
-    grouped = {cid: q for cid, q in grouped.items() if len(q) >= MIN_TYPES}
-    raw_groups = {int(cid): g.to_dict("records") for cid, g in inc.groupby("contract_id", sort=False) if int(cid) in grouped}
+    raw_groups_all = {int(cid): g.to_dict("records") for cid, g in inc.groupby("contract_id", sort=False)}
+    grouped_all, early_singletons = _prefilter_market_executable_groups(inc)
+    grouped = {cid: q for cid, q in grouped_all.items() if len(q) >= MIN_TYPES}
+    raw_groups = {cid: raw_groups_all[cid] for cid in grouped if cid in raw_groups_all}
+    early_singleton_qty = sum(sum(x.values()) for x in early_singletons.values())
+    print(
+        f"multi market-ineligible singleton prefilter: contracts={len(early_singletons):,} "
+        f"qty={early_singleton_qty:,}"
+    )
     c = c[c["contract_id"].isin(grouped)].copy()
     print(f"multi universe={len(grouped):,} contracts with >= {MIN_TYPES} item types")
     if c.empty:
@@ -266,11 +310,20 @@ def main():
         _write_empty("All selected candidates failed location/access checks.")
         return
 
-    all_tids = {int(tid) for p in selected for tid in p["itemq_raw"]}
+    all_tids = set()
+    for p in selected:
+        cid = int(p["contract_id"])
+        for raw in raw_groups.get(cid, []):
+            try:
+                tid = int(raw.get("type_id") or 0)
+            except Exception:
+                tid = 0
+            if tid > 0:
+                all_tids.add(tid)
     types, groups = _metadata(all_tids)
 
     feasible = []
-    capital_removed = skin_removed = rig_adjusted = 0
+    capital_removed = skin_removed = rig_adjusted = singleton_adjusted = 0
     for p in selected:
         f = analyze_contract_items(raw_groups.get(int(p["contract_id"]), []), types, groups)
         if f.has_highsec_restricted_ship:
@@ -280,6 +333,8 @@ def main():
             continue
         if f.excluded_rigs:
             rig_adjusted += 1
+        if f.excluded_market_singletons:
+            singleton_adjusted += 1
         snap = partial_liquidation(f.adjusted_itemq, snapshot_buys, SALES_TAX_RATE)
         gross = float(snap["gross"] or 0)
         skin_value = sum(
@@ -295,12 +350,14 @@ def main():
         q["itemq"] = f.adjusted_itemq
         q["feasibility"] = f
         q["skin_value_share"] = skin_share
+        q["excluded_market_singleton_types"] = len(f.excluded_market_singletons)
+        q["excluded_market_singleton_qty"] = sum(f.excluded_market_singletons.values())
         q["snapshot_cash_adjusted"] = snap
         feasible.append(q)
 
     print(
         f"multi feasible={len(feasible):,}; capital_removed={capital_removed} "
-        f"skin_removed={skin_removed} rig_adjusted={rig_adjusted}"
+        f"skin_removed={skin_removed} rig_adjusted={rig_adjusted} singleton_adjusted={singleton_adjusted}"
     )
     if not feasible:
         _write_empty("No feasible candidates after item checks.")
@@ -450,6 +507,8 @@ def main():
             "skin_value_share": p["skin_value_share"],
             "excluded_rig_types": len(p["feasibility"].excluded_rigs),
             "excluded_rig_qty": sum(p["feasibility"].excluded_rigs.values()),
+            "excluded_market_singleton_types": p["excluded_market_singleton_types"],
+            "excluded_market_singleton_qty": p["excluded_market_singleton_qty"],
             "has_assembled_ship": p["feasibility"].has_ship,
             "highsec_restricted_ship": p["feasibility"].has_highsec_restricted_ship,
             "transport_trips": transport.trips,

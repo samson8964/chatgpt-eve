@@ -58,6 +58,7 @@ class TransportEstimate:
 class ContractFeasibility:
     adjusted_itemq: dict[int, int]
     excluded_rigs: dict[int, int]
+    excluded_market_singletons: dict[int, int]
     has_ship: bool
     has_highsec_restricted_ship: bool
     warnings: list[str]
@@ -576,9 +577,86 @@ def _rig_size_class(type_obj: dict | None) -> int:
     return 0
 
 
-def analyze_contract_items(item_rows: list[dict], type_objs: dict[int, dict], group_objs: dict[int, dict]) -> ContractFeasibility:
-    """Remove likely fitted rigs and flag ships that cannot be liquidated in Jita high-sec."""
+CRYSTALS_TAKE_DAMAGE_ATTRIBUTE_ID = 786
+
+
+def _dogma_attribute_value(type_obj: dict | None, attribute_id: int, default: float = 0.0) -> float:
+    if not type_obj:
+        return default
+    attrs = type_obj.get("dogma_attributes") or {}
+    raw = attrs.get(str(attribute_id), attrs.get(attribute_id))
+    if isinstance(raw, dict):
+        raw = raw.get("value")
+    return safe_float(raw, default)
+
+
+def _is_damageable_crystal(type_obj: dict | None) -> bool:
+    """EVE dogma attribute 786: Crystals Take Damage."""
+    return _dogma_attribute_value(type_obj, CRYSTALS_TAKE_DAMAGE_ATTRIBUTE_ID, 0.0) > 0.5
+
+
+def _fragmented_unit_type_ids(item_rows: list[dict]) -> set[int]:
+    """Types represented by multiple independent quantity=1 contract rows.
+
+    Public-contract data does not expose item damage. Damaged/unstackable items
+    nevertheless appear as separate item instances. Repeated one-unit rows of
+    the same type are therefore treated conservatively as instance items rather
+    than one pristine market stack.
+    """
+    unit_counts: dict[int, int] = {}
+    for row in item_rows:
+        tid = safe_int(row.get("type_id"), 0)
+        qty = safe_int(row.get("quantity"), 0)
+        if tid <= 0 or qty <= 0:
+            continue
+        if qty == 1:
+            unit_counts[tid] = unit_counts.get(tid, 0) + 1
+    return {tid for tid, n in unit_counts.items() if n >= 2}
+
+
+def aggregate_market_executable_items(
+    item_rows: list[dict],
+    type_objs: dict[int, dict] | None = None,
+    group_objs: dict[int, dict] | None = None,
+) -> tuple[dict[int, int], dict[int, int]]:
+    """Aggregate only items safe to value against normal market orders.
+
+    We deliberately fail closed for:
+    - explicit singleton non-ship rows, if a source provides that field;
+    - repeated quantity=1 instances of the same non-ship type;
+    - any one-unit crystal whose dogma attribute 786 says it takes damage.
+
+    Assembled ship hulls are exempt here because the hull can be stripped and
+    repackaged; fitted-rig handling remains in analyze_contract_items().
+    """
+    type_objs = type_objs or {}
+    group_objs = group_objs or {}
+    fragmented = _fragmented_unit_type_ids(item_rows)
     aggregate: dict[int, int] = {}
+    excluded: dict[int, int] = {}
+
+    for row in item_rows:
+        tid = safe_int(row.get("type_id"), 0)
+        qty = safe_int(row.get("quantity"), 0)
+        if tid <= 0 or qty <= 0:
+            continue
+        tobj = type_objs.get(tid)
+        gobj = group_objs.get(_group_id(tobj))
+        is_ship = _is_ship(tobj, gobj)
+        explicit_singleton = _truthy(row.get("is_singleton", row.get("singleton", False)))
+        damageable_single_crystal = qty == 1 and _is_damageable_crystal(tobj)
+        fragmented_instance = qty == 1 and tid in fragmented
+
+        if not is_ship and (explicit_singleton or fragmented_instance or damageable_single_crystal):
+            excluded[tid] = excluded.get(tid, 0) + qty
+            continue
+        aggregate[tid] = aggregate.get(tid, 0) + qty
+
+    return aggregate, excluded
+
+
+def analyze_contract_items(item_rows: list[dict], type_objs: dict[int, dict], group_objs: dict[int, dict]) -> ContractFeasibility:
+    """Apply conservative market-executability rules to contract contents."""
     ship_sizes: set[int] = set()
     restricted = False
     has_ship = False
@@ -589,7 +667,6 @@ def analyze_contract_items(item_rows: list[dict], type_objs: dict[int, dict], gr
         qty = safe_int(row.get("quantity"), 0)
         if tid <= 0 or qty <= 0:
             continue
-        aggregate[tid] = aggregate.get(tid, 0) + qty
         tobj = type_objs.get(tid)
         gobj = group_objs.get(_group_id(tobj))
         if _is_ship(tobj, gobj):
@@ -600,28 +677,41 @@ def analyze_contract_items(item_rows: list[dict], type_objs: dict[int, dict], gr
             if _is_highsec_restricted_ship(tobj, gobj):
                 restricted = True
 
-    excluded: dict[int, int] = {}
-    if has_ship:
-        for row in item_rows:
-            tid = safe_int(row.get("type_id"), 0)
-            qty = safe_int(row.get("quantity"), 0)
-            if tid <= 0 or qty <= 0 or tid not in aggregate:
-                continue
-            tobj = type_objs.get(tid)
-            gobj = group_objs.get(_group_id(tobj))
-            if not _is_rig(tobj, gobj):
-                continue
+    fragmented = _fragmented_unit_type_ids(item_rows)
+    aggregate: dict[int, int] = {}
+    excluded_rigs: dict[int, int] = {}
+    excluded_market_singletons: dict[int, int] = {}
+
+    for row in item_rows:
+        tid = safe_int(row.get("type_id"), 0)
+        qty = safe_int(row.get("quantity"), 0)
+        if tid <= 0 or qty <= 0:
+            continue
+        tobj = type_objs.get(tid)
+        gobj = group_objs.get(_group_id(tobj))
+        explicit_singleton = _truthy(row.get("is_singleton", row.get("singleton", False)))
+        is_ship = _is_ship(tobj, gobj)
+
+        # Keep fitted-rig logic separate so installed rigs never inflate hull value.
+        if has_ship and _is_rig(tobj, gobj):
             rig_size = _rig_size_class(tobj)
-            singleton = _truthy(row.get("is_singleton", row.get("singleton", False)))
-            if singleton or (rig_size > 0 and rig_size in ship_sizes):
-                remove = min(qty, aggregate.get(tid, 0))
-                if remove > 0:
-                    aggregate[tid] -= remove
-                    excluded[tid] = excluded.get(tid, 0) + remove
-                    if aggregate[tid] <= 0:
-                        del aggregate[tid]
-        if excluded:
-            warnings.append("likely_fitted_rigs_excluded")
+            if explicit_singleton or tid in fragmented or (rig_size > 0 and rig_size in ship_sizes):
+                excluded_rigs[tid] = excluded_rigs.get(tid, 0) + qty
+                continue
+
+        damageable_single_crystal = qty == 1 and _is_damageable_crystal(tobj)
+        fragmented_instance = qty == 1 and tid in fragmented
+
+        if not is_ship and (explicit_singleton or fragmented_instance or damageable_single_crystal):
+            excluded_market_singletons[tid] = excluded_market_singletons.get(tid, 0) + qty
+            continue
+
+        aggregate[tid] = aggregate.get(tid, 0) + qty
+
+    if excluded_rigs:
+        warnings.append("likely_fitted_rigs_excluded")
+    if excluded_market_singletons:
+        warnings.append("market_ineligible_instances_excluded")
     if restricted:
         warnings.append("highsec_restricted_ship")
     if has_ship:
@@ -629,12 +719,12 @@ def analyze_contract_items(item_rows: list[dict], type_objs: dict[int, dict], gr
 
     return ContractFeasibility(
         adjusted_itemq=aggregate,
-        excluded_rigs=excluded,
+        excluded_rigs=excluded_rigs,
+        excluded_market_singletons=excluded_market_singletons,
         has_ship=has_ship,
         has_highsec_restricted_ship=restricted,
         warnings=warnings,
     )
-
 
 def estimate_transport(total_m3: float, jumps: int, net_profit: float, capacity_m3: float | None = None) -> TransportEstimate:
     volume = max(0.0, safe_float(total_m3, 0.0))
