@@ -1,15 +1,12 @@
-# 4-HWWF → Jita 4-4 direct-buy arbitrage
+# 4-HWWF → Jita 4-4 Opportunity Engine V2
 
-- Structure: `1053970513596`
-- 4-H cache expiry: `Mon, 21 Sep 2026 16:43:12 GMT`
-- Jita snapshot: `2026-09-21T16:18:31.144Z`
-- Sales tax: `3.3750%`
-- Filters: net profit >= 10.00M, ROI >= 10.0%
-- Jita side uses BUY orders only. Profit is after sales tax, before hauling/risk cost.
+- Source orders: `34341`; source cache: `Mon, 21 Sep 2026 17:03:17 GMT`
+- Final Jita pricing: live ESI `2026-09-21T17:02:14.131978+00:00`
+- High-sec restricted ships removed: `1`
+- Final ranking uses live depth, stress survival, liquidity and volume density.
 
-| # | Item | Qty | 4-H buy price | Jita best buy | Worst bid used | Net profit | ROI | Profit/m3 |
-|---:|---|---:|---:|---:|---:|---:|---:|---:|
-| 1 | Rorqual | 1 | 3.68B | 4.50B | 4.50B | 670.16M | 18.2% | 516 |
-| 2 | Strontium Clathrates | 750,386 | 3.7K | 4.7K | 4.6K | 478.76M | 16.5% | 213 |
-| 3 | Heavy Water | 15,806,020 | 58 | 94 | 90 | 410.45M | 41.7% | 65 |
-| 4 | Tritanium | 904,628,253 | 3 | 4 | 4 | 366.77M | 12.6% | 41 |
+| # | Grade | Status | Item | Qty | 4-H | Jita live buy | Net | ROI | Score | ISK/m3 | Liquidity |
+|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|
+| 1 | A | SAFE | Heavy Water | 15,794,345 | 58 | 94 | 410.64M | 41.8% | 72.5 | 65 | high |
+| 2 | B | SAFE | Tritanium | 874,628,253 | 3 | 4 | 354.05M | 12.5% | 61.7 | 40 | high |
+| 3 | D | CHANGED | Strontium Clathrates | 1,030,386 | 3.7K | 4.7K | 634.65M | 15.8% | 39.0 | 205 | high |
