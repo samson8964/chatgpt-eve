@@ -64,32 +64,66 @@ jobs:
           python - <<'PY'
           from opportunity_engine_v2 import aggregate_market_executable_items, analyze_contract_items
 
+          # 100 = damageable faction/T2 crystal; 101 = non-damageable T1 crystal;
+          # 200 = ship hull; 300 = ordinary module/ammo.
           types = {
-              100: {"name": "Used Faction Crystal", "group_id": 10, "category_id": 8},
+              100: {
+                  "name": "Damageable Crystal",
+                  "group_id": 10,
+                  "category_id": 8,
+                  "dogma_attributes": {"786": {"attribute_id": 786, "value": 1.0}},
+              },
+              101: {
+                  "name": "T1 Crystal",
+                  "group_id": 10,
+                  "category_id": 8,
+                  "dogma_attributes": {"786": {"attribute_id": 786, "value": 0.0}},
+              },
               200: {"name": "Cruiser Hull", "group_id": 20, "category_id": 6},
-              300: {"name": "Normal Ammo", "group_id": 10, "category_id": 8},
+              300: {"name": "Ordinary Item", "group_id": 30, "category_id": 7},
           }
           groups = {
               10: {"name": "Frequency Crystal", "category_id": 8},
               20: {"name": "Cruiser", "category_id": 6},
+              30: {"name": "Module", "category_id": 7},
           }
+
+          # Single damageable crystal must be zero-valued even without singleton metadata.
           rows = [
-              {"type_id": 100, "quantity": 7, "is_singleton": True},
-              {"type_id": 200, "quantity": 1, "is_singleton": True},
-              {"type_id": 300, "quantity": 50, "is_singleton": False},
+              {"type_id": 100, "quantity": 1},
+              {"type_id": 101, "quantity": 1},
+              {"type_id": 200, "quantity": 1},
+              {"type_id": 300, "quantity": 50},
           ]
           q, excluded = aggregate_market_executable_items(rows, types, groups)
-          assert 100 not in q and excluded.get(100) == 7, (q, excluded)
+          assert 100 not in q and excluded.get(100) == 1, (q, excluded)
+          assert q.get(101) == 1, (q, excluded)
           assert q.get(200) == 1, (q, excluded)
           assert q.get(300) == 50, (q, excluded)
 
-          f = analyze_contract_items(rows, types, groups)
+          # Repeated quantity=1 non-ship rows are instance-like and must not be
+          # aggregated into a pristine market stack.
+          fragmented = [
+              {"type_id": 300, "quantity": 1, "item_id": 11},
+              {"type_id": 300, "quantity": 1, "item_id": 12},
+              {"type_id": 200, "quantity": 1, "item_id": 21},
+              {"type_id": 200, "quantity": 1, "item_id": 22},
+          ]
+          q2, ex2 = aggregate_market_executable_items(fragmented, types, groups)
+          assert 300 not in q2 and ex2.get(300) == 2, (q2, ex2)
+          assert q2.get(200) == 2, (q2, ex2)
+
+          f = analyze_contract_items(rows + fragmented, types, groups)
           assert 100 not in f.adjusted_itemq
-          assert f.excluded_market_singletons.get(100) == 7
-          assert f.adjusted_itemq.get(200) == 1
-          assert f.adjusted_itemq.get(300) == 50
+          assert f.excluded_market_singletons.get(100) == 1
+          assert f.excluded_market_singletons.get(300) == 2
+          assert f.adjusted_itemq.get(101) == 1
+          assert f.adjusted_itemq.get(200) == 3
           print("UNIT_OK", f)
           PY
+
+      - name: Compile scanner paths
+        run: python -m py_compile opportunity_engine_v2.py buy_only_contract_scanner_v2.py multi_item_contract_scanner.py opportunity_engine_v3_scanner.py
 
       - name: Run V2 real-data regression
         env:
