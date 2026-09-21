@@ -90,8 +90,7 @@ def _prefilter_market_executable_groups(df):
     candidate_meta_tids = set()
     for _, g in df.groupby("contract_id", sort=False):
         records = g.to_dict("records")
-        counts = {}
-        all_one = {}
+        unit_counts = {}
         for row in records:
             try:
                 tid = int(row.get("type_id") or 0)
@@ -100,13 +99,13 @@ def _prefilter_market_executable_groups(df):
                 continue
             if tid <= 0 or qty <= 0:
                 continue
-            counts[tid] = counts.get(tid, 0) + 1
-            all_one[tid] = all_one.get(tid, True) and qty == 1
+            if qty == 1:
+                unit_counts[tid] = unit_counts.get(tid, 0) + 1
             raw = row.get("is_singleton", row.get("singleton", False))
             if str(raw or "").strip().lower() in {"1", "true", "t", "yes", "y"}:
                 candidate_meta_tids.add(tid)
-        for tid, n in counts.items():
-            if n >= 2 and all_one.get(tid, False):
+        for tid, n in unit_counts.items():
+            if n >= 2:
                 candidate_meta_tids.add(tid)
 
     meta_types, meta_groups = _metadata(candidate_meta_tids) if candidate_meta_tids else ({}, {})
