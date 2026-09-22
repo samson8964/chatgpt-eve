@@ -1,6 +1,6 @@
 {
-  "generated_at_utc": "2026-09-22T06:50:59.366039+00:00",
-  "contracts_snapshot": "2026-09-22T06:31:15.054Z",
+  "generated_at_utc": "2026-09-22T07:19:46.275047+00:00",
+  "contracts_snapshot": "2026-09-22T07:01:15.277Z",
   "market_snapshot": "2026-09-22T06:18:32.081Z",
   "accounting_level": 5,
   "transaction_tax_rate": 0.033749999999999995,
@@ -27,5 +27,5 @@
     }
   ],
   "ranked_count": 11,
-  "all_executable_count": 95
+  "all_executable_count": 94
 }
