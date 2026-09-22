@@ -1,12 +1,12 @@
 # 4-HWWF → Jita 4-4 Opportunity Engine V2
 
-- Source orders: `34324`; source cache: `Tue, 22 Sep 2026 16:48:13 GMT`
-- Final Jita pricing: live ESI `2026-09-22T16:46:17.344954+00:00`
+- Source orders: `34277`; source cache: `Tue, 22 Sep 2026 17:28:24 GMT`
+- Final Jita pricing: live ESI `2026-09-22T17:26:02.012174+00:00`
 - High-sec restricted ships removed: `1`
 - Final ranking uses live depth, stress survival, liquidity and volume density.
 
 | # | Grade | Status | Item | Qty | 4-H | Jita live buy | Net | ROI | Score | ISK/m3 | Liquidity |
 |---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|
-| 1 | A | SAFE | Heavy Water | 15,738,296 | 55 | 100 | 516.59M | 54.1% | 72.5 | 82 | high |
-| 2 | B | SAFE | Tritanium | 672,477,640 | 3 | 4 | 279.18M | 12.9% | 61.0 | 42 | high |
-| 3 | C | CHANGED | Strontium Clathrates | 784,518 | 3.6K | 4.7K | 523.95M | 17.3% | 40.6 | 223 | high |
+| 1 | A | SAFE | Heavy Water | 16,038,296 | 55 | 100 | 523.76M | 53.9% | 72.7 | 82 | high |
+| 2 | B | SAFE | Strontium Clathrates | 791,931 | 3.6K | 4.7K | 597.30M | 19.9% | 66.0 | 251 | high |
+| 3 | C | CHANGED | Tritanium | 824,129,222 | 3 | 4 | 370.25M | 13.9% | 42.9 | 45 | high |
