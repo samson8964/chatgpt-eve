@@ -338747,14 +338747,16 @@
   "region_errors": {},
   "regions_checked": 114,
   "regions_total": 114,
-  "running": true,
+  "round_completed": 1,
+  "running": false,
   "scanned": 23480,
   "snapshot_error": null,
   "snapshot_modified": "2026-09-22T19:31:26.244Z",
   "snapshot_target_contracts": 59,
+  "spread_opportunities": 0,
   "stage": "等待下一次检查",
   "volume_cap": 0.04
  },
  "unavailable_until": {},
- "updated": "2026-09-22T20:02:32.993657+00:00"
+ "updated": "2026-09-22T20:02:35.388619+00:00"
 }
