@@ -1,6 +1,6 @@
 # Independent multi-item value engine
 
-- Multi-item universe: `6,588`
+- Multi-item universe: `6,585`
 - Live candidate pool: `145`
 - Feasible after location/item checks: `93`
 - Live Jita type books: `1,041`
