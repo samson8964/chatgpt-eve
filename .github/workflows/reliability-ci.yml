@@ -47,7 +47,8 @@ jobs:
             test_bpc_opportunity_engine_v2.py \
             test_mail_reminder_policy.py \
             test_multi_grade_watch.py \
-            test_global_grade_watch.py
+            test_global_grade_watch.py \
+            test_global_grade_watch_gmail.py
 
       - name: Check Worker JavaScript syntax
         run: |
