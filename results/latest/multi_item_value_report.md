@@ -1,6 +1,6 @@
 # Independent multi-item value engine
 
-- Multi-item universe: `6,684`
+- Multi-item universe: `6,671`
 - Live candidate pool: `151`
 - Feasible after location/item checks: `96`
 - Live Jita type books: `1,220`
@@ -14,4 +14,4 @@
 
 | # | Class | Status | Grade | Contract | Price | Net | ROI | Coverage | Types | Risk |
 |---:|---|---|---|---:|---:|---:|---:|---:|---:|---|
-| 1 | A 多件即时兑现 | SAFE | C | 236338502 | 450.0M | 60.5M | 12.7% | 100.0% | 29 | D 非友军00高风险 |
+| 1 | A 多件即时兑现 | SAFE | C | 236338502 | 450.0M | 63.5M | 13.4% | 100.0% | 29 | D 非友军00高风险 |
