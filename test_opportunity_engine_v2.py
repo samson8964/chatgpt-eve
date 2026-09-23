@@ -78,7 +78,8 @@ class OpportunityEngineV2Tests(unittest.TestCase):
         self.assertTrue(f.has_ship)
         self.assertTrue(f.has_highsec_restricted_ship)
         self.assertNotIn(200, f.adjusted_itemq)
-        self.assertIn(300, f.adjusted_itemq)
+        self.assertNotIn(300, f.adjusted_itemq)
+        self.assertIn(300, f.excluded_market_singletons)
 
     def test_execution_status(self):
         self.assertEqual(classify_execution_status(True, 100, 0.2, 50, 0.02), "SAFE")
