@@ -66,6 +66,7 @@ SAFE_PRICE_CHANGE_PCT = float(os.getenv("MULTI_SAFE_PRICE_CHANGE_PCT", "0.15"))
 RESULT = LATEST / "multi_item_contract_deals.csv"
 ALL_RESULT = LATEST / "multi_item_contract_all.csv"
 REPORT = LATEST / "multi_item_value_report.md"
+WATCH_RESULT = LATEST / "multi_item_grade_watch.csv"
 
 
 def _aggregate(df: pd.DataFrame) -> dict[int, int]:
@@ -197,10 +198,20 @@ def _cash_status(profit, roi, stress_profit, change_pct, fatal=False):
     return "SAFE"
 
 
+def _watch_cash_status(profit, roi, stress_profit, change_pct, fatal=False):
+    """Execution quality for watch scoring, independent of the 30M formal-profit gate."""
+    if fatal or profit <= 0 or roi <= 0:
+        return "DANGER"
+    if stress_profit <= 0 or abs(change_pct) > SAFE_PRICE_CHANGE_PCT:
+        return "CHANGED"
+    return "SAFE"
+
+
 def _write_empty(message: str):
     LATEST.mkdir(parents=True, exist_ok=True)
     pd.DataFrame().to_csv(ALL_RESULT, index=False)
     pd.DataFrame().to_csv(RESULT, index=False)
+    pd.DataFrame().to_csv(WATCH_RESULT, index=False)
     REPORT.write_text(f"# Independent multi-item value engine\n\n{message}\n", encoding="utf-8")
 
 
@@ -368,6 +379,7 @@ def main():
     live_books, failed_types, live_at = fetch_live_jita_buy_books(live_type_ids)
 
     rows = []
+    watch_rows = []
     diagnostics = []
     a_count = b_count = safe_count = changed_count = 0
     for p in feasible:
@@ -405,6 +417,110 @@ def main():
             fatal=(cash.get("filled_units", 0) <= 0),
         )
         b_ok = cash_profit >= CASH_MIN_PROFIT and cash_roi >= CASH_MIN_ROI and cash_status != "DANGER"
+
+        # A/S watch scoring is deliberately independent of the formal 30M gate.
+        # It is an attention signal only; the normal strong-opportunity mail still
+        # requires the existing 30M profit + 10% ROI rules.
+        jumps = int(legacy.safe_num(loc.get("shortest_jumps_to_jita"), 0))
+        risk_rank = loc.get("risk_rank", 5)
+
+        full_transport_watch = estimate_transport(total_m3, jumps, full_profit)
+        full_density_watch = full_profit / total_m3 if total_m3 > 0 else full_profit
+        full_score_watch = opportunity_score(
+            full_profit,
+            full_roi,
+            full_density_watch,
+            80.0,
+            full_stress_profit,
+            risk_rank,
+            full_transport_watch.hours,
+            full_change,
+            full_status,
+        )
+
+        cash_watch_status = _watch_cash_status(
+            cash_profit, cash_roi, stress_cash_profit, cash_change,
+            fatal=(cash.get("filled_units", 0) <= 0),
+        )
+        cash_transport_watch = estimate_transport(matched_m3, jumps, cash_profit)
+        cash_density_watch = cash_profit / matched_m3 if matched_m3 > 0 else cash_profit
+        cash_score_watch = opportunity_score(
+            cash_profit,
+            cash_roi,
+            cash_density_watch,
+            70.0,
+            stress_cash_profit,
+            risk_rank,
+            cash_transport_watch.hours,
+            cash_change,
+            cash_watch_status,
+        )
+
+        if cash_score_watch > full_score_watch:
+            watch_class = "现金底价"
+            watch_status = cash_watch_status
+            watch_score = cash_score_watch
+            watch_profit = cash_profit
+            watch_roi = cash_roi
+            watch_stress = stress_cash_profit
+            watch_change = cash_change
+            watch_quote = cash
+            watch_haul = cash_haul
+            watch_m3 = matched_m3
+            watch_transport = cash_transport_watch
+        else:
+            watch_class = "即时兑现"
+            watch_status = full_status
+            watch_score = full_score_watch
+            watch_profit = full_profit
+            watch_roi = full_roi
+            watch_stress = full_stress_profit
+            watch_change = full_change
+            watch_quote = full
+            watch_haul = full_haul
+            watch_m3 = total_m3
+            watch_transport = full_transport_watch
+
+        watch_grade = score_grade(watch_score)
+        if watch_grade in {"A", "S"} and watch_status != "DANGER" and watch_profit > 0 and watch_roi > 0:
+            watch_rows.append({
+                "contract_id": int(p["contract_id"]),
+                "score_grade": watch_grade,
+                "opportunity_score": watch_score,
+                "execution_status": watch_status,
+                "watch_class": watch_class,
+                "contract_price": price,
+                "watch_net_profit": watch_profit,
+                "watch_roi": watch_roi,
+                "stress_net_profit": watch_stress,
+                "snapshot_change_pct": watch_change,
+                "item_type_count": len(itemq),
+                "buy_unit_coverage": float(watch_quote.get("coverage", 0) or 0),
+                "unvalued_units_zero": max(
+                    0,
+                    int(watch_quote.get("requested_units", 0) or 0)
+                    - int(watch_quote.get("filled_units", 0) or 0),
+                ),
+                "jita_buy_gross": float(watch_quote.get("gross", 0) or 0),
+                "sales_tax_if_instant": float(watch_quote.get("sales_tax", 0) or 0),
+                "haul_reserve": watch_haul,
+                "chosen_estimated_value": float(watch_quote.get("net_after_tax", 0) or 0) - watch_haul,
+                "top_value_items": _top_value_lines(watch_quote, types),
+                "estimated_execution_hours": watch_transport.hours,
+                "estimated_isk_per_hour": watch_transport.isk_per_hour,
+                "risk_tier": loc.get("risk_tier", ""),
+                "risk_rank": risk_rank,
+                "system_name": loc.get("system_name", ""),
+                "station_name": loc.get("station_name", ""),
+                "security": loc.get("security", 0),
+                "shortest_jumps_to_jita": loc.get("shortest_jumps_to_jita", -1),
+                "date_expired": p.get("date_expired", ""),
+                "contract_title": p.get("title", ""),
+                "excluded_market_singleton_qty": p["excluded_market_singleton_qty"],
+                "formal_qualified": bool(a_ok or b_ok),
+                "live_revalidated_at": live_at,
+                "eve_contract_url": f"https://eve-contract-opener.99617224.workers.dev/c/{p['contract_id']}",
+            })
 
         diagnostics.append({
             "contract_id": int(p["contract_id"]),
@@ -536,6 +652,20 @@ def main():
     df.to_csv(ALL_RESULT, index=False)
     df.head(TOP_OUTPUT).to_csv(RESULT, index=False)
 
+    watch_df = pd.DataFrame(watch_rows)
+    if not watch_df.empty:
+        watch_df.sort_values(
+            ["opportunity_score", "watch_net_profit", "watch_roi"],
+            ascending=[False, False, False],
+            inplace=True,
+        )
+    watch_df.to_csv(WATCH_RESULT, index=False)
+    print(
+        f"multi A/S watch: current={len(watch_df)} "
+        f"nonformal={int((~watch_df['formal_qualified']).sum()) if not watch_df.empty else 0} "
+        f"-> {WATCH_RESULT}"
+    )
+
     lines = [
         "# Independent multi-item value engine",
         "",
@@ -546,6 +676,7 @@ def main():
         f"- Final A instant: `{a_count}`",
         f"- Final B cash-floor: `{b_count}`",
         f"- SAFE: `{safe_count}`; CHANGED: `{changed_count}`",
+        f"- Current A/S watch candidates: `{len(watch_df)}` (watch-only, does not change the 30M formal gate)",
         f"- Instant threshold: profit >= `{INSTANT_MIN_PROFIT:,.0f}` ISK, ROI >= `{INSTANT_MIN_ROI:.1%}`",
         f"- Cash-floor threshold: profit >= `{CASH_MIN_PROFIT:,.0f}` ISK, ROI >= `{CASH_MIN_ROI:.1%}`",
         "- Cash-floor values unmatched leftovers at zero and only reserves hauling for the matched cash-producing subset.",
