@@ -44,7 +44,9 @@ class GmailGradeWatchTests(unittest.TestCase):
             gmail_watch.main()
 
         self.assertEqual(sent, [])
-        self.assertEqual(gmail_watch.load_seen(), {"contract:101"})
+        with patch.object(gmail_watch, "STATE", self.state):
+            with patch.object(gmail_watch, "STATE", self.state):
+            self.assertEqual(gmail_watch.load_seen(), {"contract:101"})
 
     def test_new_first_seen_candidate_sends_once(self):
         with patch.object(gmail_watch, "STATE", self.state):
@@ -60,7 +62,8 @@ class GmailGradeWatchTests(unittest.TestCase):
             gmail_watch.main()
 
         self.assertEqual(len(sent), 1)
-        self.assertEqual(gmail_watch.load_seen(), {"contract:101", "contract:102"})
+        with patch.object(gmail_watch, "STATE", self.state):
+            self.assertEqual(gmail_watch.load_seen(), {"contract:101", "contract:102"})
 
     def test_failed_delivery_does_not_mark_new_candidate_seen(self):
         with patch.object(gmail_watch, "STATE", self.state):
