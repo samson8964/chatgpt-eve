@@ -20,7 +20,7 @@ class GmailGradeWatchTests(unittest.TestCase):
             "contract_id": cid,
             "type_id": None,
             "score": score,
-            "grade": "A",
+            "grade": "A" if score < 85 else "S",
             "status": "SAFE",
             "source_labels": ["普通合同V2"],
             "primary_source": "普通合同V2",
@@ -45,7 +45,6 @@ class GmailGradeWatchTests(unittest.TestCase):
 
         self.assertEqual(sent, [])
         with patch.object(gmail_watch, "STATE", self.state):
-            with patch.object(gmail_watch, "STATE", self.state):
             self.assertEqual(gmail_watch.load_seen(), {"contract:101"})
 
     def test_new_first_seen_candidate_sends_once(self):
@@ -77,7 +76,8 @@ class GmailGradeWatchTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 gmail_watch.main()
 
-        self.assertEqual(gmail_watch.load_seen(), {"contract:101"})
+        with patch.object(gmail_watch, "STATE", self.state):
+            self.assertEqual(gmail_watch.load_seen(), {"contract:101"})
 
 
 if __name__ == "__main__":
