@@ -26,6 +26,7 @@ on:
       - 'send_multi_item_buy_only_multi.py'
       - 'send_multi_grade_watch.py'
       - 'send_global_grade_watch.py'
+      - 'send_global_grade_watch_gmail.py'
       - 'send_four_h_mail_multi.py'
       - 'prepare_mail_candidates.py'
       - 'four_h_contract_scanner.py'
@@ -313,6 +314,27 @@ jobs:
         shell: bash
         run: |
           echo "::warning::Global A/S first-seen alert failed; scan results and formal channel alerts remain valid."
+
+      - name: Send first-seen global A/S alerts to Gmail
+        id: mail_global_gmail
+        continue-on-error: true
+        if: steps.cadence.outputs.run_scan == 'true'
+        env:
+          GMAIL_SMTP_USER: ${{ secrets.GMAIL_SMTP_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          GMAIL_TO: ${{ secrets.GMAIL_TO }}
+          GRADE_WATCH_MIN_SCORE: '70'
+          GRADE_WATCH_GMAIL_TOP: '20'
+        shell: bash
+        run: |
+          set -o pipefail
+          python send_global_grade_watch_gmail.py 2>&1 | tee /tmp/mail-global-gmail.log
+
+      - name: Report degraded Gmail A/S alert without blocking scans
+        if: steps.cadence.outputs.run_scan == 'true' && steps.mail_global_gmail.outcome == 'failure'
+        shell: bash
+        run: |
+          echo "::warning::Gmail A/S first-seen alert failed; scan results and all other alerts remain valid."
 
       - name: Send changed 4-H contract and market digests
         id: mail_four_h
