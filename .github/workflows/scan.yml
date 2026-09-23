@@ -25,6 +25,7 @@ on:
       - 'send_eve_mail_buy_only_multi.py'
       - 'send_multi_item_buy_only_multi.py'
       - 'send_multi_grade_watch.py'
+      - 'send_global_grade_watch.py'
       - 'send_four_h_mail_multi.py'
       - 'prepare_mail_candidates.py'
       - 'four_h_contract_scanner.py'
@@ -291,8 +292,8 @@ jobs:
             exit 2
           fi
 
-      - name: Send newly-entered A/S multi-item attention alerts
-        id: mail_multi_watch
+      - name: Send first-seen global A/S opportunity alerts
+        id: mail_global_watch
         continue-on-error: true
         if: steps.cadence.outputs.run_scan == 'true'
         env:
@@ -300,17 +301,18 @@ jobs:
           EVE_MAIL_RECIPIENT_NAME: MikeChong
           EVE_MAIL_RECIPIENT_NAMES: 'MikeChong,Vektor Yang'
           EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
-          MAIL_TOP: '10'
+          GRADE_WATCH_MIN_SCORE: '70'
+          GRADE_WATCH_MAIL_TOP: '10'
         shell: bash
         run: |
           set -o pipefail
-          python send_multi_grade_watch.py 2>&1 | tee /tmp/mail-multi-watch.log
+          python send_global_grade_watch.py 2>&1 | tee /tmp/mail-global-watch.log
 
-      - name: Report degraded A/S attention alert without blocking scans
-        if: steps.cadence.outputs.run_scan == 'true' && steps.mail_multi_watch.outcome == 'failure'
+      - name: Report degraded global A/S alert without blocking scans
+        if: steps.cadence.outputs.run_scan == 'true' && steps.mail_global_watch.outcome == 'failure'
         shell: bash
         run: |
-          echo "::warning::A/S multi-item attention mail failed; scan and formal 30M opportunity alerts remain valid."
+          echo "::warning::Global A/S first-seen alert failed; scan results and formal channel alerts remain valid."
 
       - name: Send changed 4-H contract and market digests
         id: mail_four_h
