@@ -1,8 +1,8 @@
 # 4-HWWF contract bargain scan — Opportunity Engine V2
 
-- Public contract snapshot: `2026-09-24T01:01:12.299Z`
-- Current 4-H structure orders: `34345`
-- Jita final pricing: live ESI `2026-09-24T01:30:16.489627+00:00`
+- Public contract snapshot: `2026-09-24T01:31:14.097Z`
+- Current 4-H structure orders: `34309`
+- Jita final pricing: live ESI `2026-09-24T01:59:03.356992+00:00`
 - Likely fitted rigs are excluded from recoverable value.
 - High-sec restricted ships may use 4-H local liquidation, but never the Jita route.
 
