@@ -390,7 +390,7 @@ def main():
         for _, r in contract_df.head(20).iterrows():
             lines.append(
                 f"- #{int(r.contract_id)} | {r.net_profit/1e6:.1f}M | ROI {r.net_roi:.1%} | "
-                f"{r.station_name} | {r.items[:180]}"
+                f"{r.station_name} | {str(r["items"])[:180]}"
             )
 
     lines += ["", f"## Market opportunities: {len(market_df)}"]
@@ -408,7 +408,7 @@ def main():
         for _, r in near_df.head(10).iterrows():
             lines.append(
                 f"- #{int(r.contract_id)} | {r.net_profit/1e6:.1f}M | ROI {r.net_roi:.1%} | "
-                f"stress {r.stress_net_profit/1e6:.1f}M | {r.station_name} | {r.items[:180]}"
+                f"stress {r.stress_net_profit/1e6:.1f}M | {r.station_name} | {str(r["items"])[:180]}"
             )
 
     (OUT / "summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
