@@ -1,0 +1,63 @@
+name: Domain opportunity scan
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'domain_opportunity_scan.py'
+      - '.github/workflows/domain-scan.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: domain-opportunity-scan
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 20
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Scan Domain contracts and market
+        env:
+          ACCOUNTING_LEVEL: '5'
+          DOMAIN_CONTRACT_MIN_PRICE: '1000000'
+          DOMAIN_CONTRACT_MAX_PRICE: '5000000000'
+          DOMAIN_CONTRACT_MIN_PROFIT: '30000000'
+          DOMAIN_CONTRACT_MIN_ROI: '0.10'
+          DOMAIN_MARKET_MIN_PROFIT: '10000000'
+          DOMAIN_MARKET_MIN_ROI: '0.10'
+          DOMAIN_HAUL_BASE_ISK: '2000000'
+          DOMAIN_HAUL_ISK_PER_M3_JUMP: '200'
+          DOMAIN_MIN_HOURS_TO_EXPIRE: '0.5'
+        run: python domain_opportunity_scan.py
+
+      - name: Commit Domain scan results
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "eve-arbitrage-bot"
+          git config user.email "eve-arbitrage-bot@users.noreply.github.com"
+          git add results/domain/latest
+          if git diff --cached --quiet; then
+            echo "No Domain result changes."
+            exit 0
+          fi
+          git commit -m "data: refresh Domain opportunities $(date -u +'%Y-%m-%d %H:%M UTC')"
+          git push origin HEAD:main
