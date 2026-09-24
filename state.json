@@ -339713,6 +339713,10 @@
    "state": "sent",
    "updated": 1789278207.9807746
   },
+  "booster-spread:2124493042:236118508": {
+   "state": "sending",
+   "updated": 1790270802.0814097
+  },
   "booster-spread:2124493042:236135339": {
    "count": 15,
    "detail": "游戏邮件编号 403167442",
@@ -339750,9 +339754,10 @@
   "snapshot_error": null,
   "snapshot_modified": "2026-09-24T17:01:14.965Z",
   "snapshot_target_contracts": 59,
+  "spread_opportunities": 1,
   "stage": "等待下一次检查",
   "volume_cap": 0.04
  },
  "unavailable_until": {},
- "updated": "2026-09-24T17:26:39.048611+00:00"
+ "updated": "2026-09-24T17:26:42.205124+00:00"
 }
