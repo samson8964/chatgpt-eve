@@ -338274,7 +338274,7 @@
   ]
  },
  "next_mail_at": 1789149515.984461,
- "next_mail_at_booster-manufacturing": 1790206791.4429028,
+ "next_mail_at_booster-manufacturing": 1790214986.2637334,
  "next_mail_at_booster-spread": 1789956289.6102633,
  "push_state": {
   "booster-manufacturing:2124493042:234989144": {
@@ -338488,16 +338488,16 @@
    "updated": 1789134758.842298
   },
   "booster-manufacturing:2124493042:235936661": {
-   "count": 39,
-   "detail": "游戏邮件编号 403184998",
-   "state": "sending",
-   "updated": 1790213181.4868429
+   "count": 40,
+   "detail": "游戏邮件编号 403185414",
+   "state": "sent",
+   "updated": 1790213186.264131
   },
   "booster-manufacturing:2124493042:236118508": {
-   "count": 30,
-   "detail": "游戏邮件编号 403184998",
-   "state": "sending",
-   "updated": 1790213181.4868429
+   "count": 31,
+   "detail": "游戏邮件编号 403185414",
+   "state": "sent",
+   "updated": 1790213186.264131
   },
   "booster-manufacturing:2124493042:236128866": {
    "count": 1,
@@ -338536,22 +338536,22 @@
    "updated": 1789844452.9015877
   },
   "booster-manufacturing:2124493042:236226961": {
-   "count": 17,
-   "detail": "游戏邮件编号 403184998",
-   "state": "sending",
-   "updated": 1790213181.4868429
+   "count": 18,
+   "detail": "游戏邮件编号 403185414",
+   "state": "sent",
+   "updated": 1790213186.264131
   },
   "booster-manufacturing:2124493042:236248469": {
-   "count": 14,
-   "detail": "游戏邮件编号 403184998",
-   "state": "sending",
-   "updated": 1790213181.4868429
+   "count": 15,
+   "detail": "游戏邮件编号 403185414",
+   "state": "sent",
+   "updated": 1790213186.264131
   },
   "booster-manufacturing:2124493042:236254833": {
-   "count": 15,
-   "detail": "游戏邮件编号 403184998",
-   "state": "sending",
-   "updated": 1790213181.4868429
+   "count": 16,
+   "detail": "游戏邮件编号 403185414",
+   "state": "sent",
+   "updated": 1790213186.264131
   },
   "booster-manufacturing:2124493042:236276013": {
    "count": 13,
@@ -338578,10 +338578,10 @@
    "updated": 1790195707.0015934
   },
   "booster-manufacturing:2124493042:236276418": {
-   "count": 13,
-   "detail": "游戏邮件编号 403184998",
-   "state": "sending",
-   "updated": 1790213181.4868429
+   "count": 14,
+   "detail": "游戏邮件编号 403185414",
+   "state": "sent",
+   "updated": 1790213186.264131
   },
   "booster-manufacturing:2124493042:236309339": {
    "count": 2,
@@ -338590,16 +338590,16 @@
    "updated": 1790126828.3810508
   },
   "booster-manufacturing:2124493042:236329162": {
-   "count": 3,
-   "detail": "游戏邮件编号 403184998",
-   "state": "sending",
-   "updated": 1790213181.4868429
+   "count": 4,
+   "detail": "游戏邮件编号 403185414",
+   "state": "sent",
+   "updated": 1790213186.264131
   },
   "booster-manufacturing:2124493042:236331637": {
-   "count": 3,
-   "detail": "游戏邮件编号 403184998",
-   "state": "sending",
-   "updated": 1790213181.4868429
+   "count": 4,
+   "detail": "游戏邮件编号 403185414",
+   "state": "sent",
+   "updated": 1790213186.264131
   },
   "booster-spread:2124493042:235439334": {
    "count": 6,
@@ -338648,5 +338648,5 @@
   "volume_cap": 0.04
  },
  "unavailable_until": {},
- "updated": "2026-09-24T01:26:21.819146+00:00"
+ "updated": "2026-09-24T01:26:26.571364+00:00"
 }
