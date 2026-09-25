@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import os
+import time
 from collections import defaultdict
 from pathlib import Path
 
@@ -32,12 +34,52 @@ MIN_PRICE = float(os.getenv("FOUR_H_CONTRACT_MIN_PRICE", "1000000"))
 MIN_NET_PROFIT = float(os.getenv("FOUR_H_CONTRACT_MIN_NET_PROFIT", "5000000"))
 MIN_NET_ROI = float(os.getenv("FOUR_H_CONTRACT_MIN_NET_ROI", "0.05"))
 TOP = int(os.getenv("FOUR_H_CONTRACT_TOP", "100"))
+V31_STRUCTURE_ORDERS_CACHE = os.getenv("V31_STRUCTURE_ORDERS_CACHE", "").strip()
+V31_STRUCTURE_CACHE_MAX_AGE = int(os.getenv("V31_STRUCTURE_CACHE_MAX_AGE", "600"))
 
 RESULT = LATEST / "four_h_contract_bargains.csv"
 REPORT = LATEST / "four_h_contract_bargains.md"
 
 
+def _read_v31_structure_cache():
+    if not V31_STRUCTURE_ORDERS_CACHE:
+        return None
+    path = Path(V31_STRUCTURE_ORDERS_CACHE)
+    if not path.exists():
+        return None
+    try:
+        if time.time() - path.stat().st_mtime > V31_STRUCTURE_CACHE_MAX_AGE:
+            return None
+        payload = json.loads(path.read_text("utf-8"))
+        if int(payload.get("structure_id") or 0) != STRUCTURE_ID:
+            return None
+        rows = payload.get("orders")
+        return rows if isinstance(rows, list) else None
+    except Exception:
+        return None
+
+
+def _write_v31_structure_cache(rows):
+    if not V31_STRUCTURE_ORDERS_CACHE:
+        return
+    path = Path(V31_STRUCTURE_ORDERS_CACHE)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.{time.time_ns()}.tmp")
+    try:
+        tmp.write_text(json.dumps({"structure_id": STRUCTURE_ID, "orders": rows}, separators=(",", ":")), "utf-8")
+        os.replace(tmp, path)
+    finally:
+        try:
+            tmp.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+
 def fetch_structure_orders():
+    cached = _read_v31_structure_cache()
+    if cached is not None:
+        print(f"   V3.1 shared 4-H snapshot hit: {len(cached):,} orders")
+        return cached
     if not API_KEY:
         raise RuntimeError("Missing EVE_MARKET_API_KEY")
     page = 1
@@ -59,6 +101,7 @@ def fetch_structure_orders():
         pages = max(1, int(data.get("pages") or 1))
         raw.extend(data.get("orders") or [])
         page += 1
+    _write_v31_structure_cache(raw)
     return raw
 
 
