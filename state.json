@@ -9,344 +9,28 @@
      "te": 0
     }
    ],
-   "bp": 25329,
-   "contract_id": 235624318,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.302070+00:00",
-   "eligible": false,
-   "expired": "2026-09-29T23:49:12Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-01T23:49:12Z",
-   "location_id": 60003760,
-   "material": 179858250.0,
-   "name": "坠落感",
-   "price": 599000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 28410517.525630236,
-   "profit50": 28410517.525630236,
-   "reasons": [
-    "每 50 流程利润未达门槛",
-    "投入回报率未达门槛"
-   ],
-   "reference_price": 17205658.26369748,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": 0.036014730815872475,
-   "runs": 50,
-   "week_share": 0.1400560224089636,
-   "week_volume": 357
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25513,
-   "contract_id": 235685989,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.295195+00:00",
-   "eligible": false,
-   "expired": "2026-10-01T20:32:49Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-03T20:32:49Z",
-   "location_id": 60003760,
-   "material": 209128050.0,
-   "name": "X—本能",
-   "price": 449000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 173712113.99672115,
-   "profit50": 173712113.99672115,
-   "reasons": [
-    "本批产量占一周市场成交量过高"
-   ],
-   "reference_price": 17722950.820983604,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": 0.25999823536329775,
-   "runs": 50,
-   "week_share": 0.819672131147541,
-   "week_volume": 61
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25322,
-   "contract_id": 235697400,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.293346+00:00",
-   "eligible": false,
-   "expired": "2026-10-02T07:18:30Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-04T07:18:30Z",
-   "location_id": 60003760,
-   "material": 243015192.0,
-   "name": "疯癫",
-   "price": 445000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 187093816.9662162,
-   "profit50": 187093816.9662162,
-   "reasons": [
-    "本批产量占一周市场成交量过高"
-   ],
-   "reference_price": 18633873.872972973,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": 0.2680368838823442,
-   "runs": 50,
-   "week_share": 0.45045045045045046,
-   "week_volume": 111
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25512,
-   "contract_id": 235755434,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.284717+00:00",
-   "eligible": false,
-   "expired": "2026-10-03T22:27:46Z",
-   "history_end": "2026-09-23",
-   "issued": "2026-09-05T22:27:46Z",
-   "location_id": 60003760,
-   "material": 208554982.0,
-   "name": "梦呓",
-   "price": 150000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 137009108.83999997,
-   "profit50": 137009108.83999997,
-   "reasons": [
-    "本批产量占一周市场成交量过高"
-   ],
-   "reference_price": 10643454.544,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": 0.37174672852475504,
-   "runs": 50,
-   "week_share": 0.9090909090909091,
-   "week_volume": 55
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25512,
-   "contract_id": 235755452,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.284418+00:00",
-   "eligible": false,
-   "expired": "2026-10-03T22:28:08Z",
-   "history_end": "2026-09-23",
-   "issued": "2026-09-05T22:28:08Z",
-   "location_id": 60003760,
-   "material": 208554982.0,
-   "name": "梦呓",
-   "price": 150000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 137009108.83999997,
-   "profit50": 137009108.83999997,
-   "reasons": [
-    "本批产量占一周市场成交量过高"
-   ],
-   "reference_price": 10643454.544,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": 0.37174672852475504,
-   "runs": 50,
-   "week_share": 0.9090909090909091,
-   "week_volume": 55
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25512,
-   "contract_id": 235755460,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.284102+00:00",
-   "eligible": false,
-   "expired": "2026-10-03T22:28:26Z",
-   "history_end": "2026-09-23",
-   "issued": "2026-09-05T22:28:26Z",
-   "location_id": 60003760,
-   "material": 208554982.0,
-   "name": "梦呓",
-   "price": 150000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 137009108.83999997,
-   "profit50": 137009108.83999997,
-   "reasons": [
-    "本批产量占一周市场成交量过高"
-   ],
-   "reference_price": 10643454.544,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": 0.37174672852475504,
-   "runs": 50,
-   "week_share": 0.9090909090909091,
-   "week_volume": 55
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25512,
-   "contract_id": 235755467,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.283766+00:00",
-   "eligible": false,
-   "expired": "2026-10-03T22:28:44Z",
-   "history_end": "2026-09-23",
-   "issued": "2026-09-05T22:28:44Z",
-   "location_id": 60003760,
-   "material": 208554982.0,
-   "name": "梦呓",
-   "price": 150000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 137009108.83999997,
-   "profit50": 137009108.83999997,
-   "reasons": [
-    "本批产量占一周市场成交量过高"
-   ],
-   "reference_price": 10643454.544,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": 0.37174672852475504,
-   "runs": 50,
-   "week_share": 0.9090909090909091,
-   "week_volume": 55
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25512,
-   "contract_id": 235755471,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.283432+00:00",
-   "eligible": false,
-   "expired": "2026-10-03T22:28:57Z",
-   "history_end": "2026-09-23",
-   "issued": "2026-09-05T22:28:57Z",
-   "location_id": 60003760,
-   "material": 208554982.0,
-   "name": "梦呓",
-   "price": 150000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 137009108.83999997,
-   "profit50": 137009108.83999997,
-   "reasons": [
-    "本批产量占一周市场成交量过高"
-   ],
-   "reference_price": 10643454.544,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": 0.37174672852475504,
-   "runs": 50,
-   "week_share": 0.9090909090909091,
-   "week_volume": 55
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25513,
-   "contract_id": 235861516,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.267006+00:00",
-   "eligible": false,
-   "expired": "2026-10-07T01:30:13Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-09T01:30:13Z",
-   "location_id": 60003760,
-   "material": 209128050.0,
-   "name": "X—本能",
-   "price": 425000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 197712113.99672115,
-   "profit50": 197712113.99672115,
-   "reasons": [
-    "本批产量占一周市场成交量过高"
-   ],
-   "reference_price": 17722950.820983604,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": 0.3069453565897668,
-   "runs": 50,
-   "week_share": 0.819672131147541,
-   "week_volume": 61
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
    "bp": 25322,
    "contract_id": 235865584,
    "copies": 1,
-   "discovered": "2026-09-25T12:49:39.266059+00:00",
+   "discovered": "2026-09-25T17:37:30.958969+00:00",
    "eligible": false,
    "expired": "2026-10-07T05:35:47Z",
    "history_end": "2026-09-24",
    "issued": "2026-09-09T05:35:47Z",
    "location_id": 60008494,
-   "material": 243015192.0,
+   "material": 243181128.0,
    "name": "疯癫",
    "price": 440000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 192093816.9662162,
-   "profit50": 192093816.9662162,
+   "price_updated": "2026-09-25T17:36:59.230782+00:00",
+   "profit": 191927880.9662162,
+   "profit50": 191927880.9662162,
    "reasons": [
     "本批产量占一周市场成交量过高"
    ],
    "reference_price": 18633873.872972973,
    "region_id": 10000043,
    "reserve": 10000000.0,
-   "roi": 0.27718557859005233,
+   "roi": 0.27687984166559165,
    "runs": 50,
    "week_share": 0.45045045045045046,
    "week_volume": 111
@@ -369,23 +53,23 @@
    "bp": 25308,
    "contract_id": 235936661,
    "copies": 2,
-   "discovered": "2026-09-25T12:49:39.253834+00:00",
+   "discovered": "2026-09-25T17:37:30.956940+00:00",
    "eligible": true,
    "expired": "2026-10-09T14:34:48Z",
    "history_end": "2026-09-24",
    "issued": "2026-09-11T14:34:48Z",
    "location_id": 1053970513596,
-   "material": 501663080.0,
+   "material": 502184158.0,
    "name": "蓝色药丸",
    "price": 990000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 743165195.8345518,
-   "profit50": 371582597.9172759,
+   "price_updated": "2026-09-25T17:36:59.230782+00:00",
+   "profit": 742644117.8345518,
+   "profit50": 371322058.9172759,
    "reasons": [],
    "reference_price": 23735034.482468966,
    "region_id": 10000003,
    "reserve": 20000000.0,
-   "roi": 0.49162092113445793,
+   "roi": 0.491106928944928,
    "runs": 100,
    "week_share": 0.13793103448275862,
    "week_volume": 725
@@ -399,1620 +83,26 @@
      "te": 0
     }
    ],
-   "bp": 25511,
-   "contract_id": 235941127,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.252644+00:00",
-   "eligible": false,
-   "expired": "2026-10-09T17:19:38Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-11T17:19:38Z",
-   "location_id": 60003760,
-   "material": 240853510.0,
-   "name": "思维冲击",
-   "price": 1200000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": -219173879.06490278,
-   "profit50": -219173879.0649028,
-   "reasons": [
-    "每 50 流程利润未达门槛",
-    "投入回报率未达门槛"
-   ],
-   "reference_price": 25930097.49337047,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": -0.15106547804740314,
-   "runs": 50,
-   "week_share": 0.06963788300835655,
-   "week_volume": 718
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25511,
-   "contract_id": 235941140,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.252273+00:00",
-   "eligible": false,
-   "expired": "2026-10-09T17:20:03Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-11T17:20:03Z",
-   "location_id": 60003760,
-   "material": 240853510.0,
-   "name": "思维冲击",
-   "price": 1200000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": -219173879.06490278,
-   "profit50": -219173879.0649028,
-   "reasons": [
-    "每 50 流程利润未达门槛",
-    "投入回报率未达门槛"
-   ],
-   "reference_price": 25930097.49337047,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": -0.15106547804740314,
-   "runs": 50,
-   "week_share": 0.06963788300835655,
-   "week_volume": 718
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25511,
-   "contract_id": 236003812,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.240269+00:00",
-   "eligible": false,
-   "expired": "2026-10-11T11:47:40Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-13T11:47:40Z",
-   "location_id": 60003760,
-   "material": 240853510.0,
-   "name": "思维冲击",
-   "price": 1180000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": -199173879.06490278,
-   "profit50": -199173879.0649028,
-   "reasons": [
-    "每 50 流程利润未达门槛",
-    "投入回报率未达门槛"
-   ],
-   "reference_price": 25930097.49337047,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": -0.13919935036878986,
-   "runs": 50,
-   "week_share": 0.06963788300835655,
-   "week_volume": 718
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25539,
-   "contract_id": 236018013,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.237263+00:00",
-   "eligible": false,
-   "expired": "2026-10-11T18:30:21Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-13T18:30:21Z",
-   "location_id": 60003760,
-   "material": 241707252.0,
-   "name": "游离感",
-   "price": 800000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": -129471602.1713599,
-   "profit50": -129471602.1713599,
-   "reasons": [
-    "每 50 流程利润未达门槛",
-    "投入回报率未达门槛"
-   ],
-   "reference_price": 19415487.364813477,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": -0.12310612285419507,
-   "runs": 50,
-   "week_share": 0.06016847172081829,
-   "week_volume": 831
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25311,
-   "contract_id": 236018029,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.236950+00:00",
-   "eligible": false,
-   "expired": "2026-10-11T18:30:42Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-13T18:30:42Z",
-   "location_id": 60003760,
-   "material": 191243682.0,
-   "name": "撞击感",
-   "price": 850000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": -245781181.90625,
-   "profit50": -245781181.90625,
-   "reasons": [
-    "每 50 流程利润未达门槛",
-    "投入回报率未达门槛"
-   ],
-   "reference_price": 16957105.26513158,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": -0.2338003891149664,
-   "runs": 50,
-   "week_share": 0.16447368421052633,
-   "week_volume": 304
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25513,
-   "contract_id": 236018036,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.236594+00:00",
-   "eligible": false,
-   "expired": "2026-10-11T18:31:07Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-13T18:31:07Z",
-   "location_id": 60003760,
-   "material": 209128050.0,
-   "name": "X—本能",
-   "price": 424000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 198712113.99672115,
-   "profit50": 198712113.99672115,
-   "reasons": [
-    "本批产量占一周市场成交量过高"
-   ],
-   "reference_price": 17722950.820983604,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": 0.3089775263211131,
-   "runs": 50,
-   "week_share": 0.819672131147541,
-   "week_volume": 61
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25322,
-   "contract_id": 236019711,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.235854+00:00",
-   "eligible": false,
-   "expired": "2026-10-11T19:22:04Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-13T19:22:04Z",
-   "location_id": 60003760,
-   "material": 243015192.0,
-   "name": "疯癫",
-   "price": 300000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 332093816.9662162,
-   "profit50": 332093816.9662162,
-   "reasons": [
-    "本批产量占一周市场成交量过高"
-   ],
-   "reference_price": 18633873.872972973,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": 0.6005148172606011,
-   "runs": 50,
-   "week_share": 0.45045045045045046,
-   "week_volume": 111
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25322,
-   "contract_id": 236019724,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.235512+00:00",
-   "eligible": false,
-   "expired": "2026-10-11T19:22:30Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-13T19:22:30Z",
-   "location_id": 60003760,
-   "material": 243015192.0,
-   "name": "疯癫",
-   "price": 300000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 332093816.9662162,
-   "profit50": 332093816.9662162,
-   "reasons": [
-    "本批产量占一周市场成交量过高"
-   ],
-   "reference_price": 18633873.872972973,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": 0.6005148172606011,
-   "runs": 50,
-   "week_share": 0.45045045045045046,
-   "week_volume": 111
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25539,
-   "contract_id": 236030131,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.233566+00:00",
-   "eligible": false,
-   "expired": "2026-10-12T03:32:36Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-14T03:32:36Z",
-   "location_id": 60003760,
-   "material": 241707252.0,
-   "name": "游离感",
-   "price": 669000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 1528397.8286401033,
-   "profit50": 1528397.8286401033,
-   "reasons": [
-    "每 50 流程利润未达门槛",
-    "投入回报率未达门槛"
-   ],
-   "reference_price": 19415487.364813477,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": 0.001660025839179665,
-   "runs": 50,
-   "week_share": 0.06016847172081829,
-   "week_volume": 831
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25539,
-   "contract_id": 236030136,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.233275+00:00",
-   "eligible": false,
-   "expired": "2026-10-12T03:32:44Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-14T03:32:44Z",
-   "location_id": 60003760,
-   "material": 241707252.0,
-   "name": "游离感",
-   "price": 669000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 1528397.8286401033,
-   "profit50": 1528397.8286401033,
-   "reasons": [
-    "每 50 流程利润未达门槛",
-    "投入回报率未达门槛"
-   ],
-   "reference_price": 19415487.364813477,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": 0.001660025839179665,
-   "runs": 50,
-   "week_share": 0.06016847172081829,
-   "week_volume": 831
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25511,
-   "contract_id": 236030143,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.232931+00:00",
-   "eligible": false,
-   "expired": "2026-10-12T03:33:22Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-14T03:33:22Z",
-   "location_id": 60003760,
-   "material": 240853510.0,
-   "name": "思维冲击",
-   "price": 1169000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": -188173879.06490278,
-   "profit50": -188173879.0649028,
-   "reasons": [
-    "每 50 流程利润未达门槛",
-    "投入回报率未达门槛"
-   ],
-   "reference_price": 25930097.49337047,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": -0.13253048834939513,
-   "runs": 50,
-   "week_share": 0.06963788300835655,
-   "week_volume": 718
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25311,
-   "contract_id": 236053724,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.227554+00:00",
-   "eligible": false,
-   "expired": "2026-10-12T19:35:25Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-14T19:35:25Z",
-   "location_id": 60003760,
-   "material": 191243682.0,
-   "name": "撞击感",
-   "price": 840000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": -235781181.90625,
-   "profit50": -235781181.90625,
-   "reasons": [
-    "每 50 流程利润未达门槛",
-    "投入回报率未达门槛"
-   ],
-   "reference_price": 16957105.26513158,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": -0.22644188481736208,
-   "runs": 50,
-   "week_share": 0.16447368421052633,
-   "week_volume": 304
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25539,
-   "contract_id": 236071641,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.223904+00:00",
-   "eligible": false,
-   "expired": "2026-10-13T11:52:46Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-15T11:52:46Z",
-   "location_id": 60003760,
-   "material": 241707252.0,
-   "name": "游离感",
-   "price": 1100000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": -429471602.1713599,
-   "profit50": -429471602.17135984,
-   "reasons": [
-    "每 50 流程利润未达门槛",
-    "投入回报率未达门槛"
-   ],
-   "reference_price": 19415487.364813477,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": -0.3177253074109866,
-   "runs": 50,
-   "week_share": 0.06016847172081829,
-   "week_volume": 831
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 100,
-     "te": 0
-    }
-   ],
-   "bp": 25513,
-   "contract_id": 236075813,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.222708+00:00",
-   "eligible": false,
-   "expired": "2026-10-13T14:11:42Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-15T14:11:42Z",
-   "location_id": 60003760,
-   "material": 418264570.0,
-   "name": "X—本能",
-   "price": 800000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 445415757.9934423,
-   "profit50": 222707878.99672115,
-   "reasons": [
-    "本批产量占一周市场成交量过高"
-   ],
-   "reference_price": 17722950.820983604,
-   "region_id": 10000002,
-   "reserve": 20000000.0,
-   "roi": 0.35970968465442105,
-   "runs": 100,
-   "week_share": 1.639344262295082,
-   "week_volume": 61
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25511,
-   "contract_id": 236076582,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.222199+00:00",
-   "eligible": false,
-   "expired": "2026-10-13T14:38:44Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-15T14:38:44Z",
-   "location_id": 60003760,
-   "material": 240853510.0,
-   "name": "思维冲击",
-   "price": 1135000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": -154173879.06490278,
-   "profit50": -154173879.06490278,
-   "reasons": [
-    "每 50 流程利润未达门槛",
-    "投入回报率未达门槛"
-   ],
-   "reference_price": 25930097.49337047,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": -0.11124832311093456,
-   "runs": 50,
-   "week_share": 0.06963788300835655,
-   "week_volume": 718
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25511,
-   "contract_id": 236088207,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.219538+00:00",
-   "eligible": false,
-   "expired": "2026-10-13T22:00:04Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-15T22:00:04Z",
-   "location_id": 60003760,
-   "material": 240853510.0,
-   "name": "思维冲击",
-   "price": 1100000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": -119173879.06490278,
-   "profit50": -119173879.06490278,
-   "reasons": [
-    "每 50 流程利润未达门槛",
-    "投入回报率未达门槛"
-   ],
-   "reference_price": 25930097.49337047,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": -0.08822117141695311,
-   "runs": 50,
-   "week_share": 0.06963788300835655,
-   "week_volume": 718
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25539,
-   "contract_id": 236118508,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.213174+00:00",
-   "eligible": true,
-   "expired": "2026-10-14T22:09:15Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-16T22:09:15Z",
-   "location_id": 60003760,
-   "material": 241707252.0,
-   "name": "游离感",
-   "price": 500000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 170528397.8286401,
-   "profit50": 170528397.8286401,
-   "reasons": [],
-   "reference_price": 19415487.364813477,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": 0.22685479935830138,
-   "runs": 50,
-   "week_share": 0.06016847172081829,
-   "week_volume": 831
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25322,
-   "contract_id": 236124297,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.212231+00:00",
-   "eligible": false,
-   "expired": "2026-10-15T04:29:39Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-17T04:29:39Z",
-   "location_id": 60003760,
-   "material": 243015192.0,
-   "name": "疯癫",
-   "price": 300000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 332093816.9662162,
-   "profit50": 332093816.9662162,
-   "reasons": [
-    "本批产量占一周市场成交量过高"
-   ],
-   "reference_price": 18633873.872972973,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": 0.6005148172606011,
-   "runs": 50,
-   "week_share": 0.45045045045045046,
-   "week_volume": 111
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25311,
-   "contract_id": 236125251,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.211565+00:00",
-   "eligible": false,
-   "expired": "2026-10-15T05:32:48Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-17T05:32:48Z",
-   "location_id": 60003760,
-   "material": 191243682.0,
-   "name": "撞击感",
-   "price": 650000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": -45781181.90625,
-   "profit50": -45781181.90625,
-   "reasons": [
-    "每 50 流程利润未达门槛",
-    "投入回报率未达门槛"
-   ],
-   "reference_price": 16957105.26513158,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": -0.053781523286830106,
-   "runs": 50,
-   "week_share": 0.16447368421052633,
-   "week_volume": 304
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25311,
-   "contract_id": 236143595,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.206939+00:00",
-   "eligible": false,
-   "expired": "2026-10-15T19:30:34Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-17T19:30:34Z",
-   "location_id": 60003760,
-   "material": 191243682.0,
-   "name": "撞击感",
-   "price": 600000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 4218818.09375,
-   "profit50": 4218818.09375,
-   "reasons": [
-    "每 50 流程利润未达门槛",
-    "投入回报率未达门槛"
-   ],
-   "reference_price": 16957105.26513158,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": 0.005265337110951472,
-   "runs": 50,
-   "week_share": 0.16447368421052633,
-   "week_volume": 304
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25311,
-   "contract_id": 236149064,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.205788+00:00",
-   "eligible": false,
-   "expired": "2026-10-15T23:59:17Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-17T23:59:17Z",
-   "location_id": 60003760,
-   "material": 191243682.0,
-   "name": "撞击感",
-   "price": 550000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 54218818.09375,
-   "profit50": 54218818.09375,
-   "reasons": [
-    "每 50 流程利润未达门槛",
-    "投入回报率未达门槛"
-   ],
-   "reference_price": 16957105.26513158,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": 0.07217207863819346,
-   "runs": 50,
-   "week_share": 0.16447368421052633,
-   "week_volume": 304
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25311,
-   "contract_id": 236149072,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.205481+00:00",
-   "eligible": false,
-   "expired": "2026-10-15T23:59:40Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-17T23:59:40Z",
-   "location_id": 60003760,
-   "material": 191243682.0,
-   "name": "撞击感",
-   "price": 550000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 54218818.09375,
-   "profit50": 54218818.09375,
-   "reasons": [
-    "每 50 流程利润未达门槛",
-    "投入回报率未达门槛"
-   ],
-   "reference_price": 16957105.26513158,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": 0.07217207863819346,
-   "runs": 50,
-   "week_share": 0.16447368421052633,
-   "week_volume": 304
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25311,
-   "contract_id": 236149082,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.205144+00:00",
-   "eligible": false,
-   "expired": "2026-10-16T00:00:05Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-18T00:00:05Z",
-   "location_id": 60003760,
-   "material": 191243682.0,
-   "name": "撞击感",
-   "price": 550000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 54218818.09375,
-   "profit50": 54218818.09375,
-   "reasons": [
-    "每 50 流程利润未达门槛",
-    "投入回报率未达门槛"
-   ],
-   "reference_price": 16957105.26513158,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": 0.07217207863819346,
-   "runs": 50,
-   "week_share": 0.16447368421052633,
-   "week_volume": 304
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25311,
-   "contract_id": 236151434,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.204434+00:00",
-   "eligible": false,
-   "expired": "2026-10-16T02:21:16Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-18T02:21:16Z",
-   "location_id": 60003760,
-   "material": 191243682.0,
-   "name": "撞击感",
-   "price": 548800000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 55418818.09375,
-   "profit50": 55418818.09375,
-   "reasons": [
-    "每 50 流程利润未达门槛",
-    "投入回报率未达门槛"
-   ],
-   "reference_price": 16957105.26513158,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": 0.0738874540559759,
-   "runs": 50,
-   "week_share": 0.16447368421052633,
-   "week_volume": 304
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25311,
-   "contract_id": 236151439,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.204060+00:00",
-   "eligible": false,
-   "expired": "2026-10-16T02:21:37Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-18T02:21:37Z",
-   "location_id": 60003760,
-   "material": 191243682.0,
-   "name": "撞击感",
-   "price": 548800000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 55418818.09375,
-   "profit50": 55418818.09375,
-   "reasons": [
-    "每 50 流程利润未达门槛",
-    "投入回报率未达门槛"
-   ],
-   "reference_price": 16957105.26513158,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": 0.0738874540559759,
-   "runs": 50,
-   "week_share": 0.16447368421052633,
-   "week_volume": 304
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25512,
-   "contract_id": 236153871,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.202939+00:00",
-   "eligible": false,
-   "expired": "2026-10-16T04:41:25Z",
-   "history_end": "2026-09-23",
-   "issued": "2026-09-18T04:41:25Z",
-   "location_id": 60003760,
-   "material": 208554982.0,
-   "name": "梦呓",
-   "price": 120000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 167009108.83999997,
-   "profit50": 167009108.83999997,
-   "reasons": [
-    "本批产量占一周市场成交量过高"
-   ],
-   "reference_price": 10643454.544,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": 0.4932998116093296,
-   "runs": 50,
-   "week_share": 0.9090909090909091,
-   "week_volume": 55
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25329,
-   "contract_id": 236185943,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.195287+00:00",
-   "eligible": false,
-   "expired": "2026-10-17T05:30:36Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-19T05:30:36Z",
-   "location_id": 60003760,
-   "material": 179858250.0,
-   "name": "坠落感",
-   "price": 600000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 27410517.525630236,
-   "profit50": 27410517.525630236,
-   "reasons": [
-    "每 50 流程利润未达门槛",
-    "投入回报率未达门槛"
-   ],
-   "reference_price": 17205658.26369748,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": 0.03470308441499501,
-   "runs": 50,
-   "week_share": 0.1400560224089636,
-   "week_volume": 357
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25329,
-   "contract_id": 236187271,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.194031+00:00",
-   "eligible": false,
-   "expired": "2026-10-17T06:34:12Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-19T06:34:12Z",
-   "location_id": 60003760,
-   "material": 179858250.0,
-   "name": "坠落感",
-   "price": 550000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 77410517.52563024,
-   "profit50": 77410517.52563024,
-   "reasons": [
-    "每 50 流程利润未达门槛",
-    "投入回报率未达门槛"
-   ],
-   "reference_price": 17205658.26369748,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": 0.1046288495473697,
-   "runs": 50,
-   "week_share": 0.1400560224089636,
-   "week_volume": 357
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25329,
-   "contract_id": 236192585,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.191990+00:00",
-   "eligible": false,
-   "expired": "2026-10-17T10:29:50Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-19T10:29:50Z",
-   "location_id": 60003760,
-   "material": 179858250.0,
-   "name": "坠落感",
-   "price": 550000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 77410517.52563024,
-   "profit50": 77410517.52563024,
-   "reasons": [
-    "每 50 流程利润未达门槛",
-    "投入回报率未达门槛"
-   ],
-   "reference_price": 17205658.26369748,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": 0.1046288495473697,
-   "runs": 50,
-   "week_share": 0.1400560224089636,
-   "week_volume": 357
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25511,
-   "contract_id": 236216945,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.178755+00:00",
-   "eligible": false,
-   "expired": "2026-10-17T23:22:39Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-19T23:22:39Z",
-   "location_id": 60003760,
-   "material": 240853510.0,
-   "name": "思维冲击",
-   "price": 1069000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": -88173879.06490278,
-   "profit50": -88173879.06490278,
-   "reasons": [
-    "每 50 流程利润未达门槛",
-    "投入回报率未达门槛"
-   ],
-   "reference_price": 25930097.49337047,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": -0.06680580715726761,
-   "runs": 50,
-   "week_share": 0.06963788300835655,
-   "week_volume": 718
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25329,
-   "contract_id": 236223186,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.176722+00:00",
-   "eligible": false,
-   "expired": "2026-10-18T05:17:31Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-20T05:17:31Z",
-   "location_id": 60003760,
-   "material": 179858250.0,
-   "name": "坠落感",
-   "price": 549000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 78410517.52563024,
-   "profit50": 78410517.52563024,
-   "reasons": [
-    "每 50 流程利润未达门槛",
-    "投入回报率未达门槛"
-   ],
-   "reference_price": 17205658.26369748,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": 0.1061238979542155,
-   "runs": 50,
-   "week_share": 0.1400560224089636,
-   "week_volume": 357
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25311,
-   "contract_id": 236226961,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.174871+00:00",
-   "eligible": true,
-   "expired": "2026-10-18T08:29:11Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-20T08:29:11Z",
-   "location_id": 60003760,
-   "material": 191243682.0,
-   "name": "撞击感",
-   "price": 400000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 204218818.09375,
-   "profit50": 204218818.09375,
-   "reasons": [],
-   "reference_price": 16957105.26513158,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": 0.3396606471014027,
-   "runs": 50,
-   "week_share": 0.16447368421052633,
-   "week_volume": 304
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25311,
-   "contract_id": 236248469,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.165562+00:00",
-   "eligible": true,
-   "expired": "2026-10-18T19:19:17Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-20T19:19:17Z",
-   "location_id": 60003760,
-   "material": 191243682.0,
-   "name": "撞击感",
-   "price": 385000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 219218818.09375,
-   "profit50": 219218818.09375,
-   "reasons": [],
-   "reference_price": 16957105.26513158,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": 0.37393804799034064,
-   "runs": 50,
-   "week_share": 0.16447368421052633,
-   "week_volume": 304
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25512,
-   "contract_id": 236283889,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.153446+00:00",
-   "eligible": false,
-   "expired": "2026-10-19T22:44:07Z",
-   "history_end": "2026-09-23",
-   "issued": "2026-09-21T22:44:07Z",
-   "location_id": 60003760,
-   "material": 208554982.0,
-   "name": "梦呓",
-   "price": 140000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 147009108.83999997,
-   "profit50": 147009108.83999997,
-   "reasons": [
-    "本批产量占一周市场成交量过高"
-   ],
-   "reference_price": 10643454.544,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": 0.4100043681445764,
-   "runs": 50,
-   "week_share": 0.9090909090909091,
-   "week_volume": 55
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25512,
-   "contract_id": 236283893,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.153102+00:00",
-   "eligible": false,
-   "expired": "2026-10-19T22:44:16Z",
-   "history_end": "2026-09-23",
-   "issued": "2026-09-21T22:44:16Z",
-   "location_id": 60003760,
-   "material": 208554982.0,
-   "name": "梦呓",
-   "price": 140000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 147009108.83999997,
-   "profit50": 147009108.83999997,
-   "reasons": [
-    "本批产量占一周市场成交量过高"
-   ],
-   "reference_price": 10643454.544,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": 0.4100043681445764,
-   "runs": 50,
-   "week_share": 0.9090909090909091,
-   "week_volume": 55
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25511,
-   "contract_id": 236292714,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.149379+00:00",
-   "eligible": false,
-   "expired": "2026-10-20T08:55:53Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-22T08:55:53Z",
-   "location_id": 60003760,
-   "material": 240853510.0,
-   "name": "思维冲击",
-   "price": 1050000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": -69173879.06490278,
-   "profit50": -69173879.06490278,
-   "reasons": [
-    "每 50 流程利润未达门槛",
-    "投入回报率未达门槛"
-   ],
-   "reference_price": 25930097.49337047,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": -0.05317576386053091,
-   "runs": 50,
-   "week_share": 0.06963788300835655,
-   "week_volume": 718
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25311,
-   "contract_id": 236329162,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.131916+00:00",
-   "eligible": true,
-   "expired": "2026-10-21T14:59:27Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-23T14:59:27Z",
-   "location_id": 60003760,
-   "material": 191243682.0,
-   "name": "撞击感",
-   "price": 315000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 289218818.09375,
-   "profit50": 289218818.09375,
-   "reasons": [],
-   "reference_price": 16957105.26513158,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": 0.5602370124381493,
-   "runs": 50,
-   "week_share": 0.16447368421052633,
-   "week_volume": 304
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25329,
-   "contract_id": 236329170,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.131604+00:00",
-   "eligible": false,
-   "expired": "2026-10-21T14:59:38Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-23T14:59:38Z",
-   "location_id": 60003760,
-   "material": 179858250.0,
-   "name": "坠落感",
-   "price": 545000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 82410517.52563024,
-   "profit50": 82410517.52563024,
-   "reasons": [
-    "每 50 流程利润未达门槛",
-    "投入回报率未达门槛"
-   ],
-   "reference_price": 17205658.26369748,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": 0.11214478101814906,
-   "runs": 50,
-   "week_share": 0.1400560224089636,
-   "week_volume": 357
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25512,
-   "contract_id": 236329188,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.131312+00:00",
-   "eligible": false,
-   "expired": "2026-10-21T15:00:03Z",
-   "history_end": "2026-09-23",
-   "issued": "2026-09-23T15:00:03Z",
-   "location_id": 60003760,
-   "material": 208554982.0,
-   "name": "梦呓",
-   "price": 115000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 172009108.83999997,
-   "profit50": 172009108.83999997,
-   "reasons": [
-    "本批产量占一周市场成交量过高"
-   ],
-   "reference_price": 10643454.544,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": 0.5156844242248493,
-   "runs": 50,
-   "week_share": 0.9090909090909091,
-   "week_volume": 55
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25513,
-   "contract_id": 236329196,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.130998+00:00",
-   "eligible": false,
-   "expired": "2026-10-21T15:00:19Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-23T15:00:19Z",
-   "location_id": 60003760,
-   "material": 209128050.0,
-   "name": "X—本能",
-   "price": 395000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 227712113.99672115,
-   "profit50": 227712113.99672115,
-   "reasons": [
-    "本批产量占一周市场成交量过高"
-   ],
-   "reference_price": 17722950.820983604,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": 0.3707893068826951,
-   "runs": 50,
-   "week_share": 0.819672131147541,
-   "week_volume": 61
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
    "bp": 25311,
    "contract_id": 236331637,
    "copies": 1,
-   "discovered": "2026-09-25T12:49:39.129362+00:00",
+   "discovered": "2026-09-25T17:37:30.940029+00:00",
    "eligible": true,
    "expired": "2026-10-21T16:30:02Z",
    "history_end": "2026-09-24",
    "issued": "2026-09-23T16:30:02Z",
    "location_id": 60008494,
-   "material": 191243682.0,
+   "material": 191706318.0,
    "name": "撞击感",
    "price": 313000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 291218818.09375,
-   "profit50": 291218818.09375,
+   "price_updated": "2026-09-25T17:36:59.230782+00:00",
+   "profit": 290756182.09375,
+   "profit50": 290756182.09375,
    "reasons": [],
    "reference_price": 16957105.26513158,
    "region_id": 10000043,
    "reserve": 10000000.0,
-   "roi": 0.5663050967610138,
-   "runs": 50,
-   "week_share": 0.16447368421052633,
-   "week_volume": 304
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25322,
-   "contract_id": 236363368,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.111618+00:00",
-   "eligible": false,
-   "expired": "2026-10-22T17:16:04Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-24T17:16:04Z",
-   "location_id": 60003760,
-   "material": 243015192.0,
-   "name": "疯癫",
-   "price": 295000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 337093816.9662162,
-   "profit50": 337093816.9662162,
-   "reasons": [
-    "本批产量占一周市场成交量过高"
-   ],
-   "reference_price": 18633873.872972973,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": 0.6151176498154748,
-   "runs": 50,
-   "week_share": 0.45045045045045046,
-   "week_volume": 111
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25539,
-   "contract_id": 236364638,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.110850+00:00",
-   "eligible": false,
-   "expired": "2026-10-22T17:55:28Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-24T17:55:28Z",
-   "location_id": 60003760,
-   "material": 241707252.0,
-   "name": "游离感",
-   "price": 600000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 70528397.8286401,
-   "profit50": 70528397.8286401,
-   "reasons": [
-    "每 50 流程利润未达门槛",
-    "投入回报率未达门槛"
-   ],
-   "reference_price": 19415487.364813477,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": 0.08280826265483072,
-   "runs": 50,
-   "week_share": 0.06016847172081829,
-   "week_volume": 831
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25311,
-   "contract_id": 236369418,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.106943+00:00",
-   "eligible": false,
-   "expired": "2026-10-22T21:12:57Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-24T21:12:57Z",
-   "location_id": 60003760,
-   "material": 191243682.0,
-   "name": "撞击感",
-   "price": 500000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 104218818.09375,
-   "profit50": 104218818.09375,
-   "reasons": [
-    "投入回报率未达门槛"
-   ],
-   "reference_price": 16957105.26513158,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": 0.14861997443814404,
-   "runs": 50,
-   "week_share": 0.16447368421052633,
-   "week_volume": 304
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25311,
-   "contract_id": 236369421,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.106615+00:00",
-   "eligible": false,
-   "expired": "2026-10-22T21:13:24Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-24T21:13:24Z",
-   "location_id": 60003760,
-   "material": 191243682.0,
-   "name": "撞击感",
-   "price": 500000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 104218818.09375,
-   "profit50": 104218818.09375,
-   "reasons": [
-    "投入回报率未达门槛"
-   ],
-   "reference_price": 16957105.26513158,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": 0.14861997443814404,
-   "runs": 50,
-   "week_share": 0.16447368421052633,
-   "week_volume": 304
-  },
-  {
-   "blueprints": [
-    {
-     "me": 0,
-     "quantity": 1,
-     "runs": 50,
-     "te": 0
-    }
-   ],
-   "bp": 25311,
-   "contract_id": 236369426,
-   "copies": 1,
-   "discovered": "2026-09-25T12:49:39.105409+00:00",
-   "eligible": false,
-   "expired": "2026-10-22T21:13:48Z",
-   "history_end": "2026-09-24",
-   "issued": "2026-09-24T21:13:48Z",
-   "location_id": 60003760,
-   "material": 191243682.0,
-   "name": "撞击感",
-   "price": 500000000.0,
-   "price_updated": "2026-09-25T12:47:25.594382+00:00",
-   "profit": 104218818.09375,
-   "profit50": 104218818.09375,
-   "reasons": [
-    "投入回报率未达门槛"
-   ],
-   "reference_price": 16957105.26513158,
-   "region_id": 10000002,
-   "reserve": 10000000.0,
-   "roi": 0.14861997443814404,
+   "roi": 0.5648972470816843,
    "runs": 50,
    "week_share": 0.16447368421052633,
    "week_volume": 304
@@ -337028,6 +335118,1286 @@
     "time_efficiency": 2,
     "type_id": 28711
    }
+  ],
+  "236386215": [
+   {
+    "is_included": true,
+    "item_id": 1055776369113,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5325892357,
+    "time_efficiency": 0,
+    "type_id": 26762
+   }
+  ],
+  "236386402": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055798324213,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5325895003,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 29339
+   }
+  ],
+  "236386411": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055798324214,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5325895441,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 29339
+   }
+  ],
+  "236386422": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055798324215,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5325895489,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 29339
+   }
+  ],
+  "236386446": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055798324216,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5325896264,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 29339
+   }
+  ],
+  "236386460": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055798324217,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5325896549,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 29339
+   }
+  ],
+  "236386473": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055798324218,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5325897308,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 29339
+   }
+  ],
+  "236386477": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055798324219,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5325897386,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 29339
+   }
+  ],
+  "236386488": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055798324220,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5325897761,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 29339
+   }
+  ],
+  "236386497": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055798324221,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5325897855,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 29339
+   }
+  ],
+  "236387172": [
+   {
+    "is_included": true,
+    "item_id": 1053309309432,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5325918279,
+    "time_efficiency": 20,
+    "type_id": 17483
+   }
+  ],
+  "236387579": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1050887234535,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5325935348,
+    "runs": 1,
+    "time_efficiency": 14,
+    "type_id": 20186
+   }
+  ],
+  "236387593": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1050887234536,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5325935742,
+    "runs": 1,
+    "time_efficiency": 14,
+    "type_id": 20186
+   }
+  ],
+  "236387599": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1051443775417,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5325935986,
+    "runs": 1,
+    "time_efficiency": 14,
+    "type_id": 20186
+   }
+  ],
+  "236387608": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1051625921613,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5325936012,
+    "runs": 1,
+    "time_efficiency": 14,
+    "type_id": 20186
+   }
+  ],
+  "236387626": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054606972888,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5325936278,
+    "runs": 1,
+    "time_efficiency": 14,
+    "type_id": 20186
+   }
+  ],
+  "236387637": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054771823353,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5325936406,
+    "runs": 1,
+    "time_efficiency": 14,
+    "type_id": 20186
+   }
+  ],
+  "236387685": [
+   {
+    "is_included": true,
+    "item_id": 1013866379304,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5325939312,
+    "time_efficiency": 20,
+    "type_id": 2455
+   }
+  ],
+  "236387692": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055394754839,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5325939809,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 53726
+   }
+  ],
+  "236387693": [
+   {
+    "is_included": true,
+    "item_id": 788522299,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5325939810,
+    "time_efficiency": 20,
+    "type_id": 25953
+   }
+  ],
+  "236387704": [
+   {
+    "is_included": true,
+    "item_id": 434870772,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5325941661,
+    "time_efficiency": 20,
+    "type_id": 31118
+   }
+  ],
+  "236387783": [
+   {
+    "is_included": true,
+    "item_id": 1034827576281,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5325943262,
+    "time_efficiency": 20,
+    "type_id": 2530
+   }
+  ],
+  "236387960": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055798720725,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5325949070,
+    "runs": 600,
+    "time_efficiency": 20,
+    "type_id": 2465
+   },
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055798720751,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5325949071,
+    "runs": 600,
+    "time_efficiency": 20,
+    "type_id": 2455
+   }
+  ],
+  "236388286": [
+   {
+    "is_included": true,
+    "item_id": 1055760124161,
+    "quantity": 1,
+    "record_id": 5325959620,
+    "type_id": 47536
+   }
+  ],
+  "236388560": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054674300664,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5325967877,
+    "runs": 10,
+    "time_efficiency": 18,
+    "type_id": 21018
+   }
+  ],
+  "236388574": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054198432041,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5325967989,
+    "runs": 10,
+    "time_efficiency": 16,
+    "type_id": 21018
+   }
+  ],
+  "236388593": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055570554804,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5325968347,
+    "runs": 10,
+    "time_efficiency": 18,
+    "type_id": 21010
+   }
+  ],
+  "236388603": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055570554803,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5325968572,
+    "runs": 10,
+    "time_efficiency": 18,
+    "type_id": 21010
+   }
+  ],
+  "236388639": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055197757769,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5325968918,
+    "runs": 20,
+    "time_efficiency": 16,
+    "type_id": 21030
+   }
+  ],
+  "236388648": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055488038194,
+    "material_efficiency": 9,
+    "quantity": 1,
+    "record_id": 5325969123,
+    "runs": 5,
+    "time_efficiency": 16,
+    "type_id": 57524
+   }
+  ],
+  "236388658": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055379993076,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5325969175,
+    "runs": 10,
+    "time_efficiency": 18,
+    "type_id": 21014
+   }
+  ],
+  "236388683": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055498107954,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5325969530,
+    "runs": 5,
+    "time_efficiency": 18,
+    "type_id": 21024
+   }
+  ],
+  "236388697": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055528206956,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5325969647,
+    "runs": 10,
+    "time_efficiency": 18,
+    "type_id": 24559
+   }
+  ],
+  "236388737": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055585614907,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5325972095,
+    "runs": 200,
+    "time_efficiency": 20,
+    "type_id": 57515
+   }
+  ],
+  "236388752": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055442019692,
+    "material_efficiency": 3,
+    "quantity": 1,
+    "record_id": 5325972264,
+    "runs": 11,
+    "time_efficiency": 2,
+    "type_id": 4251
+   }
+  ],
+  "236388770": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055475754843,
+    "material_efficiency": 3,
+    "quantity": 1,
+    "record_id": 5325972472,
+    "runs": 12,
+    "time_efficiency": 2,
+    "type_id": 30837
+   }
+  ],
+  "236388775": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055609690183,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5325972796,
+    "runs": 40,
+    "time_efficiency": 18,
+    "type_id": 57516
+   }
+  ],
+  "236388787": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055559448327,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5325973512,
+    "runs": 40,
+    "time_efficiency": 18,
+    "type_id": 57516
+   }
+  ],
+  "236388800": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055601367922,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5325973943,
+    "runs": 200,
+    "time_efficiency": 20,
+    "type_id": 57523
+   }
+  ],
+  "236388993": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054986535519,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5325980768,
+    "runs": 20,
+    "time_efficiency": 20,
+    "type_id": 16237
+   }
+  ],
+  "236389531": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055483346978,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5325996150,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 24561
+   }
+  ],
+  "236389548": [
+   {
+    "is_included": true,
+    "item_id": 1041568819941,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5325996272,
+    "time_efficiency": 20,
+    "type_id": 31791
+   }
+  ],
+  "236389558": [
+   {
+    "is_included": true,
+    "item_id": 1041199481918,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5325996439,
+    "time_efficiency": 20,
+    "type_id": 31789
+   }
+  ],
+  "236389672": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1034357408310,
+    "material_efficiency": 2,
+    "quantity": 1,
+    "record_id": 5325999637,
+    "runs": 10,
+    "time_efficiency": 4,
+    "type_id": 4251
+   }
+  ],
+  "236389693": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1045720255436,
+    "material_efficiency": 2,
+    "quantity": 1,
+    "record_id": 5326000082,
+    "runs": 10,
+    "time_efficiency": 4,
+    "type_id": 22230
+   }
+  ],
+  "236389696": [
+   {
+    "is_included": true,
+    "item_id": 1054788336084,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5326000294,
+    "time_efficiency": 20,
+    "type_id": 11890
+   }
+  ],
+  "236389709": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1050046907476,
+    "material_efficiency": 3,
+    "quantity": 1,
+    "record_id": 5326000513,
+    "runs": 12,
+    "time_efficiency": 2,
+    "type_id": 10843
+   }
+  ],
+  "236389720": [
+   {
+    "is_included": true,
+    "item_id": 1054788551484,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5326000755,
+    "time_efficiency": 20,
+    "type_id": 11873
+   }
+  ],
+  "236389721": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1051743309905,
+    "material_efficiency": 2,
+    "quantity": 1,
+    "record_id": 5326000756,
+    "runs": 10,
+    "time_efficiency": 4,
+    "type_id": 24444
+   }
+  ],
+  "236389744": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1051752068989,
+    "material_efficiency": 2,
+    "quantity": 1,
+    "record_id": 5326001305,
+    "runs": 10,
+    "time_efficiency": 4,
+    "type_id": 4259
+   }
+  ],
+  "236389760": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1046959825950,
+    "material_efficiency": 3,
+    "quantity": 1,
+    "record_id": 5326001486,
+    "runs": 4,
+    "time_efficiency": 2,
+    "type_id": 31737
+   }
+  ],
+  "236389781": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1047087506555,
+    "material_efficiency": 2,
+    "quantity": 1,
+    "record_id": 5326002311,
+    "runs": 10,
+    "time_efficiency": 4,
+    "type_id": 12077
+   }
+  ],
+  "236389802": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1034411461074,
+    "material_efficiency": 2,
+    "quantity": 1,
+    "record_id": 5326003291,
+    "runs": 10,
+    "time_efficiency": 4,
+    "type_id": 12069
+   }
+  ],
+  "236389820": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1047025954906,
+    "material_efficiency": 2,
+    "quantity": 1,
+    "record_id": 5326003477,
+    "runs": 10,
+    "time_efficiency": 4,
+    "type_id": 2906
+   }
+  ],
+  "236389834": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1052444337723,
+    "material_efficiency": 2,
+    "quantity": 1,
+    "record_id": 5326003541,
+    "runs": 10,
+    "time_efficiency": 4,
+    "type_id": 2405
+   }
+  ],
+  "236389851": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1046096183957,
+    "material_efficiency": 2,
+    "quantity": 1,
+    "record_id": 5326003874,
+    "runs": 10,
+    "time_efficiency": 4,
+    "type_id": 2411
+   }
+  ],
+  "236389871": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1046351112658,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5326004329,
+    "runs": 4,
+    "time_efficiency": 18,
+    "type_id": 687
+   }
+  ],
+  "236389915": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1052059605010,
+    "material_efficiency": 2,
+    "quantity": 1,
+    "record_id": 5326005216,
+    "runs": 10,
+    "time_efficiency": 4,
+    "type_id": 2457
+   },
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1052059605011,
+    "material_efficiency": 2,
+    "quantity": 1,
+    "record_id": 5326005217,
+    "runs": 10,
+    "time_efficiency": 4,
+    "type_id": 2457
+   },
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1052059605486,
+    "material_efficiency": 2,
+    "quantity": 1,
+    "record_id": 5326005218,
+    "runs": 10,
+    "time_efficiency": 4,
+    "type_id": 2467
+   },
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1052059605487,
+    "material_efficiency": 2,
+    "quantity": 1,
+    "record_id": 5326005219,
+    "runs": 10,
+    "time_efficiency": 4,
+    "type_id": 2467
+   }
+  ],
+  "236389924": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1051799637230,
+    "material_efficiency": 2,
+    "quantity": 1,
+    "record_id": 5326005292,
+    "runs": 10,
+    "time_efficiency": 4,
+    "type_id": 12105
+   }
+  ],
+  "236390302": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055707235056,
+    "material_efficiency": 7,
+    "quantity": 1,
+    "record_id": 5326018006,
+    "runs": 1,
+    "time_efficiency": 14,
+    "type_id": 62678
+   }
+  ],
+  "236390768": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1052509909967,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5326030720,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 21010
+   }
+  ],
+  "236390779": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1052509909968,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5326030986,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 21010
+   }
+  ],
+  "236390789": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1052509909969,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5326031138,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 21010
+   }
+  ],
+  "236390847": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055788007304,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5326033572,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 52348
+   }
+  ],
+  "236390854": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055784792137,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5326033941,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 52348
+   }
+  ],
+  "236390867": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054875258407,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5326034132,
+    "runs": 30,
+    "time_efficiency": 20,
+    "type_id": 30994
+   }
+  ],
+  "236391069": [
+   {
+    "is_included": true,
+    "item_id": 1052353330577,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5326038647,
+    "time_efficiency": 20,
+    "type_id": 814
+   }
+  ],
+  "236391081": [
+   {
+    "is_included": true,
+    "item_id": 1054768153629,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5326038711,
+    "time_efficiency": 20,
+    "type_id": 811
+   }
+  ],
+  "236391163": [
+   {
+    "is_included": true,
+    "item_id": 1054652445623,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5326040097,
+    "time_efficiency": 20,
+    "type_id": 4314
+   }
+  ],
+  "236391310": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055800038695,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5326046124,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 24697
+   }
+  ],
+  "236391670": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1044299207429,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5326060627,
+    "runs": 100,
+    "time_efficiency": 20,
+    "type_id": 57507
+   }
+  ],
+  "236391708": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054367552414,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5326061760,
+    "runs": 20,
+    "time_efficiency": 20,
+    "type_id": 16243
+   }
+  ],
+  "236391723": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1053538746523,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5326063860,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 969
+   }
+  ],
+  "236391736": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1053538746528,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5326066110,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 969
+   }
+  ],
+  "236391750": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1053675317057,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5326066702,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 969
+   }
+  ],
+  "236391760": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1053675317149,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5326066846,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 687
+   }
+  ],
+  "236391764": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1053675317148,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5326066887,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 687
+   }
+  ],
+  "236391772": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1053538746970,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5326066948,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 687
+   }
+  ],
+  "236391783": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1053538746881,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5326067005,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 692
+   }
+  ],
+  "236391789": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1053538746883,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5326067122,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 692
+   }
+  ],
+  "236391797": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1053675316909,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5326067191,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 692
+   }
+  ],
+  "236391810": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1053675316910,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5326067321,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 692
+   }
+  ],
+  "236391823": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1053766297963,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5326067353,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 974
+   }
+  ],
+  "236391827": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055723010326,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5326067370,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 33558
+   }
+  ],
+  "236391834": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1053766297966,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5326067753,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 974
+   }
+  ],
+  "236391847": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054769124649,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5326068084,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 973
+   }
+  ],
+  "236391866": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054769124650,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5326068545,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 973
+   }
+  ],
+  "236391872": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054769124651,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5326068627,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 973
+   }
+  ],
+  "236392325": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054933801089,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5326082800,
+    "runs": 1,
+    "time_efficiency": 0,
+    "type_id": 33821
+   }
+  ],
+  "236392334": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055785444451,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5326083259,
+    "runs": 600,
+    "time_efficiency": 20,
+    "type_id": 1137
+   },
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055800268743,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5326083260,
+    "runs": 600,
+    "time_efficiency": 20,
+    "type_id": 1137
+   }
+  ],
+  "236392370": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055773505976,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5326083827,
+    "runs": 600,
+    "time_efficiency": 20,
+    "type_id": 60365
+   },
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055785444436,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5326083828,
+    "runs": 600,
+    "time_efficiency": 20,
+    "type_id": 60365
+   }
+  ],
+  "236392401": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055773505982,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5326084544,
+    "runs": 300,
+    "time_efficiency": 20,
+    "type_id": 30029
+   },
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055785444492,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5326084545,
+    "runs": 300,
+    "time_efficiency": 20,
+    "type_id": 30029
+   },
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055800268776,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5326084546,
+    "runs": 300,
+    "time_efficiency": 20,
+    "type_id": 30029
+   }
+  ],
+  "236392583": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1054679563672,
+    "material_efficiency": 10,
+    "quantity": 1,
+    "record_id": 5326091988,
+    "runs": 10,
+    "time_efficiency": 20,
+    "type_id": 971
+   }
+  ],
+  "236393140": [
+   {
+    "is_blueprint_copy": true,
+    "is_included": true,
+    "item_id": 1055798379956,
+    "material_efficiency": 0,
+    "quantity": 1,
+    "record_id": 5326108548,
+    "runs": 2,
+    "time_efficiency": 0,
+    "type_id": 31715
+   }
   ]
  },
  "next_mail_at": 1789149515.984461,
@@ -337247,8 +336617,8 @@
   "booster-manufacturing:2124493042:235936661": {
    "count": 48,
    "detail": "游戏邮件编号 403193090",
-   "state": "sent",
-   "updated": 1790340583.710684
+   "state": "sending",
+   "updated": 1790357852.0688872
   },
   "booster-manufacturing:2124493042:236118508": {
    "count": 39,
@@ -337355,8 +336725,8 @@
   "booster-manufacturing:2124493042:236331637": {
    "count": 12,
    "detail": "游戏邮件编号 403193090",
-   "state": "sent",
-   "updated": 1790340583.710684
+   "state": "sending",
+   "updated": 1790357852.0688872
   },
   "booster-manufacturing:2124493042:236371569": {
    "count": 1,
@@ -337389,35 +336759,38 @@
    "updated": 1789946958.1481547
   }
  },
- "region_cursor": 10000002,
+ "region_cursor": 10000043,
  "status": {
-  "before_volume_filter": 45375,
-  "candidates": 23689,
-  "coverage_complete": true,
+  "before_volume_filter": 12825,
+  "candidates": 5014,
+  "coverage_complete": false,
   "error": null,
   "item_error": null,
   "item_errors": 0,
-  "last_scan": "2026-09-25T12:49:39.319489+00:00",
+  "last_scan": "2026-09-25T17:37:30.966088+00:00",
   "mail_error": null,
   "market_errors": {},
-  "market_updated": "2026-09-25T12:47:25.594382+00:00",
-  "new_inspected": 602,
+  "market_updated": "2026-09-25T17:36:59.230782+00:00",
+  "new_inspected": 94,
   "next_scan": null,
-  "opportunities": 6,
+  "opportunities": 2,
   "pending": 0,
-  "region_errors": {},
+  "region_errors": {
+   "10000002": {
+    "message": "分页数据更新时间不一致，等待下次完整快照",
+    "status": 0
+   }
+  },
   "regions_checked": 114,
   "regions_total": 114,
-  "round_completed": 1,
-  "running": false,
-  "scanned": 23689,
+  "running": true,
+  "scanned": 5014,
   "snapshot_error": null,
-  "snapshot_modified": "2026-09-25T12:31:14.908Z",
-  "snapshot_target_contracts": 58,
-  "spread_opportunities": 0,
+  "snapshot_modified": "2026-09-25T17:31:16.842Z",
+  "snapshot_target_contracts": 62,
   "stage": "等待下一次检查",
   "volume_cap": 0.04
  },
  "unavailable_until": {},
- "updated": "2026-09-25T12:49:46.343783+00:00"
+ "updated": "2026-09-25T17:37:32.168505+00:00"
 }
