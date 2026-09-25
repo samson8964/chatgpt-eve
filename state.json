@@ -331884,7 +331884,7 @@
  },
  "next_mail_at": 1789149515.984461,
  "next_mail_at_booster-manufacturing": 1790381514.882861,
- "next_mail_at_booster-spread": 1790272606.1514184,
+ "next_mail_at_booster-spread": 1790381521.1416051,
  "push_state": {
   "booster-manufacturing:2124493042:234989144": {
    "count": 1,
@@ -332265,8 +332265,10 @@
    "updated": 1789946958.1481547
   },
   "booster-spread:2124493042:236389413": {
-   "state": "sending",
-   "updated": 1790379717.5974693
+   "count": 1,
+   "detail": "游戏邮件编号 403196912",
+   "state": "sent",
+   "updated": 1790379721.1419268
   }
  },
  "region_cursor": 10000002,
@@ -332298,5 +332300,5 @@
   "volume_cap": 0.04
  },
  "unavailable_until": {},
- "updated": "2026-09-25T23:41:57.747279+00:00"
+ "updated": "2026-09-25T23:42:01.272817+00:00"
 }
