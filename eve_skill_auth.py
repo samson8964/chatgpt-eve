@@ -73,7 +73,7 @@ def get_type_name(type_id: int, headers: dict, session: requests.Session, cache:
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--client-id", required=True)
+    ap.add_argument("--client-id", default="0608347b837b4d8a9385e70e5f17b5b0")
     ap.add_argument("--character", default="MikeChong")
     args = ap.parse_args()
 
