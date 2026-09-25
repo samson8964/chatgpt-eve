@@ -1,14 +1,14 @@
 # 4-HWWF → Jita 4-4 Opportunity Engine V2
 
-- Source orders: `34363`; source cache: `Fri, 25 Sep 2026 02:04:03 GMT`
-- Final Jita pricing: live ESI `2026-09-25T01:59:46.040535+00:00`
+- Source orders: `34338`; source cache: `Fri, 25 Sep 2026 02:29:07 GMT`
+- Final Jita pricing: live ESI `2026-09-25T02:27:07.942565+00:00`
 - High-sec restricted ships removed: `1`
 - Final ranking uses live depth, stress survival, liquidity and volume density.
 
 | # | Grade | Status | Item | Qty | 4-H | Jita live buy | Net | ROI | Score | ISK/m3 | Liquidity |
 |---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|
-| 1 | A | SAFE | Heavy Water | 13,393,001 | 55 | 98 | 345.66M | 47.0% | 72.0 | 65 | high |
-| 2 | B | SAFE | Strontium Clathrates | 1,000,081 | 3.4K | 4.8K | 786.02M | 20.7% | 66.1 | 262 | high |
+| 1 | A | SAFE | Heavy Water | 13,393,001 | 55 | 98 | 345.66M | 47.0% | 72.6 | 65 | high |
+| 2 | B | SAFE | Strontium Clathrates | 1,000,081 | 3.4K | 4.8K | 786.02M | 20.7% | 67.0 | 262 | high |
 | 3 | B | SAFE | Tritanium | 528,725,379 | 3 | 4 | 187.57M | 11.3% | 57.5 | 35 | high |
 | 4 | B | SAFE | Bouncer II | 112 | 999.9K | 1.28M | 19.26M | 16.2% | 55.9 | 6.9K | high |
 | 5 | C | SAFE | Muninn | 1 | 119.70M | 137.50M | 13.16M | 11.0% | 50.3 | 1.3K | high |
