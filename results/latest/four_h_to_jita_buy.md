@@ -1,7 +1,7 @@
 # 4-HWWF → Jita 4-4 Opportunity Engine V2
 
-- Source orders: `34410`; source cache: `Fri, 25 Sep 2026 00:28:44 GMT`
-- Final Jita pricing: live ESI `2026-09-25T00:28:18.196293+00:00`
+- Source orders: `34380`; source cache: `Fri, 25 Sep 2026 00:58:53 GMT`
+- Final Jita pricing: live ESI `2026-09-25T00:58:38.454197+00:00`
 - High-sec restricted ships removed: `1`
 - Final ranking uses live depth, stress survival, liquidity and volume density.
 
@@ -13,3 +13,4 @@
 | 4 | B | SAFE | Bouncer II | 112 | 999.9K | 1.28M | 19.26M | 16.2% | 55.9 | 6.9K | high |
 | 5 | C | SAFE | Muninn | 1 | 119.70M | 137.50M | 13.16M | 11.0% | 50.3 | 1.3K | high |
 | 6 | C | SAFE | Liquid Ozone | 1,306,652 | 79 | 90 | 10.59M | 10.3% | 43.8 | 20 | high |
+| 7 | B | CHANGED | Orbweaver SW-300-I | 132 | 7.99M | 12.00M | 474.50M | 44.9% | 63.8 | 718.9K | high |
