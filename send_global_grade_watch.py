@@ -219,11 +219,12 @@ def candidate_title(spec, row) -> str:
 
 
 def candidate_profit(row) -> float:
+    # Prefer live V2 revalidation over stale/snapshot economics whenever both exist.
     return finite(first_value(row, [
+        "v2_live_net_profit",
         "net_profit",
         "best_net_profit",
         "watch_net_profit",
-        "v2_live_net_profit",
         "instant_net_profit",
         "chosen_value_gap",
         "bpc_intrinsic_value_surplus",
@@ -232,10 +233,10 @@ def candidate_profit(row) -> float:
 
 def candidate_roi(row) -> float | None:
     value = first_value(row, [
+        "v2_live_net_roi",
         "net_roi",
         "best_roi",
         "watch_roi",
-        "v2_live_net_roi",
         "instant_net_roi",
         "chosen_roi",
     ], None)
@@ -246,8 +247,8 @@ def candidate_roi(row) -> float | None:
 
 def candidate_stress(row) -> float | None:
     value = first_value(row, [
-        "stress_net_profit",
         "v2_stress_net_profit",
+        "stress_net_profit",
     ], None)
     if value is None:
         return None
