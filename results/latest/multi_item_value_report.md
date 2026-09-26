@@ -1,9 +1,9 @@
 # Independent multi-item value engine
 
-- Multi-item universe: `6,854`
-- Live candidate pool: `147`
-- Feasible after location/item checks: `81`
-- Live Jita type books: `1,101`
+- Multi-item universe: `6,821`
+- Live candidate pool: `172`
+- Feasible after location/item checks: `109`
+- Live Jita type books: `1,037`
 - Final A instant: `0`
 - Final B cash-floor: `0`
 - SAFE: `0`; CHANGED: `0`
