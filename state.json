@@ -328306,14 +328306,16 @@
   "region_errors": {},
   "regions_checked": 114,
   "regions_total": 114,
-  "running": true,
+  "round_completed": 1,
+  "running": false,
   "scanned": 22970,
   "snapshot_error": null,
   "snapshot_modified": "2026-09-26T16:31:18.737Z",
   "snapshot_target_contracts": 60,
+  "spread_opportunities": 0,
   "stage": "等待下一次检查",
   "volume_cap": 0.03
  },
  "unavailable_until": {},
- "updated": "2026-09-26T16:46:24.223037+00:00"
+ "updated": "2026-09-26T16:46:26.448303+00:00"
 }
