@@ -1,17 +1,12 @@
 # 4-HWWF → Jita 4-4 Opportunity Engine V2
 
-- Source orders: `34187`; source cache: `Sat, 26 Sep 2026 07:58:49 GMT`
-- Final Jita pricing: live ESI `2026-09-26T07:56:28.598754+00:00`
+- Source orders: `34101`; source cache: `Sat, 26 Sep 2026 08:28:58 GMT`
+- Final Jita pricing: live ESI `2026-09-26T08:27:50.591753+00:00`
 - High-sec restricted ships removed: `1`
 - Final ranking uses live depth, stress survival, liquidity and volume density.
 
 | # | Grade | Status | Item | Qty | 4-H | Jita live buy | Net | ROI | Score | ISK/m3 | Liquidity |
 |---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|
-| 1 | A | SAFE | Compact Multispectrum Shield Hardener | 314 | 120.0K | 251.7K | 32.35M | 73.5% | 74.7 | 20.6K | high |
-| 2 | A | SAFE | Heavy Water | 15,851,426 | 55 | 99 | 432.11M | 39.9% | 73.1 | 68 | high |
-| 3 | A | SAFE | Tungsten Carbide Armor Plate | 21,302 | 4.3K | 6.1K | 35.63M | 39.3% | 72.1 | 1.7K | high |
-| 4 | B | SAFE | Strontium Clathrates | 691,005 | 3.6K | 5.0K | 578.76M | 22.0% | 69.3 | 279 | high |
-| 5 | B | SAFE | Humboldt EC-900-I | 20 | 1.95M | 2.62M | 11.74M | 30.2% | 68.1 | 23.5K | high |
-| 6 | B | SAFE | Liquid Ozone | 4,660,949 | 69 | 95 | 97.07M | 29.3% | 68.0 | 52 | high |
-| 7 | B | SAFE | Drone Link Augmentor II | 186 | 1.05M | 1.38M | 45.40M | 22.5% | 66.4 | 9.8K | high |
-| 8 | B | SAFE | Bouncer II | 157 | 999.6K | 1.28M | 37.43M | 23.8% | 65.1 | 9.5K | high |
+| 1 | A | SAFE | Heavy Water | 15,851,426 | 55 | 105 | 526.35M | 48.7% | 71.8 | 83 | high |
+| 2 | B | SAFE | Strontium Clathrates | 691,005 | 3.6K | 5.0K | 569.78M | 21.5% | 68.9 | 275 | high |
+| 3 | B | SAFE | Liquid Ozone | 4,660,449 | 69 | 95 | 97.06M | 29.3% | 68.0 | 52 | high |
