@@ -13,6 +13,7 @@ from app import Monitor, validate_config
 from core import (BLUEPRINTS, Planner, historical_reference, extract_blueprints, Store, Client,
                   DEFAULTS, ESI, evaluate, candidate_volume_cap, UncertainSend)
 from auth import Auth, protect
+from monitor_v2 import OpportunityMonitor, CHANNEL_MANUFACTURING
 
 def test_planner_50():
     p = Planner()
@@ -330,6 +331,23 @@ def test_unavailable_contract_is_retried_after_negative_cache_expires():
         a.scan(1)
         assert 10 in a.verified_ids and a.state['new_inspected']==1
         assert '10' not in a.store.get('unavailable_until')
+        a.store.close()
+
+def test_spread_analysis_never_sends_standalone_mail():
+    with tempfile.TemporaryDirectory() as d:
+        a=OpportunityMonitor(d)
+        cfg=a.store.config();cfg['mail_enabled']=True;a.store.put('config',cfg)
+        sent_channels=[]
+        a._send_channel=lambda channel,*args,**kwargs: sent_channels.append(channel)
+        a._live_spread_rows=lambda: [
+            dict(bp=25308,runs=50,price=10_000_000,contract_id=1),
+            dict(bp=25308,runs=50,price=50_000_000,contract_id=2),
+            dict(bp=25308,runs=50,price=60_000_000,contract_id=3),
+        ]
+        a.send_opportunities([dict(contract_id=99,profit50=150_000_000,profit=150_000_000)])
+        assert sent_channels == [CHANNEL_MANUFACTURING]
+        assert a.state['spread_opportunities'] == 1
+        assert a.state['spread_mail_enabled'] is False
         a.store.close()
 
 if __name__ == '__main__':

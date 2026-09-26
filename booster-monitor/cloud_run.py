@@ -130,7 +130,7 @@ def main():
         m.store.put('config',cfg)
         m.auth = RelayAuth(m.client)
         m.delivery_checkpoint = ledger.save
-        print('开始扫描；LadyGuaGua → MikeChong。制造利润与同种蓝图每流程价差独立推送。', flush=True)
+        print('开始扫描；LadyGuaGua → MikeChong。仅制造利润机会发信；同种蓝图每流程价差仅保留后台研究。', flush=True)
         for number in range(1, args.rounds+1):
             m.scan(max(1,min(args.limit,2400)))
             m.state['round_completed'] = number

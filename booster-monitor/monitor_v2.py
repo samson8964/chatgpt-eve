@@ -1,4 +1,4 @@
-"""Cloud-first booster blueprint opportunity delivery with repeat counts and per-run spread alerts."""
+"""Cloud-first booster blueprint manufacturing delivery with spread analysis retained as research-only data."""
 from __future__ import annotations
 
 from collections import defaultdict
@@ -164,7 +164,7 @@ def spread_digest(rows):
 
 
 class OpportunityMonitor(Monitor):
-    """Monitor with independent manufacturing/spread channels and repeat counters."""
+    """Monitor with manufacturing mail delivery and research-only spread analysis."""
 
     def __init__(self, directory):
         super().__init__(directory)
@@ -288,7 +288,7 @@ class OpportunityMonitor(Monitor):
                 return
             self.state["mail_error"] = None
 
-            # Manufacturing and blueprint-price spread are independent channels.
+            # Only manufacturing-profit opportunities are allowed to send mail.
             self._send_channel(
                 CHANNEL_MANUFACTURING,
                 current,
@@ -296,11 +296,9 @@ class OpportunityMonitor(Monitor):
                 lambda r: (r.get("profit50", 0), r.get("profit", 0)),
             )
 
+            # Keep same-blueprint per-run spread analysis for research/status only.
+            # It is intentionally NOT an automatic mail channel because relative
+            # contract asks do not prove executable profit.
             spread_rows = build_spread_opportunities(self._live_spread_rows())
             self.state["spread_opportunities"] = len(spread_rows)
-            self._send_channel(
-                CHANNEL_SPREAD,
-                spread_rows,
-                spread_digest,
-                lambda r: (r.get("spread_total_gap", 0), r.get("spread_discount", 0)),
-            )
+            self.state["spread_mail_enabled"] = False
