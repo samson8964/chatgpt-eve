@@ -34,7 +34,8 @@ TRUE_CAPITAL_GROUPS = {"carrier", "dreadnought", "force auxiliary", "capital ind
 SUPERCAP_GROUPS = {"supercarrier", "titan"}
 
 # Strategy defaults. Override with environment variables if needed.
-# Conservative fail-safe: never assume Accounting V when the actual selling character is unknown.\nACCOUNTING_LEVEL = int(os.getenv("ACCOUNTING_LEVEL", "0"))
+# Conservative fail-safe: never assume Accounting V when the actual selling character is unknown.
+ACCOUNTING_LEVEL = int(os.getenv("ACCOUNTING_LEVEL", "0"))
 MIN_NET_PROFIT = float(os.getenv("MIN_NET_PROFIT", "10000000"))
 MIN_NET_ROI = float(os.getenv("MIN_NET_ROI", "0.02"))
 PREFILTER_TOP = int(os.getenv("PREFILTER_TOP", "800"))
