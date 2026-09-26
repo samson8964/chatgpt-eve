@@ -65,14 +65,14 @@ class GmailGradeWatchTests(unittest.TestCase):
             self.assertEqual(gmail_watch.load_seen(), {"contract:101", "contract:102"})
 
     def test_v2_live_economics_take_priority_over_snapshot_fields(self):
-        row = {
+        row = gmail_watch.watch.pd.Series({
             "net_profit": 80_000_000.0,
             "net_roi": 0.10,
             "stress_net_profit": 70_000_000.0,
             "v2_live_net_profit": 44_000_000.0,
             "v2_live_net_roi": 0.055,
             "v2_stress_net_profit": 40_000_000.0,
-        }
+        })
         self.assertEqual(gmail_watch.watch.candidate_profit(row), 44_000_000.0)
         self.assertEqual(gmail_watch.watch.candidate_roi(row), 0.055)
         self.assertEqual(gmail_watch.watch.candidate_stress(row), 40_000_000.0)
