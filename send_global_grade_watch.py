@@ -228,10 +228,10 @@ def candidate_title(spec, row) -> str:
 
 def candidate_profit(row) -> float:
     return finite(first_value(row, [
+        "v2_live_net_profit",
         "net_profit",
         "best_net_profit",
         "watch_net_profit",
-        "v2_live_net_profit",
         "instant_net_profit",
         "chosen_value_gap",
         "bpc_intrinsic_value_surplus",
@@ -240,10 +240,10 @@ def candidate_profit(row) -> float:
 
 def candidate_roi(row) -> float | None:
     value = first_value(row, [
+        "v2_live_net_roi",
         "net_roi",
         "best_roi",
         "watch_roi",
-        "v2_live_net_roi",
         "instant_net_roi",
         "chosen_roi",
     ], None)
@@ -254,8 +254,8 @@ def candidate_roi(row) -> float | None:
 
 def candidate_stress(row) -> float | None:
     value = first_value(row, [
-        "stress_net_profit",
         "v2_stress_net_profit",
+        "stress_net_profit",
     ], None)
     if value is None:
         return None
@@ -319,6 +319,15 @@ def collect_candidates() -> tuple[dict[str, dict], int]:
                 ):
                     continue
 
+            profit = candidate_profit(row)
+            roi = candidate_roi(row)
+            # Universal economic sanity gate: an automatic "opportunity" alert must
+            # never carry a known non-positive profit/ROI regardless of score.
+            if profit <= 0:
+                continue
+            if roi is not None and roi <= 0:
+                continue
+
             ident = entity_identity(spec, row)
             if ident is None:
                 continue
@@ -335,8 +344,8 @@ def collect_candidates() -> tuple[dict[str, dict], int]:
                 "source_labels": [spec["label"]],
                 "primary_source": spec["label"],
                 "title": candidate_title(spec, row),
-                "profit": candidate_profit(row),
-                "roi": candidate_roi(row),
+                "profit": profit,
+                "roi": roi,
                 "stress_profit": candidate_stress(row),
                 "system_name": system,
                 "station_name": station,
