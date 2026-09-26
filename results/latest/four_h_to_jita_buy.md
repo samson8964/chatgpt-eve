@@ -1,7 +1,7 @@
 # 4-HWWF → Jita 4-4 Opportunity Engine V2
 
-- Source orders: `33891`; source cache: `Sat, 26 Sep 2026 20:31:24 GMT`
-- Final Jita pricing: live ESI `2026-09-26T20:27:04.835082+00:00`
+- Source orders: `33987`; source cache: `Sat, 26 Sep 2026 21:01:31 GMT`
+- Final Jita pricing: live ESI `2026-09-26T20:58:44.237488+00:00`
 - High-sec restricted ships removed: `1`
 - Final ranking uses live depth, stress survival, liquidity and volume density.
 
@@ -12,4 +12,4 @@
 | 3 | A | SAFE | Tungsten Carbide Armor Plate | 18,116 | 4.5K | 6.2K | 26.33M | 32.3% | 70.2 | 1.5K | high |
 | 4 | B | SAFE | Strontium Clathrates | 485,651 | 3.8K | 5.0K | 373.13M | 20.0% | 68.0 | 256 | high |
 | 5 | C | SAFE | Venture Consortium Issue | 6 | 23.48M | 27.70M | 19.42M | 13.8% | 53.6 | 1.3K | high |
-| 6 | C | SAFE | Liquid Ozone | 1,240,716 | 69 | 95 | 19.16M | 20.2% | 53.6 | 39 | high |
+| 6 | C | SAFE | Liquid Ozone | 1,229,716 | 69 | 95 | 18.91M | 20.1% | 53.4 | 38 | high |
