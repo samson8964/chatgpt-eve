@@ -104,6 +104,8 @@ jobs:
           EXPECTED_RELISTS: '0'
           DEAL_MAX_CONTRACT_PRICE: '5000000000'
           PREFILTER_TOP: '500'
+          # Conservative until the production selling character's Accounting level is read dynamically.
+          ACCOUNTING_LEVEL: '0'
         run: python runner_buy_only.py
 
       - name: Scan BPC intrinsic value with capped/clean benchmark pool
@@ -247,6 +249,8 @@ jobs:
           MAIL_BPC_VALUE_MIN_SURPLUS: '20000000'
           MAIL_BPC_MFG_MIN_PROFIT: '20000000'
           MAIL_BPC_MFG_MIN_ROI: '0.10'
+          # Must match the upstream BPC scanner; do not silently assume Accounting V.
+          ACCOUNTING_LEVEL: '0'
         run: python prepare_mail_candidates.py
 
       - name: Add one-click EVE links
