@@ -182,6 +182,37 @@ class GlobalGradeWatchTests(unittest.TestCase):
         self.assertNotIn("contract:8001", candidates)
         self.assertIn("contract:8002", candidates)
 
+    def test_high_score_negative_profit_is_never_auto_mailed(self):
+        pd.DataFrame([
+            {
+                "contract_id": 9001,
+                "opportunity_score": 99.0,
+                "score_grade": "S",
+                "execution_status": "SAFE",
+                "net_profit": -1_000_000,
+                "net_roi": -0.01,
+                "contract_title": "High score but losing money",
+            }
+        ]).to_csv(self.latest / "contract_deals_all.csv", index=False)
+
+        with patch.object(watch, "LATEST", self.latest):
+            candidates, _ = watch.collect_candidates()
+
+        self.assertNotIn("contract:9001", candidates)
+
+    def test_v2_live_values_override_stale_snapshot_values(self):
+        row = pd.Series({
+            "net_profit": 100_000_000,
+            "net_roi": 0.50,
+            "stress_net_profit": 90_000_000,
+            "v2_live_net_profit": 25_000_000,
+            "v2_live_net_roi": 0.12,
+            "v2_stress_net_profit": 20_000_000,
+        })
+        self.assertEqual(watch.candidate_profit(row), 25_000_000)
+        self.assertAlmostEqual(watch.candidate_roi(row), 0.12)
+        self.assertEqual(watch.candidate_stress(row), 20_000_000)
+
 
 if __name__ == "__main__":
     unittest.main()
