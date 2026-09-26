@@ -132,6 +132,56 @@ class GlobalGradeWatchTests(unittest.TestCase):
         self.assertIn("market:4h-to-jita:34", candidates)
         self.assertIn("market:jita-to-4h:34", candidates)
 
+    def test_bpc_value_signal_is_watch_only_never_auto_mailed(self):
+        pd.DataFrame([
+            {
+                "contract_id": 7001,
+                "v2_value_score": 99.0,
+                "v2_value_status": "VALUE_SIGNAL",
+                "chosen_value_gap": -50_000_000,
+                "chosen_roi": -1.0,
+                "blueprint_name": "Council Diplomatic Shuttle Blueprint",
+            }
+        ]).to_csv(self.latest / "bpc_value_opportunities_v2.csv", index=False)
+
+        with patch.object(watch, "LATEST", self.latest):
+            candidates, readable = watch.collect_candidates()
+
+        self.assertEqual(readable, 1)
+        self.assertEqual(candidates, {})
+
+    def test_bpc_manufacturing_must_pass_strict_profit_gate(self):
+        pd.DataFrame([
+            {
+                "contract_id": 8001,
+                "v2_score": 95.0,
+                "v2_grade": "S",
+                "v2_status": "SAFE",
+                "v2_live_net_profit": 5_000_000,
+                "v2_live_net_roi": 0.03,
+                "v2_stress_net_profit": 1_000_000,
+                "v2_orderbook_complete": True,
+                "blueprint_name": "Bad BPC",
+            },
+            {
+                "contract_id": 8002,
+                "v2_score": 88.0,
+                "v2_grade": "S",
+                "v2_status": "SAFE",
+                "v2_live_net_profit": 40_000_000,
+                "v2_live_net_roi": 0.20,
+                "v2_stress_net_profit": 25_000_000,
+                "v2_orderbook_complete": True,
+                "blueprint_name": "Good BPC",
+            },
+        ]).to_csv(self.latest / "ranked_opportunities_v2.csv", index=False)
+
+        with patch.object(watch, "LATEST", self.latest):
+            candidates, _ = watch.collect_candidates()
+
+        self.assertNotIn("contract:8001", candidates)
+        self.assertIn("contract:8002", candidates)
+
 
 if __name__ == "__main__":
     unittest.main()
