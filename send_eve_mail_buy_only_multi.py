@@ -16,6 +16,11 @@ RESEND_ABS_PROFIT = float(os.getenv("MAIL_RESEND_ABS_PROFIT", "20000000"))
 RESEND_REL_PROFIT = float(os.getenv("MAIL_RESEND_REL_PROFIT", "0.10"))
 RESEND_ROI_DELTA = float(os.getenv("MAIL_RESEND_ROI_DELTA", "0.02"))
 REMIND_AFTER_HOURS = float(os.getenv("MAIL_REMIND_AFTER_HOURS", "6"))
+BPC_MFG_MAIL_EXCLUDED_RECIPIENTS = {
+    x.strip().casefold()
+    for x in os.getenv("BPC_MFG_MAIL_EXCLUDED_RECIPIENTS", "").split(",")
+    if x.strip()
+}
 
 
 def _text(v, default=""):
@@ -229,6 +234,10 @@ def main():
         push_count_recorded = False
 
         for name, recipient_id in recipients:
+            if channel_name == "bpc-value" and name.casefold() in BPC_MFG_MAIL_EXCLUDED_RECIPIENTS:
+                print(f"{channel_name} skipped for {name}: recipient opted out of BPC manufacturing mail")
+                continue
+
             quality.TOP_STATE = multi.recipient_top_state_path(name)
             top_state = quality.load_top_state()
             sent_successfully = False
