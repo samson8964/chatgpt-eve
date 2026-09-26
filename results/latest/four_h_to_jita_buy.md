@@ -1,14 +1,16 @@
 # 4-HWWF → Jita 4-4 Opportunity Engine V2
 
-- Source orders: `34021`; source cache: `Sat, 26 Sep 2026 15:30:29 GMT`
-- Final Jita pricing: live ESI `2026-09-26T15:26:34.312036+00:00`
+- Source orders: `34033`; source cache: `Sat, 26 Sep 2026 16:05:37 GMT`
+- Final Jita pricing: live ESI `2026-09-26T16:03:21.034688+00:00`
 - High-sec restricted ships removed: `1`
 - Final ranking uses live depth, stress survival, liquidity and volume density.
 
 | # | Grade | Status | Item | Qty | 4-H | Jita live buy | Net | ROI | Score | ISK/m3 | Liquidity |
 |---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|
 | 1 | A | SAFE | Heavy Water | 15,059,426 | 55 | 105 | 490.07M | 47.2% | 74.2 | 81 | high |
-| 2 | A | SAFE | Tungsten Carbide Armor Plate | 18,600 | 4.5K | 6.2K | 26.84M | 32.1% | 70.3 | 1.4K | high |
-| 3 | B | SAFE | Strontium Clathrates | 564,072 | 3.8K | 5.0K | 440.97M | 20.2% | 67.6 | 261 | high |
-| 4 | B | SAFE | Liquid Ozone | 3,942,742 | 69 | 95 | 80.77M | 28.7% | 66.6 | 51 | high |
+| 2 | A | SAFE | Caldari Navy Thorium Charge S | 30,000 | 998 | 2.0K | 28.69M | 95.8% | 73.8 | 382.6K | high |
+| 3 | A | SAFE | Tungsten Carbide Armor Plate | 18,600 | 4.5K | 6.2K | 26.90M | 32.1% | 70.3 | 1.4K | high |
+| 4 | B | SAFE | Liquid Ozone | 3,381,681 | 69 | 95 | 67.96M | 28.0% | 65.4 | 50 | high |
 | 5 | C | SAFE | Covetor | 3 | 30.50M | 36.34M | 13.84M | 15.1% | 54.0 | 1.2K | high |
+| 6 | C | SAFE | Venture Consortium Issue | 6 | 23.48M | 27.70M | 19.10M | 13.6% | 53.2 | 1.3K | high |
+| 7 | C | CHANGED | Strontium Clathrates | 498,357 | 3.8K | 5.2K | 386.42M | 20.1% | 51.3 | 258 | high |
