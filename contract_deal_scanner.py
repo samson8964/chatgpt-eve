@@ -34,7 +34,7 @@ from scanner_source import (
 
 # Full-space item-exchange deal scanner. Economics are valued against Jita,
 # while location risk is classified independently and used in ranking/reporting.
-ACCOUNTING_LEVEL = int(os.getenv("ACCOUNTING_LEVEL", "5"))
+# Conservative fail-safe: never assume Accounting V when the actual selling character is unknown.\nACCOUNTING_LEVEL = int(os.getenv("ACCOUNTING_LEVEL", "0"))
 SALES_TAX_RATE = 0.075 * (1 - 0.11 * ACCOUNTING_LEVEL)
 BROKER_FEE_RATE = float(os.getenv("MARKET_BROKER_FEE_RATE", "0.015"))
 ADV_BROKER_LEVEL = int(os.getenv("ADV_BROKER_RELATIONS_LEVEL", "5"))
