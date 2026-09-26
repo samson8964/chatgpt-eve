@@ -331605,11 +331605,13 @@
   "region_errors": {},
   "regions_checked": 114,
   "regions_total": 114,
-  "running": true,
+  "round_completed": 1,
+  "running": false,
   "scanned": 23339,
   "snapshot_error": null,
   "snapshot_modified": "2026-09-26T07:31:13.436Z",
   "snapshot_target_contracts": 60,
+  "spread_opportunities": 0,
   "stage": "等待下一次检查",
   "volume_cap": 0.04
  },
@@ -331618,5 +331620,5 @@
   "236409545": 1790410053.1359756,
   "236409740": 1790410046.5254264
  },
- "updated": "2026-09-26T07:39:32.501696+00:00"
+ "updated": "2026-09-26T07:39:34.794249+00:00"
 }
