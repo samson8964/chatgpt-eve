@@ -19,6 +19,11 @@ CHANNEL = "global-grade-watch"
 MAIL_TOP = int(os.getenv("GRADE_WATCH_MAIL_TOP", "10"))
 LIVE_WORKERS = int(os.getenv("LIVE_CHECK_WORKERS", "10"))
 MIN_SCORE = float(os.getenv("GRADE_WATCH_MIN_SCORE", "70"))
+BPC_MFG_MAIL_EXCLUDED_RECIPIENTS = {
+    x.strip().casefold()
+    for x in os.getenv("BPC_MFG_MAIL_EXCLUDED_RECIPIENTS", "").split(",")
+    if x.strip()
+}
 
 SOURCES = [
     {
@@ -460,12 +465,27 @@ def main() -> None:
             continue
 
         new_keys = current_keys - seen
-        if not new_keys:
-            print(f"{CHANNEL} skipped for {name}: no first-seen A/S opportunity")
+        excluded_keys = {
+            k
+            for k in new_keys
+            if name.casefold() in BPC_MFG_MAIL_EXCLUDED_RECIPIENTS
+            and candidates[k].get("primary_source") == "BPC制造"
+        }
+        if excluded_keys:
+            seen = seen | excluded_keys
+            save_seen(path, seen)
+            print(
+                f"{CHANNEL} suppressed for {name}: "
+                f"BPC manufacturing first_seen={len(excluded_keys)}"
+            )
+
+        eligible_keys = new_keys - excluded_keys
+        if not eligible_keys:
+            print(f"{CHANNEL} skipped for {name}: no first-seen A/S opportunity after recipient filters")
             continue
 
         ordered = sorted(
-            (candidates[k] for k in new_keys),
+            (candidates[k] for k in eligible_keys),
             key=lambda r: (r["score"], r["profit"], r["roi"] or 0.0),
             reverse=True,
         )
