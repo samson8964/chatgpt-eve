@@ -227,6 +227,7 @@ def candidate_title(spec, row) -> str:
 
 
 def candidate_profit(row) -> float:
+    # Prefer live V2 revalidation over stale/snapshot economics whenever both exist.
     return finite(first_value(row, [
         "v2_live_net_profit",
         "net_profit",
