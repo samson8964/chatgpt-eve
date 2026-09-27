@@ -25,7 +25,9 @@ from opportunity_engine_v2 import (
     estimate_transport,
     fetch_live_jita_buy_books,
     liquidate_bundle,
+    MIN_PROFIT_PER_M3,
     opportunity_score,
+    profit_density,
     score_grade,
     snapshot_change_pct,
 )
@@ -400,12 +402,23 @@ def main():
             bool(full["complete"]), full_profit, full_roi, full_stress_profit, full_change,
             ["live_jita_fetch_failed"] if full_failed else [],
         )
-        a_ok = bool(full["complete"]) and full_profit >= INSTANT_MIN_PROFIT and full_roi >= INSTANT_MIN_ROI and full_status != "DANGER"
+        full_density = profit_density(full_profit, total_m3)
+        a_ok = (
+            bool(full["complete"])
+            and full_profit >= INSTANT_MIN_PROFIT
+            and full_roi >= INSTANT_MIN_ROI
+            and full_density >= MIN_PROFIT_PER_M3
+            and full_status != "DANGER"
+        )
 
         cash = partial_liquidation(itemq, live_books, SALES_TAX_RATE)
         matched_q = {int(tid): int(qty) for tid, qty in cash.get("matched_itemq", {}).items() if int(qty) > 0}
         matched_m3 = _volume(matched_q, types)
-        cash_haul = haul_reserve(matched_m3, loc)
+        # Conservative hauling rule: accepting a multi-item contract means the whole
+        # received bundle counts against cargo efficiency, even when leftovers are
+        # valued at zero by the cash-floor proof.
+        cash_transport_m3 = total_m3
+        cash_haul = haul_reserve(cash_transport_m3, loc)
         cash_profit = float(cash["net_after_tax"] or 0) - cash_haul - price
         cash_base = price + cash_haul
         cash_roi = cash_profit / cash_base if cash_base > 0 else 0.0
@@ -416,7 +429,13 @@ def main():
             cash_profit, cash_roi, stress_cash_profit, cash_change,
             fatal=(cash.get("filled_units", 0) <= 0),
         )
-        b_ok = cash_profit >= CASH_MIN_PROFIT and cash_roi >= CASH_MIN_ROI and cash_status != "DANGER"
+        cash_density = profit_density(cash_profit, cash_transport_m3)
+        b_ok = (
+            cash_profit >= CASH_MIN_PROFIT
+            and cash_roi >= CASH_MIN_ROI
+            and cash_density >= MIN_PROFIT_PER_M3
+            and cash_status != "DANGER"
+        )
 
         # A/S watch scoring is deliberately independent of the formal 30M gate.
         # It is an attention signal only; the normal strong-opportunity mail still
@@ -442,8 +461,8 @@ def main():
             cash_profit, cash_roi, stress_cash_profit, cash_change,
             fatal=(cash.get("filled_units", 0) <= 0),
         )
-        cash_transport_watch = estimate_transport(matched_m3, jumps, cash_profit)
-        cash_density_watch = cash_profit / matched_m3 if matched_m3 > 0 else cash_profit
+        cash_transport_watch = estimate_transport(cash_transport_m3, jumps, cash_profit)
+        cash_density_watch = cash_density
         cash_score_watch = opportunity_score(
             cash_profit,
             cash_roi,
@@ -466,7 +485,7 @@ def main():
             watch_change = cash_change
             watch_quote = cash
             watch_haul = cash_haul
-            watch_m3 = matched_m3
+            watch_m3 = cash_transport_m3
             watch_transport = cash_transport_watch
         else:
             watch_class = "即时兑现"
@@ -482,7 +501,14 @@ def main():
             watch_transport = full_transport_watch
 
         watch_grade = score_grade(watch_score)
-        if watch_grade in {"A", "S"} and watch_status != "DANGER" and watch_profit > 0 and watch_roi > 0:
+        watch_density = profit_density(watch_profit, watch_m3)
+        if (
+            watch_grade in {"A", "S"}
+            and watch_status != "DANGER"
+            and watch_profit > 0
+            and watch_roi > 0
+            and watch_density >= MIN_PROFIT_PER_M3
+        ):
             watch_rows.append({
                 "contract_id": int(p["contract_id"]),
                 "score_grade": watch_grade,
@@ -563,7 +589,7 @@ def main():
             chosen_stress = stress_cash_profit
             chosen_change = cash_change
             chosen_haul = cash_haul
-            chosen_m3 = matched_m3
+            chosen_m3 = cash_transport_m3
             matched_for_display = matched_q
             b_count += 1
 
@@ -616,7 +642,8 @@ def main():
             "buy_filled_units": int(chosen.get("filled_units", 0) or 0),
             "total_units": int(chosen.get("requested_units", 0) or 0),
             "unvalued_units_zero": max(0, int(chosen.get("requested_units", 0) or 0) - int(chosen.get("filled_units", 0) or 0)),
-            "matched_volume_m3": chosen_m3,
+            "matched_volume_m3": matched_m3 if deal_class.startswith("B") else total_m3,
+            "transport_volume_m3": chosen_m3,
             "total_m3": total_m3,
             "haul_reserve": chosen_haul,
             "profit_per_m3": density,

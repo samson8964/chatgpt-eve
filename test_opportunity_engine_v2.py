@@ -6,7 +6,9 @@ from opportunity_engine_v2 import (
     cross_book_arbitrage,
     drop_best_price_level,
     liquidate_bundle,
+    meets_profit_density,
     opportunity_score,
+    profit_density,
     walk_book,
 )
 
@@ -91,6 +93,13 @@ class OpportunityEngineV2Tests(unittest.TestCase):
         safe = opportunity_score(50_000_000, 0.2, 50_000, 80, 40_000_000, 1, 1.0, 0.02, "SAFE")
         changed = opportunity_score(50_000_000, 0.2, 50_000, 80, 40_000_000, 1, 1.0, 0.02, "CHANGED")
         self.assertGreater(safe, changed)
+
+    def test_profit_density_hard_gate(self):
+        self.assertAlmostEqual(profit_density(30_000_000, 10_000), 3_000)
+        self.assertTrue(meets_profit_density(30_000_000, 10_000, 2_000))
+        self.assertFalse(meets_profit_density(30_000_000, 20_000, 2_000))
+        self.assertTrue(meets_profit_density(1_000_000, 0, 2_000))
+        self.assertFalse(meets_profit_density(-1, 0, 2_000))
 
 
 if __name__ == "__main__":

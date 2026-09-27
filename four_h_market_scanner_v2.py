@@ -15,7 +15,9 @@ from opportunity_engine_v2 import (
     estimate_transport,
     fetch_jita_history,
     fetch_live_jita_buy_books,
+    MIN_PROFIT_PER_M3,
     opportunity_score,
+    profit_density,
     score_grade,
     snapshot_change_pct,
 )
@@ -87,6 +89,10 @@ def main():
         )
         if status == "DANGER":
             continue
+        total_m3 = unit_m3 * q["quantity"]
+        density = profit_density(q["net_profit"], total_m3)
+        if density < MIN_PROFIT_PER_M3:
+            continue
         final.append({
             "type_id": tid,
             "item_name": name_en(types.get(tid), str(tid)),
@@ -106,7 +112,8 @@ def main():
             "snapshot_change_pct": change,
             "live_revalidated_at": live_at,
             "unit_volume_m3": unit_m3,
-            "total_volume_m3": unit_m3 * q["quantity"],
+            "total_volume_m3": total_m3,
+            "profit_per_m3": density,
             "source_slippage_pct": q["source_slippage_pct"],
             "jita_slippage_pct": q["destination_slippage_pct"],
         })
@@ -118,7 +125,7 @@ def main():
     for row in final:
         liq = bundle_liquidity({row["type_id"]: row["quantity"]}, history)
         volume = row["total_volume_m3"]
-        density = row["net_profit"] / volume if volume > 0 else row["net_profit"]
+        density = row["profit_per_m3"]
         transport = estimate_transport(volume, 0, row["net_profit"])
         score = opportunity_score(
             row["net_profit"], row["net_roi"], density, liq["liquidity_score"],

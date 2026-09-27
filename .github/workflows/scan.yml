@@ -146,6 +146,7 @@ jobs:
           DEAL_FRIENDLY_REGION_IDS: ''
           V2_LIVE_REVALIDATE_LIMIT: '120'
           V2_HISTORY_CANDIDATE_LIMIT: '60'
+          MIN_PROFIT_PER_M3: '2000'
         run: python buy_only_contract_scanner_v2.py
 
       - name: Scan multi-item value contracts independently
@@ -163,6 +164,7 @@ jobs:
           MULTI_CASH_FLOOR_MIN_PROFIT: '30000000'
           MULTI_CASH_FLOOR_MIN_ROI: '0.10'
           MULTI_SAFE_PRICE_CHANGE_PCT: '0.15'
+          MIN_PROFIT_PER_M3: '2000'
           DEAL_SKIN_MAJOR_SHARE: '0.50'
           DEAL_HAUL_BASE_ISK: '2000000'
           DEAL_HAUL_ISK_PER_M3_JUMP: '200'
@@ -183,6 +185,7 @@ jobs:
           FOUR_H_CONTRACT_MIN_NET_PROFIT: '5000000'
           FOUR_H_CONTRACT_MIN_NET_ROI: '0.05'
           FOUR_H_CONTRACT_TOP: '100'
+          MIN_PROFIT_PER_M3: '2000'
           ACCOUNTING_LEVEL: '5'
         run: python four_h_contract_scanner.py
 
@@ -200,6 +203,7 @@ jobs:
           ACCOUNTING_LEVEL: '5'
           V2_FOUR_H_MARKET_LIVE_LIMIT: '150'
           V2_FOUR_H_MARKET_HISTORY_LIMIT: '80'
+          MIN_PROFIT_PER_M3: '2000'
         run: python structure_market_arbitrage.py
 
       - name: Scan V3 public missed-opportunity channels
@@ -220,6 +224,7 @@ jobs:
           V3_PUBLIC_PER_METRIC: '110'
           V3_PUBLIC_NEWEST_COUNT: '60'
           V3_LIST_HISTORY_LIMIT: '120'
+          MIN_PROFIT_PER_M3: '2000'
         run: python opportunity_engine_v3_scanner.py
 
       - name: Scan V3 Jita to 4-H reverse market
@@ -234,6 +239,7 @@ jobs:
           V3_4H_REVERSE_MIN_ROI: '0.10'
           V3_4H_REVERSE_HAUL_BASE: '10000000'
           V3_4H_REVERSE_HAUL_ISK_PER_M3: '500'
+          MIN_PROFIT_PER_M3: '2000'
         run: python four_h_reverse_scanner_v3.py
 
       - name: Prepare mail candidates

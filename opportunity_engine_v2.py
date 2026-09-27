@@ -23,6 +23,7 @@ HAUL_CAPACITY_M3 = float(os.getenv("V2_HAUL_CAPACITY_M3", "60000"))
 SECONDS_PER_JUMP = float(os.getenv("V2_SECONDS_PER_JUMP", "50"))
 FIXED_MINUTES_PER_TRIP = float(os.getenv("V2_FIXED_MINUTES_PER_TRIP", "8"))
 SAFE_PRICE_CHANGE_PCT = float(os.getenv("V2_SAFE_PRICE_CHANGE_PCT", "0.10"))
+MIN_PROFIT_PER_M3 = float(os.getenv("MIN_PROFIT_PER_M3", "2000"))
 
 # Conservative high-sec exclusions. Name fallback below covers future/new groups.
 HIGHSEC_RESTRICTED_GROUP_IDS = {30, 485, 547, 659, 883, 1538}
@@ -77,6 +78,24 @@ def safe_int(value: Any, default: int = 0) -> int:
         return int(value)
     except Exception:
         return default
+
+
+def profit_density(net_profit: float, total_m3: float) -> float:
+    """Executable net profit per transported m³.
+
+    Zero/unknown volume is treated as unbounded only for a positive-profit opportunity;
+    blueprint manufacturing is handled by separate scanners and does not use this gate.
+    """
+    profit = safe_float(net_profit, 0.0)
+    volume = safe_float(total_m3, 0.0)
+    if volume <= 0:
+        return math.inf if profit > 0 else -math.inf
+    return profit / volume
+
+
+def meets_profit_density(net_profit: float, total_m3: float, minimum: float | None = None) -> bool:
+    threshold = MIN_PROFIT_PER_M3 if minimum is None else safe_float(minimum, MIN_PROFIT_PER_M3)
+    return profit_density(net_profit, total_m3) >= threshold
 
 
 def _truthy(value: Any) -> bool:

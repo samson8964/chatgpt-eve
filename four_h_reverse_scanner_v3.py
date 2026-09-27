@@ -9,7 +9,9 @@ from contract_deal_scanner import SALES_TAX_RATE
 from opportunity_engine_v2 import (
     cross_book_arbitrage,
     drop_best_price_level,
+    MIN_PROFIT_PER_M3,
     opportunity_score,
+    profit_density,
     score_grade,
 )
 from opportunity_engine_v3 import fetch_live_jita_books
@@ -151,7 +153,9 @@ def main():
         status = "SAFE" if stress_profit > 0 else "CHANGED"
 
         total_m3 = unit_m3 * int(q["quantity"])
-        density = q["net_profit"] / total_m3 if total_m3 > 0 else q["net_profit"]
+        density = profit_density(q["net_profit"], total_m3)
+        if density < MIN_PROFIT_PER_M3:
+            continue
         score = opportunity_score(
             q["net_profit"],
             q["net_roi"],

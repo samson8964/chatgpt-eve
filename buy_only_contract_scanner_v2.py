@@ -25,7 +25,9 @@ from opportunity_engine_v2 import (
     fetch_jita_history,
     fetch_live_jita_buy_books,
     liquidate_bundle,
+    MIN_PROFIT_PER_M3,
     opportunity_score,
+    profit_density,
     score_grade,
     snapshot_change_pct,
     walk_book,
@@ -268,13 +270,16 @@ def main():
         roi = profit / invested if invested > 0 else 0.0
         if profit < legacy.MIN_NET_PROFIT or roi < legacy.MIN_NET_ROI:
             continue
+        density = profit_density(profit, p["total_m3"])
+        if density < MIN_PROFIT_PER_M3:
+            continue
         stress_profit = float(q["stress_net_after_tax"] or 0) - p["haul"] - p["contract_price"]
         change = snapshot_change_pct(p["snapshot"]["gross"], q["gross"])
         failed_here = sorted(set(p["itemq"]).intersection(failed_types))
         status = classify_execution_status(q["complete"], profit, roi, stress_profit, change, ["live_jita_fetch_failed"] if failed_here else [])
         if status == "DANGER":
             continue
-        p.update({"live_quote": q, "profit": profit, "roi": roi, "stress_profit": stress_profit, "change": change, "status": status, "live_at": live_at})
+        p.update({"live_quote": q, "profit": profit, "roi": roi, "profit_per_m3": density, "stress_profit": stress_profit, "change": change, "status": status, "live_at": live_at})
         live.append(p)
 
     live.sort(key=lambda x: (x["profit"], x["roi"]), reverse=True)
@@ -287,7 +292,7 @@ def main():
         loc = p["loc"]
         liq = bundle_liquidity(p["itemq"], history)
         transport = estimate_transport(p["total_m3"], int(legacy.safe_num(loc.get("shortest_jumps_to_jita"), 0)), p["profit"])
-        density = p["profit"] / p["total_m3"] if p["total_m3"] > 0 else p["profit"]
+        density = p["profit_per_m3"]
         max_slip = max((float(r.get("slippage_pct", 0) or 0) for r in q["rows"]), default=0.0)
         score = opportunity_score(p["profit"], p["roi"], density, liq["liquidity_score"], p["stress_profit"], loc.get("risk_rank", 5), transport.hours, p["change"], p["status"])
         contrib = sorted(q["rows"], key=lambda x: float(x.get("gross", 0) or 0), reverse=True)

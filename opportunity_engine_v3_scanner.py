@@ -23,7 +23,9 @@ from opportunity_engine_v2 import (
     aggregate_market_executable_items,
     analyze_contract_items,
     drop_best_price_level,
+    MIN_PROFIT_PER_M3,
     opportunity_score,
+    profit_density,
     score_grade,
 )
 from opportunity_engine_v3 import (
@@ -391,10 +393,12 @@ def main():
         cash = partial_liquidation(included_q, live_buys, SALES_TAX_RATE)
         stress = _stress_partial(included_q, live_buys)
 
-        # Only haul the units used by the cash-floor proof. Leftovers remain worth zero
-        # and need not be transported merely to justify the opportunity.
         matched_m3 = _matched_volume(cash, types)
-        haul_back = haul_reserve(matched_m3, loc)
+        # Cargo-efficiency gate is deliberately conservative: the whole received
+        # contract bundle counts as return volume, even if cash-floor leftovers are
+        # valued at zero.
+        total_received_m3 = _volume(included_q, types)
+        haul_back = haul_reserve(total_received_m3, loc)
         snapshot_cash_gross = float(p["snapshot_cash"].get("gross", 0) or 0)
         change = material_change(snapshot_cash_gross, cash["gross"])
 
@@ -410,7 +414,9 @@ def main():
                 fatal=fatal_buy or cash["filled_units"] <= 0,
             )
             if status != "DANGER":
-                density = profit / matched_m3 if matched_m3 > 0 else profit
+                density = profit_density(profit, total_received_m3)
+                if density < MIN_PROFIT_PER_M3:
+                    continue
                 score = opportunity_score(
                     profit, roi, density, 70.0, stress_profit,
                     loc.get("risk_rank", 5), 0.3, change, status,
@@ -434,6 +440,8 @@ def main():
                         "bundle_total_units": cash["requested_units"],
                         "leftover_units_valued_zero": max(0, cash["requested_units"] - cash["filled_units"]),
                         "matched_volume_m3": matched_m3,
+                        "total_volume_m3": total_received_m3,
+                        "profit_per_m3": density,
                         "haul_reserve": haul_back,
                         "snapshot_change_pct": change,
                         "items": _row_items(included_q, types),
@@ -467,7 +475,10 @@ def main():
                     fatal=fatal_buy or fatal_sell or cash["filled_units"] <= 0,
                 )
                 if status != "DANGER":
-                    density = profit / max(1.0, req_m3 + matched_m3)
+                    transport_m3 = req_m3 + total_received_m3
+                    density = profit_density(profit, transport_m3)
+                    if density < MIN_PROFIT_PER_M3:
+                        continue
                     score = opportunity_score(
                         profit, roi, density, 65.0, stress_profit,
                         loc.get("risk_rank", 5), 0.5, change, status,
@@ -490,6 +501,9 @@ def main():
                             "cash_floor_coverage": cash["coverage"],
                             "requested_volume_m3": req_m3,
                             "matched_return_volume_m3": matched_m3,
+                            "received_total_volume_m3": total_received_m3,
+                            "transport_volume_m3": transport_m3,
+                            "profit_per_m3": density,
                             "haul_out_reserve": haul_out,
                             "haul_back_reserve": haul_back,
                             "snapshot_change_pct": change,
@@ -551,7 +565,9 @@ def main():
         )
         if status == "DANGER":
             continue
-        density = profit / total_m3 if total_m3 > 0 else profit
+        density = profit_density(profit, total_m3)
+        if density < MIN_PROFIT_PER_M3:
+            continue
         liquidity_score = max(10.0, 100.0 - min(90.0, q["estimated_fill_days"] / LIST_MAX_FILL_DAYS * 90.0))
         score = opportunity_score(
             profit, roi, density, liquidity_score, stress_profit,
@@ -576,6 +592,7 @@ def main():
                 "stress_net_profit": stress_profit,
                 "estimated_fill_days": q["estimated_fill_days"],
                 "total_volume_m3": total_m3,
+                "profit_per_m3": density,
                 "items": _row_items(itemq, types),
                 "contract_title": p["title"],
                 "date_issued": p["date_issued"],

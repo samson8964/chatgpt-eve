@@ -13,7 +13,9 @@ from opportunity_engine_v2 import (
     drop_best_price_level,
     fetch_live_jita_buy_books,
     liquidate_bundle,
+    MIN_PROFIT_PER_M3,
     opportunity_score,
+    profit_density,
     score_grade,
 )
 from scanner_source import (
@@ -120,10 +122,12 @@ def main():
 
         if quote is None or not quote["complete"] or profit < legacy.MIN_NET_PROFIT or roi < legacy.MIN_NET_ROI:
             continue
+        density = profit_density(profit, total_m3)
+        if density < MIN_PROFIT_PER_M3:
+            continue
         status = classify_execution_status(True, profit, roi, stress_profit, 0.0, [])
         if status == "DANGER":
             continue
-        density = profit / total_m3 if total_m3 > 0 else profit
         # Immediate buy-book liquidation is already executable; use a neutral/high liquidity
         # score here and let the stress test penalize fragile books.
         liq_score = 100.0 if route.startswith("4-H") else 80.0
