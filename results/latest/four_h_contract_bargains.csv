@@ -1,1 +1,2 @@
-
+engine_version,contract_id,title,price,best_route,execution_status,score_grade,opportunity_score,best_net_profit,best_roi,stress_net_profit,packaged_volume_m3,profit_per_m3,excluded_rig_types,excluded_rig_qty,highsec_restricted_ship,live_revalidated_at,top_items
+Opportunity Engine V2,236462494,nan,300000000.0,Jita 4-4 live buy,SAFE,A,70.0,54687909.88075,0.18229303293583332,51900376.12537503,601.18,90967.61349471041,0,0,False,2026-09-27T16:29:49.393973+00:00,Conductive Polymer x5500 @ 21.0K; Burned Logic Circuit x1808 @ 38.8K; Enhanced Ward Console x53 @ 875.1K; Logic Circuit x19 @ 1.73M; Fried Interface Circuit x5740 @ 4.0K
