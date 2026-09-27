@@ -322404,11 +322404,14 @@
   "region_errors": {},
   "regions_checked": 114,
   "regions_total": 114,
-  "running": true,
+  "round_completed": 1,
+  "running": false,
   "scanned": 22878,
   "snapshot_error": null,
   "snapshot_modified": "2026-09-27T15:31:15.844Z",
   "snapshot_target_contracts": 55,
+  "spread_mail_enabled": false,
+  "spread_opportunities": 0,
   "stage": "等待下一次检查",
   "volume_cap": 0.03
  },
@@ -322418,5 +322421,5 @@
   "236457532": 1790525594.3488069,
   "236457534": 1790525594.1631684
  },
- "updated": "2026-09-27T15:44:16.373164+00:00"
+ "updated": "2026-09-27T15:44:18.742526+00:00"
 }
