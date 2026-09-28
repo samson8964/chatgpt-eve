@@ -1,10 +1,10 @@
 # 4-HWWF → Jita 4-4 Opportunity Engine V2
 
-- Source orders: `34023`; source cache: `Mon, 28 Sep 2026 12:31:40 GMT`
-- Final Jita pricing: live ESI `2026-09-28T12:29:00.232668+00:00`
+- Source orders: `34019`; source cache: `Mon, 28 Sep 2026 13:01:43 GMT`
+- Final Jita pricing: live ESI `2026-09-28T12:57:38.303139+00:00`
 - High-sec restricted ships removed: `1`
 - Final ranking uses live depth, stress survival, liquidity and volume density.
 
 | # | Grade | Status | Item | Qty | 4-H | Jita live buy | Net | ROI | Score | ISK/m3 | Liquidity |
 |---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|
-| 1 | B | SAFE | Small Gremlin Compact Energy Neutralizer | 966 | 25.0K | 40.0K | 13.18M | 54.6% | 59.3 | 2.7K | high |
+| 1 | C | SAFE | Small Gremlin Compact Energy Neutralizer | 946 | 25.0K | 40.0K | 12.91M | 54.6% | 50.8 | 2.7K | high |
