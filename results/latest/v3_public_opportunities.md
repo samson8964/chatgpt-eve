@@ -1,8 +1,8 @@
 # Opportunity Engine V3 — missed-opportunity channels
 
-- Contracts snapshot: `2026-09-28T00:31:15.598Z`
-- Market snapshot: `2026-09-28T00:48:41.062Z`
-- Live pool: `168`; feasible: `94`
+- Contracts snapshot: `2026-09-28T01:01:12.986Z`
+- Market snapshot: `2026-09-28T01:18:36.404Z`
+- Live pool: `157`; feasible: `84`
 - CASH_FLOOR: `2`
 - BARTER: `0`
 - CONSERVATIVE_LIST: `0`
