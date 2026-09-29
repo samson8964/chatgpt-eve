@@ -36,6 +36,15 @@ CHANNELS = {
         "profit_col": "net_profit",
         "roi_col": "net_roi",
         "title": "4-H市场套利V2",
+        "source_label": "4-H",
+    },
+    "cj-market": {
+        "path": LATEST / "cj_to_jita_buy.csv",
+        "id_col": "type_id",
+        "profit_col": "net_profit",
+        "roi_col": "net_roi",
+        "title": "C-J6MT市场套利V2",
+        "source_label": "C-J6MT",
     },
 }
 
@@ -73,6 +82,17 @@ def recipient_names():
     else:
         names = [os.getenv("EVE_MAIL_RECIPIENT_NAME", "MikeChong").strip() or "MikeChong"]
     return list(dict.fromkeys(names))
+
+
+def enabled_channels():
+    raw = os.getenv("STRUCTURE_MAIL_CHANNELS", "").strip()
+    if not raw:
+        return list(CHANNELS)
+    wanted = [x.strip() for x in raw.split(",") if x.strip()]
+    unknown = [x for x in wanted if x not in CHANNELS]
+    if unknown:
+        raise RuntimeError(f"Unknown structure mail channel(s): {','.join(unknown)}")
+    return wanted
 
 
 def safe_key(name: str) -> str:
@@ -305,7 +325,7 @@ def _render_contract_item(c):
     )
 
 
-def _render_market_item(c):
+def _render_market_item(c, source_label="4-H"):
     r = c["row"]
     tid = c["id"]
     name = html.escape(_text(r.get("item_name"), str(tid)))
@@ -320,7 +340,7 @@ def _render_market_item(c):
     reason_line = f"变化：{reason}<br>" if reason else ""
     return (
         f"{prefix}<b>[{html.escape(c['grade'] or '-')}] {name} ×{qty:,}</b><br>"
-        f"4-H买入 {fmt_isk(r.get('four_h_best_sell',0))}/件 · Jita买单 {fmt_isk(r.get('jita_best_buy',0))}/件<br>"
+        f"{html.escape(source_label)}买入 {fmt_isk(r.get('four_h_best_sell',0))}/件 · Jita买单 {fmt_isk(r.get('jita_best_buy',0))}/件<br>"
         f"净利 {fmt_isk(c['profit'])} · ROI {c['roi']:.1%} · 压力净利 {fmt_isk(stress)} · 评分 {score:.1f}<br>"
         f"流动性 {liq or '-'} · 预计消化 {fill_days:.2f}天 · 总体积 {_num(r.get('total_volume_m3')):.0f}m3<br>"
         + reason_line
@@ -372,7 +392,11 @@ def render_notification(channel: str, stamp: str, plan):
         ]
         current_delta = added
 
-    renderer = _render_contract_item if channel == "four-h-contract" else _render_market_item
+    if channel == "four-h-contract":
+        renderer = _render_contract_item
+    else:
+        source_label = cfg.get("source_label", "4-H")
+        renderer = lambda item: _render_market_item(item, source_label)
     for c in current_delta:
         parts.append(renderer(c))
     parts.append(_render_removed(channel, removed))
@@ -397,7 +421,7 @@ def main():
     stamp = pd.Timestamp.now(tz="Asia/Shanghai").strftime("%m-%d %H:%M")
     failures = []
 
-    for channel in ("four-h-contract", "four-h-market"):
+    for channel in enabled_channels():
         picked = build_candidates(channel)
         print(f"{channel}: SAFE candidates={len(picked)}")
         for name, recipient_id in recipients:
@@ -414,10 +438,10 @@ def main():
                 print(f"::warning::{channel} mail failed for {name}: {type(exc).__name__}: {exc}")
 
     if failures:
-        print(f"::warning::4-H mail delivery incomplete: failures={len(failures)}")
+        print(f"::warning::structure mail delivery incomplete: failures={len(failures)}")
         for channel, name, exc in failures:
             print(f"mail failure detail: channel={channel} recipient={name} error={exc}")
-        raise RuntimeError(f"4-H mail delivery failed for {len(failures)} channel/recipient attempt(s)")
+        raise RuntimeError(f"Structure mail delivery failed for {len(failures)} channel/recipient attempt(s)")
 
 
 if __name__ == "__main__":
