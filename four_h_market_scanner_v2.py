@@ -23,13 +23,13 @@ from opportunity_engine_v2 import (
 )
 from scanner_source import fetch_many_ref, name_en, type_group_id, type_volume
 
-LIVE_LIMIT = int(os.getenv("V2_FOUR_H_MARKET_LIVE_LIMIT", "150"))
-HISTORY_LIMIT = int(os.getenv("V2_FOUR_H_MARKET_HISTORY_LIMIT", "80"))
-HAUL_ISK_PER_M3 = float(os.getenv("FOUR_H_HAUL_ISK_PER_M3", "0"))
+LIVE_LIMIT = int(os.getenv("V2_SOURCE_MARKET_LIVE_LIMIT", os.getenv("V2_FOUR_H_MARKET_LIVE_LIMIT", "150")))
+HISTORY_LIMIT = int(os.getenv("V2_SOURCE_MARKET_HISTORY_LIMIT", os.getenv("V2_FOUR_H_MARKET_HISTORY_LIMIT", "80")))
+HAUL_ISK_PER_M3 = float(os.getenv("SOURCE_HAUL_ISK_PER_M3", os.getenv("FOUR_H_HAUL_ISK_PER_M3", "0")))
 
 
 def main():
-    # Reuse the proven V1 broad pass: authenticated 4-H source orders + EVERef Jita snapshot.
+    # Reuse the proven broad pass: authenticated source-structure orders + EVERef Jita snapshot.
     legacy.main()
     try:
         broad = pd.read_csv(legacy.RESULT)
@@ -46,7 +46,7 @@ def main():
     groups = fetch_many_ref("groups", gids)
 
     # Pull the source book again so both sides are current during final validation.
-    source_books, source_order_count, source_expires = legacy.load_four_h_sells()
+    source_books, source_order_count, source_expires = legacy.load_structure_sells()
     live_books, failed, live_at = fetch_live_jita_buy_books(ids)
 
     final = []
@@ -150,7 +150,7 @@ def main():
     pd.DataFrame(final).to_csv(legacy.RESULT, index=False)
 
     lines = [
-        "# 4-HWWF → Jita 4-4 Opportunity Engine V2",
+        f"# {legacy.SOURCE_LABEL} → Jita 4-4 Opportunity Engine V2",
         "",
         f"- Source orders: `{source_order_count}`; source cache: `{source_expires}`",
         f"- Final Jita pricing: live ESI `{live_at}`",
@@ -160,7 +160,7 @@ def main():
     ]
     if final:
         lines += [
-            "| # | Grade | Status | Item | Qty | 4-H | Jita live buy | Net | ROI | Score | ISK/m3 | Liquidity |",
+            f"| # | Grade | Status | Item | Qty | {legacy.SOURCE_LABEL} | Jita live buy | Net | ROI | Score | ISK/m3 | Liquidity |",
             "|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|",
         ]
         for i, r in enumerate(final, 1):
@@ -173,7 +173,7 @@ def main():
     else:
         lines.append("No live-revalidated opportunity passed the V2 filters.")
     legacy.REPORT.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"V2 4-H market done: opportunities={len(final)} capital_blocked={capital_blocked}")
+    print(f"V2 {legacy.SOURCE_LABEL} market done: opportunities={len(final)} capital_blocked={capital_blocked}")
 
 
 if __name__ == "__main__":
