@@ -1,0 +1,63 @@
+name: Probe C-J6MT structure id
+
+on:
+  push:
+    paths:
+      - '.github/workflows/probe-cj-structure.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Query public market orders for C-J6MT
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import urllib.parse
+          import urllib.request
+
+          SYSTEM_ID = 30000772
+          TYPE_IDS = [12745, 22448, 34, 35, 36]
+
+          for tid in TYPE_IDS:
+              body = urllib.parse.urlencode({"listSellOrder": str(tid)}).encode()
+              req = urllib.request.Request(
+                  "https://eve.c3q.cc/market/api/",
+                  data=body,
+                  headers={"Content-Type": "application/x-www-form-urlencoded", "User-Agent": "chatgpt-eve-cj-probe/1.0"},
+                  method="POST",
+              )
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as r:
+                      data = json.load(r)
+              except Exception as exc:
+                  print(f"TYPE {tid} ERROR {type(exc).__name__}: {exc}")
+                  continue
+
+              print(f"TYPE {tid} TOPLEVEL={type(data).__name__}")
+              print(json.dumps(data, ensure_ascii=False)[:800])
+              # API payload shape may vary; recursively collect order-like arrays:
+              found = []
+              def walk(x):
+                  if isinstance(x, list):
+                      if len(x) >= 8 and isinstance(x[0], (int, float)) and isinstance(x[1], (int, float)):
+                          try:
+                              if int(x[1]) == SYSTEM_ID:
+                                  found.append(x)
+                          except Exception:
+                              pass
+                      for y in x:
+                          walk(y)
+                  elif isinstance(x, dict):
+                      for y in x.values():
+                          walk(y)
+              walk(data)
+              print(f"TYPE {tid} C-J6MT_ROWS={json.dumps(found, ensure_ascii=False)}")
+          PY
