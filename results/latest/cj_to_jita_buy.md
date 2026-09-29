@@ -1,17 +1,17 @@
 # C-J6MT - 1st Taj Mahgoon (DJ's Retirement Fund) → Jita 4-4 Opportunity Engine V2
 
-- Source orders: `52763`; source cache: `Tue, 29 Sep 2026 10:17:43 GMT`
-- Final Jita pricing: live ESI `2026-09-29T10:16:40.947700+00:00`
+- Source orders: `52756`; source cache: `Tue, 29 Sep 2026 10:37:50 GMT`
+- Final Jita pricing: live ESI `2026-09-29T10:38:04.207577+00:00`
 - High-sec restricted ships removed: `1`
 - Final ranking uses live depth, stress survival, liquidity and volume density.
 
 | # | Grade | Status | Item | Qty | C-J6MT - 1st Taj Mahgoon (DJ's Retirement Fund) | Jita live buy | Net | ROI | Score | ISK/m3 | Liquidity |
 |---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|
 | 1 | A | SAFE | Union Contemplation Background | 11 | 500.0K | 2.70M | 18.42M | 179.3% | 76.8 | 16.75M | high |
-| 2 | A | SAFE | Fierce Exotic Filament | 20 | 2.00M | 2.81M | 14.38M | 36.0% | 75.4 | 7.19M | high |
+| 2 | A | SAFE | Fierce Exotic Filament | 20 | 2.00M | 2.81M | 14.40M | 36.0% | 75.4 | 7.20M | high |
 | 3 | B | SAFE | Soaring Federation Background | 56 | 1.20M | 2.04M | 27.97M | 34.0% | 69.1 | 4.99M | medium |
-| 4 | B | SAFE | Mining Laser Optimization Charge | 726,665 | 289 | 401 | 64.58M | 29.8% | 64.3 | 8.9K | high |
-| 5 | B | SAFE | Atavum | 353 | 346.2K | 428.6K | 17.72M | 13.8% | 62.5 | 502.0K | high |
+| 4 | B | SAFE | Mining Laser Optimization Charge | 726,665 | 289 | 401 | 64.61M | 29.8% | 66.5 | 8.9K | high |
+| 5 | B | SAFE | Atavum | 353 | 346.2K | 428.5K | 17.70M | 13.8% | 62.5 | 501.5K | high |
 | 6 | B | SAFE | Caldari Navy Uranium Charge S | 838,897 | 650 | 803 | 105.52M | 19.4% | 60.3 | 50.3K | low |
 | 7 | B | SAFE | Absolution | 2 | 262.70M | 306.30M | 63.83M | 12.1% | 60.3 | 2.1K | high |
 | 8 | B | SAFE | Drone Link Augmentor II | 592 | 963.8K | 1.18M | 95.74M | 16.6% | 59.9 | 6.5K | high |
