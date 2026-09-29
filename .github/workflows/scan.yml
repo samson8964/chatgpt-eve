@@ -217,6 +217,26 @@ jobs:
           MIN_PROFIT_PER_M3: '2000'
         run: python structure_market_arbitrage.py
 
+      - name: Scan C-J6MT contracts with Opportunity Engine V2
+        id: cj_contract
+        continue-on-error: true
+        if: steps.cadence.outputs.run_scan == 'true'
+        env:
+          EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+          EVE_MARKET_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
+          SOURCE_STRUCTURE_ID: '1049588174021'
+          SOURCE_LABEL: 'C-J6MT'
+          SOURCE_AUTH_PROFILE: 'cj'
+          SOURCE_CONTRACT_MIN_PRICE: '1000000'
+          SOURCE_CONTRACT_MIN_NET_PROFIT: '5000000'
+          SOURCE_CONTRACT_MIN_NET_ROI: '0.05'
+          SOURCE_CONTRACT_TOP: '100'
+          SOURCE_CONTRACT_RESULT_CSV: 'cj_contract_bargains.csv'
+          SOURCE_CONTRACT_REPORT_MD: 'cj_contract_bargains.md'
+          MIN_PROFIT_PER_M3: '2000'
+          ACCOUNTING_LEVEL: '5'
+        run: python four_h_contract_scanner.py
+
       - name: Scan C-J6MT market to Jita with Opportunity Engine V2
         id: cj_market
         continue-on-error: true
@@ -403,6 +423,26 @@ jobs:
             exit 2
           fi
 
+      - name: Send C-J6MT contract SAFE digest
+        id: mail_cj_contract
+        continue-on-error: true
+        if: steps.cadence.outputs.run_scan == 'true' && steps.cj_contract.outcome == 'success'
+        env:
+          EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+          EVE_MAIL_RECIPIENT_NAME: MikeChong
+          EVE_MAIL_RECIPIENT_NAMES: 'MikeChong,LadyBaBa'
+          EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
+          MAIL_TOP: '10'
+          STRUCTURE_MAIL_CHANNELS: 'cj-contract'
+        shell: bash
+        run: |
+          set -o pipefail
+          python send_four_h_mail_multi.py 2>&1 | tee /tmp/mail-cj-contract.log
+          if grep -q 'structure mail delivery incomplete:' /tmp/mail-cj-contract.log; then
+            echo 'C-J6MT contract mail delivery reported failure.'
+            exit 2
+          fi
+
       - name: Send C-J6MT market SAFE digest
         id: mail_cj
         continue-on-error: true
@@ -468,10 +508,10 @@ jobs:
           echo "::warning::4-H scan degraded: contract=${{ steps.four_h_contract.outcome }}, market=${{ steps.four_h_market.outcome }}. Core BPC/spot/multi alerts were not blocked."
 
       - name: Report degraded C-J6MT scan without blocking other alerts
-        if: steps.cadence.outputs.run_scan == 'true' && steps.cj_market.outcome != 'success'
+        if: steps.cadence.outputs.run_scan == 'true' && (steps.cj_contract.outcome != 'success' || steps.cj_market.outcome != 'success')
         shell: bash
         run: |
-          echo "::warning::C-J6MT market scan degraded: market=${{ steps.cj_market.outcome }}. Existing 4-H/core alerts were not blocked."
+          echo "::warning::C-J6MT scan degraded: contract=${{ steps.cj_contract.outcome }}, market=${{ steps.cj_market.outcome }}. Existing 4-H/core alerts were not blocked."
 
       - name: Commit refreshed results safely
         id: persist_results
@@ -521,12 +561,14 @@ jobs:
           failed=0
           echo "four_h_contract=${{ steps.four_h_contract.outcome }}"
           echo "four_h_market=${{ steps.four_h_market.outcome }}"
+          echo "cj_contract=${{ steps.cj_contract.outcome }}"
           echo "cj_market=${{ steps.cj_market.outcome }}"
           echo "v3_public=${{ steps.v3_public.outcome }}"
           echo "v3_reverse=${{ steps.v3_reverse.outcome }}"
           echo "mail_core=${{ steps.mail_core.outcome }}"
           echo "mail_multi=${{ steps.mail_multi.outcome }}"
           echo "mail_four_h=${{ steps.mail_four_h.outcome }}"
+          echo "mail_cj_contract=${{ steps.mail_cj_contract.outcome }}"
           echo "mail_cj=${{ steps.mail_cj.outcome }}"
           echo "mail_v3_public=${{ steps.mail_v3_public.outcome }}"
           echo "mail_v3_reverse=${{ steps.mail_v3_reverse.outcome }}"
@@ -551,10 +593,11 @@ jobs:
             echo "::error::4-H mail delivery failed."
             failed=1
           fi
-          if [ "${{ steps.cj_market.outcome }}" != "success" ]; then
-            echo "::warning::C-J6MT market scan is degraded; core/4-H production remains independent."
-          elif [ "${{ steps.mail_cj.outcome }}" = "failure" ]; then
-            echo "::warning::C-J6MT mail delivery failed; core/4-H production remains independent."
+          if [ "${{ steps.cj_contract.outcome }}" != "success" ] || [ "${{ steps.cj_market.outcome }}" != "success" ]; then
+            echo "::warning::C-J6MT scan is degraded; core/4-H production remains independent."
+          fi
+          if [ "${{ steps.mail_cj_contract.outcome }}" = "failure" ] || [ "${{ steps.mail_cj.outcome }}" = "failure" ]; then
+            echo "::warning::C-J6MT mail delivery is degraded; core/4-H production remains independent."
           fi
           if [ "${{ steps.v3_public.outcome }}" != "success" ]; then
             echo "::error::V3 public opportunity scan is degraded."
