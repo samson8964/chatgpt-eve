@@ -25,16 +25,18 @@ from scanner_source import (
 )
 from contract_deal_scanner import SALES_TAX_RATE
 
-STRUCTURE_ID = int(os.getenv("FOUR_H_STRUCTURE_ID", "1053970513596"))
+STRUCTURE_ID = int(os.getenv("SOURCE_STRUCTURE_ID", os.getenv("FOUR_H_STRUCTURE_ID", "1053970513596")))
+SOURCE_LABEL = os.getenv("SOURCE_LABEL", "4-HWWF").strip() or "4-HWWF"
+AUTH_PROFILE = os.getenv("SOURCE_AUTH_PROFILE", "main").strip() or "main"
 WORKER_URL = os.getenv("EVE_MARKET_WORKER_URL", "https://eve-contract-opener.99617224.workers.dev").rstrip("/")
 API_KEY = os.getenv("EVE_MARKET_API_KEY", "")
-MIN_PRICE = float(os.getenv("FOUR_H_CONTRACT_MIN_PRICE", "1000000"))
-MIN_NET_PROFIT = float(os.getenv("FOUR_H_CONTRACT_MIN_NET_PROFIT", "5000000"))
-MIN_NET_ROI = float(os.getenv("FOUR_H_CONTRACT_MIN_NET_ROI", "0.05"))
-TOP = int(os.getenv("FOUR_H_CONTRACT_TOP", "100"))
+MIN_PRICE = float(os.getenv("SOURCE_CONTRACT_MIN_PRICE", os.getenv("FOUR_H_CONTRACT_MIN_PRICE", "1000000")))
+MIN_NET_PROFIT = float(os.getenv("SOURCE_CONTRACT_MIN_NET_PROFIT", os.getenv("FOUR_H_CONTRACT_MIN_NET_PROFIT", "5000000")))
+MIN_NET_ROI = float(os.getenv("SOURCE_CONTRACT_MIN_NET_ROI", os.getenv("FOUR_H_CONTRACT_MIN_NET_ROI", "0.05")))
+TOP = int(os.getenv("SOURCE_CONTRACT_TOP", os.getenv("FOUR_H_CONTRACT_TOP", "100")))
 
-RESULT = LATEST / "four_h_contract_bargains.csv"
-REPORT = LATEST / "four_h_contract_bargains.md"
+RESULT = LATEST / os.getenv("SOURCE_CONTRACT_RESULT_CSV", "four_h_contract_bargains.csv")
+REPORT = LATEST / os.getenv("SOURCE_CONTRACT_REPORT_MD", "four_h_contract_bargains.md")
 
 
 def fetch_structure_orders():
@@ -46,7 +48,7 @@ def fetch_structure_orders():
     while page <= pages:
         r = requests.get(
             f"{WORKER_URL}/api/structure-market",
-            params={"structure_id": STRUCTURE_ID, "page": page},
+            params={"structure_id": STRUCTURE_ID, "page": page, "auth_profile": AUTH_PROFILE},
             headers={"Authorization": f"Bearer {API_KEY}", "Accept": "application/json"},
             timeout=60,
         )
@@ -178,15 +180,15 @@ def main():
     inc = ii[ii["contract_id"].isin(usable_ids) & ii["_included"] & (ii["quantity"] > 0) & (ii["type_id"] > 0)].copy()
     grouped = {int(cid): aggregate_items(g) for cid, g in inc.groupby("contract_id", sort=False)}
 
-    print(f"   4-H active item-exchange contracts={len(c):,}; excluded requested/BPC={len(valid_ids)-len(usable_ids):,}")
+    print(f"   {SOURCE_LABEL} active item-exchange contracts={len(c):,}; excluded requested/BPC={len(valid_ids)-len(usable_ids):,}")
 
-    print("2) current 4-H structure market + Jita order books")
+    print(f"2) current {SOURCE_LABEL} structure market + Jita order books (profile={AUTH_PROFILE})")
     structure_rows = fetch_structure_orders()
-    four_h_sells, four_h_buys = build_books(structure_rows)
+    local_sells, local_buys = build_books(structure_rows)
     market = load_market_orders(m_path)
     jita_sells, jita_buys = prepare_jita_books(market)
     del market
-    print(f"   4-H market orders={len(structure_rows):,}")
+    print(f"   {SOURCE_LABEL} market orders={len(structure_rows):,}")
 
     c_by_id = c.set_index("contract_id", drop=False)
     rows = []
@@ -202,9 +204,9 @@ def main():
         if price <= 0:
             continue
 
-        local_complete, local_gross, local_details = liquidate(itemq, four_h_buys)
+        local_complete, local_gross, local_details = liquidate(itemq, local_buys)
         jita_complete, jita_gross, jita_details = liquidate(itemq, jita_buys)
-        local_sell_complete, local_repl = replacement(itemq, four_h_sells)
+        local_sell_complete, local_repl = replacement(itemq, local_sells)
         jita_sell_complete, jita_repl = replacement(itemq, jita_sells)
 
         local_net = local_gross * (1.0 - SALES_TAX_RATE) - price if local_complete else float("-inf")
@@ -216,7 +218,7 @@ def main():
         if best_net < MIN_NET_PROFIT or best_roi < MIN_NET_ROI:
             continue
 
-        route = "4-H local buy" if local_net >= jita_net else "Jita 4-4 buy"
+        route = f"{SOURCE_LABEL} local buy" if local_net >= jita_net else "Jita 4-4 buy"
         details = local_details if route == "4-H local buy" else jita_details
         all_type_ids.update(itemq)
         raw_detail[cid] = details
@@ -261,17 +263,18 @@ def main():
     pd.DataFrame(rows).to_csv(RESULT, index=False)
 
     lines = [
-        "# 4-HWWF contract bargain scan",
+        f"# {SOURCE_LABEL} contract bargain scan",
         "",
         f"- Structure ID: `{STRUCTURE_ID}`",
+        f"- Auth profile: `{AUTH_PROFILE}`",
         f"- Public contracts snapshot: `{c_modified}`",
         f"- Jita market snapshot: `{m_modified}`",
-        f"- Active 4-H item-exchange contracts scanned: `{len(c)}`",
-        f"- 4-H market orders read: `{len(structure_rows)}`",
+        f"- Active {SOURCE_LABEL} item-exchange contracts scanned: `{len(c)}`",
+        f"- {SOURCE_LABEL} market orders read: `{len(structure_rows)}`",
         f"- Filters: best executable net profit >= {fmt_isk(MIN_NET_PROFIT)}, ROI >= {MIN_NET_ROI:.1%}`",
         f"- Sales tax: `{SALES_TAX_RATE:.3%}`",
         "- BPC contracts and contracts asking for items are excluded from this pass.",
-        "- Jita route profit is before hauling cost/risk; 4-H local route needs no hauling.",
+        f"- Jita route profit is before hauling cost/risk; {SOURCE_LABEL} local route needs no hauling.",
         "",
     ]
     if not rows:
