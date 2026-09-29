@@ -1,7 +1,7 @@
 {
-  "generated_at_utc": "2026-09-29T22:53:15.615023+00:00",
-  "contracts_snapshot": "2026-09-29T22:31:23.380Z",
-  "market_snapshot": "2026-09-29T22:18:49.840Z",
+  "generated_at_utc": "2026-09-29T23:20:17.419473+00:00",
+  "contracts_snapshot": "2026-09-29T23:01:22.510Z",
+  "market_snapshot": "2026-09-29T22:48:43.766Z",
   "accounting_level": 5,
   "transaction_tax_rate": 0.033749999999999995,
   "market_broker_fee_rate": 0.0,
@@ -26,6 +26,6 @@
       "jumps": 12
     }
   ],
-  "ranked_count": 35,
-  "all_executable_count": 106
+  "ranked_count": 34,
+  "all_executable_count": 105
 }
