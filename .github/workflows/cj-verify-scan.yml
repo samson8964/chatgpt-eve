@@ -1,0 +1,79 @@
+name: Verify C-J6MT scanners
+
+on:
+  push:
+    paths:
+      - '.github/workflows/cj-verify-scan.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r requirements.txt
+
+      - name: Scan C-J6MT contracts
+        env:
+          EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+          EVE_MARKET_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
+          SOURCE_STRUCTURE_ID: '1049588174021'
+          SOURCE_LABEL: 'C-J6MT'
+          SOURCE_AUTH_PROFILE: 'cj'
+          SOURCE_CONTRACT_MIN_PRICE: '1000000'
+          SOURCE_CONTRACT_MIN_NET_PROFIT: '5000000'
+          SOURCE_CONTRACT_MIN_NET_ROI: '0.05'
+          SOURCE_CONTRACT_TOP: '100'
+          SOURCE_CONTRACT_RESULT_CSV: 'cj_contract_bargains.csv'
+          SOURCE_CONTRACT_REPORT_MD: 'cj_contract_bargains.md'
+          MIN_PROFIT_PER_M3: '2000'
+          ACCOUNTING_LEVEL: '5'
+        run: python four_h_contract_scanner.py
+
+      - name: Scan C-J6MT market to Jita
+        env:
+          EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+          EVE_MARKET_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
+          SOURCE_STRUCTURE_ID: '1049588174021'
+          SOURCE_MARKET_KEY: 'cj'
+          SOURCE_MARKET_LABEL: "C-J6MT - 1st Taj Mahgoon (DJ's Retirement Fund)"
+          SOURCE_AUTH_PROFILE: 'cj'
+          SOURCE_RESULT_CSV: 'cj_to_jita_buy.csv'
+          SOURCE_REPORT_MD: 'cj_to_jita_buy.md'
+          SOURCE_MIN_NET_PROFIT: '10000000'
+          SOURCE_MIN_NET_ROI: '0.10'
+          SOURCE_TOP: '100'
+          ACCOUNTING_LEVEL: '5'
+          V2_SOURCE_MARKET_LIVE_LIMIT: '150'
+          V2_SOURCE_MARKET_HISTORY_LIMIT: '80'
+          MIN_PROFIT_PER_M3: '2000'
+        run: python structure_market_arbitrage.py
+
+      - name: Summarize C-J6MT results
+        shell: bash
+        run: |
+          python - <<'PY'
+          import pandas as pd
+          from pathlib import Path
+          for name in ["cj_contract_bargains.csv","cj_to_jita_buy.csv"]:
+              p=Path("results/latest")/name
+              if not p.exists():
+                  print(name, "MISSING")
+                  continue
+              try:
+                  df=pd.read_csv(p)
+              except pd.errors.EmptyDataError:
+                  df=pd.DataFrame()
+              print(f"RESULT {name} rows={len(df)}")
+              if not df.empty:
+                  keep=[c for c in ["contract_id","type_id","item_name","title","score_grade","execution_status","best_net_profit","net_profit","best_roi","net_roi","profit_per_m3","quantity","best_route"] if c in df.columns]
+                  print(df[keep].head(10).to_string(index=False))
+          PY
