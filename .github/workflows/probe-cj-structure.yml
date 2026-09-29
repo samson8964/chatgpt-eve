@@ -14,50 +14,49 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Query public market orders for C-J6MT
+      - name: Verify current worker access to C-J6MT
+        env:
+          EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
           import json
+          import os
+          import urllib.error
           import urllib.parse
           import urllib.request
 
-          SYSTEM_ID = 30000772
-          TYPE_IDS = [12745, 22448, 34, 35, 36]
+          structure_id = 1049588174021
+          url = "https://eve-contract-opener.99617224.workers.dev/api/structure-market?" + urllib.parse.urlencode({
+              "structure_id": structure_id,
+              "page": 1,
+          })
+          req = urllib.request.Request(
+              url,
+              headers={
+                  "Authorization": "Bearer " + os.environ["EVE_MARKET_API_KEY"],
+                  "Accept": "application/json",
+                  "User-Agent": "chatgpt-eve-cj-access-probe/1.0",
+              },
+          )
+          try:
+              with urllib.request.urlopen(req, timeout=30) as r:
+                  status = r.status
+                  data = json.load(r)
+          except urllib.error.HTTPError as exc:
+              status = exc.code
+              raw = exc.read().decode("utf-8", "replace")
+              print(f"HTTP={status}")
+              print(raw[:1000])
+              raise SystemExit(1)
 
-          for tid in TYPE_IDS:
-              body = urllib.parse.urlencode({"listSellOrder": str(tid)}).encode()
-              req = urllib.request.Request(
-                  "https://eve.c3q.cc/market/api/",
-                  data=body,
-                  headers={"Content-Type": "application/x-www-form-urlencoded", "User-Agent": "chatgpt-eve-cj-probe/1.0"},
-                  method="POST",
-              )
-              try:
-                  with urllib.request.urlopen(req, timeout=30) as r:
-                      data = json.load(r)
-              except Exception as exc:
-                  print(f"TYPE {tid} ERROR {type(exc).__name__}: {exc}")
-                  continue
-
-              print(f"TYPE {tid} TOPLEVEL={type(data).__name__}")
-              print(json.dumps(data, ensure_ascii=False)[:800])
-              # API payload shape may vary; recursively collect order-like arrays:
-              found = []
-              def walk(x):
-                  if isinstance(x, list):
-                      if len(x) >= 8 and isinstance(x[0], (int, float)) and isinstance(x[1], (int, float)):
-                          try:
-                              if int(x[1]) == SYSTEM_ID:
-                                  found.append(x)
-                          except Exception:
-                              pass
-                      for y in x:
-                          walk(y)
-                  elif isinstance(x, dict):
-                      for y in x.values():
-                          walk(y)
-              walk(data)
-              print(f"TYPE {tid} C-J6MT_ROWS={json.dumps(found, ensure_ascii=False)}")
+          print(f"HTTP={status}")
+          print(f"OK={bool(data.get('ok'))}")
+          print(f"STRUCTURE_ID={data.get('structure_id')}")
+          print(f"PAGES={data.get('pages')}")
+          print(f"PAGE1_ORDERS={len(data.get('orders') or [])}")
+          print(f"EXPIRES={data.get('expires')}")
+          if status != 200 or not data.get("ok"):
+              raise SystemExit(1)
           PY
