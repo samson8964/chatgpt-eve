@@ -4,10 +4,15 @@ const ESI_BASE = "https://esi.evetech.net/latest";
 const ESI_SKILLS_BASE = "https://esi.evetech.net/v4";
 const SCOPE = "esi-ui.open_window.v1 esi-mail.send_mail.v1 esi-skills.read_skills.v1 esi-markets.structure_markets.v1";
 const ACCESS_TOKEN_CACHE_KEY = "https://eve-contract-opener.internal/access-token";
+const CJ_MARKET_SCOPE = "esi-markets.structure_markets.v1";
+const CJ_ACCESS_TOKEN_CACHE_KEY = "https://eve-contract-opener.internal/cj-market-access-token";
 
 let memoryAccessToken = "";
 let memoryAccessTokenExp = 0;
 let refreshInFlight = null;
+let memoryCjAccessToken = "";
+let memoryCjAccessTokenExp = 0;
+let cjRefreshInFlight = null;
 
 export default {
   async fetch(request, env) {
@@ -21,6 +26,9 @@ export default {
       const hasToken = Boolean(await env.AUTH_STORE.get("refresh_token"));
       const name = await env.AUTH_STORE.get("character_name");
       const id = await env.AUTH_STORE.get("character_id");
+      const cjHasToken = Boolean(await env.AUTH_STORE.get("cj_refresh_token"));
+      const cjName = await env.AUTH_STORE.get("cj_character_name");
+      const cjId = await env.AUTH_STORE.get("cj_character_id");
       return html(`<!doctype html><meta charset="utf-8"><title>EVE Contract Opener</title>
         <style>body{font:16px system-ui;max-width:760px;margin:48px auto;padding:0 20px;line-height:1.65}code{background:#eee;padding:2px 6px;border-radius:5px}</style>
         <h1>EVE Contract Opener</h1>
@@ -28,6 +36,8 @@ export default {
         <p>权限：<code>${escapeHtml(SCOPE)}</code></p>
         <p>技能读取接口：<code>/api/skills</code>（需要 API Key）</p>
         <p>建筑市场接口：<code>/api/structure-market?structure_id=1053970513596&page=1</code>（需要 API Key）</p>
+        <p>C-J6MT市场授权：<b>${cjHasToken ? "已授权" : "尚未授权"}</b>${cjName ? ` · ${escapeHtml(cjName)} (${escapeHtml(cjId || "")})` : ""} · <a href="/auth-cj">授权/更换</a> · <a href="/logout-cj">清除</a></p>
+        <p>C-J6MT接口使用 <code>auth_profile=cj</code>，与原4-H主授权彼此独立。</p>
         <p>打开合同：<code>/c/合同ID</code></p>
         <p>打开市场：<code>/m/物品Type ID</code></p>
         <p><a href="/auth">重新授权角色</a> · <a href="/logout">清除授权</a></p>`);
@@ -40,7 +50,13 @@ export default {
       return html("<!doctype html><meta charset='utf-8'><h2>已清除 EVE 授权。</h2><p><a href='/'>返回</a></p>");
     }
     if (url.pathname === "/auth") return startAuth(env, null);
-    if (url.pathname === "/callback") return handleCallback(request, env);
+    if (url.pathname === "/auth-cj") return startCjAuth(env);
+    if (url.pathname === "/logout-cj") return logoutCjAuth(env);
+    if (url.pathname === "/callback") {
+      const cookies = parseCookies(request.headers.get("Cookie") || "");
+      if (cookies.eve_cj_state) return handleCjCallback(request, env, cookies);
+      return handleCallback(request, env);
+    }
     if (url.pathname === "/api/skills") return handleSkills(request, env);
     if (url.pathname === "/api/structure-market") return handleStructureMarket(request, env);
     if (url.pathname === "/api/send-mail") return handleSendMail(request, env);
@@ -125,13 +141,18 @@ async function handleStructureMarket(request, env) {
   const url = new URL(request.url);
   const structureId = Number(url.searchParams.get("structure_id") || "1053970513596");
   const page = Number(url.searchParams.get("page") || "1");
+  const authProfile = String(url.searchParams.get("auth_profile") || "main").trim().toLowerCase();
   if (!Number.isSafeInteger(structureId) || structureId <= 0 || !Number.isSafeInteger(page) || page < 1) {
     return json({ ok: false, error: "invalid_structure_id_or_page" }, 400);
   }
+  if (!["main", "cj"].includes(authProfile)) {
+    return json({ ok: false, error: "invalid_auth_profile", auth_profile: authProfile }, 400);
+  }
 
-  const token = await getFreshToken(env);
+  const token = authProfile === "cj" ? await getFreshCjToken(env) : await getFreshToken(env);
+  const authUrl = authProfile === "cj" ? "/auth-cj" : "/auth";
   if (!token.ok) {
-    return json({ ok: false, error: "token_refresh_failed", detail: token.detail || token.status, auth_url: "/auth" }, 401);
+    return json({ ok: false, error: "token_refresh_failed", detail: token.detail || token.status, auth_profile: authProfile, auth_url: authUrl }, 401);
   }
 
   const resp = await fetch(`${ESI_BASE}/markets/structures/${structureId}/?datasource=tranquility&page=${page}`, {
@@ -147,7 +168,8 @@ async function handleStructureMarket(request, env) {
       detail,
       structure_id: structureId,
       page,
-      auth_url: "/auth",
+      auth_profile: authProfile,
+      auth_url: authUrl,
     }, resp.status === 403 ? 403 : 502);
   }
 
@@ -156,6 +178,7 @@ async function handleStructureMarket(request, env) {
   return json({
     ok: true,
     structure_id: structureId,
+    auth_profile: authProfile,
     page,
     pages: Math.max(1, Number(resp.headers.get("X-Pages") || 1)),
     expires: resp.headers.get("Expires") || null,
@@ -211,6 +234,55 @@ async function handleSendMail(request, env) {
   if (resp.status !== 201) return text(`EVE mail failed (${resp.status}): ${detail}`, 502);
   if (idem) await env.AUTH_STORE.put(`mail_sent:${idem}`, "1", { expirationTtl: 172800 });
   return json({ ok: true, mail_id: Number(detail), sender_id: senderId, recipient_id: recipientId });
+}
+
+function startCjAuth(env) {
+  const state = randomHex(24);
+  const authUrl = new URL(SSO_AUTHORIZE);
+  authUrl.searchParams.set("response_type", "code");
+  authUrl.searchParams.set("client_id", env.EVE_CLIENT_ID);
+  authUrl.searchParams.set("redirect_uri", env.EVE_REDIRECT_URI);
+  authUrl.searchParams.set("scope", CJ_MARKET_SCOPE);
+  authUrl.searchParams.set("state", state);
+  const headers = new Headers({ Location: authUrl.toString() });
+  headers.append("Set-Cookie", cookie("eve_cj_state", state, 600));
+  return new Response(null, { status: 302, headers });
+}
+
+async function logoutCjAuth(env) {
+  memoryCjAccessToken = "";
+  memoryCjAccessTokenExp = 0;
+  await Promise.all(["cj_refresh_token", "cj_character_id", "cj_character_name"].map(k => env.AUTH_STORE.delete(k)));
+  return html("<!doctype html><meta charset='utf-8'><h2>已清除 C-J6MT 市场授权。</h2><p><a href='/auth-cj'>重新授权 C-J6MT 角色</a> · <a href='/'>返回</a></p>");
+}
+
+async function handleCjCallback(request, env, cookies) {
+  const url = new URL(request.url);
+  const code = url.searchParams.get("code");
+  const returnedState = url.searchParams.get("state");
+  if (!code || !returnedState || !cookies.eve_cj_state || returnedState !== cookies.eve_cj_state) {
+    return text("C-J6MT EVE SSO 回调校验失败：state 不匹配。", 400);
+  }
+
+  const resp = await tokenRequest(env, new URLSearchParams({ grant_type: "authorization_code", code }));
+  if (!resp.ok) return text(`C-J6MT EVE SSO token exchange failed (${resp.status}): ${resp.detail}`, 502);
+
+  const claims = decodeJwtClaims(resp.access_token);
+  const characterId = String(claims.sub || "").split(":").pop();
+  if (!/^\d+$/.test(characterId || "")) return text("无法识别 C-J6MT 授权角色 ID。", 502);
+
+  await env.AUTH_STORE.put("cj_refresh_token", resp.refresh_token);
+  await env.AUTH_STORE.put("cj_character_id", characterId);
+  if (claims.name) await env.AUTH_STORE.put("cj_character_name", String(claims.name));
+  rememberCjAccessToken(resp.access_token, claims);
+  await cacheCjAccessToken(resp.access_token, claims);
+
+  const headers = new Headers({ "Content-Type": "text/html; charset=utf-8" });
+  headers.append("Set-Cookie", expiredCookie("eve_cj_state"));
+  return new Response(
+    `<!doctype html><meta charset='utf-8'><h2>C-J6MT 市场授权成功</h2><p>角色：${escapeHtml(claims.name || characterId)}</p><p>权限：<code>${escapeHtml(CJ_MARKET_SCOPE)}</code></p><p><a href='/'>返回状态页</a></p>`,
+    { status: 200, headers }
+  );
 }
 
 function startAuth(env, action) {
@@ -337,6 +409,87 @@ async function getFreshToken(env) {
     return await refreshInFlight;
   } finally {
     refreshInFlight = null;
+  }
+}
+
+function rememberCjAccessToken(accessToken, claims = {}) {
+  const nowSec = Math.floor(Date.now() / 1000);
+  memoryCjAccessToken = accessToken || "";
+  memoryCjAccessTokenExp = Number(claims.exp || 0) || (nowSec + 900);
+}
+
+async function readCachedCjAccessToken() {
+  const nowSec = Math.floor(Date.now() / 1000);
+  if (memoryCjAccessToken && memoryCjAccessTokenExp > nowSec + 60) {
+    return { ok: true, access_token: memoryCjAccessToken, cached: "memory" };
+  }
+  try {
+    const cached = await caches.default.match(CJ_ACCESS_TOKEN_CACHE_KEY);
+    if (!cached) return null;
+    const data = await cached.json();
+    if (!data || !data.access_token || Number(data.exp || 0) <= nowSec + 60) return null;
+    memoryCjAccessToken = String(data.access_token);
+    memoryCjAccessTokenExp = Number(data.exp);
+    return { ok: true, access_token: memoryCjAccessToken, cached: "edge" };
+  } catch (err) {
+    console.warn("C-J access token cache read failed", String(err));
+    return null;
+  }
+}
+
+async function cacheCjAccessToken(accessToken, claims = {}) {
+  if (!accessToken) return;
+  const nowSec = Math.floor(Date.now() / 1000);
+  const exp = Number(claims.exp || 0) || (nowSec + 900);
+  const ttl = Math.max(60, Math.min(1100, exp - nowSec - 60));
+  try {
+    const response = new Response(JSON.stringify({ access_token: accessToken, exp }), {
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": `public, max-age=${ttl}`,
+      },
+    });
+    await caches.default.put(CJ_ACCESS_TOKEN_CACHE_KEY, response);
+  } catch (err) {
+    console.warn("C-J access token cache write failed", String(err));
+  }
+}
+
+async function refreshCjAccessToken(env) {
+  const refreshToken = await env.AUTH_STORE.get("cj_refresh_token");
+  if (!refreshToken) return { ok: false, status: 401, detail: "no C-J refresh token" };
+
+  let result;
+  try {
+    result = await tokenRequest(env, new URLSearchParams({ grant_type: "refresh_token", refresh_token: refreshToken }));
+  } catch (err) {
+    return { ok: false, status: 502, detail: `C-J token request exception: ${String(err)}` };
+  }
+  if (!result.ok) return result;
+
+  const claims = decodeJwtClaims(result.access_token);
+  rememberCjAccessToken(result.access_token, claims);
+  await cacheCjAccessToken(result.access_token, claims);
+
+  if (result.refresh_token && result.refresh_token !== refreshToken) {
+    try {
+      await env.AUTH_STORE.put("cj_refresh_token", result.refresh_token);
+    } catch (err) {
+      console.warn("C-J refresh token persistence failed", String(err));
+    }
+  }
+  return result;
+}
+
+async function getFreshCjToken(env) {
+  const cached = await readCachedCjAccessToken();
+  if (cached) return cached;
+
+  if (!cjRefreshInFlight) cjRefreshInFlight = refreshCjAccessToken(env);
+  try {
+    return await cjRefreshInFlight;
+  } finally {
+    cjRefreshInFlight = null;
   }
 }
 
