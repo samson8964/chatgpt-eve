@@ -217,6 +217,28 @@ jobs:
           MIN_PROFIT_PER_M3: '2000'
         run: python structure_market_arbitrage.py
 
+      - name: Scan C-J6MT market to Jita with Opportunity Engine V2
+        id: cj_market
+        continue-on-error: true
+        if: steps.cadence.outputs.run_scan == 'true'
+        env:
+          EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+          EVE_MARKET_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
+          SOURCE_STRUCTURE_ID: '1049588174021'
+          SOURCE_MARKET_KEY: 'cj'
+          SOURCE_MARKET_LABEL: "C-J6MT - 1st Taj Mahgoon (DJ's Retirement Fund)"
+          SOURCE_AUTH_PROFILE: 'cj'
+          SOURCE_RESULT_CSV: 'cj_to_jita_buy.csv'
+          SOURCE_REPORT_MD: 'cj_to_jita_buy.md'
+          SOURCE_MIN_NET_PROFIT: '10000000'
+          SOURCE_MIN_NET_ROI: '0.10'
+          SOURCE_TOP: '100'
+          ACCOUNTING_LEVEL: '5'
+          V2_SOURCE_MARKET_LIVE_LIMIT: '150'
+          V2_SOURCE_MARKET_HISTORY_LIMIT: '80'
+          MIN_PROFIT_PER_M3: '2000'
+        run: python structure_market_arbitrage.py
+
       - name: Scan V3 public missed-opportunity channels
         id: v3_public
         continue-on-error: true
@@ -283,8 +305,8 @@ jobs:
         env:
           EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
           EVE_MAIL_RECIPIENT_NAME: MikeChong
-          EVE_MAIL_RECIPIENT_NAMES: 'MikeChong,Vektor Yang'
-          BPC_MFG_MAIL_EXCLUDED_RECIPIENTS: 'Vektor Yang'
+          EVE_MAIL_RECIPIENT_NAMES: 'MikeChong,LadyBaBa'
+          BPC_MFG_MAIL_EXCLUDED_RECIPIENTS: ''
           EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
           MAIL_TOP: '10'
           MAIL_LIVE_POOL: '80'
@@ -304,7 +326,7 @@ jobs:
         env:
           EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
           EVE_MAIL_RECIPIENT_NAME: MikeChong
-          EVE_MAIL_RECIPIENT_NAMES: 'MikeChong,Vektor Yang'
+          EVE_MAIL_RECIPIENT_NAMES: 'MikeChong,LadyBaBa'
           EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
           MAIL_TOP: '10'
           MAIL_LIVE_POOL: '80'
@@ -324,8 +346,8 @@ jobs:
         env:
           EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
           EVE_MAIL_RECIPIENT_NAME: MikeChong
-          EVE_MAIL_RECIPIENT_NAMES: 'MikeChong,Vektor Yang'
-          BPC_MFG_MAIL_EXCLUDED_RECIPIENTS: 'Vektor Yang'
+          EVE_MAIL_RECIPIENT_NAMES: 'MikeChong,LadyBaBa'
+          BPC_MFG_MAIL_EXCLUDED_RECIPIENTS: ''
           EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
           GRADE_WATCH_MIN_SCORE: '70'
           GRADE_WATCH_MAIL_TOP: '10'
@@ -368,15 +390,36 @@ jobs:
         env:
           EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
           EVE_MAIL_RECIPIENT_NAME: MikeChong
-          EVE_MAIL_RECIPIENT_NAMES: 'MikeChong,Vektor Yang'
+          EVE_MAIL_RECIPIENT_NAMES: 'MikeChong,LadyBaBa'
           EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
           MAIL_TOP: '10'
+          STRUCTURE_MAIL_CHANNELS: 'four-h-contract,four-h-market'
         shell: bash
         run: |
           set -o pipefail
           python send_four_h_mail_multi.py 2>&1 | tee /tmp/mail-four-h.log
-          if grep -q '4-H mail delivery incomplete:' /tmp/mail-four-h.log; then
+          if grep -q 'structure mail delivery incomplete:' /tmp/mail-four-h.log; then
             echo '4-H mail delivery reported failure.'
+            exit 2
+          fi
+
+      - name: Send C-J6MT market SAFE digest
+        id: mail_cj
+        continue-on-error: true
+        if: steps.cadence.outputs.run_scan == 'true' && steps.cj_market.outcome == 'success'
+        env:
+          EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+          EVE_MAIL_RECIPIENT_NAME: MikeChong
+          EVE_MAIL_RECIPIENT_NAMES: 'MikeChong,LadyBaBa'
+          EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
+          MAIL_TOP: '10'
+          STRUCTURE_MAIL_CHANNELS: 'cj-market'
+        shell: bash
+        run: |
+          set -o pipefail
+          python send_four_h_mail_multi.py 2>&1 | tee /tmp/mail-cj.log
+          if grep -q 'structure mail delivery incomplete:' /tmp/mail-cj.log; then
+            echo 'C-J6MT mail delivery reported failure.'
             exit 2
           fi
 
@@ -387,7 +430,7 @@ jobs:
         env:
           EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
           EVE_MAIL_RECIPIENT_NAME: MikeChong
-          EVE_MAIL_RECIPIENT_NAMES: 'MikeChong,Vektor Yang'
+          EVE_MAIL_RECIPIENT_NAMES: 'MikeChong,LadyBaBa'
           EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
           MAIL_TOP: '10'
           V3_CHANNELS: 'v3-cash-floor,v3-barter,v3-conservative-list'
@@ -403,7 +446,7 @@ jobs:
         env:
           EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
           EVE_MAIL_RECIPIENT_NAME: MikeChong
-          EVE_MAIL_RECIPIENT_NAMES: 'MikeChong,Vektor Yang'
+          EVE_MAIL_RECIPIENT_NAMES: 'MikeChong,LadyBaBa'
           EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
           MAIL_TOP: '10'
           V3_CHANNELS: 'v3-jita-to-4h'
@@ -423,6 +466,12 @@ jobs:
         shell: bash
         run: |
           echo "::warning::4-H scan degraded: contract=${{ steps.four_h_contract.outcome }}, market=${{ steps.four_h_market.outcome }}. Core BPC/spot/multi alerts were not blocked."
+
+      - name: Report degraded C-J6MT scan without blocking other alerts
+        if: steps.cadence.outputs.run_scan == 'true' && steps.cj_market.outcome != 'success'
+        shell: bash
+        run: |
+          echo "::warning::C-J6MT market scan degraded: market=${{ steps.cj_market.outcome }}. Existing 4-H/core alerts were not blocked."
 
       - name: Commit refreshed results safely
         id: persist_results
@@ -472,11 +521,13 @@ jobs:
           failed=0
           echo "four_h_contract=${{ steps.four_h_contract.outcome }}"
           echo "four_h_market=${{ steps.four_h_market.outcome }}"
+          echo "cj_market=${{ steps.cj_market.outcome }}"
           echo "v3_public=${{ steps.v3_public.outcome }}"
           echo "v3_reverse=${{ steps.v3_reverse.outcome }}"
           echo "mail_core=${{ steps.mail_core.outcome }}"
           echo "mail_multi=${{ steps.mail_multi.outcome }}"
           echo "mail_four_h=${{ steps.mail_four_h.outcome }}"
+          echo "mail_cj=${{ steps.mail_cj.outcome }}"
           echo "mail_v3_public=${{ steps.mail_v3_public.outcome }}"
           echo "mail_v3_reverse=${{ steps.mail_v3_reverse.outcome }}"
           echo "persist_results=${{ steps.persist_results.outcome }}"
@@ -498,6 +549,13 @@ jobs:
             failed=1
           elif [ "${{ steps.mail_four_h.outcome }}" = "failure" ]; then
             echo "::error::4-H mail delivery failed."
+            failed=1
+          fi
+          if [ "${{ steps.cj_market.outcome }}" != "success" ]; then
+            echo "::error::C-J6MT market scan is degraded."
+            failed=1
+          elif [ "${{ steps.mail_cj.outcome }}" = "failure" ]; then
+            echo "::error::C-J6MT mail delivery failed."
             failed=1
           fi
           if [ "${{ steps.v3_public.outcome }}" != "success" ]; then
