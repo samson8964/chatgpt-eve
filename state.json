@@ -322088,14 +322088,17 @@
   "region_errors": {},
   "regions_checked": 114,
   "regions_total": 114,
-  "running": true,
+  "round_completed": 1,
+  "running": false,
   "scanned": 23275,
   "snapshot_error": null,
   "snapshot_modified": "2026-09-29T06:31:14.977Z",
   "snapshot_target_contracts": 56,
+  "spread_mail_enabled": false,
+  "spread_opportunities": 0,
   "stage": "等待下一次检查",
   "volume_cap": 0.04
  },
  "unavailable_until": {},
- "updated": "2026-09-29T06:58:02.425551+00:00"
+ "updated": "2026-09-29T06:58:05.333028+00:00"
 }
