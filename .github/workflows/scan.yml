@@ -552,11 +552,9 @@ jobs:
             failed=1
           fi
           if [ "${{ steps.cj_market.outcome }}" != "success" ]; then
-            echo "::error::C-J6MT market scan is degraded."
-            failed=1
+            echo "::warning::C-J6MT market scan is degraded; core/4-H production remains independent."
           elif [ "${{ steps.mail_cj.outcome }}" = "failure" ]; then
-            echo "::error::C-J6MT mail delivery failed."
-            failed=1
+            echo "::warning::C-J6MT mail delivery failed; core/4-H production remains independent."
           fi
           if [ "${{ steps.v3_public.outcome }}" != "success" ]; then
             echo "::error::V3 public opportunity scan is degraded."
