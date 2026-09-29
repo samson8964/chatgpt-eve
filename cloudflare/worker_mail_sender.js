@@ -177,28 +177,54 @@ async function handleSendMail(request, env) {
     return json({ ok: false, error: "mail_sender_token_refresh_failed", detail: token.detail || token.status, auth_url: "/auth-mail" }, 502);
   }
 
-  let resp;
-  try {
-    resp = await fetch(`${ESI_BASE}/characters/${senderId}/mail/?datasource=tranquility`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token.access_token}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({
-        approved_cost: 0,
-        subject,
-        body,
-        recipients: [{ recipient_id: recipientId, recipient_type: "character" }],
-      }),
-    });
-  } catch (err) {
-    return json({ ok: false, error: "eve_mail_request_exception", detail: String(err) }, 502);
+  const mailPayload = JSON.stringify({
+    approved_cost: 0,
+    subject,
+    body,
+    recipients: [{ recipient_id: recipientId, recipient_type: "character" }],
+  });
+
+  let resp = null;
+  let detail = "";
+  let lastException = "";
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      resp = await fetch(`${ESI_BASE}/characters/${senderId}/mail/?datasource=tranquility`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token.access_token}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: mailPayload,
+      });
+      detail = await resp.text();
+      if (resp.status === 201) break;
+
+      const retryable = resp.status === 420 || resp.status === 429 || resp.status >= 500;
+      if (!retryable || attempt >= 3) {
+        return text(`EVE mail failed (${resp.status}): ${detail}`, 502);
+      }
+
+      const retryAfter = Number(resp.headers.get("Retry-After") || 0);
+      const esiReset = Number(resp.headers.get("X-Esi-Error-Limit-Reset") || 0);
+      const backoffSeconds = Math.min(15, Math.max(attempt * 2, retryAfter, esiReset));
+      console.warn(`EVE mail transient failure status=${resp.status}; retrying in ${backoffSeconds}s attempt=${attempt + 1}/3`);
+      await new Promise((resolve) => setTimeout(resolve, backoffSeconds * 1000));
+    } catch (err) {
+      lastException = String(err);
+      if (attempt >= 3) {
+        return json({ ok: false, error: "eve_mail_request_exception", detail: lastException }, 502);
+      }
+      const backoffSeconds = attempt * 2;
+      console.warn(`EVE mail request exception; retrying in ${backoffSeconds}s attempt=${attempt + 1}/3 detail=${lastException}`);
+      await new Promise((resolve) => setTimeout(resolve, backoffSeconds * 1000));
+    }
   }
 
-  const detail = await resp.text();
-  if (resp.status !== 201) return text(`EVE mail failed (${resp.status}): ${detail}`, 502);
+  if (!resp || resp.status !== 201) {
+    return text(`EVE mail failed (${resp ? resp.status : "exception"}): ${detail || lastException}`, 502);
+  }
 
   // Once EVE returns 201 the mail is already accepted. Idempotency persistence is
   // best-effort only; never turn a successful send into HTTP 500 and trigger duplicates.
