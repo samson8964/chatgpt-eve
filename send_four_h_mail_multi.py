@@ -30,6 +30,13 @@ CHANNELS = {
         "roi_col": "best_roi",
         "title": "4-H合同捡漏V2",
     },
+    "cj-contract": {
+        "path": LATEST / "cj_contract_bargains.csv",
+        "id_col": "contract_id",
+        "profit_col": "best_net_profit",
+        "roi_col": "best_roi",
+        "title": "C-J6MT合同捡漏V2",
+    },
     "four-h-market": {
         "path": LATEST / "four_h_to_jita_buy.csv",
         "id_col": "type_id",
@@ -352,7 +359,7 @@ def _render_removed(channel: str, removed):
     if not removed:
         return ""
     parts = ["<b>退出当前推送TOP</b><br>"]
-    noun = "合同" if channel == "four-h-contract" else "物品"
+    noun = "合同" if channel.endswith("-contract") else "物品"
     for r in removed:
         parts.append(
             f"{noun}ID {r['id']} · 上次净利 {fmt_isk(r['profit'])} · ROI {r['roi']:.1%}"
@@ -392,7 +399,7 @@ def render_notification(channel: str, stamp: str, plan):
         ]
         current_delta = added
 
-    if channel == "four-h-contract":
+    if channel.endswith("-contract"):
         renderer = _render_contract_item
     else:
         source_label = cfg.get("source_label", "4-H")
