@@ -20,15 +20,18 @@ from scanner_source import (
 )
 from contract_deal_scanner import SALES_TAX_RATE
 
-STRUCTURE_ID = int(os.getenv("FOUR_H_STRUCTURE_ID", "1053970513596"))
+STRUCTURE_ID = int(os.getenv("SOURCE_STRUCTURE_ID", os.getenv("FOUR_H_STRUCTURE_ID", "1053970513596")))
+SOURCE_KEY = os.getenv("SOURCE_MARKET_KEY", "four_h").strip() or "four_h"
+SOURCE_LABEL = os.getenv("SOURCE_MARKET_LABEL", "4-HWWF").strip() or "4-HWWF"
+AUTH_PROFILE = os.getenv("SOURCE_AUTH_PROFILE", "main").strip() or "main"
 WORKER_URL = os.getenv("EVE_MARKET_WORKER_URL", "https://eve-contract-opener.99617224.workers.dev").rstrip("/")
 API_KEY = os.getenv("EVE_MARKET_API_KEY", "")
-MIN_NET_PROFIT = float(os.getenv("FOUR_H_MIN_NET_PROFIT", "10000000"))
-MIN_NET_ROI = float(os.getenv("FOUR_H_MIN_NET_ROI", "0.10"))
-TOP = int(os.getenv("FOUR_H_TOP", "100"))
+MIN_NET_PROFIT = float(os.getenv("SOURCE_MIN_NET_PROFIT", os.getenv("FOUR_H_MIN_NET_PROFIT", "10000000")))
+MIN_NET_ROI = float(os.getenv("SOURCE_MIN_NET_ROI", os.getenv("FOUR_H_MIN_NET_ROI", "0.10")))
+TOP = int(os.getenv("SOURCE_TOP", os.getenv("FOUR_H_TOP", "100")))
 
-RESULT = LATEST / "four_h_to_jita_buy.csv"
-REPORT = LATEST / "four_h_to_jita_buy.md"
+RESULT = LATEST / os.getenv("SOURCE_RESULT_CSV", "four_h_to_jita_buy.csv")
+REPORT = LATEST / os.getenv("SOURCE_REPORT_MD", "four_h_to_jita_buy.md")
 
 
 def fetch_structure_page(page: int) -> dict:
@@ -36,7 +39,7 @@ def fetch_structure_page(page: int) -> dict:
         raise RuntimeError("Missing EVE_MARKET_API_KEY")
     r = requests.get(
         f"{WORKER_URL}/api/structure-market",
-        params={"structure_id": STRUCTURE_ID, "page": page},
+        params={"structure_id": STRUCTURE_ID, "page": page, "auth_profile": AUTH_PROFILE},
         headers={"Authorization": f"Bearer {API_KEY}", "Accept": "application/json"},
         timeout=60,
     )
@@ -47,12 +50,13 @@ def fetch_structure_page(page: int) -> dict:
     if r.status_code != 200 or not data.get("ok"):
         raise RuntimeError(
             f"Structure-market worker error HTTP {r.status_code}: {data}. "
-            "Deploy the updated Worker and re-authorize a character with 4-H docking access."
+            f"Deploy the updated Worker and authorize a character with {SOURCE_LABEL} market access "
+            f"(auth profile: {AUTH_PROFILE})."
         )
     return data
 
 
-def load_four_h_sells() -> tuple[dict[int, list[dict]], int, str | None]:
+def load_structure_sells() -> tuple[dict[int, list[dict]], int, str | None]:
     first = fetch_structure_page(1)
     pages = max(1, int(first.get("pages") or 1))
     raw = list(first.get("orders") or [])
@@ -81,6 +85,11 @@ def load_four_h_sells() -> tuple[dict[int, list[dict]], int, str | None]:
     for book in books.values():
         book.sort(key=lambda x: (x["price"], x["order_id"]))
     return books, len(raw), first.get("expires")
+
+
+def load_four_h_sells() -> tuple[dict[int, list[dict]], int, str | None]:
+    """Backward-compatible alias for older callers."""
+    return load_structure_sells()
 
 
 def match_profitable(asks: list[dict], bids: list[dict]) -> dict | None:
@@ -163,8 +172,8 @@ def fmt_isk(v: float) -> str:
 
 def main() -> None:
     LATEST.mkdir(parents=True, exist_ok=True)
-    print(f"1) Reading authenticated 4-H structure market: {STRUCTURE_ID}")
-    sell_books, structure_orders, expires = load_four_h_sells()
+    print(f"1) Reading authenticated {SOURCE_LABEL} structure market: {STRUCTURE_ID} (profile={AUTH_PROFILE})")
+    sell_books, structure_orders, expires = load_structure_sells()
     print(f"   all structure orders={structure_orders:,}; sell types={len(sell_books):,}; cache expires={expires}")
 
     print("2) Loading current Jita 4-4 buy-order depth")
@@ -200,10 +209,11 @@ def main() -> None:
     pd.DataFrame(rows).to_csv(RESULT, index=False)
 
     lines = [
-        "# 4-HWWF → Jita 4-4 direct-buy arbitrage",
+        f"# {SOURCE_LABEL} → Jita 4-4 direct-buy arbitrage",
         "",
         f"- Structure: `{STRUCTURE_ID}`",
-        f"- 4-H cache expiry: `{expires}`",
+        f"- Auth profile: `{AUTH_PROFILE}`",
+        f"- Source cache expiry: `{expires}`",
         f"- Jita snapshot: `{market_modified}`",
         f"- Sales tax: `{SALES_TAX_RATE:.4%}`",
         f"- Filters: net profit >= {fmt_isk(MIN_NET_PROFIT)}, ROI >= {MIN_NET_ROI:.1%}",
@@ -212,7 +222,7 @@ def main() -> None:
     ]
     if rows:
         lines += [
-            "| # | Item | Qty | 4-H buy price | Jita best buy | Worst bid used | Net profit | ROI | Profit/m3 |",
+            f"| # | Item | Qty | {SOURCE_LABEL} buy price | Jita best buy | Worst bid used | Net profit | ROI | Profit/m3 |",
             "|---:|---|---:|---:|---:|---:|---:|---:|---:|",
         ]
         for i, r in enumerate(rows, 1):
@@ -228,7 +238,7 @@ def main() -> None:
     print(f"3) opportunities={len(rows)}")
     for i, r in enumerate(rows[:30], 1):
         print(
-            f"{i:02d}. {r['item_name']} | qty={r['quantity']} | 4-H={fmt_isk(r['four_h_best_sell'])} | "
+            f"{i:02d}. {r['item_name']} | qty={r['quantity']} | {SOURCE_LABEL}={fmt_isk(r['four_h_best_sell'])} | "
             f"JitaBuy={fmt_isk(r['jita_best_buy'])} | net={fmt_isk(r['net_profit'])} | ROI={r['net_roi']:.1%}"
         )
 
