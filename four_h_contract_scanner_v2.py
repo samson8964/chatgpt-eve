@@ -114,7 +114,7 @@ def main():
             jita_stress_profit = float(jita_stress["net_after_tax"] or 0) - price
 
         if local_profit >= jita_profit:
-            route, quote = "4-H local buy", local
+            route, quote = f"{legacy.SOURCE_LABEL} local buy", local
             profit, roi, stress_profit = local_profit, local_roi, local_stress_profit
         else:
             route, quote = "Jita 4-4 live buy", jita
@@ -130,7 +130,7 @@ def main():
             continue
         # Immediate buy-book liquidation is already executable; use a neutral/high liquidity
         # score here and let the stress test penalize fragile books.
-        liq_score = 100.0 if route.startswith("4-H") else 80.0
+        liq_score = 100.0 if route.endswith("local buy") else 80.0
         score = opportunity_score(profit, roi, density, liq_score, stress_profit, 0, 0.2, 0.0, status)
         details = sorted(quote["rows"], key=lambda x: float(x.get("gross", 0) or 0), reverse=True)
         top = [
@@ -163,13 +163,13 @@ def main():
     pd.DataFrame(rows).to_csv(legacy.RESULT, index=False)
 
     lines = [
-        "# 4-HWWF contract bargain scan — Opportunity Engine V2",
+        f"# {legacy.SOURCE_LABEL} contract bargain scan — Opportunity Engine V2",
         "",
         f"- Public contract snapshot: `{c_modified}`",
-        f"- Current 4-H structure orders: `{len(source_rows)}`",
+        f"- Current {legacy.SOURCE_LABEL} structure orders: `{len(source_rows)}`",
         f"- Jita final pricing: live ESI `{live_at}`",
         "- Likely fitted rigs are excluded from recoverable value.",
-        "- High-sec restricted ships may use 4-H local liquidation, but never the Jita route.",
+        f"- High-sec restricted ships may use {legacy.SOURCE_LABEL} local liquidation, but never the Jita route.",
         "",
     ]
     if rows:
@@ -186,7 +186,7 @@ def main():
     else:
         lines.append("No V2 opportunity passed live execution checks.")
     legacy.REPORT.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"V2 4-H contracts done: bargains={len(rows)}")
+    print(f"V2 {legacy.SOURCE_LABEL} contracts done: bargains={len(rows)}")
 
 
 if __name__ == "__main__":
