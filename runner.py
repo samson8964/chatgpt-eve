@@ -11,6 +11,12 @@ os.environ.setdefault("HIGHSEC_FACTORY_CANDIDATES", "2")
 os.environ.setdefault("PREFILTER_MIN_GROSS_REVENUE", "30000000")
 os.environ.setdefault("PREFILTER_MIN_ROI", "0.05")
 os.environ.setdefault("PREFILTER_MAX_OUTPUT_DAYS_30D", "2.0")
+os.environ.setdefault("BPC_POOL_RESERVE_MULTIPLIER", "1.25")
+os.environ.setdefault("BPC_POOL_PROFIT_SHARE", "0.40")
+os.environ.setdefault("BPC_POOL_ROI_SHARE", "0.20")
+os.environ.setdefault("BPC_POOL_NEWEST_SHARE", "0.15")
+os.environ.setdefault("BPC_POOL_EXPLORATION_SHARE", "0.15")
+os.environ.setdefault("BPC_POOL_DIVERSITY_SHARE", "0.10")
 
 # Conservative fully-loaded market-cost model.
 # Broker Relations V with zero Caldari/Caldari Navy standings is 1.5% in an NPC station.
@@ -74,6 +80,12 @@ def patch_source(source: str) -> str:
         'PREFILTER_MIN_GROSS_REVENUE = float(os.getenv("PREFILTER_MIN_GROSS_REVENUE", "30000000"))\n'
         'PREFILTER_MIN_ROI = float(os.getenv("PREFILTER_MIN_ROI", "0.05"))\n'
         'PREFILTER_MAX_OUTPUT_DAYS_30D = float(os.getenv("PREFILTER_MAX_OUTPUT_DAYS_30D", "2.0"))\n'
+        'BPC_POOL_RESERVE_MULTIPLIER = float(os.getenv("BPC_POOL_RESERVE_MULTIPLIER", "1.25"))\n'
+        'BPC_POOL_PROFIT_SHARE = float(os.getenv("BPC_POOL_PROFIT_SHARE", "0.40"))\n'
+        'BPC_POOL_ROI_SHARE = float(os.getenv("BPC_POOL_ROI_SHARE", "0.20"))\n'
+        'BPC_POOL_NEWEST_SHARE = float(os.getenv("BPC_POOL_NEWEST_SHARE", "0.15"))\n'
+        'BPC_POOL_EXPLORATION_SHARE = float(os.getenv("BPC_POOL_EXPLORATION_SHARE", "0.15"))\n'
+        'BPC_POOL_DIVERSITY_SHARE = float(os.getenv("BPC_POOL_DIVERSITY_SHARE", "0.10"))\n'
         'MARKET_BROKER_FEE_RATE = float(os.getenv("MARKET_BROKER_FEE_RATE", "0.015"))\n'
         'ADV_BROKER_RELATIONS_LEVEL = int(os.getenv("ADV_BROKER_RELATIONS_LEVEL", "5"))\n'
         'EXPECTED_RELISTS = int(os.getenv("EXPECTED_RELISTS", "2"))\n'
@@ -128,16 +140,26 @@ def patch_source(source: str) -> str:
         "cheap economics filter",
     )
 
+    # Publish the cheap metrics so the diversified selector can rank without expensive API calls.
+    source = replace_once(
+        source,
+        '        prelim.append({"contract_id":cid,"cm":cm,"contract_price":cp,"material_cost":material_cost,"gross_revenue":revenue,"matq":dict(matq),"prodq":dict(prodq),"jobs":jobs,"total_runs":total_runs,"haul_m3":haul_m3})\n',
+        '        prelim.append({"contract_id":cid,"cm":cm,"contract_price":cp,"material_cost":material_cost,"gross_revenue":revenue,"matq":dict(matq),"prodq":dict(prodq),"jobs":jobs,"total_runs":total_runs,"haul_m3":haul_m3,"rough_profit":rough_profit,"rough_roi":rough_roi,"product_type_id":int(next(iter(prodq.keys()))),"date_issued":cm.get("date_issued","")})\n',
+        "diversified prefilter metrics",
+    )
+
     # Add a quick 30d-liquidity pass before the slow exact manufacturing quotes.
     source = replace_once(
         source,
         '    prelim.sort(key=lambda x: x["gross_revenue"]-x["contract_price"]-x["material_cost"], reverse=True)\n'
         '    prelim = prelim[:PREFILTER_TOP]\n\n'
         '    print("6) exact fees")\n',
-        '    prelim.sort(key=lambda x: x["gross_revenue"]-x["contract_price"]-x["material_cost"], reverse=True)\n'
-        '    prelim = prelim[:PREFILTER_TOP]\n'
-        '    print(f"5a) economic prefilter kept {len(prelim)} candidates")\n\n'
-        '    print("5b) quick liquidity")\n'
+        '    pool_state_path=STATE/"candidate_pool_state.json"\n'
+        '    reserve_limit=max(PREFILTER_TOP,int(math.ceil(PREFILTER_TOP*BPC_POOL_RESERVE_MULTIPLIER)))\n'
+        '    prelim_universe=list(prelim)\n'
+        '    prelim,pool_stats=select_candidate_pool(prelim_universe,reserve_limit,metric_shares=(("rough_profit",BPC_POOL_PROFIT_SHARE),("rough_roi",BPC_POOL_ROI_SHARE)),newest_share=BPC_POOL_NEWEST_SHARE,exploration_share=BPC_POOL_EXPLORATION_SHARE,diversity_share=BPC_POOL_DIVERSITY_SHARE,product_key="product_type_id",fill_metrics=("rough_profit","rough_roi"),state_path=pool_state_path,channel="bpc")\n'
+        '    print(f"5a) diversified BPC reserve={len(prelim)}/{len(prelim_universe)} overlap_prev={pool_stats[\\'previous_overlap\\']:.1%} never_recent={pool_stats[\\'never_recent_selected\\']} reasons={pool_stats[\\'by_reason\\']}")\n\n'
+        '    print("5b) quick liquidity + refill")\n'
         '    quick_histories = {}\n'
         '    quick_tids = sorted({int(next(iter(p["prodq"].keys()))) for p in prelim})\n'
         '    with ThreadPoolExecutor(max_workers=min(WORKERS,8)) as ex:\n'
@@ -155,8 +177,9 @@ def patch_source(source: str) -> str:
         '        if float(qty) / avg30 > PREFILTER_MAX_OUTPUT_DAYS_30D:\n'
         '            excluded.append({"contract_id":p["contract_id"],"reason":"BATCH_TOO_LARGE_VS_30D_VOLUME"}); continue\n'
         '        liquid_prelim.append(p)\n'
-        '    prelim=liquid_prelim\n'
-        '    print(f"5b) liquidity prefilter kept {len(prelim)} candidates")\n\n'
+        '    prelim,final_pool_stats=select_candidate_pool(liquid_prelim,PREFILTER_TOP,metric_shares=(("rough_profit",BPC_POOL_PROFIT_SHARE),("rough_roi",BPC_POOL_ROI_SHARE)),newest_share=BPC_POOL_NEWEST_SHARE,exploration_share=BPC_POOL_EXPLORATION_SHARE,diversity_share=BPC_POOL_DIVERSITY_SHARE,product_key="product_type_id",fill_metrics=("rough_profit","rough_roi"),state_path=pool_state_path,channel="bpc")\n'
+        '    record_candidate_pool(pool_state_path,"bpc",prelim)\n'
+        '    print(f"5b) liquidity prefilter kept {len(prelim)} exact candidates from {len(liquid_prelim)} liquid reserve; overlap_prev={final_pool_stats[\\'previous_overlap\\']:.1%} never_recent={final_pool_stats[\\'never_recent_selected\\']} reasons={final_pool_stats[\\'by_reason\\']}")\n\n'
         '    print("6) exact fees")\n',
         "liquidity prefilter",
     )

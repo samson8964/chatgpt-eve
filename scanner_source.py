@@ -18,6 +18,8 @@ import numpy as np
 import pandas as pd
 import requests
 
+from candidate_pool import record_candidate_pool, select_candidate_pool
+
 PUBLIC_CONTRACTS_INDEX = "https://data.everef.net/public-contracts/index.json"
 MARKET_ORDERS_INDEX = "https://data.everef.net/market-orders/index.json"
 REFDATA = "https://ref-data.everef.net"

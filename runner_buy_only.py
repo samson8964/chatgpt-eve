@@ -9,7 +9,7 @@ from pathlib import Path
 os.environ.setdefault("MARKET_BROKER_FEE_RATE", "0")
 os.environ.setdefault("EXPECTED_RELISTS", "0")
 os.environ.setdefault("DEAL_MAX_CONTRACT_PRICE", "5000000000")
-# Keep the best 500 cheap-economics candidates for the expensive manufacturing quote pass.
+# Keep 500 exact-pass slots split between exploitation and exploration.
 os.environ.setdefault("PREFILTER_TOP", "500")
 
 import runner
@@ -106,7 +106,7 @@ def main():
     tree = runner.ScoreRowIntGuard().visit(tree)
     ast.fix_missing_locations(tree)
     print(
-        "BPC Buy-Only scanner: exact-pass top500, contract<=5B, SKIN/SKINR + capital hull + structure hull excluded before prefilter, "
+        "BPC Buy-Only scanner: diversified exact-pass 500, contract<=5B, SKIN/SKINR + capital hull + structure hull excluded before prefilter, "
         "product revenue=current Jita buy depth, broker/relist=0."
     )
     exec(

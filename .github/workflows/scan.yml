@@ -104,6 +104,12 @@ jobs:
           EXPECTED_RELISTS: '0'
           DEAL_MAX_CONTRACT_PRICE: '5000000000'
           PREFILTER_TOP: '500'
+          BPC_POOL_RESERVE_MULTIPLIER: '1.25'
+          BPC_POOL_PROFIT_SHARE: '0.40'
+          BPC_POOL_ROI_SHARE: '0.20'
+          BPC_POOL_NEWEST_SHARE: '0.15'
+          BPC_POOL_EXPLORATION_SHARE: '0.15'
+          BPC_POOL_DIVERSITY_SHARE: '0.10'
         run: python runner_buy_only.py
 
       - name: Scan BPC intrinsic value with capped/clean benchmark pool
@@ -159,6 +165,11 @@ jobs:
           MULTI_LIVE_LIMIT: '300'
           MULTI_PER_METRIC: '120'
           MULTI_NEWEST_COUNT: '60'
+          MULTI_PROFIT_SHARE: '0.30'
+          MULTI_ROI_SHARE: '0.20'
+          MULTI_VALUE_SHARE: '0.15'
+          MULTI_NEWEST_SHARE: '0.15'
+          MULTI_EXPLORATION_SHARE: '0.20'
           MULTI_INSTANT_MIN_PROFIT: '30000000'
           MULTI_INSTANT_MIN_ROI: '0.10'
           MULTI_CASH_FLOOR_MIN_PROFIT: '30000000'
@@ -223,6 +234,12 @@ jobs:
           V3_PUBLIC_LIVE_LIMIT: '300'
           V3_PUBLIC_PER_METRIC: '110'
           V3_PUBLIC_NEWEST_COUNT: '60'
+          V3_PUBLIC_PROFIT_SHARE: '0.18'
+          V3_PUBLIC_ROI_SHARE: '0.18'
+          V3_PUBLIC_LIST_PROFIT_SHARE: '0.18'
+          V3_PUBLIC_LIST_ROI_SHARE: '0.18'
+          V3_PUBLIC_NEWEST_SHARE: '0.13'
+          V3_PUBLIC_EXPLORATION_SHARE: '0.15'
           V3_LIST_HISTORY_LIMIT: '120'
           MIN_PROFIT_PER_M3: '2000'
         run: python opportunity_engine_v3_scanner.py

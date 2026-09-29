@@ -9,6 +9,7 @@ from pathlib import Path
 import pandas as pd
 
 import buy_only_contract_scanner as legacy
+from candidate_pool import record_candidate_pool, select_candidate_pool
 from contract_deal_scanner import (
     SALES_TAX_RATE,
     current_friendly_alliances,
@@ -35,6 +36,7 @@ from opportunity_engine_v3 import partial_liquidation
 from scanner_source import (
     DATA,
     LATEST,
+    STATE,
     MARKET_ORDERS_INDEX,
     PUBLIC_CONTRACTS_INDEX,
     download,
@@ -56,6 +58,11 @@ MIN_HOURS_TO_EXPIRE = float(os.getenv("MULTI_MIN_HOURS_TO_EXPIRE", "0.5"))
 LIVE_LIMIT = int(os.getenv("MULTI_LIVE_LIMIT", "300"))
 PER_METRIC = int(os.getenv("MULTI_PER_METRIC", "120"))
 NEWEST_COUNT = int(os.getenv("MULTI_NEWEST_COUNT", "60"))
+MULTI_PROFIT_SHARE = float(os.getenv("MULTI_PROFIT_SHARE", "0.30"))
+MULTI_ROI_SHARE = float(os.getenv("MULTI_ROI_SHARE", "0.20"))
+MULTI_VALUE_SHARE = float(os.getenv("MULTI_VALUE_SHARE", "0.15"))
+MULTI_NEWEST_SHARE = float(os.getenv("MULTI_NEWEST_SHARE", "0.15"))
+MULTI_EXPLORATION_SHARE = float(os.getenv("MULTI_EXPLORATION_SHARE", "0.20"))
 TOP_OUTPUT = int(os.getenv("MULTI_TOP", "250"))
 SKIN_MAJOR_SHARE = float(os.getenv("DEAL_SKIN_MAJOR_SHARE", "0.50"))
 
@@ -300,8 +307,15 @@ def main():
             "snapshot_value_ratio": ratio,
         })
 
-    selected = _diverse_candidates(broad_rows)
-    print(f"multi live candidate pool={len(selected):,} from universe={len(broad_rows):,}")
+    pool_state_path = STATE / "candidate_pool_state.json"
+    selected, pool_stats = select_candidate_pool(
+        broad_rows, LIVE_LIMIT,
+        metric_shares=(("snapshot_profit", MULTI_PROFIT_SHARE), ("snapshot_roi", MULTI_ROI_SHARE), ("snapshot_value_ratio", MULTI_VALUE_SHARE)),
+        newest_share=MULTI_NEWEST_SHARE, exploration_share=MULTI_EXPLORATION_SHARE,
+        fill_metrics=("snapshot_profit","snapshot_roi"), state_path=pool_state_path, channel="multi",
+    )
+    record_candidate_pool(pool_state_path, "multi", selected)
+    print(f"multi live candidate pool={len(selected):,} from universe={len(broad_rows):,}; overlap_prev={pool_stats['previous_overlap']:.1%} never_recent={pool_stats['never_recent_selected']} reasons={pool_stats['by_reason']}")
     if not selected:
         _write_empty("No live candidates selected.")
         return

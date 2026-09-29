@@ -1,4 +1,8 @@
+import tempfile
 import unittest
+from pathlib import Path
+
+from candidate_pool import record_candidate_pool, select_candidate_pool
 
 from opportunity_engine_v2 import (
     analyze_contract_items,
@@ -100,6 +104,37 @@ class OpportunityEngineV2Tests(unittest.TestCase):
         self.assertFalse(meets_profit_density(30_000_000, 20_000, 2_000))
         self.assertTrue(meets_profit_density(1_000_000, 0, 2_000))
         self.assertFalse(meets_profit_density(-1, 0, 2_000))
+
+    def test_candidate_pool_preserves_explore_newest_and_diversity(self):
+        rows=[{
+            "contract_id":i,
+            "snapshot_profit":1_000_000-i*1000,
+            "snapshot_roi":i/1000,
+            "date_issued":f"2026-09-{1+(i%28):02d}T00:00:00Z",
+            "product_type_id":i%20,
+        } for i in range(1,101)]
+        with tempfile.TemporaryDirectory() as d:
+            state=Path(d)/"pool.json"
+            record_candidate_pool(state,"x",rows[:40],at="2026-09-29T00:00:00Z")
+            selected,stats=select_candidate_pool(
+                rows,20,
+                metric_shares=(("snapshot_profit",0.40),("snapshot_roi",0.20)),
+                newest_share=0.15,exploration_share=0.15,diversity_share=0.10,
+                product_key="product_type_id",fill_metrics=("snapshot_profit","snapshot_roi"),
+                state_path=state,channel="x",rotation_token="round-a",
+            )
+            self.assertEqual(len(selected),20)
+            reasons={r["selection_reason"] for r in selected}
+            self.assertIn("newest",reasons)
+            self.assertIn("exploration",reasons)
+            self.assertIn("product-diversity",reasons)
+            self.assertGreater(stats["never_recent_selected"],0)
+
+    def test_candidate_pool_deterministic_within_round(self):
+        rows=[{"contract_id":i,"snapshot_profit":1000-i,"snapshot_roi":i/100,"date_issued":str(i)} for i in range(1,61)]
+        a,_=select_candidate_pool(rows,20,metric_shares=(("snapshot_profit",0.40),("snapshot_roi",0.20)),newest_share=0.20,exploration_share=0.20,rotation_token="same")
+        b,_=select_candidate_pool(rows,20,metric_shares=(("snapshot_profit",0.40),("snapshot_roi",0.20)),newest_share=0.20,exploration_share=0.20,rotation_token="same")
+        self.assertEqual([x["contract_id"] for x in a],[x["contract_id"] for x in b])
 
 
 if __name__ == "__main__":

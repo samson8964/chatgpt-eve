@@ -9,6 +9,7 @@ from pathlib import Path
 import pandas as pd
 
 import buy_only_contract_scanner as legacy
+from candidate_pool import record_candidate_pool, select_candidate_pool
 from contract_deal_scanner import (
     BROKER_FEE_RATE,
     RELIST_RESERVE_RATE,
@@ -37,7 +38,6 @@ from opportunity_engine_v3 import (
     LIST_MIN_PROFIT,
     LIST_MIN_ROI,
     conservative_listing_bundle,
-    diverse_candidates,
     fetch_live_jita_books,
     fetch_market_history,
     material_change,
@@ -48,6 +48,7 @@ from opportunity_engine_v3 import (
 from scanner_source import (
     DATA,
     LATEST,
+    STATE,
     MARKET_ORDERS_INDEX,
     PUBLIC_CONTRACTS_INDEX,
     download,
@@ -65,6 +66,12 @@ from scanner_source import (
 LIVE_LIMIT = int(os.getenv("V3_PUBLIC_LIVE_LIMIT", "300"))
 PER_METRIC = int(os.getenv("V3_PUBLIC_PER_METRIC", "110"))
 NEWEST_COUNT = int(os.getenv("V3_PUBLIC_NEWEST_COUNT", "60"))
+V3_PROFIT_SHARE = float(os.getenv("V3_PUBLIC_PROFIT_SHARE", "0.18"))
+V3_ROI_SHARE = float(os.getenv("V3_PUBLIC_ROI_SHARE", "0.18"))
+V3_LIST_PROFIT_SHARE = float(os.getenv("V3_PUBLIC_LIST_PROFIT_SHARE", "0.18"))
+V3_LIST_ROI_SHARE = float(os.getenv("V3_PUBLIC_LIST_ROI_SHARE", "0.18"))
+V3_NEWEST_SHARE = float(os.getenv("V3_PUBLIC_NEWEST_SHARE", "0.13"))
+V3_EXPLORATION_SHARE = float(os.getenv("V3_PUBLIC_EXPLORATION_SHARE", "0.15"))
 LIST_HISTORY_LIMIT = int(os.getenv("V3_LIST_HISTORY_LIMIT", "120"))
 
 CASH_RESULT = LATEST / "v3_cash_floor.csv"
@@ -306,12 +313,13 @@ def main():
     snapshot_rows = _candidate_snapshot_rows(c, included_groups, requested_groups, snapshot_buys, snapshot_sells)
     # Do not require snapshot profitability. The diverse union intentionally includes
     # recent/near-threshold contracts so a fresh live order can create an opportunity.
-    selected = diverse_candidates(
-        snapshot_rows,
-        total_limit=LIVE_LIMIT,
-        per_metric=PER_METRIC,
-        metrics=("snapshot_profit", "snapshot_roi", "snapshot_list_profit", "snapshot_list_roi"),
-        newest_count=NEWEST_COUNT,
+    pool_state_path = STATE / "candidate_pool_state.json"
+    selected, pool_stats = select_candidate_pool(
+        snapshot_rows, LIVE_LIMIT,
+        metric_shares=(("snapshot_profit", V3_PROFIT_SHARE), ("snapshot_roi", V3_ROI_SHARE), ("snapshot_list_profit", V3_LIST_PROFIT_SHARE), ("snapshot_list_roi", V3_LIST_ROI_SHARE)),
+        newest_share=V3_NEWEST_SHARE, exploration_share=V3_EXPLORATION_SHARE,
+        fill_metrics=("snapshot_profit","snapshot_roi","snapshot_list_profit","snapshot_list_roi"),
+        state_path=pool_state_path, channel="v3-public",
     )
     # Barter contracts are rare. Include every one instead of forcing them to win a
     # ranking contest against tens of thousands of normal item-exchange contracts.
@@ -320,7 +328,8 @@ def main():
         if row["has_requested"]:
             selected_by_id[int(row["contract_id"])] = row
     selected = list(selected_by_id.values())
-    print(f"V3 live public-contract pool={len(selected)} (including all barter contracts)")
+    record_candidate_pool(pool_state_path, "v3-public", selected)
+    print(f"V3 live public-contract pool={len(selected)} (including all barter contracts); overlap_prev={pool_stats['previous_overlap']:.1%} never_recent={pool_stats['never_recent_selected']} reasons={pool_stats['by_reason']}")
 
     if not selected:
         for path in (CASH_RESULT, BARTER_RESULT, LIST_RESULT):
