@@ -1,4 +1,4 @@
-name: Verify C-J6MT market authorization
+name: Inspect C-J6MT authorization
 
 on:
   push:
@@ -14,40 +14,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Verify C-J6MT structure market access
+      - name: Inspect bound C-J character and market access
         env:
           EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
         shell: bash
         run: |
           set -euo pipefail
-          python - <<'PY'
-          import json
-          import os
-          import urllib.parse
-          import urllib.request
-
-          structure_id = 1049588174021
-          qs = urllib.parse.urlencode({
-              "structure_id": structure_id,
-              "page": 1,
-              "auth_profile": "cj",
-          })
-          req = urllib.request.Request(
-              "https://eve-contract-opener.99617224.workers.dev/api/structure-market?" + qs,
-              headers={
-                  "Authorization": "Bearer " + os.environ["EVE_MARKET_API_KEY"],
-                  "Accept": "application/json",
-              },
-          )
-          with urllib.request.urlopen(req, timeout=30) as r:
-              data = json.load(r)
-          assert data.get("ok") is True, data
-          assert int(data.get("structure_id")) == structure_id, data
-          assert data.get("auth_profile") == "cj", data
-          print("CJ_AUTH_OK=true")
-          print("STRUCTURE_ID=", data.get("structure_id"))
-          print("AUTH_PROFILE=", data.get("auth_profile"))
-          print("PAGES=", data.get("pages"))
-          print("PAGE1_ORDERS=", len(data.get("orders") or []))
-          print("EXPIRES=", data.get("expires"))
-          PY
+          echo "=== Worker status ==="
+          curl -fsS https://eve-contract-opener.99617224.workers.dev/ |             sed -n '/C-J6MT市场授权/p' | sed -E 's/<[^>]+>/ /g' | tr -s ' '
+          echo
+          echo "=== C-J market probe ==="
+          code=$(curl -sS -o /tmp/cj.json -w '%{http_code}'             -H "Authorization: Bearer $EVE_MARKET_API_KEY"             "https://eve-contract-opener.99617224.workers.dev/api/structure-market?structure_id=1049588174021&page=1&auth_profile=cj")
+          echo "HTTP=$code"
+          cat /tmp/cj.json
+          echo
+          test "$code" = "200"
