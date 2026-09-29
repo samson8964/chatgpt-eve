@@ -1,0 +1,53 @@
+name: Verify C-J6MT market authorization
+
+on:
+  push:
+    paths:
+      - '.github/workflows/probe-cj-auth.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify C-J6MT structure market access
+        env:
+          EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import urllib.parse
+          import urllib.request
+
+          structure_id = 1049588174021
+          qs = urllib.parse.urlencode({
+              "structure_id": structure_id,
+              "page": 1,
+              "auth_profile": "cj",
+          })
+          req = urllib.request.Request(
+              "https://eve-contract-opener.99617224.workers.dev/api/structure-market?" + qs,
+              headers={
+                  "Authorization": "Bearer " + os.environ["EVE_MARKET_API_KEY"],
+                  "Accept": "application/json",
+              },
+          )
+          with urllib.request.urlopen(req, timeout=30) as r:
+              data = json.load(r)
+          assert data.get("ok") is True, data
+          assert int(data.get("structure_id")) == structure_id, data
+          assert data.get("auth_profile") == "cj", data
+          print("CJ_AUTH_OK=true")
+          print("STRUCTURE_ID=", data.get("structure_id"))
+          print("AUTH_PROFILE=", data.get("auth_profile"))
+          print("PAGES=", data.get("pages"))
+          print("PAGE1_ORDERS=", len(data.get("orders") or []))
+          print("EXPIRES=", data.get("expires"))
+          PY
