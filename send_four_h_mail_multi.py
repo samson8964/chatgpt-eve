@@ -309,26 +309,88 @@ def save_state(channel: str, recipient_name: str, picked):
     ).to_csv(path, index=False)
 
 
+def _contract_group_key(c):
+    """Collapse separately listed contracts that are economically identical.
+
+    The scanner keeps every real contract ID. Grouping is presentation-only so
+    availability/count is preserved while the EVE mail stays compact.
+    """
+    r = c["row"]
+    return (
+        _text(r.get("title"), "").casefold(),
+        round(_num(r.get("price")), 2),
+        _text(r.get("best_route"), "").casefold(),
+        _text(r.get("top_items"), "").casefold(),
+        round(c["profit"], 2),
+        round(c["roi"], 8),
+        round(_num(r.get("packaged_volume_m3")), 3),
+    )
+
+
+def _group_contract_items(items):
+    groups = []
+    by_key = {}
+    for c in items:
+        key = _contract_group_key(c)
+        group = by_key.get(key)
+        if group is None:
+            group = dict(c)
+            group["contract_ids"] = []
+            group["group_count"] = 0
+            group["change_kinds"] = []
+            group["change_reasons"] = []
+            by_key[key] = group
+            groups.append(group)
+        cid = int(c["id"])
+        if cid not in group["contract_ids"]:
+            group["contract_ids"].append(cid)
+            group["group_count"] += 1
+        kind = _text(c.get("change_kind"), "")
+        if kind and kind not in group["change_kinds"]:
+            group["change_kinds"].append(kind)
+        reason = _text(c.get("change_reason"), "")
+        if reason and reason not in group["change_reasons"]:
+            group["change_reasons"].append(reason)
+    return groups
+
+
 def _render_contract_item(c):
     r = c["row"]
-    cid = c["id"]
+    contract_ids = c.get("contract_ids") or [c["id"]]
+    contract_ids = sorted({int(x) for x in contract_ids})
+    count = len(contract_ids)
     title = html.escape(_text(r.get("title"), "无标题"))
     route = html.escape(_text(r.get("best_route"), ""))
     items = html.escape(_text(r.get("top_items"), ""))
     stress = _num(r.get("stress_net_profit"))
     vol = _num(r.get("packaged_volume_m3"))
     score = _num(r.get("opportunity_score"))
-    change = html.escape(_text(c.get("change_kind"), ""))
-    reason = html.escape(_text(c.get("change_reason"), ""))
+
+    kinds = c.get("change_kinds") or [_text(c.get("change_kind"), "")]
+    kinds = [x for x in kinds if x]
+    change = html.escape("/".join(kinds))
+    reasons = c.get("change_reasons") or [_text(c.get("change_reason"), "")]
+    reasons = [x for x in reasons if x]
+    reason = html.escape("；".join(reasons))
     prefix = f"<b>[{change}]</b> " if change else ""
     reason_line = f"变化：{reason}<br>" if reason else ""
+    count_badge = f" · <b>同类合同 ×{count}</b>" if count > 1 else ""
+
+    links = []
+    for idx, cid in enumerate(contract_ids, 1):
+        label = f"打开合同{idx}" if count > 1 else "打开合同"
+        links.append(f"<url=contract:0//{cid}><b>{label}</b></url>")
+    link_line = "　".join(links)
+
     return (
-        f"{prefix}<b>[{html.escape(c['grade'] or '-')}] {title}</b><br>"
-        f"合同价 {fmt_isk(r.get('price',0))} · 净利 {fmt_isk(c['profit'])} · ROI {c['roi']:.1%}<br>"
-        f"路线 {route} · 压力净利 {fmt_isk(stress)} · 评分 {score:.1f} · 体积 {vol:.0f}m3<br>"
+        f"{prefix}<b>[{html.escape(c['grade'] or '-')}] {title}</b>{count_badge}<br>"
+        f"单份合同价 {fmt_isk(r.get('price',0))} · 单份净利 {fmt_isk(c['profit'])} · ROI {c['roi']:.1%}<br>"
+        f"路线 {route} · 压力净利 {fmt_isk(stress)} · 评分 {score:.1f} · 单份体积 {vol:.0f}m3<br>"
+        + (f"同类总投入 {fmt_isk(_num(r.get('price')) * count)} · 同类总理论净利 {fmt_isk(c['profit'] * count)}<br>" if count > 1 else "")
         + reason_line
         + (f"主要物品：{items}<br>" if items else "")
-        + f"<url=contract:0//{cid}><b>打开合同</b></url><br><br>"
+        + link_line
+        + "<br><br>"
     )
 
 
@@ -376,30 +438,46 @@ def render_notification(channel: str, stamp: str, plan):
     changed = plan["changed"]
     removed = plan["removed"]
 
+    is_contract = channel.endswith("-contract")
+    grouped_added = _group_contract_items(added) if is_contract else added
+    grouped_changed = _group_contract_items(changed) if is_contract else changed
+
     if mode == "incremental":
-        subject = (
-            f"{cfg['title']} 变动 {stamp} · "
-            f"+{len(added)} ~{len(changed)} -{len(removed)}"
-        )
+        if is_contract:
+            subject = (
+                f"{cfg['title']} 变动 {stamp} · "
+                f"+{len(grouped_added)}组 ~{len(grouped_changed)}组 -{len(removed)}"
+            )
+        else:
+            subject = (
+                f"{cfg['title']} 变动 {stamp} · "
+                f"+{len(added)} ~{len(changed)} -{len(removed)}"
+            )
         parts = [
             f"<b>{cfg['title']} · 增量变化提醒</b><br>{stamp}<br>",
             "本邮件只列本轮新增、重大变化和退出当前推送TOP的项目，不再重复发送整张旧榜单。<br><br>",
         ]
-        current_delta = added + changed
+        current_delta = grouped_added + grouped_changed if is_contract else added + changed
     elif mode == "reminder":
-        subject = f"{cfg['title']} 持续SAFE {stamp} · {len(added)}项"
+        if is_contract:
+            subject = f"{cfg['title']} 持续SAFE {stamp} · {len(grouped_added)}组/{len(added)}份"
+        else:
+            subject = f"{cfg['title']} 持续SAFE {stamp} · {len(added)}项"
         parts = [
             f"<b>{cfg['title']} · 6小时持续SAFE提醒</b><br>{stamp}<br><br>",
         ]
-        current_delta = added
+        current_delta = grouped_added if is_contract else added
     else:
-        subject = f"{cfg['title']} {stamp} · TOP{len(added)}"
+        if is_contract:
+            subject = f"{cfg['title']} {stamp} · TOP{len(grouped_added)}组/{len(added)}份"
+        else:
+            subject = f"{cfg['title']} {stamp} · TOP{len(added)}"
         parts = [
             f"<b>{cfg['title']} · 当前SAFE机会</b><br>{stamp}<br><br>",
         ]
-        current_delta = added
+        current_delta = grouped_added if is_contract else added
 
-    if channel.endswith("-contract"):
+    if is_contract:
         renderer = _render_contract_item
     else:
         source_label = cfg.get("source_label", "4-H")
