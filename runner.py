@@ -158,7 +158,7 @@ def patch_source(source: str) -> str:
         '    reserve_limit=max(PREFILTER_TOP,int(math.ceil(PREFILTER_TOP*BPC_POOL_RESERVE_MULTIPLIER)))\n'
         '    prelim_universe=list(prelim)\n'
         '    prelim,pool_stats=select_candidate_pool(prelim_universe,reserve_limit,metric_shares=(("rough_profit",BPC_POOL_PROFIT_SHARE),("rough_roi",BPC_POOL_ROI_SHARE)),newest_share=BPC_POOL_NEWEST_SHARE,exploration_share=BPC_POOL_EXPLORATION_SHARE,diversity_share=BPC_POOL_DIVERSITY_SHARE,product_key="product_type_id",fill_metrics=("rough_profit","rough_roi"),state_path=pool_state_path,channel="bpc")\n'
-        '    print(f"5a) diversified BPC reserve={len(prelim)}/{len(prelim_universe)} overlap_prev={pool_stats[\\'previous_overlap\\']:.1%} never_recent={pool_stats[\\'never_recent_selected\\']} reasons={pool_stats[\\'by_reason\\']}")\n\n'
+        '    print("5a) diversified BPC reserve={}/{} overlap_prev={:.1%} never_recent={} reasons={}".format(len(prelim),len(prelim_universe),pool_stats["previous_overlap"],pool_stats["never_recent_selected"],pool_stats["by_reason"]))\n\n'
         '    print("5b) quick liquidity + refill")\n'
         '    quick_histories = {}\n'
         '    quick_tids = sorted({int(next(iter(p["prodq"].keys()))) for p in prelim})\n'
@@ -179,7 +179,7 @@ def patch_source(source: str) -> str:
         '        liquid_prelim.append(p)\n'
         '    prelim,final_pool_stats=select_candidate_pool(liquid_prelim,PREFILTER_TOP,metric_shares=(("rough_profit",BPC_POOL_PROFIT_SHARE),("rough_roi",BPC_POOL_ROI_SHARE)),newest_share=BPC_POOL_NEWEST_SHARE,exploration_share=BPC_POOL_EXPLORATION_SHARE,diversity_share=BPC_POOL_DIVERSITY_SHARE,product_key="product_type_id",fill_metrics=("rough_profit","rough_roi"),state_path=pool_state_path,channel="bpc")\n'
         '    record_candidate_pool(pool_state_path,"bpc",prelim)\n'
-        '    print(f"5b) liquidity prefilter kept {len(prelim)} exact candidates from {len(liquid_prelim)} liquid reserve; overlap_prev={final_pool_stats[\\'previous_overlap\\']:.1%} never_recent={final_pool_stats[\\'never_recent_selected\\']} reasons={final_pool_stats[\\'by_reason\\']}")\n\n'
+        '    print("5b) liquidity prefilter kept {} exact candidates from {} liquid reserve; overlap_prev={:.1%} never_recent={} reasons={}".format(len(prelim),len(liquid_prelim),final_pool_stats["previous_overlap"],final_pool_stats["never_recent_selected"],final_pool_stats["by_reason"]))\n\n'
         '    print("6) exact fees")\n',
         "liquidity prefilter",
     )
