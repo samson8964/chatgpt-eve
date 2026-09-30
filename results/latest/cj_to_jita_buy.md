@@ -1,7 +1,7 @@
 # C-J6MT - 1st Taj Mahgoon (DJ's Retirement Fund) → Jita 4-4 Opportunity Engine V2
 
-- Source orders: `52704`; source cache: `Tue, 29 Sep 2026 23:31:58 GMT`
-- Final Jita pricing: live ESI `2026-09-29T23:29:00.497883+00:00`
+- Source orders: `52712`; source cache: `Wed, 30 Sep 2026 00:02:03 GMT`
+- Final Jita pricing: live ESI `2026-09-30T00:00:32.783794+00:00`
 - High-sec restricted ships removed: `1`
 - Final ranking uses live depth, stress survival, liquidity and volume density.
 
@@ -12,10 +12,10 @@
 | 3 | B | SAFE | Soaring Federation Background | 56 | 1.20M | 2.10M | 31.38M | 38.1% | 69.2 | 5.60M | medium |
 | 4 | B | SAFE | Mining Laser Optimization Charge | 616,951 | 289 | 401 | 54.13M | 29.3% | 67.1 | 8.8K | high |
 | 5 | B | SAFE | Atavum | 406 | 346.0K | 428.7K | 21.40M | 14.6% | 64.3 | 527.1K | high |
-| 6 | B | SAFE | Zydrine | 666,377 | 1.0K | 1.2K | 81.25M | 11.7% | 63.8 | 12.2K | high |
-| 7 | B | SAFE | Small Polycarbon Engine Housing II | 119 | 725.0K | 943.1K | 17.80M | 19.6% | 62.9 | 29.9K | high |
-| 8 | B | SAFE | Caldari Navy Uranium Charge S | 838,897 | 650 | 804 | 106.01M | 19.5% | 60.4 | 50.5K | low |
-| 9 | B | SAFE | Absolution | 2 | 262.70M | 306.90M | 65.08M | 12.3% | 60.4 | 2.2K | high |
+| 6 | B | SAFE | Zydrine | 660,413 | 1.0K | 1.2K | 80.49M | 11.7% | 63.4 | 12.2K | high |
+| 7 | B | SAFE | Small Polycarbon Engine Housing II | 118 | 725.0K | 943.1K | 17.61M | 19.6% | 62.8 | 29.9K | high |
+| 8 | B | SAFE | Absolution | 2 | 262.70M | 307.10M | 65.28M | 12.4% | 60.6 | 2.2K | high |
+| 9 | B | SAFE | Caldari Navy Uranium Charge S | 838,897 | 650 | 804 | 106.01M | 19.5% | 60.4 | 50.5K | low |
 | 10 | B | SAFE | Domination EMP M | 600 | 120.0K | 142.5K | 10.61M | 14.7% | 58.9 | 1.42M | high |
 | 11 | B | SAFE | Gistum C-Type Medium Shield Booster | 1 | 141.00M | 160.80M | 14.37M | 10.2% | 58.8 | 1.44M | high |
 | 12 | B | SAFE | Drone Link Augmentor II | 577 | 963.9K | 1.17M | 90.46M | 16.1% | 55.2 | 6.3K | high |
