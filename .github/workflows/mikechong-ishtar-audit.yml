@@ -1,0 +1,166 @@
+name: MikeChong Ishtar skill audit
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/mikechong-ishtar-audit.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+      SKILL_URL: https://eve-contract-opener.99617224.workers.dev/api/mikechong-skills
+    steps:
+      - name: Fetch private MikeChong skill data
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${EVE_MAIL_API_KEY:-}" || { echo "Missing EVE_MAIL_API_KEY"; exit 2; }
+          curl -fsS -H "Authorization: Bearer $EVE_MAIL_API_KEY" "$SKILL_URL" -o /tmp/skills.json
+          python - <<'PY'
+          import json
+          d=json.load(open('/tmp/skills.json', encoding='utf-8'))
+          assert d.get('ok') is True, d
+          assert d.get('character_name') == 'MikeChong', d.get('character_name')
+          print('MikeChong skill data fetched successfully')
+          PY
+
+      - name: Calculate Ishtar gaps
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, math, requests, urllib.parse, time
+
+          data=json.load(open('/tmp/skills.json', encoding='utf-8'))
+          current={int(x['skill_id']): int(x.get('skillpoints_in_skill') or 0) for x in data.get('skills', [])}
+          unallocated=int(data.get('unallocated_sp') or 0)
+          total_sp=int(data.get('total_sp') or 0)
+
+          unlock = {
+            'Spaceship Command': 5,
+            'Gallente Frigate': 3,
+            'Gallente Destroyer': 3,
+            'Gallente Cruiser': 5,
+            'Power Grid Management': 3,
+            'Science': 1,
+            'Energy Grid Upgrades': 5,
+            'Gunnery': 2,
+            'Weapon Upgrades': 5,
+            'Capacitor Management': 4,
+            'Heavy Assault Cruisers': 1,
+          }
+
+          proficient = {
+            **unlock,
+            'Heavy Assault Cruisers': 4,
+            'Drones': 5,
+            'Drone Interfacing': 5,
+            'Drone Avionics': 5,
+            'Advanced Drone Avionics': 4,
+            'Drone Navigation': 4,
+            'Drone Sharpshooting': 4,
+            'Heavy Drone Operation': 5,
+            'Gallente Drone Specialization': 4,
+            'CPU Management': 5,
+            'Power Grid Management': 5,
+            'Capacitor Systems Operation': 4,
+            'Shield Management': 4,
+            'Shield Operation': 4,
+            'Tactical Shield Manipulation': 4,
+            'Navigation': 4,
+            'Afterburner': 4,
+            'Evasive Maneuvering': 4,
+            'Target Management': 4,
+            'Long Range Targeting': 4,
+            'Signature Analysis': 4,
+          }
+
+          s=requests.Session()
+          s.headers['User-Agent']='samson8964-chatgpt-eve-ishtar-audit/1.0'
+          cache={}
+
+          def resolve(name):
+            if name in cache: return cache[name]
+            q=urllib.parse.quote(name)
+            r=s.get(f'https://esi.evetech.net/latest/search/?categories=inventory_type&search={q}&strict=true&datasource=tranquility', timeout=20)
+            r.raise_for_status()
+            ids=r.json().get('inventory_type') or []
+            exact=None
+            for tid in ids[:20]:
+              tr=s.get(f'https://esi.evetech.net/latest/universe/types/{tid}/?datasource=tranquility', timeout=20)
+              tr.raise_for_status()
+              info=tr.json()
+              if str(info.get('name','')).casefold()==name.casefold():
+                exact=(int(tid), info)
+                break
+            if not exact:
+              raise RuntimeError(f'Could not resolve skill: {name}; ids={ids[:10]}')
+            cache[name]=exact
+            return exact
+
+          def rank_from_info(info):
+            for a in info.get('dogma_attributes') or []:
+              if int(a.get('attribute_id') or 0)==275:
+                return float(a.get('value') or 0)
+            raise RuntimeError(f"No skill rank for {info.get('name')}")
+
+          def target_sp(rank, level):
+            if level <= 0: return 0
+            return int(math.ceil(250.0 * rank * (2.0 ** (2.5 * (level-1)))))
+
+          def audit(target):
+            rows=[]
+            missing=0
+            for name, level in target.items():
+              tid,info=resolve(name)
+              rank=rank_from_info(info)
+              need=target_sp(rank, level)
+              have=current.get(tid, 0)
+              gap=max(0, need-have)
+              missing += gap
+              rows.append((name, level, tid, rank, have, need, gap))
+              time.sleep(0.02)
+            return missing, rows
+
+          unlock_gap, unlock_rows=audit(unlock)
+          prof_gap, prof_rows=audit(proficient)
+
+          def injectors_for(gap):
+            usable=max(0, gap-unallocated)
+            # User says current injector yield is 400k. If this plan itself crosses 50M total SP,
+            # later injectors fall to 300k; account for that exactly.
+            sp=total_sp
+            remaining=usable
+            n=0
+            while remaining>0:
+              yield_sp = 500_000 if sp < 5_000_000 else 400_000 if sp < 50_000_000 else 300_000 if sp < 80_000_000 else 150_000
+              remaining -= yield_sp
+              sp += yield_sp
+              n += 1
+              if n>1000: raise RuntimeError('injector loop runaway')
+            return n, usable
+
+          unlock_n, unlock_after_free=injectors_for(unlock_gap)
+          prof_n, prof_after_free=injectors_for(prof_gap)
+
+          print(f"TOTAL_SP={total_sp}")
+          print(f"UNALLOCATED_SP={unallocated}")
+          print(f"UNLOCK_MISSING_SP={unlock_gap}")
+          print(f"UNLOCK_AFTER_UNALLOCATED_SP={unlock_after_free}")
+          print(f"UNLOCK_INJECTORS={unlock_n}")
+          print(f"PROFICIENT_MISSING_SP={prof_gap}")
+          print(f"PROFICIENT_AFTER_UNALLOCATED_SP={prof_after_free}")
+          print(f"PROFICIENT_INJECTORS={prof_n}")
+
+          print("PROFICIENT_GAPS_BEGIN")
+          for name, level, tid, rank, have, need, gap in sorted(prof_rows, key=lambda x:x[-1], reverse=True):
+            if gap:
+              print(f"{name}|target={level}|have_sp={have}|target_sp={need}|gap_sp={gap}")
+          print("PROFICIENT_GAPS_END")
+          PY
