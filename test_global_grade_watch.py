@@ -30,9 +30,9 @@ class GlobalGradeWatchTests(unittest.TestCase):
             "source_labels": [source],
             "primary_source": source,
             "title": f"Opportunity {cid}",
-            "profit": 20_000_000.0,
+            "profit": 120_000_000.0,
             "roi": 0.20,
-            "stress_profit": 15_000_000.0,
+            "stress_profit": 105_000_000.0,
             "system_name": "Jita",
             "station_name": "Jita IV - Moon 4",
             "risk_tier": "A1",
@@ -76,7 +76,7 @@ class GlobalGradeWatchTests(unittest.TestCase):
                 "opportunity_score": 72.0,
                 "score_grade": "A",
                 "execution_status": "SAFE",
-                "instant_net_profit": 31_000_000,
+                "instant_net_profit": 131_000_000,
                 "instant_net_roi": 0.11,
                 "contract_title": "same contract",
             }
@@ -87,7 +87,7 @@ class GlobalGradeWatchTests(unittest.TestCase):
                 "opportunity_score": 81.0,
                 "score_grade": "A",
                 "execution_status": "SAFE",
-                "net_profit": 35_000_000,
+                "net_profit": 135_000_000,
                 "net_roi": 0.14,
                 "contract_title": "same contract",
             }
@@ -110,7 +110,7 @@ class GlobalGradeWatchTests(unittest.TestCase):
                 "opportunity_score": 75.0,
                 "score_grade": "A",
                 "execution_status": "SAFE",
-                "net_profit": 50_000_000,
+                "net_profit": 150_000_000,
                 "net_roi": 0.15,
             }
         ]).to_csv(self.latest / "four_h_to_jita_buy.csv", index=False)
@@ -121,7 +121,7 @@ class GlobalGradeWatchTests(unittest.TestCase):
                 "opportunity_score": 78.0,
                 "score_grade": "A",
                 "execution_status": "SAFE",
-                "net_profit": 40_000_000,
+                "net_profit": 140_000_000,
                 "net_roi": 0.13,
             }
         ]).to_csv(self.latest / "v3_jita_to_four_h.csv", index=False)
@@ -168,7 +168,7 @@ class GlobalGradeWatchTests(unittest.TestCase):
                 "v2_score": 88.0,
                 "v2_grade": "S",
                 "v2_status": "SAFE",
-                "v2_live_net_profit": 40_000_000,
+                "v2_live_net_profit": 140_000_000,
                 "v2_live_net_roi": 0.20,
                 "v2_stress_net_profit": 25_000_000,
                 "v2_orderbook_complete": True,
@@ -181,6 +181,24 @@ class GlobalGradeWatchTests(unittest.TestCase):
 
         self.assertNotIn("contract:8001", candidates)
         self.assertIn("contract:8002", candidates)
+
+    def test_high_score_below_100m_is_never_auto_mailed(self):
+        pd.DataFrame([
+            {
+                "contract_id": 8999,
+                "opportunity_score": 99.0,
+                "score_grade": "S",
+                "execution_status": "SAFE",
+                "net_profit": 99_999_999,
+                "net_roi": 0.50,
+                "contract_title": "Below hard mail floor",
+            }
+        ]).to_csv(self.latest / "contract_deals_all.csv", index=False)
+
+        with patch.object(watch, "LATEST", self.latest):
+            candidates, _ = watch.collect_candidates()
+
+        self.assertNotIn("contract:8999", candidates)
 
     def test_high_score_negative_profit_is_never_auto_mailed(self):
         pd.DataFrame([
