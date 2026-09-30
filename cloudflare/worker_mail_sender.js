@@ -28,6 +28,7 @@ export default {
     if (url.pathname === "/logout-skills") return logoutSkills(env);
     if (url.pathname === "/skill-status") return skillStatus(env);
     if (url.pathname === "/api/mikechong-skills") return handleSkillData(request, env);
+    if (url.pathname === "/api/trade-data") return handleTradeData(request, env);
 
     if (url.pathname === "/callback") {
       const cookies = parseCookies(request.headers.get("Cookie") || "");
@@ -549,6 +550,108 @@ async function getFreshSkillToken(env) {
   } finally {
     skillRefreshInFlight = null;
   }
+}
+
+
+const TRADE_PROFILES = {
+  mikechong: { prefix: "skill", expected: "MikeChong" },
+  ladyguagua: { prefix: "mail", expected: "LadyGuaGua" },
+  ladybaba: { prefix: "cj", expected: "LadyBaBa" },
+};
+
+async function handleTradeData(request, env) {
+  if (request.method !== "GET") return text("Method not allowed", 405);
+  const denied = requireApiKey(request, env);
+  if (denied) return denied;
+  if (!env.AUTH_STORE) return json({ ok: false, error: "auth_store_missing" }, 500);
+
+  const url = new URL(request.url);
+  const profileName = String(url.searchParams.get("profile") || "").toLowerCase();
+  const resource = String(url.searchParams.get("resource") || "").toLowerCase();
+  const profile = TRADE_PROFILES[profileName];
+  if (!profile) return json({ ok: false, error: "unknown_profile" }, 400);
+
+  const prefix = profile.prefix;
+  const characterId = Number(await env.AUTH_STORE.get(prefix + "_character_id") || 0);
+  const characterName = await env.AUTH_STORE.get(prefix + "_character_name") || "";
+  const refreshToken = await env.AUTH_STORE.get(prefix + "_refresh_token");
+  if (!characterId || !refreshToken) {
+    return json({ ok: false, error: "trade_profile_not_authorized", profile: profileName }, 409);
+  }
+  if (String(characterName).toLowerCase() !== profile.expected.toLowerCase()) {
+    return json({ ok: false, error: "trade_profile_character_mismatch", profile: profileName, character_name: characterName }, 409);
+  }
+
+  const refreshed = await tokenRequest(env, new URLSearchParams({
+    grant_type: "refresh_token",
+    refresh_token: refreshToken,
+  }));
+  if (!refreshed.ok) {
+    return json({ ok: false, error: "trade_token_refresh_failed", profile: profileName, detail: refreshed.detail || refreshed.status }, 502);
+  }
+
+  if (refreshed.refresh_token && refreshed.refresh_token !== refreshToken) {
+    try {
+      await env.AUTH_STORE.put(prefix + "_refresh_token", refreshed.refresh_token);
+    } catch (err) {
+      console.warn("trade refresh token persistence failed", profileName, String(err));
+    }
+  }
+
+  const pageRaw = Number(url.searchParams.get("page") || 1);
+  const page = Number.isFinite(pageRaw) ? Math.max(1, Math.min(5000, Math.trunc(pageRaw))) : 1;
+  const fromIdRaw = Number(url.searchParams.get("from_id") || 0);
+  const fromId = Number.isFinite(fromIdRaw) ? Math.max(0, Math.trunc(fromIdRaw)) : 0;
+  const contractIdRaw = Number(url.searchParams.get("contract_id") || 0);
+  const contractId = Number.isFinite(contractIdRaw) ? Math.max(0, Math.trunc(contractIdRaw)) : 0;
+
+  let endpoint = "";
+  if (resource === "transactions") {
+    endpoint = `${ESI_BASE}/characters/${characterId}/wallet/transactions/?datasource=tranquility`;
+    if (fromId > 0) endpoint += `&from_id=${fromId}`;
+  } else if (resource === "journal") {
+    endpoint = `${ESI_BASE}/characters/${characterId}/wallet/journal/?datasource=tranquility&page=${page}`;
+  } else if (resource === "orders") {
+    endpoint = `${ESI_BASE}/characters/${characterId}/orders/?datasource=tranquility`;
+  } else if (resource === "orders-history") {
+    endpoint = `${ESI_BASE}/characters/${characterId}/orders/history/?datasource=tranquility&page=${page}`;
+  } else if (resource === "contracts") {
+    endpoint = `${ESI_BASE}/characters/${characterId}/contracts/?datasource=tranquility&page=${page}`;
+  } else if (resource === "contract-items") {
+    if (!contractId) return json({ ok: false, error: "contract_id_required" }, 400);
+    endpoint = `${ESI_BASE}/characters/${characterId}/contracts/${contractId}/items/?datasource=tranquility&page=${page}`;
+  } else if (resource === "assets") {
+    endpoint = `${ESI_BASE}/characters/${characterId}/assets/?datasource=tranquility&page=${page}`;
+  } else {
+    return json({ ok: false, error: "unknown_resource" }, 400);
+  }
+
+  const resp = await fetch(endpoint, {
+    headers: {
+      Authorization: `Bearer ${refreshed.access_token}`,
+      Accept: "application/json",
+      "User-Agent": "samson8964-chatgpt-eve-trade-audit/1.0",
+    },
+  });
+  const body = await resp.text();
+  if (resp.status !== 200) {
+    return json({ ok: false, error: "esi_trade_read_failed", profile: profileName, resource, status: resp.status, detail: body }, 502);
+  }
+
+  let data;
+  try { data = JSON.parse(body); }
+  catch { return json({ ok: false, error: "invalid_esi_json", profile: profileName, resource }, 502); }
+
+  return json({
+    ok: true,
+    profile: profileName,
+    character_id: characterId,
+    character_name: characterName,
+    resource,
+    page,
+    pages: Number(resp.headers.get("X-Pages") || 1),
+    data,
+  });
 }
 
 async function tokenRequest(env, body) {
