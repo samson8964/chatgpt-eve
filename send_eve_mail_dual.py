@@ -7,6 +7,7 @@ from pathlib import Path
 import pandas as pd
 import requests
 
+from mail_profit_policy import MAIL_MIN_VERIFIED_NET_PROFIT
 from send_eve_mail_fast import fmt_isk, resolve_character, contract_is_live
 
 DEALS = Path("results/latest/contract_deals.csv")
@@ -18,7 +19,7 @@ RECIPIENT_NAME = os.getenv("EVE_MAIL_RECIPIENT_NAME", "MikeChong").strip()
 MAIL_TOP = int(os.getenv("MAIL_TOP", "10"))
 LIVE_POOL = int(os.getenv("MAIL_LIVE_POOL", "60"))
 LIVE_WORKERS = int(os.getenv("LIVE_CHECK_WORKERS", "10"))
-BPC_MIN_PROFIT = float(os.getenv("MAIL_MIN_NET_PROFIT", "10000000"))
+BPC_MIN_PROFIT = max(float(os.getenv("MAIL_MIN_NET_PROFIT", "10000000")), MAIL_MIN_VERIFIED_NET_PROFIT)
 BPC_MIN_ROI = float(os.getenv("MAIL_MIN_NET_ROI", "0.08"))
 
 
