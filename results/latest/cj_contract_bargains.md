@@ -1,8 +1,8 @@
 # C-J6MT contract bargain scan — Opportunity Engine V2
 
-- Public contract snapshot: `2026-09-30T15:31:16.869Z`
-- Current C-J6MT structure orders: `52513`
-- Jita final pricing: live ESI `2026-09-30T15:42:38.675433+00:00`
+- Public contract snapshot: `2026-09-30T17:01:15.938Z`
+- Current C-J6MT structure orders: `52534`
+- Jita final pricing: live ESI `2026-09-30T17:09:05.670942+00:00`
 - Likely fitted rigs are excluded from recoverable value.
 - High-sec restricted ships may use C-J6MT local liquidation, but never the Jita route.
 
