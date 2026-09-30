@@ -155,8 +155,8 @@ def transform_content(subject: str, body: str, channel_key: str):
     if channel_key == "spot-deals":
         subject = subject.replace("现货捡漏", "现货捡漏·Jita买单")
         body = body.replace(
-            "A类即时买单和B类挂单机会均可推送；统一要求净利润≥30M、ROI≥10%。",
-            "仅推送Jita 4-4真实买单深度可兑现机会；净利润≥30M、ROI≥10%，不参考卖价。",
+            "A类即时买单和B类挂单机会均可推送；统一要求净利润≥100M、ROI≥10%。",
+            "仅推送Jita 4-4真实买单深度可兑现机会；净利润≥100M、ROI≥10%，不参考卖价。",
         )
         body = body.replace(
             "排序：只按当前价差空间（净利润ISK）从大到小；A即时买单、B挂单都参与。",
