@@ -8,13 +8,15 @@ from pathlib import Path
 import pandas as pd
 import requests
 
+from mail_profit_policy import MAIL_MIN_VERIFIED_NET_PROFIT
+
 RESULT = Path("results/latest/ranked_opportunities.csv")
 META = Path("results/latest/meta.json")
 WORKER = os.getenv("EVE_MAIL_WORKER_URL", "https://eve-contract-opener.99617224.workers.dev").rstrip("/")
 API_KEY = os.getenv("EVE_MAIL_API_KEY", "").strip()
 RECIPIENT_NAME = os.getenv("EVE_MAIL_RECIPIENT_NAME", "MikeChong").strip()
 ESI = "https://esi.evetech.net/latest"
-MAIL_MIN_PROFIT = float(os.getenv("MAIL_MIN_NET_PROFIT", "10000000"))
+MAIL_MIN_PROFIT = max(float(os.getenv("MAIL_MIN_NET_PROFIT", "10000000")), MAIL_MIN_VERIFIED_NET_PROFIT)
 MAIL_MIN_ROI = float(os.getenv("MAIL_MIN_NET_ROI", "0.08"))
 MAIL_TOP = int(os.getenv("MAIL_TOP", "10"))
 MAIL_LIVE_POOL = int(os.getenv("MAIL_LIVE_POOL", "50"))
