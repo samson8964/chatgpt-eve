@@ -11,6 +11,7 @@ import pandas as pd
 import requests
 
 import send_eve_mail_dual as base
+from mail_profit_policy import MAIL_MIN_VERIFIED_NET_PROFIT
 from send_eve_mail_fast import contract_is_live, fmt_isk, resolve_character
 
 SOURCE = Path("results/latest/multi_item_grade_watch.csv")
@@ -68,6 +69,7 @@ def current_watch() -> pd.DataFrame:
     df["opportunity_score"] = pd.to_numeric(df.get("opportunity_score"), errors="coerce").fillna(0.0)
     df["watch_net_profit"] = pd.to_numeric(df.get("watch_net_profit"), errors="coerce").fillna(0.0)
     df["watch_roi"] = pd.to_numeric(df.get("watch_roi"), errors="coerce").fillna(0.0)
+    df = df[df["watch_net_profit"] >= MAIL_MIN_VERIFIED_NET_PROFIT].copy()
     df.sort_values(["opportunity_score", "watch_net_profit", "watch_roi"], ascending=False, inplace=True)
     return df
 
@@ -126,7 +128,7 @@ def render(stamp: str, rows: pd.DataFrame) -> tuple[str, str]:
     parts = [
         f"<b>多件物品捡漏 · A/S级新增提醒</b><br>{stamp}<br><br>",
         "仅提醒本轮新进入 A/S 级集合的合同；上线前已有的存量 A/S 不补发，持续留在 A/S 也不重复提醒。<br>",
-        "这是注意提醒，不改变正式强机会门槛：正式频道仍要求净利润≥3000万 ISK、ROI≥10%。<br><br>",
+        "这是注意提醒，不改变正式强机会门槛：所有自动推送统一要求净利润≥1亿 ISK；正式频道仍同时执行各自ROI和安全门槛。<br><br>",
     ]
     for i, (_, r) in enumerate(rows.iterrows(), 1):
         cid = int(r["contract_id"])
