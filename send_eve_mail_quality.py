@@ -7,6 +7,7 @@ from pathlib import Path
 import pandas as pd
 
 import send_eve_mail_dual as base
+from mail_profit_policy import MAIL_MIN_VERIFIED_NET_PROFIT
 from send_eve_mail_fast import resolve_character, contract_is_live
 
 DEALS = Path("results/latest/contract_deals.csv")
@@ -191,6 +192,8 @@ def build_spot_candidates():
     for _, r in df.iterrows():
         if "mail_eligible" in df.columns and not truth(r.get("mail_eligible")):
             continue
+        if finite(r.get("mail_net_profit"), finite(r.get("net_profit"), 0.0)) < MAIL_MIN_VERIFIED_NET_PROFIT:
+            continue
         cls = str(r.get("deal_class", ""))
         if not (cls.startswith("A") or cls.startswith("B")):
             continue
@@ -226,6 +229,8 @@ def build_bpc_candidates():
             continue
         for _, r in df.iterrows():
             if "mail_eligible" in df.columns and not truth(r.get("mail_eligible")):
+                continue
+            if finite(r.get("net_profit"), 0.0) < MAIL_MIN_VERIFIED_NET_PROFIT:
                 continue
             try:
                 cid = int(float(r["contract_id"]))
@@ -318,7 +323,7 @@ def send_spot(recipient_id, stamp, history, top_state):
         body = (
             f"<b>现货合同捡漏</b><br>{stamp}<br><br>"
             f"合格候选 {len(candidates)} 个；发送前失效/不可见 {removed} 个。<br>"
-            "A类即时买单和B类挂单机会均可推送；统一要求净利润≥30M、ROI≥10%。"
+            "A类即时买单和B类挂单机会均可推送；统一要求净利润≥100M、ROI≥10%。"
         )
     else:
         subject = f"现货捡漏 {stamp} · TOP{len(picked)}"
