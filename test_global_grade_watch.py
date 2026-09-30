@@ -182,14 +182,14 @@ class GlobalGradeWatchTests(unittest.TestCase):
         self.assertNotIn("contract:8001", candidates)
         self.assertIn("contract:8002", candidates)
 
-    def test_high_score_below_100m_is_never_auto_mailed(self):
+    def test_high_score_below_50m_is_never_auto_mailed(self):
         pd.DataFrame([
             {
                 "contract_id": 8999,
                 "opportunity_score": 99.0,
                 "score_grade": "S",
                 "execution_status": "SAFE",
-                "net_profit": 99_999_999,
+                "net_profit": 49_999_999,
                 "net_roi": 0.50,
                 "contract_title": "Below hard mail floor",
             }
