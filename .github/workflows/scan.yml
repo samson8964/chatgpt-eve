@@ -60,7 +60,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
-      MAIL_MIN_VERIFIED_NET_PROFIT: '100000000'
+      MAIL_MIN_VERIFIED_NET_PROFIT: '50000000'
     steps:
       - name: Checkout latest main
         uses: actions/checkout@v4
@@ -306,13 +306,13 @@ jobs:
       - name: Prepare mail candidates
         if: steps.cadence.outputs.run_scan == 'true'
         env:
-          MAIL_SPOT_MIN_PROFIT: '100000000'
+          MAIL_SPOT_MIN_PROFIT: '50000000'
           MAIL_SPOT_MIN_ROI: '0.10'
           MAIL_BPC_VALUE_MIN_SAMPLES: '5'
           MAIL_BPC_VALUE_MIN_AVG_DISCOUNT: '0.30'
           MAIL_BPC_VALUE_MIN_MEDIAN_DISCOUNT: '0.20'
           MAIL_BPC_VALUE_MIN_SURPLUS: '20000000'
-          MAIL_BPC_MFG_MIN_PROFIT: '100000000'
+          MAIL_BPC_MFG_MIN_PROFIT: '50000000'
           MAIL_BPC_MFG_MIN_ROI: '0.10'
         run: python prepare_mail_candidates.py
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 import os
 
-DEFAULT_MIN_VERIFIED_NET_PROFIT = 100_000_000.0
+DEFAULT_MIN_VERIFIED_NET_PROFIT = 50_000_000.0
 
 
 def _configured_floor() -> float:

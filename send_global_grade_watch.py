@@ -323,7 +323,7 @@ def collect_candidates() -> tuple[dict[str, dict], int]:
             profit = candidate_profit(row)
             roi = candidate_roi(row)
             # Universal user-facing mail gate: every automatic opportunity alert must
-            # have verified net profit of at least the shared 100M ISK floor.
+            # have verified net profit of at least the shared 50M ISK floor.
             if profit < MAIL_MIN_VERIFIED_NET_PROFIT:
                 continue
             if roi is not None and roi <= 0:
@@ -415,7 +415,7 @@ def render(stamp: str, rows: list[dict], batch_no: int, batch_total: int) -> tup
         f"<b>全局捡漏 · A/S级首次出现提醒</b><br>{stamp}<br><br>",
         "覆盖普通合同、多件合同、通过严格盈利门槛的BPC制造、4-H合同与市场、V3现金底价/以物易物/保守挂卖、吉他→4-H。<br>",
         "上线前已有A/S机会仅记为基线，不补发；同一机会一旦记录为已见，以后不因排名或再次升回A/S而重复发送。<br>",
-        "这是高评分注意提醒；无论评分，自动推送统一要求净利润≥1亿 ISK，并继续遵守各频道ROI与安全门槛。<br><br>",
+        "这是高评分注意提醒；无论评分，自动推送统一要求净利润≥5000万 ISK，并继续遵守各频道ROI与安全门槛。<br><br>",
     ]
 
     for i, r in enumerate(rows, 1):

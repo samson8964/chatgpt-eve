@@ -20,13 +20,13 @@ VERSION = '1.3.0'
 DATE = '2026-09-07'
 REGION = 10000002
 JITA = 60003760
-MAIL_MIN_VERIFIED_NET_PROFIT = max(100_000_000.0, float(os.getenv('MAIL_MIN_VERIFIED_NET_PROFIT', '100000000')))
+MAIL_MIN_VERIFIED_NET_PROFIT = max(50_000_000.0, float(os.getenv('MAIL_MIN_VERIFIED_NET_PROFIT', '50000000')))
 BLUEPRINTS = {25308: '蓝色药丸', 25311: '撞击感', 25322: '疯癫', 25329: '坠落感',
               25511: '思维冲击', 25512: '梦呓', 25513: 'X—本能', 25539: '游离感'}
 DEFAULTS = dict(recipient_name='MikeChong', recipient_id=None, client_id='', mail_enabled=False,
                 max_contract_isk=2_000_000_000, min_copy_runs=50, jita_only=False,
                 sale_fee=0.05, reserve_per_50=10_000_000, max_week_share=0.25,
-                rules={str(k): dict(enabled=True, min_profit_50=100_000_000, min_roi=0.20)
+                rules={str(k): dict(enabled=True, min_profit_50=50_000_000, min_roi=0.20)
                        for k in BLUEPRINTS})
 
 def utc():
@@ -268,7 +268,7 @@ def evaluate(contract, items, cfg, planner, markets):
     share = quantity/ref['volume']
     reasons = []
     if profit < MAIL_MIN_VERIFIED_NET_PROFIT:
-        reasons.append('总净利润未达 1 亿 ISK 推送门槛')
+        reasons.append('总净利润未达 5000 万 ISK 推送门槛')
     if profit50 < rule['min_profit_50']:
         reasons.append('每 50 流程利润未达门槛')
     if roi < rule['min_roi']:
