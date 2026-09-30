@@ -23,7 +23,7 @@ class PrepareMailCandidatesV2Tests(unittest.TestCase):
             ]).to_csv(base_path, index=False)
 
             pd.DataFrame([
-                {"contract_id": 1, "v2_status": "SAFE", "v2_grade": "A", "v2_score": 82, "v2_live_net_profit": 55000000, "v2_live_net_roi": 0.18, "v2_stress_net_profit": 20000000, "v2_orderbook_complete": True},
+                {"contract_id": 1, "v2_status": "SAFE", "v2_grade": "A", "v2_score": 82, "v2_live_net_profit": 155000000, "v2_live_net_roi": 0.18, "v2_stress_net_profit": 20000000, "v2_orderbook_complete": True},
                 {"contract_id": 2, "v2_status": "CHANGED", "v2_grade": "C", "v2_score": 40, "v2_live_net_profit": 200000000, "v2_live_net_roi": 0.30, "v2_stress_net_profit": -1, "v2_orderbook_complete": True},
                 {"contract_id": 3, "v2_status": "SAFE", "v2_grade": "B", "v2_score": 65, "v2_live_net_profit": 15000000, "v2_live_net_roi": 0.20, "v2_stress_net_profit": 10000000, "v2_orderbook_complete": True},
             ]).to_csv(v2_path, index=False)
@@ -35,7 +35,7 @@ class PrepareMailCandidatesV2Tests(unittest.TestCase):
 
             self.assertEqual(list(got.loc[got["mail_eligible"], "contract_id"]), [1])
             row = got.loc[got["contract_id"].eq(1)].iloc[0]
-            self.assertEqual(row["net_profit"], 55000000)
+            self.assertEqual(row["net_profit"], 155000000)
             self.assertAlmostEqual(row["net_roi"], 0.18)
             self.assertEqual(row["mail_filter_reason"], "V2_SAFE_MANUFACTURING")
 
