@@ -11,6 +11,7 @@ import pandas as pd
 import requests
 
 import send_eve_mail_dual as base
+from mail_profit_policy import MAIL_MIN_VERIFIED_NET_PROFIT
 from send_eve_mail_fast import contract_is_live, fmt_isk, resolve_character
 
 STATE_DIR = Path("results/state")
@@ -19,7 +20,7 @@ CHANNEL = "global-grade-watch"
 MAIL_TOP = int(os.getenv("GRADE_WATCH_MAIL_TOP", "10"))
 LIVE_WORKERS = int(os.getenv("LIVE_CHECK_WORKERS", "10"))
 MIN_SCORE = float(os.getenv("GRADE_WATCH_MIN_SCORE", "70"))
-BPC_MFG_MIN_PROFIT = float(os.getenv("MAIL_BPC_MFG_MIN_PROFIT", "20000000"))
+BPC_MFG_MIN_PROFIT = max(float(os.getenv("MAIL_BPC_MFG_MIN_PROFIT", "20000000")), MAIL_MIN_VERIFIED_NET_PROFIT)
 BPC_MFG_MIN_ROI = float(os.getenv("MAIL_BPC_MFG_MIN_ROI", "0.10"))
 AUTO_MAIL_DISABLED_SOURCES = {"BPC价值低估"}
 BPC_MFG_MAIL_EXCLUDED_RECIPIENTS = {
@@ -321,9 +322,9 @@ def collect_candidates() -> tuple[dict[str, dict], int]:
 
             profit = candidate_profit(row)
             roi = candidate_roi(row)
-            # Universal economic sanity gate: an automatic "opportunity" alert must
-            # never carry a known non-positive profit/ROI regardless of score.
-            if profit <= 0:
+            # Universal user-facing mail gate: every automatic opportunity alert must
+            # have verified net profit of at least the shared 100M ISK floor.
+            if profit < MAIL_MIN_VERIFIED_NET_PROFIT:
                 continue
             if roi is not None and roi <= 0:
                 continue
@@ -414,7 +415,7 @@ def render(stamp: str, rows: list[dict], batch_no: int, batch_total: int) -> tup
         f"<b>全局捡漏 · A/S级首次出现提醒</b><br>{stamp}<br><br>",
         "覆盖普通合同、多件合同、通过严格盈利门槛的BPC制造、4-H合同与市场、V3现金底价/以物易物/保守挂卖、吉他→4-H。<br>",
         "上线前已有A/S机会仅记为基线，不补发；同一机会一旦记录为已见，以后不因排名或再次升回A/S而重复发送。<br>",
-        "这是高评分注意提醒，不改变各正式频道原有利润、ROI和安全门槛。<br><br>",
+        "这是高评分注意提醒；无论评分，自动推送统一要求净利润≥1亿 ISK，并继续遵守各频道ROI与安全门槛。<br><br>",
     ]
 
     for i, r in enumerate(rows, 1):
