@@ -31,7 +31,7 @@ jobs:
           print('MikeChong skill data fetched successfully')
           PY
 
-      - name: Calculate Ishtar gaps
+      - name: Calculate Ishtar mastery gaps
         shell: bash
         run: |
           python - <<'PY'
@@ -58,27 +58,31 @@ jobs:
 
           proficient = {
             **unlock,
-            'Heavy Assault Cruisers': 4,
+            'Heavy Assault Cruisers': 5,
             'Drones': 5,
             'Drone Interfacing': 5,
             'Drone Avionics': 5,
-            'Advanced Drone Avionics': 4,
-            'Drone Navigation': 4,
-            'Drone Sharpshooting': 4,
+            'Advanced Drone Avionics': 5,
+            'Drone Navigation': 5,
+            'Drone Sharpshooting': 5,
+            'Drone Durability': 5,
             'Heavy Drone Operation': 5,
-            'Gallente Drone Specialization': 4,
+            'Sentry Drone Interfacing': 5,
+            'Gallente Drone Specialization': 5,
             'CPU Management': 5,
             'Power Grid Management': 5,
-            'Capacitor Systems Operation': 4,
-            'Shield Management': 4,
-            'Shield Operation': 4,
+            'Capacitor Management': 5,
+            'Capacitor Systems Operation': 5,
+            'Shield Management': 5,
+            'Shield Operation': 5,
             'Tactical Shield Manipulation': 4,
-            'Navigation': 4,
-            'Afterburner': 4,
-            'Evasive Maneuvering': 4,
-            'Target Management': 4,
-            'Long Range Targeting': 4,
-            'Signature Analysis': 4,
+            'Navigation': 5,
+            'Afterburner': 5,
+            'Evasive Maneuvering': 5,
+            'Warp Drive Operation': 5,
+            'Target Management': 5,
+            'Long Range Targeting': 5,
+            'Signature Analysis': 5,
           }
 
           s=requests.Session()
@@ -150,12 +154,12 @@ jobs:
           print(f"UNLOCK_MISSING_SP={unlock_gap}")
           print(f"UNLOCK_AFTER_UNALLOCATED_SP={unlock_after_free}")
           print(f"UNLOCK_INJECTORS={unlock_n}")
-          print(f"PROFICIENT_MISSING_SP={prof_gap}")
-          print(f"PROFICIENT_AFTER_UNALLOCATED_SP={prof_after_free}")
-          print(f"PROFICIENT_INJECTORS={prof_n}")
-          print("PROFICIENT_GAPS_BEGIN")
+          print(f"MASTERY_MISSING_SP={prof_gap}")
+          print(f"MASTERY_AFTER_UNALLOCATED_SP={prof_after_free}")
+          print(f"MASTERY_INJECTORS={prof_n}")
+          print("MASTERY_GAPS_BEGIN")
           for name, level, have, need, gap in sorted(prof_rows, key=lambda x:x[-1], reverse=True):
             if gap:
               print(f"{name}|target={level}|have_sp={have}|target_sp={need}|gap_sp={gap}")
-          print("PROFICIENT_GAPS_END")
+          print("MASTERY_GAPS_END")
           PY
