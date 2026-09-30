@@ -4,7 +4,7 @@ const ESI_BASE = "https://esi.evetech.net/latest";
 const ESI_SKILLS_BASE = "https://esi.evetech.net/v4";
 const SCOPE = "esi-ui.open_window.v1 esi-mail.send_mail.v1 esi-skills.read_skills.v1 esi-markets.structure_markets.v1";
 const ACCESS_TOKEN_CACHE_KEY = "https://eve-contract-opener.internal/access-token";
-const CJ_MARKET_SCOPE = "esi-markets.structure_markets.v1";
+const CJ_MARKET_SCOPE = "esi-markets.structure_markets.v1 esi-wallet.read_character_wallet.v1 esi-markets.read_character_orders.v1 esi-contracts.read_character_contracts.v1 esi-assets.read_assets.v1";
 const CJ_ACCESS_TOKEN_CACHE_KEY = "https://eve-contract-opener.internal/cj-market-access-token";
 
 let memoryAccessToken = "";
