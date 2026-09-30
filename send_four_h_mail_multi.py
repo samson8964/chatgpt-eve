@@ -9,6 +9,7 @@ from pathlib import Path
 import pandas as pd
 import requests
 
+from mail_profit_policy import MAIL_MIN_VERIFIED_NET_PROFIT
 from send_eve_mail_dual import send_mail
 from send_eve_mail_fast import fmt_isk, resolve_character
 
@@ -123,7 +124,7 @@ def build_candidates(channel: str):
     profit = pd.to_numeric(df.get(cfg["profit_col"]), errors="coerce").fillna(0.0)
     roi = pd.to_numeric(df.get(cfg["roi_col"]), errors="coerce").fillna(0.0)
     df = df.assign(_mail_profit=profit, _mail_roi=roi)
-    df = df[(df["_mail_profit"] > 0) & (df["_mail_roi"] > 0)].copy()
+    df = df[(df["_mail_profit"] >= MAIL_MIN_VERIFIED_NET_PROFIT) & (df["_mail_roi"] > 0)].copy()
 
     sort_cols = []
     ascending = []
