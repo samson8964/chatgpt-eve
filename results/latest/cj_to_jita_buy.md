@@ -1,7 +1,7 @@
 # C-J6MT - 1st Taj Mahgoon (DJ's Retirement Fund) → Jita 4-4 Opportunity Engine V2
 
-- Source orders: `52524`; source cache: `Wed, 30 Sep 2026 03:12:16 GMT`
-- Final Jita pricing: live ESI `2026-09-30T03:09:57.623365+00:00`
+- Source orders: `52554`; source cache: `Wed, 30 Sep 2026 03:47:19 GMT`
+- Final Jita pricing: live ESI `2026-09-30T03:45:25.770741+00:00`
 - High-sec restricted ships removed: `1`
 - Final ranking uses live depth, stress survival, liquidity and volume density.
 
@@ -9,7 +9,7 @@
 |---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|
 | 1 | A | SAFE | Union Contemplation Background | 11 | 500.0K | 2.70M | 18.42M | 179.3% | 76.8 | 16.75M | high |
 | 2 | B | SAFE | Soaring Federation Background | 56 | 1.20M | 2.10M | 31.38M | 38.1% | 69.2 | 5.60M | medium |
-| 3 | B | SAFE | Small Polycarbon Engine Housing II | 115 | 724.9K | 943.6K | 20.47M | 24.3% | 68.1 | 35.6K | high |
+| 3 | B | SAFE | Small Polycarbon Engine Housing II | 115 | 724.9K | 943.6K | 20.48M | 24.3% | 68.1 | 35.6K | high |
 | 4 | B | SAFE | Mining Laser Optimization Charge | 616,951 | 277 | 401 | 55.68M | 30.4% | 67.9 | 9.0K | high |
 | 5 | B | SAFE | ElectroPunch Ultra M | 88,888 | 8.9K | 10.2K | 83.03M | 10.5% | 65.2 | 74.7K | high |
 | 6 | B | SAFE | Atavum | 406 | 346.0K | 428.6K | 21.36M | 14.6% | 64.3 | 526.1K | high |
