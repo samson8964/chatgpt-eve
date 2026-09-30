@@ -7,19 +7,21 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from mail_profit_policy import MAIL_MIN_VERIFIED_NET_PROFIT
+
 DEALS = Path("results/latest/contract_deals.csv")
 BPC = Path("results/latest/ranked_opportunities.csv")
 BPC_VALUE = Path("results/latest/bpc_value_opportunities.csv")
 BPC_V2 = Path("results/latest/ranked_opportunities_v2.csv")
 
-SPOT_MIN_PROFIT = float(os.getenv("MAIL_SPOT_MIN_PROFIT", "30000000"))
+SPOT_MIN_PROFIT = max(float(os.getenv("MAIL_SPOT_MIN_PROFIT", "30000000")), MAIL_MIN_VERIFIED_NET_PROFIT)
 SPOT_MIN_ROI = float(os.getenv("MAIL_SPOT_MIN_ROI", "0.10"))
 
 BPC_VALUE_MIN_SAMPLES = int(os.getenv("MAIL_BPC_VALUE_MIN_SAMPLES", "5"))
 BPC_VALUE_MIN_AVG_DISCOUNT = float(os.getenv("MAIL_BPC_VALUE_MIN_AVG_DISCOUNT", "0.30"))
 BPC_VALUE_MIN_MEDIAN_DISCOUNT = float(os.getenv("MAIL_BPC_VALUE_MIN_MEDIAN_DISCOUNT", "0.20"))
 BPC_VALUE_MIN_SURPLUS = float(os.getenv("MAIL_BPC_VALUE_MIN_SURPLUS", "20000000"))
-BPC_MFG_MIN_PROFIT = float(os.getenv("MAIL_BPC_MFG_MIN_PROFIT", "20000000"))
+BPC_MFG_MIN_PROFIT = max(float(os.getenv("MAIL_BPC_MFG_MIN_PROFIT", "20000000")), MAIL_MIN_VERIFIED_NET_PROFIT)
 BPC_MFG_MIN_ROI = float(os.getenv("MAIL_BPC_MFG_MIN_ROI", "0.10"))
 BPC_V2_ENABLED = os.getenv("MAIL_BPC_V2_ENABLED", "1").strip().lower() not in {"0", "false", "no"}
 
@@ -92,7 +94,7 @@ def prepare_spot(df: pd.DataFrame):
         if ok:
             reasons.append(reason_ok)
         elif profit < SPOT_MIN_PROFIT:
-            reasons.append("NET_PROFIT_BELOW_30M")
+            reasons.append("NET_PROFIT_BELOW_MAIL_FLOOR")
         else:
             reasons.append("ROI_BELOW_10PCT")
 
@@ -135,16 +137,16 @@ def prepare_bpc_file(path: Path):
             and surplus >= BPC_VALUE_MIN_SURPLUS
         )
         manufacturing_ok = profit >= BPC_MFG_MIN_PROFIT and roi >= BPC_MFG_MIN_ROI and cap >= 1
-        ok = bool(intrinsic_signal or manufacturing_ok)
+        ok = bool(manufacturing_ok)
         eligible.append(ok)
         intrinsic_signals.append(bool(intrinsic_signal))
         manufacturing_signals.append(bool(manufacturing_ok))
-        value_gap.append(max(0.0, surplus if intrinsic_signal else 0.0, profit if manufacturing_ok else 0.0))
+        value_gap.append(max(0.0, profit if manufacturing_ok else 0.0))
 
         if intrinsic_signal and manufacturing_ok:
             reasons.append("INTRINSIC_VALUE_PLUS_MANUFACTURING")
         elif intrinsic_signal:
-            reasons.append("INTRINSIC_VALUE")
+            reasons.append("INTRINSIC_VALUE_WATCH_ONLY")
         elif manufacturing_ok:
             reasons.append("MANUFACTURING")
         else:
