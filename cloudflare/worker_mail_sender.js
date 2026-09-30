@@ -5,10 +5,16 @@ const SSO_TOKEN = "https://login.eveonline.com/v2/oauth/token";
 const ESI_BASE = "https://esi.evetech.net/latest";
 const MAIL_SCOPE = "esi-mail.send_mail.v1";
 const MAIL_ACCESS_TOKEN_CACHE_KEY = "https://eve-contract-opener.internal/mail-access-token";
+const SKILL_SCOPE = "esi-skills.read_skills.v1 esi-skills.read_skillqueue.v1";
+const SKILL_ACCESS_TOKEN_CACHE_KEY = "https://eve-contract-opener.internal/skill-access-token";
+const REQUIRED_SKILL_CHARACTER = "MikeChong";
 
 let memoryMailAccessToken = "";
 let memoryMailAccessTokenExp = 0;
 let mailRefreshInFlight = null;
+let memorySkillAccessToken = "";
+let memorySkillAccessTokenExp = 0;
+let skillRefreshInFlight = null;
 
 export default {
   async fetch(request, env) {
@@ -18,9 +24,14 @@ export default {
     if (url.pathname === "/logout-mail") return logoutMail(env);
     if (url.pathname === "/mail-status") return mailStatus(env);
     if (url.pathname === "/api/mail-health") return handleMailHealth(request, env);
+    if (url.pathname === "/auth-skills") return startSkillAuth(env);
+    if (url.pathname === "/logout-skills") return logoutSkills(env);
+    if (url.pathname === "/skill-status") return skillStatus(env);
+    if (url.pathname === "/api/mikechong-skills") return handleSkillData(request, env);
 
     if (url.pathname === "/callback") {
       const cookies = parseCookies(request.headers.get("Cookie") || "");
+      if (cookies.eve_skill_state) return handleSkillCallback(request, env, cookies);
       if (cookies.eve_mail_state) return handleMailCallback(request, env, cookies);
     }
 
@@ -322,6 +333,221 @@ async function getFreshMailToken(env) {
     return await mailRefreshInFlight;
   } finally {
     mailRefreshInFlight = null;
+  }
+}
+
+
+async function startSkillAuth(env) {
+  if (!env.EVE_CLIENT_ID || !env.EVE_CLIENT_SECRET || !env.EVE_REDIRECT_URI) {
+    return text("Worker 未配置完成：缺少 EVE_CLIENT_ID / EVE_CLIENT_SECRET / EVE_REDIRECT_URI。", 500);
+  }
+  if (!env.AUTH_STORE) return text("Worker 未绑定 KV：AUTH_STORE。", 500);
+
+  const state = randomHex(24);
+  const authUrl = new URL(SSO_AUTHORIZE);
+  authUrl.searchParams.set("response_type", "code");
+  authUrl.searchParams.set("client_id", env.EVE_CLIENT_ID);
+  authUrl.searchParams.set("redirect_uri", env.EVE_REDIRECT_URI);
+  authUrl.searchParams.set("scope", SKILL_SCOPE);
+  authUrl.searchParams.set("state", state);
+
+  const headers = new Headers({ Location: authUrl.toString() });
+  headers.append("Set-Cookie", cookie("eve_skill_state", state, 600));
+  return new Response(null, { status: 302, headers });
+}
+
+async function handleSkillCallback(request, env, cookies) {
+  const url = new URL(request.url);
+  const code = url.searchParams.get("code");
+  const returnedState = url.searchParams.get("state");
+  if (!code || !returnedState || !cookies.eve_skill_state || returnedState !== cookies.eve_skill_state) {
+    return text("EVE 技能授权失败：state 不匹配。", 400);
+  }
+
+  const resp = await tokenRequest(env, new URLSearchParams({ grant_type: "authorization_code", code }));
+  if (!resp.ok) return text(`EVE SSO token exchange failed (${resp.status}): ${resp.detail}`, 502);
+
+  const claims = decodeJwtClaims(resp.access_token);
+  const characterId = String(claims.sub || "").split(":").pop();
+  const characterName = String(claims.name || "");
+  if (!/^\d+$/.test(characterId || "")) return text("无法识别技能授权角色 ID。", 502);
+  if (characterName.toLowerCase() !== REQUIRED_SKILL_CHARACTER.toLowerCase()) {
+    return html(`<!doctype html><meta charset='utf-8'><h2>没有保存授权</h2><p>你刚才选择的是 <b>${escapeHtml(characterName || characterId)}</b>，技能槽只允许 <b>${escapeHtml(REQUIRED_SKILL_CHARACTER)}</b>。</p><p><a href='/auth-skills'>重新选择 MikeChong</a></p>`, 400);
+  }
+
+  try {
+    await env.AUTH_STORE.put("skill_refresh_token", resp.refresh_token);
+    await env.AUTH_STORE.put("skill_character_id", characterId);
+    await env.AUTH_STORE.put("skill_character_name", characterName);
+  } catch (err) {
+    return text(`保存技能角色授权失败：${String(err)}`, 503);
+  }
+
+  rememberSkillAccessToken(resp.access_token, claims);
+  await cacheSkillAccessToken(resp.access_token, claims);
+
+  const headers = new Headers({ "Content-Type": "text/html; charset=utf-8" });
+  headers.append("Set-Cookie", expiredCookie("eve_skill_state"));
+  return new Response(
+    `<!doctype html><meta charset='utf-8'><h2>MikeChong 技能授权成功</h2><p>角色：<b>${escapeHtml(characterName)}</b></p><p>权限：<code>${escapeHtml(SKILL_SCOPE)}</code></p><p>授权已独立保存，不会覆盖邮件或市场角色。</p><p><a href='/skill-status'>查看技能授权状态</a></p>`,
+    { status: 200, headers }
+  );
+}
+
+async function logoutSkills(env) {
+  if (!env.AUTH_STORE) return text("Worker 未绑定 KV：AUTH_STORE。", 500);
+  memorySkillAccessToken = "";
+  memorySkillAccessTokenExp = 0;
+  await Promise.all([
+    "skill_refresh_token",
+    "skill_character_id",
+    "skill_character_name",
+  ].map(k => env.AUTH_STORE.delete(k)));
+  return html("<!doctype html><meta charset='utf-8'><h2>已清除 MikeChong 技能授权。</h2><p><a href='/auth-skills'>重新授权</a></p>");
+}
+
+async function skillStatus(env) {
+  if (!env.AUTH_STORE) return text("Worker 未绑定 KV：AUTH_STORE。", 500);
+  const hasToken = Boolean(await env.AUTH_STORE.get("skill_refresh_token"));
+  const name = await env.AUTH_STORE.get("skill_character_name");
+  const id = await env.AUTH_STORE.get("skill_character_id");
+  return html(`<!doctype html><meta charset='utf-8'><title>MikeChong Skill API</title>
+    <style>body{font:16px system-ui;max-width:760px;margin:48px auto;padding:0 20px;line-height:1.65}code{background:#eee;padding:2px 6px;border-radius:5px}</style>
+    <h1>MikeChong Skill API</h1>
+    <p>技能角色：<b>${hasToken ? "已授权" : "尚未授权"}</b>${name ? ` · ${escapeHtml(name)} (${escapeHtml(id || "")})` : ""}</p>
+    <p>权限：<code>${escapeHtml(SKILL_SCOPE)}</code></p>
+    <p><a href='/auth-skills'>授权/重新授权 MikeChong</a> · <a href='/logout-skills'>清除技能授权</a></p>
+    <p>该授权槽与邮件发送、主角色和 C-J 市场授权彼此独立。</p>`);
+}
+
+async function handleSkillData(request, env) {
+  if (request.method !== "GET") return text("Method not allowed", 405);
+  const denied = requireApiKey(request, env);
+  if (denied) return denied;
+  if (!env.AUTH_STORE) return json({ ok: false, error: "auth_store_missing" }, 500);
+
+  const characterId = Number(await env.AUTH_STORE.get("skill_character_id") || 0);
+  const characterName = await env.AUTH_STORE.get("skill_character_name") || "";
+  if (!Number.isSafeInteger(characterId) || characterId <= 0) {
+    return json({ ok: false, error: "skill_character_not_authorized", auth_url: "/auth-skills" }, 409);
+  }
+
+  const token = await getFreshSkillToken(env);
+  if (!token.ok) {
+    return json({ ok: false, error: "skill_token_refresh_failed", detail: token.detail || token.status, auth_url: "/auth-skills" }, 502);
+  }
+
+  const headers = { Authorization: `Bearer ${token.access_token}`, Accept: "application/json" };
+  const [skillsResp, queueResp] = await Promise.all([
+    fetch(`${ESI_BASE}/characters/${characterId}/skills/?datasource=tranquility`, { headers }),
+    fetch(`${ESI_BASE}/characters/${characterId}/skillqueue/?datasource=tranquility`, { headers }),
+  ]);
+  const skillsText = await skillsResp.text();
+  const queueText = await queueResp.text();
+  if (skillsResp.status !== 200 || queueResp.status !== 200) {
+    return json({
+      ok: false,
+      error: "esi_skill_read_failed",
+      skills_status: skillsResp.status,
+      queue_status: queueResp.status,
+      skills_detail: skillsText,
+      queue_detail: queueText,
+      auth_url: "/auth-skills",
+    }, 502);
+  }
+
+  let skillsData, queueData;
+  try {
+    skillsData = JSON.parse(skillsText);
+    queueData = JSON.parse(queueText);
+  } catch {
+    return json({ ok: false, error: "invalid_esi_json" }, 502);
+  }
+
+  return json({
+    ok: true,
+    character_id: characterId,
+    character_name: characterName,
+    total_sp: Number(skillsData.total_sp || 0),
+    unallocated_sp: Number(skillsData.unallocated_sp || 0),
+    skills: Array.isArray(skillsData.skills) ? skillsData.skills : [],
+    skillqueue: Array.isArray(queueData) ? queueData : [],
+  });
+}
+
+function rememberSkillAccessToken(accessToken, claims = {}) {
+  const nowSec = Math.floor(Date.now() / 1000);
+  memorySkillAccessToken = accessToken || "";
+  memorySkillAccessTokenExp = Number(claims.exp || 0) || (nowSec + 900);
+}
+
+async function readCachedSkillAccessToken() {
+  const nowSec = Math.floor(Date.now() / 1000);
+  if (memorySkillAccessToken && memorySkillAccessTokenExp > nowSec + 60) {
+    return { ok: true, access_token: memorySkillAccessToken, cached: "memory" };
+  }
+  try {
+    const cached = await caches.default.match(SKILL_ACCESS_TOKEN_CACHE_KEY);
+    if (!cached) return null;
+    const data = await cached.json();
+    if (!data || !data.access_token || Number(data.exp || 0) <= nowSec + 60) return null;
+    memorySkillAccessToken = String(data.access_token);
+    memorySkillAccessTokenExp = Number(data.exp);
+    return { ok: true, access_token: memorySkillAccessToken, cached: "edge" };
+  } catch (err) {
+    console.warn("skill access token cache read failed", String(err));
+    return null;
+  }
+}
+
+async function cacheSkillAccessToken(accessToken, claims = {}) {
+  if (!accessToken) return;
+  const nowSec = Math.floor(Date.now() / 1000);
+  const exp = Number(claims.exp || 0) || (nowSec + 900);
+  const ttl = Math.max(60, Math.min(1100, exp - nowSec - 60));
+  try {
+    const response = new Response(JSON.stringify({ access_token: accessToken, exp }), {
+      headers: { "Content-Type": "application/json", "Cache-Control": `public, max-age=${ttl}` },
+    });
+    await caches.default.put(SKILL_ACCESS_TOKEN_CACHE_KEY, response);
+  } catch (err) {
+    console.warn("skill access token cache write failed", String(err));
+  }
+}
+
+async function refreshSkillAccessToken(env) {
+  const refreshToken = await env.AUTH_STORE.get("skill_refresh_token");
+  if (!refreshToken) return { ok: false, status: 401, detail: "no skill refresh token" };
+
+  let result;
+  try {
+    result = await tokenRequest(env, new URLSearchParams({ grant_type: "refresh_token", refresh_token: refreshToken }));
+  } catch (err) {
+    return { ok: false, status: 502, detail: `token request exception: ${String(err)}` };
+  }
+  if (!result.ok) return result;
+
+  const claims = decodeJwtClaims(result.access_token);
+  rememberSkillAccessToken(result.access_token, claims);
+  await cacheSkillAccessToken(result.access_token, claims);
+  if (result.refresh_token && result.refresh_token !== refreshToken) {
+    try {
+      await env.AUTH_STORE.put("skill_refresh_token", result.refresh_token);
+    } catch (err) {
+      console.warn("skill refresh token persistence failed", String(err));
+    }
+  }
+  return result;
+}
+
+async function getFreshSkillToken(env) {
+  const cached = await readCachedSkillAccessToken();
+  if (cached) return cached;
+  if (!skillRefreshInFlight) skillRefreshInFlight = refreshSkillAccessToken(env);
+  try {
+    return await skillRefreshInFlight;
+  } finally {
+    skillRefreshInFlight = null;
   }
 }
 
