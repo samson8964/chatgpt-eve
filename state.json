@@ -324360,14 +324360,17 @@
   },
   "regions_checked": 114,
   "regions_total": 114,
-  "running": true,
+  "round_completed": 1,
+  "running": false,
   "scanned": 5083,
   "snapshot_error": null,
   "snapshot_modified": "2026-09-30T05:31:13.558Z",
   "snapshot_target_contracts": 53,
+  "spread_mail_enabled": false,
+  "spread_opportunities": 0,
   "stage": "等待下一次检查",
   "volume_cap": 0.04
  },
  "unavailable_until": {},
- "updated": "2026-09-30T05:38:45.767182+00:00"
+ "updated": "2026-09-30T05:38:47.988851+00:00"
 }
