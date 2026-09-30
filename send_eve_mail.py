@@ -6,6 +6,8 @@ from pathlib import Path
 import pandas as pd
 import requests
 
+from mail_profit_policy import MAIL_MIN_VERIFIED_NET_PROFIT
+
 RESULT = Path("results/latest/ranked_opportunities.csv")
 WORKER = os.getenv("EVE_MAIL_WORKER_URL", "https://eve-contract-opener.99617224.workers.dev").rstrip("/")
 API_KEY = os.getenv("EVE_MAIL_API_KEY", "").strip()
@@ -76,6 +78,8 @@ def main():
     if "market_capacity_contracts" in df.columns:
         cap = pd.to_numeric(df["market_capacity_contracts"], errors="coerce")
         df = df.loc[cap.fillna(1) >= 1]
+    profit = pd.to_numeric(df.get("net_profit"), errors="coerce").fillna(0.0)
+    df = df.loc[profit >= MAIL_MIN_VERIFIED_NET_PROFIT]
     df = df.head(5)
 
     stamp = pd.Timestamp.now(tz="Asia/Shanghai").strftime("%m-%d %H:%M")
