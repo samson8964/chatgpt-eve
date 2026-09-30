@@ -3,9 +3,9 @@ import baseWorker from "./worker.js";
 const SSO_AUTHORIZE = "https://login.eveonline.com/v2/oauth/authorize";
 const SSO_TOKEN = "https://login.eveonline.com/v2/oauth/token";
 const ESI_BASE = "https://esi.evetech.net/latest";
-const MAIL_SCOPE = "esi-mail.send_mail.v1";
+const MAIL_SCOPE = "esi-mail.send_mail.v1 esi-wallet.read_character_wallet.v1 esi-markets.read_character_orders.v1 esi-contracts.read_character_contracts.v1 esi-assets.read_assets.v1";
 const MAIL_ACCESS_TOKEN_CACHE_KEY = "https://eve-contract-opener.internal/mail-access-token";
-const SKILL_SCOPE = "esi-skills.read_skills.v1 esi-skills.read_skillqueue.v1";
+const SKILL_SCOPE = "esi-skills.read_skills.v1 esi-skills.read_skillqueue.v1 esi-wallet.read_character_wallet.v1 esi-markets.read_character_orders.v1 esi-contracts.read_character_contracts.v1 esi-assets.read_assets.v1";
 const SKILL_ACCESS_TOKEN_CACHE_KEY = "https://eve-contract-opener.internal/skill-access-token";
 const REQUIRED_SKILL_CHARACTER = "MikeChong";
 
