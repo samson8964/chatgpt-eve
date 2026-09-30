@@ -9,6 +9,7 @@ from pathlib import Path
 import pandas as pd
 import requests
 
+from mail_profit_policy import MAIL_MIN_VERIFIED_NET_PROFIT
 from send_eve_mail_dual import send_mail
 from send_eve_mail_fast import contract_is_live, fmt_isk, resolve_character
 
@@ -116,7 +117,7 @@ def build_candidates(channel: str):
     roi = pd.to_numeric(df.get("net_roi"), errors="coerce").fillna(0.0)
     score = pd.to_numeric(df.get("opportunity_score"), errors="coerce").fillna(0.0)
     df = df.assign(_profit=profit, _roi=roi, _score=score)
-    df = df[(df["_profit"] > 0) & (df["_roi"] > 0)].copy()
+    df = df[(df["_profit"] >= MAIL_MIN_VERIFIED_NET_PROFIT) & (df["_roi"] > 0)].copy()
     df.sort_values(["_score", "_profit", "_roi"], ascending=False, inplace=True)
     out = []
     candidate_limit = MAIL_TOP * 3 if cfg["kind"] == "contract" else MAIL_TOP
