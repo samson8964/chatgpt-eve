@@ -8,6 +8,7 @@ from pathlib import Path
 import pandas as pd
 
 import send_eve_mail_dual as base
+from mail_profit_policy import MAIL_MIN_VERIFIED_NET_PROFIT
 from send_eve_mail_fast import resolve_character, contract_is_live, fmt_isk
 
 SOURCE = Path("results/latest/multi_item_contract_deals.csv")
@@ -83,6 +84,8 @@ def build_candidates():
             continue
         gap = finite(r.get("chosen_value_gap"), 0.0)
         roi = finite(r.get("chosen_roi"), 0.0)
+        if gap < MAIL_MIN_VERIFIED_NET_PROFIT:
+            continue
         out.append({"contract_id": cid, "gap": gap, "roi": roi, "row": r.copy()})
     out.sort(key=lambda x: (x["gap"], x["roi"]), reverse=True)
     return out
