@@ -622,7 +622,8 @@ def render(profiles_data, pushed_contracts, pushed_markets):
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     subject = f"【EVE交易审计】实际捡漏买卖利润 {stamp}"
     plain = [
-        f"EVE 三角色实际捡漏交易审计 · {stamp}",\n        "经营口径：MikeChong / LadyBaBa 等采购后内部转给 LadyGuaGua，由 LadyGuaGua 统一出售；内部转移不改变成本。",
+        f"EVE 三角色实际捡漏交易审计 · {stamp}",
+        "经营口径：MikeChong / LadyBaBa 等采购后内部转给 LadyGuaGua，由 LadyGuaGua 统一出售；内部转移不改变成本。",
         "",
         f"匹配到捡漏买入批次：{len(all_lots)}",
         f"其中已有卖出的批次：{len(sold_lots)}",
