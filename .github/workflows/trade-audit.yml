@@ -1,0 +1,39 @@
+name: EVE private trade audit
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'trade_realized_audit.py'
+      - '.github/workflows/trade-audit.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      EVE_TRADE_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
+      EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+      GMAIL_SMTP_USER: ${{ secrets.GMAIL_SMTP_USER }}
+      GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+      GMAIL_TO: ${{ secrets.GMAIL_TO }}
+      TRADE_AUDIT_START: '2026-09-01T00:00:00Z'
+    steps:
+      - name: Checkout full opportunity history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install audit dependency
+        run: python -m pip install requests
+
+      - name: Run private realized-profit audit
+        run: python trade_realized_audit.py
