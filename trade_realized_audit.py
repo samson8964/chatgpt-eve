@@ -459,6 +459,148 @@ def build_lots(profile, char_id, transactions, journal, contracts_api, pushed_co
     return lots, matched_contracts
 
 
+
+def reattribute_to_central_seller(profiles_data, avg_prices):
+    """Treat all identified opportunity purchases as pooled inventory and
+    LadyGuaGua as the centralized seller.  Cross-character transfers are
+    internal movements and do not change cost basis."""
+    seller = "ladyguagua"
+    seller_data = profiles_data[seller]
+    seller_transactions = seller_data["raw_transactions"]
+    seller_journal = seller_data["raw_journal"]
+    seller_contracts = seller_data["raw_contracts"]
+    seller_char_id = seller_data["character_id"]
+
+    # Reset the per-character sell attribution done during lot discovery.
+    all_lots = []
+    for pdata in profiles_data.values():
+        for lot in pdata["lots"]:
+            lot["remaining"] = lot["quantity"]
+            lot["sold_qty"] = 0
+            lot["net_revenue"] = 0.0
+            lot["tax"] = 0.0
+            lot["sale_methods"] = set()
+            all_lots.append(lot)
+
+    taxes = tax_map(seller_journal)
+    contract_fees = contract_fee_map(seller_journal)
+    sale_events = []
+
+    # All market sales by LadyGuaGua are candidate realization events.
+    for tx in seller_transactions:
+        if bool(tx.get("is_buy")):
+            continue
+        try:
+            tid = int(tx.get("type_id") or 0)
+            qty = int(tx.get("quantity") or 0)
+            unit = float(tx.get("unit_price") or 0)
+            txid = int(tx.get("transaction_id") or 0)
+        except Exception:
+            continue
+        if tid <= 0 or qty <= 0:
+            continue
+        dt = parse_dt(tx.get("date")) or START
+        total_tax = -min(0.0, taxes.get(txid, 0.0))
+        sale_events.append({
+            "date": dt,
+            "type_id": tid,
+            "quantity": qty,
+            "net_total": unit * qty - total_tax,
+            "fee_total": total_tax,
+            "method": "LadyGuaGua-market",
+            "sale_id": txid,
+        })
+
+    # Also count LadyGuaGua's completed item-exchange contract sales.
+    for sc in seller_contracts:
+        try:
+            cid = int(sc.get("contract_id") or 0)
+            issuer = int(sc.get("issuer_id") or 0)
+            price = float(sc.get("price") or 0)
+        except Exception:
+            continue
+        if issuer != int(seller_char_id) or str(sc.get("status") or "") != "finished":
+            continue
+        if str(sc.get("type") or "") != "item_exchange" or price <= 0:
+            continue
+        dt = parse_dt(sc.get("date_completed")) or parse_dt(sc.get("date_accepted")) or START
+        if dt < START:
+            continue
+        try:
+            sold_items = [x for x in fetch_contract_items(seller, cid) if bool(x.get("is_included", True))]
+        except Exception:
+            sold_items = []
+        grouped = defaultdict(int)
+        for x in sold_items:
+            try:
+                tid = int(x.get("type_id") or 0)
+                qty = int(x.get("quantity") or 0)
+            except Exception:
+                continue
+            if tid > 0 and qty > 0:
+                grouped[tid] += qty
+        if not grouped:
+            continue
+
+        fees = contract_fees.get(cid, 0.0)
+        net_price = max(0.0, price - fees)
+        denom = sum(max(0.0, avg_prices.get(tid, 0.0)) * qty for tid, qty in grouped.items())
+        if denom <= 0:
+            denom = float(sum(grouped.values()))
+            def value(tid, qty): return float(qty)
+        else:
+            def value(tid, qty): return max(0.0, avg_prices.get(tid, 0.0)) * qty
+
+        for tid, qty in grouped.items():
+            share = value(tid, qty) / denom if denom > 0 else 0.0
+            sale_events.append({
+                "date": dt,
+                "type_id": tid,
+                "quantity": qty,
+                "net_total": net_price * share,
+                "fee_total": fees * share,
+                "method": "LadyGuaGua-contract",
+                "sale_id": cid,
+            })
+
+    # Pooled FIFO: original purchase character is retained on each lot, but
+    # realization may occur on LadyGuaGua after an internal transfer.
+    by_type = defaultdict(deque)
+    for lot in sorted(all_lots, key=lambda x: x["date"]):
+        by_type[lot["type_id"]].append(lot)
+
+    for sale in sorted(sale_events, key=lambda x: x["date"]):
+        tid = sale["type_id"]
+        if tid not in by_type:
+            continue
+        sell_qty = int(sale["quantity"])
+        left = sell_qty
+        q = by_type[tid]
+        while left > 0 and q:
+            lot = q[0]
+            if lot["date"] > sale["date"]:
+                break
+            alloc = min(left, lot["remaining"])
+            net_alloc = sale["net_total"] * (alloc / sell_qty)
+            fee_alloc = sale["fee_total"] * (alloc / sell_qty)
+            lot["remaining"] -= alloc
+            lot["sold_qty"] += alloc
+            lot["net_revenue"] += net_alloc
+            lot["tax"] += fee_alloc
+            lot.setdefault("sale_methods", set()).add(sale["method"])
+            left -= alloc
+            if lot["remaining"] <= 0:
+                q.popleft()
+
+    for lot in all_lots:
+        realized_cost = lot["unit_cost"] * lot["sold_qty"]
+        lot["realized_profit"] = lot["net_revenue"] - realized_cost
+        lot["realized_roi"] = (lot["realized_profit"] / realized_cost) if realized_cost > 0 else None
+        lot["name"] = type_name(lot["type_id"])
+
+    return all_lots
+
+
 def fmt_isk(v):
     v = float(v or 0)
     sign = "-" if v < 0 else ""
@@ -480,7 +622,7 @@ def render(profiles_data, pushed_contracts, pushed_markets):
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     subject = f"【EVE交易审计】实际捡漏买卖利润 {stamp}"
     plain = [
-        f"EVE 三角色实际捡漏交易审计 · {stamp}",
+        f"EVE 三角色实际捡漏交易审计 · {stamp}",\n        "经营口径：MikeChong / LadyBaBa 等采购后内部转给 LadyGuaGua，由 LadyGuaGua 统一出售；内部转移不改变成本。",
         "",
         f"匹配到捡漏买入批次：{len(all_lots)}",
         f"其中已有卖出的批次：{len(sold_lots)}",
@@ -488,7 +630,7 @@ def render(profiles_data, pushed_contracts, pushed_markets):
         f"已实现成本口径ROI：{total_roi*100:.1f}%",
         "",
         "说明：市场机会按“推送过的物品 + 对应来源空间站/建筑 + 后续实际买入”精确匹配；",
-        "合同机会按合同ID精确匹配。卖出归因采用FIFO，同时统计市场成交和角色自己签发并完成的物品交换合同；",
+        "合同机会按合同ID精确匹配。三个角色的捡漏采购合并为库存池，统一用 LadyGuaGua 的市场成交和已完成销售合同按FIFO归因；",
         "市场销售税按可关联到 market_transaction_id 的钱包流水扣除，合同销售税/经纪费按 contract_id 扣除。无法直接关联的市场挂单经纪费暂未计入。",
         "多物品合同的合同价/回款按当期EVE平均价格分摊，因此该类单品利润为估算；整单总价仍使用实际合同价格。",
         "",
@@ -540,7 +682,7 @@ def render(profiles_data, pushed_contracts, pushed_markets):
         <b>已实现净利润：{html.escape(fmt_isk(total_profit))} ISK</b> ·
         已实现成本口径 ROI {total_roi*100:.1f}% · 匹配买入 {len(all_lots)} 批
       </div>
-      <p>合同按合同ID精确识别；市场机会按推送物品+来源地点+实际买入匹配。卖出采用FIFO归因，同时统计市场成交和已完成的角色签发物品交换合同；已扣除能关联的市场销售税与合同销售税/经纪费。多物品合同的单品成本/回款为比例分摊。</p>
+      <p>经营口径：MikeChong / LadyBaBa 等采购后内部转给 LadyGuaGua 统一出售；内部转移不改变成本。合同按合同ID识别，市场机会按推送物品+来源地点匹配买入，所有 LadyGuaGua 的市场/合同销售按物品和时间 FIFO 回配至原采购批次。已扣除可关联的市场销售税与合同销售税/经纪费。</p>
       <table style='border-collapse:collapse;width:100%;font-size:13px'>
         <tr>
           <th>角色</th><th>物品</th><th>买入数</th><th>机会来源</th><th>买入成本</th>
@@ -588,8 +730,13 @@ def main():
             "journal": len(journal),
             "contracts": len(contracts_api),
             "matched_contracts": len(matched_contracts),
+            "raw_transactions": tx,
+            "raw_journal": journal,
+            "raw_contracts": contracts_api,
+            "character_id": char_id,
         }
 
+    reattribute_to_central_seller(profiles_data, avg_prices)
     subject, plain, html_body = render(profiles_data, pushed_contracts, pushed_markets)
     send_email(subject, plain, html_body)
     print("private trade audit completed and delivered")
