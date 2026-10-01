@@ -220,6 +220,24 @@ def tax_map(journal):
     return out
 
 
+def contract_fee_map(journal):
+    out = defaultdict(float)
+    fee_types = {"contract_brokers_fee", "contract_sales_tax"}
+    for j in journal:
+        if j.get("context_id_type") != "contract_id":
+            continue
+        if j.get("ref_type") not in fee_types:
+            continue
+        try:
+            cid = int(j.get("context_id") or 0)
+            amount = float(j.get("amount") or 0)
+        except Exception:
+            continue
+        if cid and amount < 0:
+            out[cid] += -amount
+    return out
+
+
 def build_lots(profile, char_id, transactions, journal, contracts_api, pushed_contracts, pushed_markets, avg_prices):
     lots = []
     matched_contracts = []
@@ -321,38 +339,114 @@ def build_lots(profile, char_id, transactions, journal, contracts_api, pushed_co
             "tax": 0.0,
         })
 
-    # Allocate later market sales to identified opportunity lots FIFO by type.
+    # Allocate later market sales AND completed character-issued contract sales
+    # to identified opportunity lots FIFO by type.
     taxes = tax_map(journal)
-    by_type = defaultdict(deque)
-    for lot in sorted(lots, key=lambda x: x["date"]):
-        by_type[lot["type_id"]].append(lot)
+    contract_fees = contract_fee_map(journal)
+    sale_events = []
 
-    for tx in sorted(transactions, key=lambda x: parse_dt(x.get("date")) or START):
+    for tx in transactions:
         if bool(tx.get("is_buy")):
             continue
         try:
             tid = int(tx.get("type_id") or 0)
-            sell_qty = int(tx.get("quantity") or 0)
+            qty = int(tx.get("quantity") or 0)
             unit = float(tx.get("unit_price") or 0)
             txid = int(tx.get("transaction_id") or 0)
         except Exception:
             continue
-        if tid not in by_type or sell_qty <= 0:
+        if qty <= 0:
             continue
         dt = parse_dt(tx.get("date")) or START
         total_tax = -min(0.0, taxes.get(txid, 0.0))
+        sale_events.append({
+            "date": dt,
+            "type_id": tid,
+            "quantity": qty,
+            "net_total": unit * qty - total_tax,
+            "fee_total": total_tax,
+            "method": "market",
+            "sale_id": txid,
+        })
+
+    # Contract resales are important for blueprints and fitted/rare items that never
+    # appear in wallet market transactions.  We only count finished item_exchange
+    # contracts issued by this character.
+    for sc in contracts_api:
+        try:
+            cid = int(sc.get("contract_id") or 0)
+            issuer = int(sc.get("issuer_id") or 0)
+            price = float(sc.get("price") or 0)
+        except Exception:
+            continue
+        if issuer != int(char_id) or str(sc.get("status") or "") != "finished":
+            continue
+        if str(sc.get("type") or "") != "item_exchange" or price <= 0:
+            continue
+        dt = parse_dt(sc.get("date_completed")) or parse_dt(sc.get("date_accepted")) or START
+        if dt < START:
+            continue
+        try:
+            sold_items = [x for x in fetch_contract_items(profile, cid) if bool(x.get("is_included", True))]
+        except Exception:
+            sold_items = []
+        grouped = defaultdict(int)
+        for x in sold_items:
+            try:
+                tid = int(x.get("type_id") or 0)
+                qty = int(x.get("quantity") or 0)
+            except Exception:
+                continue
+            if tid and qty > 0:
+                grouped[tid] += qty
+        if not grouped:
+            continue
+
+        fees = contract_fees.get(cid, 0.0)
+        net_price = max(0.0, price - fees)
+        denom = sum(max(0.0, avg_prices.get(tid, 0.0)) * qty for tid, qty in grouped.items())
+        if denom <= 0:
+            denom = float(sum(grouped.values()))
+            value = lambda tid, qty: float(qty)
+        else:
+            value = lambda tid, qty: max(0.0, avg_prices.get(tid, 0.0)) * qty
+
+        for tid, qty in grouped.items():
+            share = value(tid, qty) / denom if denom > 0 else 0.0
+            sale_events.append({
+                "date": dt,
+                "type_id": tid,
+                "quantity": qty,
+                "net_total": net_price * share,
+                "fee_total": fees * share,
+                "method": "contract",
+                "sale_id": cid,
+            })
+
+    by_type = defaultdict(deque)
+    for lot in sorted(lots, key=lambda x: x["date"]):
+        by_type[lot["type_id"]].append(lot)
+
+    for sale in sorted(sale_events, key=lambda x: x["date"]):
+        tid = sale["type_id"]
+        if tid not in by_type:
+            continue
+        sell_qty = int(sale["quantity"])
         left = sell_qty
         q = by_type[tid]
         while left > 0 and q:
             lot = q[0]
-            if lot["date"] > dt:
+            if lot["date"] > sale["date"]:
                 break
             alloc = min(left, lot["remaining"])
-            tax_alloc = total_tax * (alloc / sell_qty)
+            net_alloc = sale["net_total"] * (alloc / sell_qty)
+            fee_alloc = sale["fee_total"] * (alloc / sell_qty)
             lot["remaining"] -= alloc
             lot["sold_qty"] += alloc
-            lot["net_revenue"] += unit * alloc - tax_alloc
-            lot["tax"] += tax_alloc
+            lot["net_revenue"] += net_alloc
+            lot["tax"] += fee_alloc
+            methods = lot.setdefault("sale_methods", set())
+            methods.add(sale["method"])
             left -= alloc
             if lot["remaining"] <= 0:
                 q.popleft()
@@ -394,8 +488,9 @@ def render(profiles_data, pushed_contracts, pushed_markets):
         f"已实现成本口径ROI：{total_roi*100:.1f}%",
         "",
         "说明：市场机会按“推送过的物品 + 对应来源空间站/建筑 + 后续实际买入”精确匹配；",
-        "合同机会按合同ID精确匹配。卖出归因采用FIFO。销售税按可关联到 market_transaction_id 的钱包流水扣除；",
-        "无法直接关联的挂单经纪费暂未计入。多物品合同的合同价按当期EVE平均价格分摊，因此该类单品利润为估算；整单总成本仍是实际合同价。",
+        "合同机会按合同ID精确匹配。卖出归因采用FIFO，同时统计市场成交和角色自己签发并完成的物品交换合同；",
+        "市场销售税按可关联到 market_transaction_id 的钱包流水扣除，合同销售税/经纪费按 contract_id 扣除。无法直接关联的市场挂单经纪费暂未计入。",
+        "多物品合同的合同价/回款按当期EVE平均价格分摊，因此该类单品利润为估算；整单总价仍使用实际合同价格。",
         "",
     ]
 
@@ -445,7 +540,7 @@ def render(profiles_data, pushed_contracts, pushed_markets):
         <b>已实现净利润：{html.escape(fmt_isk(total_profit))} ISK</b> ·
         已实现成本口径 ROI {total_roi*100:.1f}% · 匹配买入 {len(all_lots)} 批
       </div>
-      <p>合同按合同ID精确识别；市场机会按推送物品+来源地点+实际买入匹配。卖出采用FIFO归因，已扣除能按 market_transaction_id 对上的销售税。多物品合同的单品成本为比例分摊。</p>
+      <p>合同按合同ID精确识别；市场机会按推送物品+来源地点+实际买入匹配。卖出采用FIFO归因，同时统计市场成交和已完成的角色签发物品交换合同；已扣除能关联的市场销售税与合同销售税/经纪费。多物品合同的单品成本/回款为比例分摊。</p>
       <table style='border-collapse:collapse;width:100%;font-size:13px'>
         <tr>
           <th>角色</th><th>物品</th><th>买入数</th><th>机会来源</th><th>买入成本</th>
