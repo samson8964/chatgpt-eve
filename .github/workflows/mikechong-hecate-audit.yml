@@ -1,0 +1,172 @@
+name: MikeChong Hecate skill audit
+
+on:
+  push:
+    paths:
+      - '.github/workflows/mikechong-hecate-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+      SKILL_URL: https://eve-contract-opener.99617224.workers.dev/api/mikechong-skills
+    steps:
+      - name: Fetch MikeChong skill data
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${EVE_MAIL_API_KEY:-}" || { echo "Missing EVE_MAIL_API_KEY"; exit 2; }
+          curl -fsS -H "Authorization: Bearer $EVE_MAIL_API_KEY" "$SKILL_URL" -o /tmp/skills.json
+          python - <<'PY'
+          import json
+          d=json.load(open('/tmp/skills.json', encoding='utf-8'))
+          assert d.get('ok') is True, d
+          assert d.get('character_name') == 'MikeChong', d.get('character_name')
+          print('MikeChong skill data fetched successfully')
+          PY
+
+      - name: Calculate Hecate skill gaps
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, math, requests, urllib.parse
+
+          data=json.load(open('/tmp/skills.json', encoding='utf-8'))
+          current={int(x['skill_id']): int(x.get('skillpoints_in_skill') or 0) for x in data.get('skills', [])}
+          unallocated=int(data.get('unallocated_sp') or 0)
+          total_sp=int(data.get('total_sp') or 0)
+
+          # "Comfortable": Hecate blaster solo/small-gang PvP, strong fitting/tank/mobility,
+          # most performance skills IV, key fitting/hull/gun prerequisites V.
+          comfortable = {
+            'Spaceship Command': 4,
+            'Gallente Frigate': 3,
+            'Gallente Destroyer': 5,
+            'Gallente Tactical Destroyer': 4,
+            'Gunnery': 5,
+            'Small Hybrid Turret': 5,
+            'Small Blaster Specialization': 4,
+            'Motion Prediction': 4,
+            'Rapid Firing': 4,
+            'Sharpshooter': 4,
+            'Surgical Strike': 4,
+            'Trajectory Analysis': 4,
+            'Controlled Bursts': 4,
+            'Weapon Upgrades': 5,
+            'Advanced Weapon Upgrades': 4,
+            'CPU Management': 5,
+            'Power Grid Management': 5,
+            'Mechanics': 5,
+            'Hull Upgrades': 5,
+            'Repair Systems': 4,
+            'Armor Layering': 4,
+            'Capacitor Management': 4,
+            'Capacitor Systems Operation': 4,
+            'Navigation': 5,
+            'Acceleration Control': 4,
+            'Evasive Maneuvering': 4,
+            'High Speed Maneuvering': 4,
+            'Afterburner': 4,
+            'Warp Drive Operation': 4,
+            'Propulsion Jamming': 4,
+            'Thermodynamics': 4,
+            'Target Management': 4,
+            'Long Range Targeting': 4,
+            'Signature Analysis': 4,
+          }
+
+          # "Ideal": push hull and main weapon/navigation/support skills toward V.
+          ideal = {
+            **comfortable,
+            'Spaceship Command': 5,
+            'Gallente Tactical Destroyer': 5,
+            'Small Blaster Specialization': 5,
+            'Motion Prediction': 5,
+            'Rapid Firing': 5,
+            'Sharpshooter': 5,
+            'Surgical Strike': 5,
+            'Controlled Bursts': 5,
+            'Advanced Weapon Upgrades': 5,
+            'Repair Systems': 5,
+            'Capacitor Management': 5,
+            'Capacitor Systems Operation': 5,
+            'Acceleration Control': 5,
+            'Evasive Maneuvering': 5,
+            'High Speed Maneuvering': 5,
+            'Thermodynamics': 5,
+            'Signature Analysis': 5,
+          }
+
+          s=requests.Session()
+          s.headers['User-Agent']='samson8964-chatgpt-eve-hecate-audit/1.0'
+          cache={}
+
+          def resolve(name):
+            if name in cache: return cache[name]
+            q=urllib.parse.quote(name)
+            r=s.get(f'https://www.fuzzwork.co.uk/api/typeid.php?typename={q}', timeout=20)
+            r.raise_for_status()
+            lookup=r.json()
+            tid=int(lookup.get('typeID') or 0)
+            if not tid:
+              raise RuntimeError(f'Could not resolve skill: {name}')
+            tr=s.get(f'https://esi.evetech.net/latest/universe/types/{tid}/?datasource=tranquility', timeout=20)
+            tr.raise_for_status()
+            info=tr.json()
+            if str(info.get('name','')).casefold()!=name.casefold():
+              raise RuntimeError(f'Lookup mismatch for {name}: {info.get("name")} ({tid})')
+            cache[name]=(tid,info)
+            return tid,info
+
+          def rank(info):
+            for a in info.get('dogma_attributes') or []:
+              if int(a.get('attribute_id') or 0)==275:
+                return float(a.get('value') or 0)
+            raise RuntimeError(f"No skill rank for {info.get('name')}")
+
+          def target_sp(r, level):
+            if level <= 0: return 0
+            return int(math.ceil(250.0 * r * (2.0 ** (2.5 * (level-1)))))
+
+          def audit(target):
+            rows=[]; missing=0
+            for name, level in target.items():
+              tid,info=resolve(name)
+              need=target_sp(rank(info), level)
+              have=current.get(tid,0)
+              gap=max(0,need-have)
+              missing+=gap
+              rows.append((name,level,have,need,gap))
+            return missing,rows
+
+          def injectors(gap):
+            usable=max(0,gap-unallocated)
+            sp=total_sp; n=0
+            while usable>0:
+              y=500000 if sp<5000000 else 400000 if sp<50000000 else 300000 if sp<80000000 else 150000
+              usable-=y; sp+=y; n+=1
+            return n
+
+          cgap,crows=audit(comfortable)
+          igap,irows=audit(ideal)
+
+          print(f'TOTAL_SP={total_sp}')
+          print(f'UNALLOCATED_SP={unallocated}')
+          print(f'COMFORTABLE_MISSING_SP={cgap}')
+          print(f'COMFORTABLE_AFTER_UNALLOCATED_SP={max(0,cgap-unallocated)}')
+          print(f'COMFORTABLE_INJECTORS={injectors(cgap)}')
+          print(f'IDEAL_MISSING_SP={igap}')
+          print(f'IDEAL_AFTER_UNALLOCATED_SP={max(0,igap-unallocated)}')
+          print(f'IDEAL_INJECTORS={injectors(igap)}')
+          print('COMFORTABLE_GAPS_BEGIN')
+          for name,level,have,need,gap in sorted(crows,key=lambda x:x[-1], reverse=True):
+            if gap:
+              print(f'{name}|target={level}|have_sp={have}|target_sp={need}|gap_sp={gap}')
+          print('COMFORTABLE_GAPS_END')
+          PY
