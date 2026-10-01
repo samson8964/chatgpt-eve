@@ -1,7 +1,7 @@
 {
-  "generated_at_utc": "2026-10-01T13:23:30.674326+00:00",
-  "contracts_snapshot": "2026-10-01T13:01:15.836Z",
-  "market_snapshot": "2026-10-01T12:48:46.909Z",
+  "generated_at_utc": "2026-10-01T13:51:50.541374+00:00",
+  "contracts_snapshot": "2026-10-01T13:31:16.689Z",
+  "market_snapshot": "2026-10-01T13:18:29.684Z",
   "accounting_level": 5,
   "transaction_tax_rate": 0.033749999999999995,
   "market_broker_fee_rate": 0.0,
@@ -18,14 +18,14 @@
       "jumps": 15
     },
     {
-      "system_id": 30000176,
-      "system_name": "Keikaken",
-      "station_id": 60002845,
-      "station_name": "Keikaken I - Sukuuvestaa Corporation Production Plant",
+      "system_id": 30000177,
+      "system_name": "Ukkalen",
+      "station_id": 60002842,
+      "station_name": "Ukkalen IX - Moon 15 - Sukuuvestaa Corporation Foundry",
       "sci": 0.0131,
-      "jumps": 11
+      "jumps": 12
     }
   ],
-  "ranked_count": 31,
-  "all_executable_count": 118
+  "ranked_count": 29,
+  "all_executable_count": 99
 }
