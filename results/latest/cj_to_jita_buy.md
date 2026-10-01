@@ -1,7 +1,7 @@
 # C-J6MT - 1st Taj Mahgoon (DJ's Retirement Fund) → Jita 4-4 Opportunity Engine V2
 
-- Source orders: `52066`; source cache: `Thu, 01 Oct 2026 14:34:31 GMT`
-- Final Jita pricing: live ESI `2026-10-01T14:34:16.343130+00:00`
+- Source orders: `52119`; source cache: `Thu, 01 Oct 2026 15:09:37 GMT`
+- Final Jita pricing: live ESI `2026-10-01T15:08:32.894737+00:00`
 - High-sec restricted ships removed: `1`
 - Final ranking uses live depth, stress survival, liquidity and volume density.
 
@@ -15,8 +15,8 @@
 | 6 | B | SAFE | Spike L | 430,381 | 150 | 290 | 26.57M | 30.2% | 62.7 | 2.5K | high |
 | 7 | B | SAFE | Atavum | 329 | 346.4K | 428.6K | 16.14M | 13.4% | 61.4 | 490.7K | high |
 | 8 | B | SAFE | Absolution | 1 | 265.30M | 310.00M | 34.24M | 12.9% | 57.6 | 2.3K | high |
-| 9 | B | SAFE | Drone Link Augmentor II | 203 | 966.0K | 1.16M | 30.54M | 15.5% | 57.2 | 6.0K | high |
-| 10 | C | SAFE | Scourge Rage Torpedo | 186,256 | 1.2K | 1.5K | 37.57M | 16.3% | 54.9 | 4.0K | high |
+| 9 | B | SAFE | Drone Link Augmentor II | 202 | 966.0K | 1.16M | 30.30M | 15.5% | 57.0 | 6.0K | high |
+| 10 | B | SAFE | Scourge Rage Torpedo | 193,920 | 1.2K | 1.5K | 39.28M | 16.4% | 55.1 | 4.1K | high |
 | 11 | C | SAFE | Cryoprotectant Solution | 874 | 100.6K | 118.8K | 12.40M | 14.1% | 53.7 | 4.7K | high |
 | 12 | C | SAFE | Gleam L | 787 | 243.8K | 285.1K | 24.29M | 12.6% | 51.7 | 30.9K | high |
 | 13 | C | SAFE | 'Integrated' Valkyrie | 168 | 489.2K | 601.2K | 15.33M | 18.6% | 51.4 | 9.1K | high |

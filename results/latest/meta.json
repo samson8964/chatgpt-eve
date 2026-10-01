@@ -1,7 +1,7 @@
 {
-  "generated_at_utc": "2026-10-01T14:25:35.841797+00:00",
-  "contracts_snapshot": "2026-10-01T14:01:18.928Z",
-  "market_snapshot": "2026-10-01T13:48:28.398Z",
+  "generated_at_utc": "2026-10-01T14:56:38.360429+00:00",
+  "contracts_snapshot": "2026-10-01T14:31:16.217Z",
+  "market_snapshot": "2026-10-01T14:18:33.667Z",
   "accounting_level": 5,
   "transaction_tax_rate": 0.033749999999999995,
   "market_broker_fee_rate": 0.0,
@@ -14,7 +14,7 @@
       "system_name": "Uchoshi",
       "station_id": 60004381,
       "station_name": "Uchoshi I - Corporate Police Force Assembly Plant",
-      "sci": 0.0093,
+      "sci": 0.0092,
       "jumps": 15
     },
     {
@@ -26,6 +26,6 @@
       "jumps": 12
     }
   ],
-  "ranked_count": 28,
+  "ranked_count": 27,
   "all_executable_count": 97
 }
