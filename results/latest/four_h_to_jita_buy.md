@@ -1,8 +1,10 @@
 # 4-HWWF → Jita 4-4 Opportunity Engine V2
 
-- Source orders: `34461`; source cache: `Thu, 01 Oct 2026 20:01:25 GMT`
-- Final Jita pricing: live ESI `2026-10-01T19:59:04.123532+00:00`
+- Source orders: `34444`; source cache: `Thu, 01 Oct 2026 20:36:32 GMT`
+- Final Jita pricing: live ESI `2026-10-01T20:33:20.907666+00:00`
 - High-sec restricted ships removed: `1`
 - Final ranking uses live depth, stress survival, liquidity and volume density.
 
-No live-revalidated opportunity passed the V2 filters.
+| # | Grade | Status | Item | Qty | 4-HWWF | Jita live buy | Net | ROI | Score | ISK/m3 | Liquidity |
+|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|
+| 1 | C | CHANGED | 'Kindred' Gyrostabilizer | 6 | 19.89M | 25.00M | 25.60M | 21.4% | 43.6 | 853.2K | high |
