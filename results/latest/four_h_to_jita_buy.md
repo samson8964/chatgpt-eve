@@ -1,8 +1,10 @@
 # 4-HWWF → Jita 4-4 Opportunity Engine V2
 
-- Source orders: `34695`; source cache: `Thu, 01 Oct 2026 15:35:29 GMT`
-- Final Jita pricing: live ESI `2026-10-01T15:32:55.512388+00:00`
+- Source orders: `34757`; source cache: `Thu, 01 Oct 2026 16:05:37 GMT`
+- Final Jita pricing: live ESI `2026-10-01T16:06:05.243608+00:00`
 - High-sec restricted ships removed: `1`
 - Final ranking uses live depth, stress survival, liquidity and volume density.
 
-No live-revalidated opportunity passed the V2 filters.
+| # | Grade | Status | Item | Qty | 4-HWWF | Jita live buy | Net | ROI | Score | ISK/m3 | Liquidity |
+|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|
+| 1 | B | SAFE | Raging Exotic Filament | 14 | 8.00M | 9.41M | 15.34M | 13.7% | 62.2 | 10.96M | high |
