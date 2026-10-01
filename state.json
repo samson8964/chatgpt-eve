@@ -323117,11 +323117,14 @@
   "region_errors": {},
   "regions_checked": 114,
   "regions_total": 114,
-  "running": true,
+  "round_completed": 1,
+  "running": false,
   "scanned": 23440,
   "snapshot_error": null,
   "snapshot_modified": "2026-10-01T11:31:38.741Z",
   "snapshot_target_contracts": 53,
+  "spread_mail_enabled": false,
+  "spread_opportunities": 1,
   "stage": "等待下一次检查",
   "volume_cap": 0.04
  },
@@ -323130,5 +323133,5 @@
   "236580119": 1790857311.1614273,
   "236580122": 1790857310.7098992
  },
- "updated": "2026-10-01T11:53:14.433292+00:00"
+ "updated": "2026-10-01T11:53:16.798962+00:00"
 }
