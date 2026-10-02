@@ -1,0 +1,53 @@
+name: Compressed gas decompression arbitrage
+
+on:
+  push:
+    paths:
+      - "compressed_gas_decompression_arbitrage.py"
+      - ".github/workflows/compressed-gas-arbitrage.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Scan Jita compressed gas decompression arbitrage
+        env:
+          GAS_DECOMP_EFFICIENCY: "0.90"
+          GAS_DECOMP_FEE_RESERVE_RATE: "0.01"
+          ACCOUNTING_LEVEL: "5"
+        run: python compressed_gas_decompression_arbitrage.py
+
+      - name: Add report to summary
+        if: always()
+        run: |
+          if [ -f results/latest/compressed_gas_decompression_arbitrage.md ]; then
+            cat results/latest/compressed_gas_decompression_arbitrage.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compressed-gas-arbitrage
+          path: |
+            results/latest/compressed_gas_decompression_arbitrage.csv
+            results/latest/compressed_gas_decompression_arbitrage.md
+          if-no-files-found: warn
+          retention-days: 7
