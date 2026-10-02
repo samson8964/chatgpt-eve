@@ -1,7 +1,7 @@
 # 4-HWWF → Jita 4-4 Opportunity Engine V2
 
-- Source orders: `34618`; source cache: `Fri, 02 Oct 2026 04:07:48 GMT`
-- Final Jita pricing: live ESI `2026-10-02T04:06:57.494672+00:00`
+- Source orders: `34621`; source cache: `Fri, 02 Oct 2026 04:47:54 GMT`
+- Final Jita pricing: live ESI `2026-10-02T04:45:25.724473+00:00`
 - High-sec restricted ships removed: `1`
 - Final ranking uses live depth, stress survival, liquidity and volume density.
 
