@@ -1,7 +1,7 @@
 # C-J6MT - 1st Taj Mahgoon (DJ's Retirement Fund) → Jita 4-4 Opportunity Engine V2
 
-- Source orders: `51665`; source cache: `Fri, 02 Oct 2026 00:05:25 GMT`
-- Final Jita pricing: live ESI `2026-10-02T00:03:08.742522+00:00`
+- Source orders: `51671`; source cache: `Fri, 02 Oct 2026 00:30:28 GMT`
+- Final Jita pricing: live ESI `2026-10-02T00:28:21.909660+00:00`
 - High-sec restricted ships removed: `1`
 - Final ranking uses live depth, stress survival, liquidity and volume density.
 
@@ -15,7 +15,7 @@
 | 6 | B | SAFE | Centus X-Type EM Armor Hardener | 6 | 98.62M | 116.90M | 75.18M | 12.7% | 67.4 | 2.51M | high |
 | 7 | B | SAFE | Mining Laser Optimization Charge | 536,557 | 274 | 402 | 50.67M | 32.2% | 66.0 | 9.4K | high |
 | 8 | B | SAFE | Spike L | 429,631 | 150 | 305 | 33.64M | 38.2% | 64.3 | 3.1K | high |
-| 9 | B | SAFE | Optimized Attainment Decryptor | 44 | 3.25M | 3.81M | 19.16M | 13.4% | 63.2 | 4.35M | high |
+| 9 | B | SAFE | Optimized Attainment Decryptor | 45 | 3.25M | 4.00M | 27.59M | 18.9% | 63.3 | 6.13M | high |
 | 10 | B | SAFE | Trigger Unit | 518 | 524.8K | 600.0K | 28.37M | 10.4% | 63.0 | 5.48M | high |
 | 11 | B | SAFE | Corpus X-Type EM Armor Hardener | 1 | 98.00M | 112.50M | 10.70M | 10.9% | 57.8 | 2.14M | high |
 | 12 | C | SAFE | Tholos | 2 | 119.90M | 140.00M | 27.75M | 11.6% | 54.8 | 2.8K | high |
