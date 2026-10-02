@@ -1,7 +1,7 @@
 # 4-HWWF → Jita 4-4 Opportunity Engine V2
 
-- Source orders: `34621`; source cache: `Fri, 02 Oct 2026 04:47:54 GMT`
-- Final Jita pricing: live ESI `2026-10-02T04:45:25.724473+00:00`
+- Source orders: `34622`; source cache: `Fri, 02 Oct 2026 05:28:02 GMT`
+- Final Jita pricing: live ESI `2026-10-02T05:25:30.227877+00:00`
 - High-sec restricted ships removed: `1`
 - Final ranking uses live depth, stress survival, liquidity and volume density.
 
@@ -9,4 +9,4 @@
 |---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|
 | 1 | A | SAFE | Legion Scourge Auto-Targeting Cruise Missile | 24,964 | 505 | 2.0K | 34.45M | 273.2% | 73.4 | 27.6K | high |
 | 2 | C | SAFE | Aurora L | 353 | 336.5K | 395.1K | 15.98M | 13.4% | 44.5 | 45.3K | high |
-| 3 | C | CHANGED | 'Kindred' Gyrostabilizer | 6 | 19.89M | 25.00M | 25.60M | 21.4% | 43.6 | 853.2K | high |
+| 3 | C | CHANGED | 'Kindred' Gyrostabilizer | 7 | 19.89M | 25.01M | 29.90M | 21.5% | 45.5 | 854.4K | high |
