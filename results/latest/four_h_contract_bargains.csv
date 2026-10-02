@@ -1,1 +1,2 @@
-
+engine_version,contract_id,title,price,best_route,execution_status,score_grade,opportunity_score,best_net_profit,best_roi,stress_net_profit,packaged_volume_m3,profit_per_m3,excluded_rig_types,excluded_rig_qty,highsec_restricted_ship,live_revalidated_at,top_items
+Opportunity Engine V2,236633074,nan,500000000.0,Jita 4-4 live buy,SAFE,S,86.9,296171143.727875,0.59234228745575,292095147.40645003,9034.59,32781.91303953749,0,0,False,2026-10-02T23:37:18.254048+00:00,Technetium x18352 @ 11.9K; Cadmium x28343 @ 5.3K; Hafnium x18108 @ 7.8K; Chromium x21919 @ 5.7K; Morphite x5934 @ 17.5K
