@@ -324920,14 +324920,17 @@
   "region_errors": {},
   "regions_checked": 114,
   "regions_total": 114,
-  "running": true,
+  "round_completed": 1,
+  "running": false,
   "scanned": 23584,
   "snapshot_error": null,
   "snapshot_modified": "2026-10-02T19:01:48.316Z",
   "snapshot_target_contracts": 60,
+  "spread_mail_enabled": false,
+  "spread_opportunities": 0,
   "stage": "等待下一次检查",
   "volume_cap": 0.04
  },
  "unavailable_until": {},
- "updated": "2026-10-02T19:23:04.475939+00:00"
+ "updated": "2026-10-02T19:23:06.568493+00:00"
 }
