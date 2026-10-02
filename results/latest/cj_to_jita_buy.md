@@ -1,22 +1,22 @@
 # C-J6MT - 1st Taj Mahgoon (DJ's Retirement Fund) → Jita 4-4 Opportunity Engine V2
 
-- Source orders: `51654`; source cache: `Fri, 02 Oct 2026 08:41:06 GMT`
-- Final Jita pricing: live ESI `2026-10-02T08:38:30.950853+00:00`
+- Source orders: `51650`; source cache: `Fri, 02 Oct 2026 09:01:06 GMT`
+- Final Jita pricing: live ESI `2026-10-02T09:00:56.887446+00:00`
 - High-sec restricted ships removed: `1`
 - Final ranking uses live depth, stress survival, liquidity and volume density.
 
 | # | Grade | Status | Item | Qty | C-J6MT - 1st Taj Mahgoon (DJ's Retirement Fund) | Jita live buy | Net | ROI | Score | ISK/m3 | Liquidity |
 |---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|
 | 1 | A | SAFE | Union Contemplation Background | 11 | 500.0K | 2.72M | 18.62M | 181.2% | 76.9 | 16.92M | high |
-| 2 | A | SAFE | Optimized Attainment Decryptor | 50 | 3.20M | 4.02M | 31.65M | 19.5% | 71.1 | 6.33M | high |
+| 2 | A | SAFE | Optimized Attainment Decryptor | 50 | 3.20M | 4.02M | 31.83M | 19.6% | 71.1 | 6.37M | high |
 | 3 | A | SAFE | Soaring Federation Background | 56 | 1.20M | 2.14M | 33.27M | 40.4% | 70.1 | 5.94M | medium |
-| 4 | B | SAFE | Centus X-Type EM Armor Hardener | 6 | 98.92M | 117.70M | 76.24M | 12.8% | 69.0 | 2.54M | high |
+| 4 | B | SAFE | Centus X-Type EM Armor Hardener | 6 | 98.92M | 117.90M | 79.72M | 13.4% | 69.4 | 2.66M | high |
 | 5 | B | SAFE | Einherji I | 6 | 2.59M | 5.05M | 13.73M | 88.3% | 67.0 | 2.3K | high |
-| 6 | B | SAFE | Gist X-Type EM Shield Hardener | 6 | 53.32M | 63.84M | 37.83M | 11.4% | 65.4 | 1.26M | high |
+| 6 | B | SAFE | Gist X-Type EM Shield Hardener | 6 | 53.32M | 64.68M | 41.90M | 12.6% | 66.3 | 1.40M | high |
 | 7 | B | SAFE | Mining Laser Optimization Charge | 525,827 | 290 | 402 | 46.34M | 29.4% | 65.0 | 8.8K | high |
 | 8 | B | SAFE | Trigger Unit | 518 | 524.8K | 602.0K | 29.37M | 10.8% | 63.3 | 5.67M | high |
-| 9 | B | SAFE | Spike L | 406,909 | 205 | 297 | 31.63M | 37.9% | 61.8 | 3.1K | high |
-| 10 | B | SAFE | Corpus X-Type EM Armor Hardener | 1 | 98.00M | 113.20M | 11.38M | 11.6% | 58.7 | 2.28M | high |
+| 9 | B | SAFE | Spike L | 406,909 | 205 | 297 | 31.63M | 37.9% | 61.7 | 3.1K | high |
+| 10 | B | SAFE | Corpus X-Type EM Armor Hardener | 1 | 98.00M | 113.30M | 11.48M | 11.7% | 58.8 | 2.30M | high |
 | 11 | B | SAFE | Buzzard Cold Wind's Call SKIN | 1 | 125.00M | 145.50M | 15.59M | 12.5% | 56.6 | 1.56B | high |
 | 12 | B | SAFE | Cryoprotectant Solution | 874 | 100.6K | 120.0K | 13.22M | 15.0% | 55.2 | 5.0K | high |
 | 13 | C | SAFE | 'Integrated' Valkyrie | 163 | 489.2K | 605.0K | 15.53M | 19.5% | 51.9 | 9.5K | high |
