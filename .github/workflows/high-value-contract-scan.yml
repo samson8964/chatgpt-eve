@@ -1,0 +1,75 @@
+name: High value contract scan validation
+
+on:
+  push:
+    paths:
+      - "high_value_contract_scanner.py"
+      - "send_high_value_contract_mail.py"
+      - ".github/workflows/high-value-contract-scan.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Compile new high-value modules
+        run: python -m py_compile high_value_contract_scanner.py send_high_value_contract_mail.py
+
+      - name: Run high-value contract scanner
+        env:
+          HVC_MIN_CONTRACT_PRICE: "5000000000"
+          HVC_ACTIONABLE_CAPITAL: "8000000000"
+          HVC_WATCH_MAX: "20000000000"
+          HVC_MIN_NET_PROFIT: "500000000"
+          HVC_MIN_NET_ROI: "0.10"
+          HVC_LIST_MAX_FILL_DAYS: "14"
+          HVC_LIST_PRICE_HAIRCUT: "0.10"
+          HVC_CAPITAL_LOCAL_RISK_RATE: "0.03"
+          HVC_ACTIONABLE_LIVE_LIMIT: "160"
+          HVC_WATCH_LIVE_LIMIT: "50"
+          HVC_RESEARCH_LIVE_LIMIT: "20"
+          HVC_HISTORY_CANDIDATES: "70"
+          DEAL_SKIN_MAJOR_SHARE: "0.50"
+          DEAL_HAUL_BASE_ISK: "2000000"
+          DEAL_HAUL_ISK_PER_M3_JUMP: "200"
+          DEAL_FRIENDLY_CHARACTER_ID: "2124493042"
+          MIN_PROFIT_PER_M3: "2000"
+          ACCOUNTING_LEVEL: "5"
+        run: python high_value_contract_scanner.py
+
+      - name: Add report to summary
+        if: always()
+        run: |
+          if [ -f results/latest/high_value_contract_report.md ]; then
+            cat results/latest/high_value_contract_report.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: high-value-contract-validation
+          path: |
+            results/latest/high_value_contract_universe.csv
+            results/latest/high_value_contract_all.csv
+            results/latest/high_value_contract_actionable.csv
+            results/latest/high_value_contract_watch.csv
+            results/latest/high_value_contract_report.md
+          if-no-files-found: warn
+          retention-days: 7
