@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import time
 from collections import defaultdict
 from pathlib import Path
 
@@ -39,25 +40,54 @@ RESULT = LATEST / os.getenv("SOURCE_CONTRACT_RESULT_CSV", "four_h_contract_barga
 REPORT = LATEST / os.getenv("SOURCE_CONTRACT_REPORT_MD", "four_h_contract_bargains.md")
 
 
-def fetch_structure_orders():
+def _fetch_structure_page(page: int, max_attempts: int = 4) -> dict:
+    """Fetch one structure-market page with bounded retry for transient upstream failures."""
     if not API_KEY:
         raise RuntimeError("Missing EVE_MARKET_API_KEY")
+
+    last_error = None
+    for attempt in range(1, max_attempts + 1):
+        try:
+            r = requests.get(
+                f"{WORKER_URL}/api/structure-market",
+                params={"structure_id": STRUCTURE_ID, "page": page, "auth_profile": AUTH_PROFILE},
+                headers={"Authorization": f"Bearer {API_KEY}", "Accept": "application/json"},
+                timeout=60,
+            )
+        except requests.RequestException as exc:
+            last_error = f"{type(exc).__name__}: {exc}"
+            retryable = True
+        else:
+            try:
+                data = r.json()
+            except Exception:
+                data = None
+            if r.status_code == 200 and isinstance(data, dict) and data.get("ok"):
+                return data
+            detail = data if data is not None else r.text[:500]
+            last_error = f"HTTP {r.status_code}: {detail}"
+            retryable = r.status_code == 429 or r.status_code >= 500
+
+        if not retryable or attempt >= max_attempts:
+            break
+        delay = min(8, 2 * attempt)
+        print(
+            f"structure market transient failure page={page} attempt={attempt}/{max_attempts}: "
+            f"{last_error}; retrying in {delay}s"
+        )
+        time.sleep(delay)
+
+    raise RuntimeError(
+        f"Structure market failed page={page} after {max_attempts} attempt(s): {last_error}"
+    )
+
+
+def fetch_structure_orders():
     page = 1
     raw = []
     pages = 1
     while page <= pages:
-        r = requests.get(
-            f"{WORKER_URL}/api/structure-market",
-            params={"structure_id": STRUCTURE_ID, "page": page, "auth_profile": AUTH_PROFILE},
-            headers={"Authorization": f"Bearer {API_KEY}", "Accept": "application/json"},
-            timeout=60,
-        )
-        try:
-            data = r.json()
-        except Exception:
-            raise RuntimeError(f"Structure market HTTP {r.status_code}: {r.text[:500]}")
-        if r.status_code != 200 or not data.get("ok"):
-            raise RuntimeError(f"Structure market error HTTP {r.status_code}: {data}")
+        data = _fetch_structure_page(page)
         pages = max(1, int(data.get("pages") or 1))
         raw.extend(data.get("orders") or [])
         page += 1
