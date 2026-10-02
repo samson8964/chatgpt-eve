@@ -75,6 +75,7 @@ LIST_HAIRCUT = float(os.getenv("HVC_LIST_PRICE_HAIRCUT", "0.10"))
 LIST_PARTICIPATION = float(os.getenv("HVC_LIST_PARTICIPATION", "0.20"))
 CAPITAL_LOCAL_RISK_RATE = float(os.getenv("HVC_CAPITAL_LOCAL_RISK_RATE", "0.03"))
 STRESS_PRICE_SHOCK = float(os.getenv("HVC_STRESS_PRICE_SHOCK", "0.05"))
+MAX_LIVE_TYPES_PER_CONTRACT = int(os.getenv("HVC_MAX_LIVE_TYPES_PER_CONTRACT", "25"))
 SKIN_MAJOR_SHARE = float(os.getenv("DEAL_SKIN_MAJOR_SHARE", "0.50"))
 
 UNIVERSE_RESULT = LATEST / "high_value_contract_universe.csv"
@@ -165,6 +166,25 @@ def split_capitals(itemq, types, groups):
     for tid, qty in itemq.items():
         (capital if restricted_ship(tid, types, groups) else normal)[int(tid)] = int(qty)
     return normal, capital
+
+
+def focus_normal_bundle(itemq, buy_books, sell_books):
+    """Keep only the largest snapshot-value normal types for live validation.
+
+    Omitted items are worth zero in final economics, so this can only understate
+    value. Full contract volume is still charged to hauling separately.
+    """
+    if len(itemq) <= MAX_LIVE_TYPES_PER_CONTRACT:
+        return dict(itemq)
+    ranked = []
+    for tid, qty in itemq.items():
+        cash = partial_liquidation({int(tid): int(qty)}, buy_books, SALES_TAX_RATE)
+        replacement = procurement_cost({int(tid): int(qty)}, sell_books)
+        sell_value = float(replacement["cost"]) if replacement.get("complete") else 0.0
+        score = max(float(cash.get("net_after_tax", 0) or 0), sell_value)
+        ranked.append((score, int(tid), int(qty)))
+    ranked.sort(reverse=True)
+    return {tid: qty for _, tid, qty in ranked[:MAX_LIVE_TYPES_PER_CONTRACT]}
 
 
 def tier(price):
@@ -480,7 +500,8 @@ def main():
         f = analyze_contract_items(raw_groups.get(cid, []), types, groups)
         if not f.adjusted_itemq or len(f.adjusted_itemq) < MIN_TYPES:
             continue
-        normal_q, capital_q = split_capitals(f.adjusted_itemq, types, groups)
+        all_normal_q, capital_q = split_capitals(f.adjusted_itemq, types, groups)
+        normal_q = focus_normal_bundle(all_normal_q, snapshot_buys, snapshot_sells)
         snap = partial_liquidation(normal_q, snapshot_buys, SALES_TAX_RATE) if normal_q else empty_cash()
         skin_value = sum(
             num(r.get("gross"), 0.0)
@@ -490,6 +511,7 @@ def main():
         skin_share = skin_value / snap["gross"] if snap["gross"] > 0 else 0.0
         q = dict(p)
         q["normal_q"] = normal_q
+        q["all_normal_q"] = all_normal_q
         q["capital_q"] = capital_q
         q["feasibility"] = f
         q["skin_value_share"] = skin_share
@@ -539,8 +561,8 @@ def main():
         cap_cash = cash_quote(capital_q, cap_books)
         cap_stress = stress_cash(capital_q, cap_books)
 
-        normal_m3 = volume(normal_q, types)
-        haul = haul_reserve(normal_m3, loc) if normal_q else 0.0
+        normal_m3 = volume(p["all_normal_q"], types)
+        haul = haul_reserve(normal_m3, loc) if p["all_normal_q"] else 0.0
 
         cap_cash_net = cap_cash["net_after_tax"] * (1.0 - CAPITAL_LOCAL_RISK_RATE)
         cap_stress_net = cap_stress["net_after_tax"] * (1.0 - CAPITAL_LOCAL_RISK_RATE)
@@ -665,7 +687,9 @@ def main():
             "jita_cash_coverage": normal_cash["coverage"],
             "capital_local_cash_coverage": cap_cash["coverage"],
             "has_capital_ship": bool(capital_q),
-            "normal_item_type_count": len(normal_q),
+            "normal_item_type_count": len(p["all_normal_q"]),
+            "live_valued_normal_type_count": len(normal_q),
+            "ignored_normal_type_count": max(0, len(p["all_normal_q"]) - len(normal_q)),
             "capital_item_type_count": len(capital_q),
             "skin_value_share": p["skin_value_share"],
             "excluded_rig_qty": sum(p["feasibility"].excluded_rigs.values()),
