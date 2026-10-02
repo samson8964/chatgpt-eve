@@ -24,6 +24,8 @@ on:
       - 'buy_only_mail_templates.py'
       - 'send_eve_mail_buy_only_multi.py'
       - 'send_multi_item_buy_only_multi.py'
+      - 'high_value_contract_scanner.py'
+      - 'send_high_value_contract_mail.py'
       - 'send_multi_grade_watch.py'
       - 'send_global_grade_watch.py'
       - 'send_global_grade_watch_gmail.py'
@@ -185,6 +187,36 @@ jobs:
           DEAL_FRIENDLY_ALLIANCE_IDS: ''
           DEAL_FRIENDLY_REGION_IDS: ''
         run: python multi_item_contract_scanner.py
+
+      - name: Scan high-value multi-item contracts independently
+        id: high_value
+        continue-on-error: true
+        if: steps.cadence.outputs.run_scan == 'true'
+        env:
+          HVC_MIN_CONTRACT_PRICE: '5000000000'
+          HVC_ACTIONABLE_CAPITAL: '8000000000'
+          HVC_WATCH_MAX: '20000000000'
+          HVC_MIN_TYPES: '2'
+          HVC_MIN_HOURS_TO_EXPIRE: '0.5'
+          HVC_MIN_NET_PROFIT: '500000000'
+          HVC_MIN_NET_ROI: '0.10'
+          HVC_LIST_MAX_FILL_DAYS: '14'
+          HVC_LIST_PRICE_HAIRCUT: '0.10'
+          HVC_LIST_PARTICIPATION: '0.20'
+          HVC_CAPITAL_LOCAL_RISK_RATE: '0.03'
+          HVC_ACTIONABLE_LIVE_LIMIT: '60'
+          HVC_WATCH_LIVE_LIMIT: '15'
+          HVC_RESEARCH_LIVE_LIMIT: '5'
+          HVC_HISTORY_CANDIDATES: '30'
+          HVC_MAX_LIVE_TYPES_PER_CONTRACT: '25'
+          DEAL_SKIN_MAJOR_SHARE: '0.50'
+          DEAL_HAUL_BASE_ISK: '2000000'
+          DEAL_HAUL_ISK_PER_M3_JUMP: '200'
+          DEAL_FRIENDLY_CHARACTER_ID: '2124493042'
+          DEAL_FRIENDLY_ALLIANCE_IDS: ''
+          DEAL_FRIENDLY_REGION_IDS: ''
+          ACCOUNTING_LEVEL: '5'
+        run: python high_value_contract_scanner.py
 
       - name: Scan 4-H contracts with Opportunity Engine V2
         id: four_h_contract
@@ -360,6 +392,30 @@ jobs:
             echo 'Multi-item mail delivery reported failure.'
             exit 2
           fi
+
+      - name: Send high-value contract SAFE digest
+        id: mail_high_value
+        continue-on-error: true
+        if: steps.cadence.outputs.run_scan == 'true' && steps.high_value.outcome == 'success'
+        env:
+          EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+          EVE_MAIL_RECIPIENT_NAME: MikeChong
+          EVE_MAIL_RECIPIENT_NAMES: 'MikeChong,LadyBaBa'
+          EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
+          HVC_MAIL_TOP: '10'
+          HVC_MAIL_MIN_PROFIT: '500000000'
+          HVC_MAIL_MIN_ROI: '0.10'
+          HVC_MAIL_REMIND_AFTER_HOURS: '6'
+        shell: bash
+        run: |
+          set -o pipefail
+          python send_high_value_contract_mail.py 2>&1 | tee /tmp/mail-high-value.log
+
+      - name: Report degraded high-value channel without blocking existing alerts
+        if: steps.cadence.outputs.run_scan == 'true' && (steps.high_value.outcome != 'success' || steps.mail_high_value.outcome == 'failure')
+        shell: bash
+        run: |
+          echo "::warning::High-value contract channel degraded: scan=${{ steps.high_value.outcome }}, mail=${{ steps.mail_high_value.outcome }}. Existing channels are unchanged."
 
       - name: Send first-seen global A/S opportunity alerts
         id: mail_global_watch
@@ -589,6 +645,8 @@ jobs:
           echo "v3_reverse=${{ steps.v3_reverse.outcome }}"
           echo "mail_core=${{ steps.mail_core.outcome }}"
           echo "mail_multi=${{ steps.mail_multi.outcome }}"
+          echo "high_value=${{ steps.high_value.outcome }}"
+          echo "mail_high_value=${{ steps.mail_high_value.outcome }}"
           echo "mail_four_h_contract=${{ steps.mail_four_h_contract.outcome }}"
           echo "mail_four_h_market=${{ steps.mail_four_h_market.outcome }}"
           echo "mail_cj_contract=${{ steps.mail_cj_contract.outcome }}"
