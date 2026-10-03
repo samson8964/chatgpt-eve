@@ -59,6 +59,26 @@ def resolve_station(session, station_id):
 def resolve_system(session, system_id):
     return get_json(session, f"/universe/systems/{system_id}/")
 
+def route_security_summary(session, route):
+    systems = []
+    lowsec = 0
+    nullsec = 0
+    highsec = 0
+    for system_id in route:
+        info = resolve_system(session, system_id)
+        sec = float(info.get("security_status") or 0)
+        if sec <= 0.0:
+            band = "nullsec"
+            nullsec += 1
+        elif sec < 0.45:
+            band = "lowsec"
+            lowsec += 1
+        else:
+            band = "highsec"
+            highsec += 1
+        systems.append({"id": system_id, "name": info.get("name"), "security_status": sec, "band": band})
+    return {"highsec_systems": highsec, "lowsec_systems": lowsec, "nullsec_systems": nullsec, "danger_systems": lowsec + nullsec, "systems": systems}
+
 def calculate_route(session, origin_system_id, destination_system_id, preference="Shorter"):
     url = f"{ESI_BASE}/route/{origin_system_id}/{destination_system_id}"
     response = session.post(url, json={"preference": preference, "security_penalty": 50}, timeout=45)
@@ -206,7 +226,7 @@ def main():
                 "list_record": j,
                 "detail": detail,
                 "delivery_details": [
-                    (lambda st: {"kind": loc["kind"], "id": loc["id"], "name": st.get("name"), "system_id": st.get("system_id"), "system_name": (resolve_system(s, st.get("system_id")).get("name") if st.get("system_id") else None), "jita_shortest_jumps": (len(calculate_route(s, 30000142, st.get("system_id"))) - 1 if st.get("system_id") else None)})(resolve_station(s, int(loc["id"]))) if loc["kind"] == "station" else {"kind": loc["kind"], "id": loc["id"], "status": "HOLD_STRUCTURE_AUTH_REQUIRED"}
+                    (lambda st, route: {"kind": loc["kind"], "id": loc["id"], "name": st.get("name"), "system_id": st.get("system_id"), "system_name": (resolve_system(s, st.get("system_id")).get("name") if st.get("system_id") else None), "jita_shortest_jumps": (len(route) - 1 if route else None), "route_security": (route_security_summary(s, route) if route else None)})(resolve_station(s, int(loc["id"])), calculate_route(s, 30000142, resolve_station(s, int(loc["id"])).get("system_id"))) if loc["kind"] == "station" else {"kind": loc["kind"], "id": loc["id"], "status": "HOLD_STRUCTURE_AUTH_REQUIRED"}
                     for loc in delivery_locations
                 ],
                 "delivery_locations": delivery_locations,
