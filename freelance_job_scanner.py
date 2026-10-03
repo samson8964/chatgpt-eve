@@ -69,13 +69,32 @@ def transport_risk_estimate(cargo_value, jumps, route_security):
     security = cargo_value * (0.015 * low + 0.035 * null)
     return {"base_cost": base, "distance_cost": distance, "security_risk_cost": security, "estimated_total": base + distance + security, "danger_systems": danger}
 
+_TYPE_CACHE = {}
+_STATION_CACHE = {}
+_SYSTEM_CACHE = {}
+
+def cached_type(session, type_id):
+    key = int(type_id)
+    if key not in _TYPE_CACHE: _TYPE_CACHE[key] = resolve_type(session, key)
+    return _TYPE_CACHE[key]
+
+def cached_station(session, station_id):
+    key = int(station_id)
+    if key not in _STATION_CACHE: _STATION_CACHE[key] = resolve_station(session, key)
+    return _STATION_CACHE[key]
+
+def cached_system(session, system_id):
+    key = int(system_id)
+    if key not in _SYSTEM_CACHE: _SYSTEM_CACHE[key] = resolve_system(session, key)
+    return _SYSTEM_CACHE[key]
+
 def route_security_summary(session, route):
     systems = []
     lowsec = 0
     nullsec = 0
     highsec = 0
     for system_id in route:
-        info = resolve_system(session, system_id)
+        info = cached_system(session, system_id)
         sec = float(info.get("security_status") or 0)
         if sec <= 0.0:
             band = "nullsec"
@@ -212,7 +231,7 @@ def main():
         type_ids, delivery_locations = extract_delivery(detail)
         market_checks = []
         for type_id in type_ids:
-            type_info = resolve_type(s, type_id)
+            type_info = cached_type(s, type_id)
             max_quantity = int(remaining_work) if remaining_work > 0 else 1
             orders = jita_sell_orders(s, type_id)
             unit_reward = float((detail.get("contribution") or {}).get("reward_per_contribution") or 0)
@@ -233,11 +252,11 @@ def main():
             if loc["kind"] != "station":
                 delivery_details.append({"kind": loc["kind"], "id": loc["id"], "status": "HOLD_STRUCTURE_AUTH_REQUIRED"})
                 continue
-            st = resolve_station(s, int(loc["id"]))
+            st = cached_station(s, int(loc["id"]))
             sid = st.get("system_id")
             route = calculate_route(s, 30000142, sid) if sid else []
             security = route_security_summary(s, route) if route else None
-            delivery_details.append({"kind": "station", "id": loc["id"], "name": st.get("name"), "system_id": sid, "system_name": resolve_system(s, sid).get("name") if sid else None, "jita_shortest_jumps": len(route)-1 if route else None, "route_security": security})
+            delivery_details.append({"kind": "station", "id": loc["id"], "name": st.get("name"), "system_id": sid, "system_name": cached_system(s, sid).get("name") if sid else None, "jita_shortest_jumps": len(route)-1 if route else None, "route_security": security})
         final_candidates = []
         for mc in market_checks:
             best = mc.get("best_executable")
