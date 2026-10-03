@@ -53,6 +53,18 @@ def executable_cost(orders, quantity):
     return {"fillable": need == 0, "missing": need, "total_cost": cost, "fills": fills}
 
 
+def resolve_station(session, station_id):
+    return get_json(session, f"/universe/stations/{station_id}/")
+
+def resolve_system(session, system_id):
+    return get_json(session, f"/universe/systems/{system_id}/")
+
+def calculate_route(session, origin_system_id, destination_system_id, preference="Shorter"):
+    url = f"{ESI_BASE}/route/{origin_system_id}/{destination_system_id}"
+    response = session.post(url, json={"preference": preference, "security_penalty": 50}, timeout=45)
+    response.raise_for_status()
+    return response.json()
+
 def extract_delivery(detail):
     cfg = (((detail.get("configuration") or {}).get("parameters") or {}).get("corporation_item_delivery") or {}).get("corporation_item_delivery") or {}
     type_ids, locations = [], []
@@ -193,6 +205,10 @@ def main():
                 "last_modified": j.get("last_modified"),
                 "list_record": j,
                 "detail": detail,
+                "delivery_details": [
+                    (lambda st: {"kind": loc["kind"], "id": loc["id"], "name": st.get("name"), "system_id": st.get("system_id"), "system_name": (resolve_system(s, st.get("system_id")).get("name") if st.get("system_id") else None), "jita_shortest_jumps": (len(calculate_route(s, 30000142, st.get("system_id"))) - 1 if st.get("system_id") else None)})(resolve_station(s, int(loc["id"]))) if loc["kind"] == "station" else {"kind": loc["kind"], "id": loc["id"], "status": "HOLD_STRUCTURE_AUTH_REQUIRED"}
+                    for loc in delivery_locations
+                ],
                 "delivery_locations": delivery_locations,
                 "market_checks": market_checks,
             }
