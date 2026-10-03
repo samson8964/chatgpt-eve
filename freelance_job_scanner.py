@@ -132,6 +132,8 @@ def main():
                     remaining_reward / remaining_work if remaining_work > 0 else None
                 ),
                 "last_modified": j.get("last_modified"),
+                "list_record": j,
+                "detail": detail,
             }
         )
 
