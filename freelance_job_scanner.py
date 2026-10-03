@@ -59,6 +59,16 @@ def resolve_station(session, station_id):
 def resolve_system(session, system_id):
     return get_json(session, f"/universe/systems/{system_id}/")
 
+def transport_risk_estimate(cargo_value, jumps, route_security):
+    """Conservative screening cost, not an in-game fee quote."""
+    danger = int((route_security or {}).get("danger_systems") or 0)
+    low = int((route_security or {}).get("lowsec_systems") or 0)
+    null = int((route_security or {}).get("nullsec_systems") or 0)
+    base = max(2_000_000.0, cargo_value * 0.0025)
+    distance = jumps * max(150_000.0, cargo_value * 0.00015)
+    security = cargo_value * (0.015 * low + 0.035 * null)
+    return {"base_cost": base, "distance_cost": distance, "security_risk_cost": security, "estimated_total": base + distance + security, "danger_systems": danger}
+
 def route_security_summary(session, route):
     systems = []
     lowsec = 0
@@ -229,6 +239,10 @@ def main():
                     (lambda st, route: {"kind": loc["kind"], "id": loc["id"], "name": st.get("name"), "system_id": st.get("system_id"), "system_name": (resolve_system(s, st.get("system_id")).get("name") if st.get("system_id") else None), "jita_shortest_jumps": (len(route) - 1 if route else None), "route_security": (route_security_summary(s, route) if route else None)})(resolve_station(s, int(loc["id"])), calculate_route(s, 30000142, resolve_station(s, int(loc["id"])).get("system_id"))) if loc["kind"] == "station" else {"kind": loc["kind"], "id": loc["id"], "status": "HOLD_STRUCTURE_AUTH_REQUIRED"}
                     for loc in delivery_locations
                 ],
+                "execution_screen": {
+                    "status": "HOLD_ROUTE_RISK_PENDING" if any(loc["kind"] != "station" for loc in delivery_locations) else "ROUTE_RESOLVED",
+                    "note": "Transport risk estimate is a conservative screening model; final opportunity gate must use best executable quantity and route-specific risk.",
+                },
                 "delivery_locations": delivery_locations,
                 "market_checks": market_checks,
             }
