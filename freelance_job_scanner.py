@@ -164,6 +164,7 @@ def score(job):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--top", type=int, default=10)
+    ap.add_argument("--candidates", type=int, default=200, help="Cheap prefilter size before detailed economics")
     ap.add_argument("--raw", default="artifacts/freelance_jobs_raw.json")
     ap.add_argument("--summary", default="artifacts/freelance_jobs_top.json")
     args = ap.parse_args()
@@ -180,7 +181,7 @@ def main():
 
     jobs = fetch_public_jobs(s)
     ranked = sorted(jobs, key=score, reverse=True)
-    top = ranked[: max(args.top, 0)]
+    top = ranked[: max(args.candidates, args.top, 0)]
 
     Path(args.raw).parent.mkdir(parents=True, exist_ok=True)
     Path(args.summary).parent.mkdir(parents=True, exist_ok=True)
@@ -275,11 +276,20 @@ def main():
             }
         )
 
+    # Final output is ranked by executable risk-adjusted profit, not raw reward.
+    for row in rows:
+        executable = [x for x in row.get("final_candidates", []) if x.get("risk_adjusted_profit") is not None]
+        row["best_risk_adjusted_profit"] = max((x["risk_adjusted_profit"] for x in executable), default=None)
+    rows.sort(key=lambda r: (r["best_risk_adjusted_profit"] is not None, r["best_risk_adjusted_profit"] or float("-inf")), reverse=True)
+    evaluated_count = len(rows)
+    rows = rows[: max(args.top, 0)]
+
     Path(args.summary).write_text(
         json.dumps(
             {
                 "fetched_at": datetime.now(timezone.utc).isoformat(),
                 "public_job_count": len(jobs),
+                "evaluated_candidate_count": evaluated_count,
                 "top": rows,
             },
             ensure_ascii=False,
@@ -287,7 +297,7 @@ def main():
         ),
         encoding="utf-8",
     )
-    print(json.dumps({"public_job_count": len(jobs), "top": rows}, ensure_ascii=False, indent=2))
+    print(json.dumps({"public_job_count": len(jobs), "evaluated_candidate_count": evaluated_count, "top": rows}, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":
