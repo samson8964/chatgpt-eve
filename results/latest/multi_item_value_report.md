@@ -2,8 +2,8 @@
 
 - Multi-item universe: `6,619`
 - Live candidate pool: `155`
-- Feasible after location/item checks: `91`
-- Live Jita type books: `1,083`
+- Feasible after location/item checks: `89`
+- Live Jita type books: `992`
 - Final A instant: `0`
 - Final B cash-floor: `0`
 - SAFE: `0`; CHANGED: `0`
