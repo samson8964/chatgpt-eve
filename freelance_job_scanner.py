@@ -25,6 +25,45 @@ USER_AGENT = os.getenv(
 )
 
 
+
+FORGE_REGION_ID = 10000002
+JITA_44_LOCATION_ID = 60003760
+
+
+def resolve_type(session, type_id):
+    return get_json(session, f"/universe/types/{int(type_id)}/")
+
+
+def jita_sell_orders(session, type_id):
+    orders = get_json(session, f"/markets/{FORGE_REGION_ID}/orders/", params={"order_type": "sell", "type_id": int(type_id)})
+    return sorted([o for o in orders if int(o.get("location_id", 0)) == JITA_44_LOCATION_ID], key=lambda o: float(o.get("price", 0)))
+
+
+def executable_cost(orders, quantity):
+    need, cost, fills = int(quantity), 0.0, []
+    for o in orders:
+        if need <= 0:
+            break
+        take = min(need, int(o.get("volume_remain") or 0))
+        if take:
+            price = float(o["price"])
+            cost += take * price
+            fills.append({"quantity": take, "price": price, "order_id": o.get("order_id")})
+            need -= take
+    return {"fillable": need == 0, "missing": need, "total_cost": cost, "fills": fills}
+
+
+def extract_delivery(detail):
+    cfg = (((detail.get("configuration") or {}).get("parameters") or {}).get("corporation_item_delivery") or {}).get("corporation_item_delivery") or {}
+    type_ids, locations = [], []
+    for block in ((cfg.get("item_type") or {}).get("values") or []):
+        type_ids.extend(block.get("values") or [])
+    for block in ((cfg.get("corporation_office_location") or {}).get("values") or []):
+        for value in block.get("values") or []:
+            locations.append({"kind": block.get("value_type"), "id": value})
+    return type_ids, locations
+
+
 def get_json(session: requests.Session, path: str, params=None, retries: int = 3):
     url = f"{ESI_BASE}{path}"
     for attempt in range(retries):
