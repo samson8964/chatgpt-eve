@@ -108,16 +108,23 @@ def route_security_summary(session, route):
         systems.append({"id": system_id, "name": info.get("name"), "security_status": sec, "band": band})
     return {"highsec_systems": highsec, "lowsec_systems": lowsec, "nullsec_systems": nullsec, "danger_systems": lowsec + nullsec, "systems": systems}
 
-def calculate_route(session, origin_system_id, destination_system_id, preference="Shorter"):
+def calculate_route(session, origin_system_id, destination_system_id, preference="Shorter", retries=3):
     url = f"{ESI_BASE}/route/{origin_system_id}/{destination_system_id}"
-    response = session.post(url, json={"preference": preference, "security_penalty": 50}, timeout=45)
-    response.raise_for_status()
-    payload = response.json()
-    if isinstance(payload, dict):
-        route = payload.get("systems") or payload.get("route") or []
-    else:
-        route = payload
-    return [int(x) for x in route if isinstance(x, (int, str)) and str(x).isdigit()]
+    for attempt in range(retries):
+        try:
+            response = session.post(url, json={"preference": preference, "security_penalty": 50}, timeout=45)
+            if response.status_code in (408, 420, 429) or 500 <= response.status_code < 600:
+                time.sleep(min(2 ** attempt, 8))
+                continue
+            response.raise_for_status()
+            payload = response.json()
+            route = (payload.get("systems") or payload.get("route") or []) if isinstance(payload, dict) else payload
+            return [int(x) for x in route if isinstance(x, (int, str)) and str(x).isdigit()]
+        except requests.RequestException:
+            if attempt + 1 >= retries:
+                return []
+            time.sleep(min(2 ** attempt, 8))
+    return []
 
 def extract_delivery(detail):
     cfg = (((detail.get("configuration") or {}).get("parameters") or {}).get("corporation_item_delivery") or {}).get("corporation_item_delivery") or {}
