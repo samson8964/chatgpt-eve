@@ -93,7 +93,12 @@ def calculate_route(session, origin_system_id, destination_system_id, preference
     url = f"{ESI_BASE}/route/{origin_system_id}/{destination_system_id}"
     response = session.post(url, json={"preference": preference, "security_penalty": 50}, timeout=45)
     response.raise_for_status()
-    return response.json()
+    payload = response.json()
+    if isinstance(payload, dict):
+        route = payload.get("systems") or payload.get("route") or []
+    else:
+        route = payload
+    return [int(x) for x in route if isinstance(x, (int, str)) and str(x).isdigit()]
 
 def extract_delivery(detail):
     cfg = (((detail.get("configuration") or {}).get("parameters") or {}).get("corporation_item_delivery") or {}).get("corporation_item_delivery") or {}
