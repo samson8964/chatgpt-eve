@@ -121,6 +121,7 @@ def main():
             float(progress.get("desired") or 0) - float(progress.get("current") or 0),
             0,
         )
+        detail = get_json(s, f"/freelance-jobs/{j.get('id')}") if j.get("id") else {}
         rows.append(
             {
                 "id": j.get("id"),
