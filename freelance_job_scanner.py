@@ -165,12 +165,21 @@ def main():
         market_checks = []
         for type_id in type_ids:
             type_info = resolve_type(s, type_id)
-            quantity = int(remaining_work) if remaining_work > 0 else 1
-            pricing = executable_cost(jita_sell_orders(s, type_id), quantity)
-            cost = pricing["total_cost"]
-            net = remaining_reward - cost if pricing["fillable"] else None
-            roi = net / cost if net is not None and cost > 0 else None
-            market_checks.append({"type_id": int(type_id), "type_name": type_info.get("name"), "quantity_tested": quantity, "jita_fillable": pricing["fillable"], "jita_acquisition_cost": cost, "gross_reward": remaining_reward, "gross_spread": net, "gross_roi": roi, "fills": pricing["fills"]})
+            max_quantity = int(remaining_work) if remaining_work > 0 else 1
+            orders = jita_sell_orders(s, type_id)
+            unit_reward = float((detail.get("contribution") or {}).get("reward_per_contribution") or 0)
+            quantity_options = []
+            for quantity in range(1, max_quantity + 1):
+                pricing = executable_cost(orders, quantity)
+                if not pricing["fillable"]:
+                    continue
+                cost = pricing["total_cost"]
+                gross = unit_reward * quantity
+                net = gross - cost
+                roi = net / cost if cost > 0 else None
+                quantity_options.append({"quantity": quantity, "jita_acquisition_cost": cost, "gross_reward": gross, "gross_spread": net, "gross_roi": roi, "fills": pricing["fills"]})
+            best = max(quantity_options, key=lambda x: x["gross_spread"], default=None)
+            market_checks.append({"type_id": int(type_id), "type_name": type_info.get("name"), "max_quantity_remaining": max_quantity, "jita_available_quantity_tested": max([x["quantity"] for x in quantity_options], default=0), "best_executable": best, "quantity_options": quantity_options})
         rows.append(
             {
                 "id": j.get("id"),
