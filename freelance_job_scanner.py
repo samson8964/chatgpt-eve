@@ -222,6 +222,29 @@ def main():
                 quantity_options.append({"quantity": quantity, "jita_acquisition_cost": cost, "gross_reward": gross, "gross_spread": net, "gross_roi": roi, "fills": pricing["fills"]})
             best = max(quantity_options, key=lambda x: x["gross_spread"], default=None)
             market_checks.append({"type_id": int(type_id), "type_name": type_info.get("name"), "max_quantity_remaining": max_quantity, "jita_available_quantity_tested": max([x["quantity"] for x in quantity_options], default=0), "best_executable": best, "quantity_options": quantity_options})
+        delivery_details = []
+        for loc in delivery_locations:
+            if loc["kind"] != "station":
+                delivery_details.append({"kind": loc["kind"], "id": loc["id"], "status": "HOLD_STRUCTURE_AUTH_REQUIRED"})
+                continue
+            st = resolve_station(s, int(loc["id"]))
+            sid = st.get("system_id")
+            route = calculate_route(s, 30000142, sid) if sid else []
+            security = route_security_summary(s, route) if route else None
+            delivery_details.append({"kind": "station", "id": loc["id"], "name": st.get("name"), "system_id": sid, "system_name": resolve_system(s, sid).get("name") if sid else None, "jita_shortest_jumps": len(route)-1 if route else None, "route_security": security})
+        final_candidates = []
+        for mc in market_checks:
+            best = mc.get("best_executable")
+            if not best: continue
+            for dest in delivery_details:
+                if dest.get("kind") != "station" or dest.get("jita_shortest_jumps") is None: continue
+                risk = transport_risk_estimate(best["jita_acquisition_cost"], dest["jita_shortest_jumps"], dest.get("route_security"))
+                adjusted = best["gross_spread"] - risk["estimated_total"]
+                adjusted_roi = adjusted / best["jita_acquisition_cost"] if best["jita_acquisition_cost"] > 0 else None
+                status = "PASS" if adjusted >= 50_000_000 and adjusted_roi is not None and adjusted_roi >= 0.10 else "REJECT"
+                final_candidates.append({"type_id": mc["type_id"], "type_name": mc["type_name"], "quantity": best["quantity"], "destination": dest.get("name"), "destination_system": dest.get("system_name"), "jumps": dest["jita_shortest_jumps"], "acquisition_cost": best["jita_acquisition_cost"], "reward": best["gross_reward"], "gross_spread": best["gross_spread"], "transport_risk_estimate": risk, "risk_adjusted_profit": adjusted, "risk_adjusted_roi": adjusted_roi, "status": status})
+        final_status = "PASS" if any(x["status"] == "PASS" for x in final_candidates) else ("HOLD_STRUCTURE_AUTH_REQUIRED" if any(x.get("kind") != "station" for x in delivery_details) and not final_candidates else "REJECT")
+
         rows.append(
             {
                 "id": j.get("id"),
@@ -235,12 +258,11 @@ def main():
                 "last_modified": j.get("last_modified"),
                 "list_record": j,
                 "detail": detail,
-                "delivery_details": [
-                    (lambda st, route: {"kind": loc["kind"], "id": loc["id"], "name": st.get("name"), "system_id": st.get("system_id"), "system_name": (resolve_system(s, st.get("system_id")).get("name") if st.get("system_id") else None), "jita_shortest_jumps": (len(route) - 1 if route else None), "route_security": (route_security_summary(s, route) if route else None)})(resolve_station(s, int(loc["id"])), calculate_route(s, 30000142, resolve_station(s, int(loc["id"])).get("system_id"))) if loc["kind"] == "station" else {"kind": loc["kind"], "id": loc["id"], "status": "HOLD_STRUCTURE_AUTH_REQUIRED"}
-                    for loc in delivery_locations
-                ],
+                "delivery_details": delivery_details,
+                "final_candidates": final_candidates,
+                "final_status": final_status,
                 "execution_screen": {
-                    "status": "HOLD_ROUTE_RISK_PENDING" if any(loc["kind"] != "station" for loc in delivery_locations) else "ROUTE_RESOLVED",
+                    "status": final_status,
                     "note": "Transport risk estimate is a conservative screening model; final opportunity gate must use best executable quantity and route-specific risk.",
                 },
                 "delivery_locations": delivery_locations,
