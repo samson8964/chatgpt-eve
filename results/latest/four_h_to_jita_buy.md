@@ -1,10 +1,8 @@
 # 4-HWWF → Jita 4-4 Opportunity Engine V2
 
-- Source orders: `34882`; source cache: `Sat, 03 Oct 2026 01:00:32 GMT`
-- Final Jita pricing: live ESI `2026-10-03T00:57:02.401975+00:00`
+- Source orders: `34902`; source cache: `Sat, 03 Oct 2026 01:40:42 GMT`
+- Final Jita pricing: live ESI `2026-10-03T01:36:12.119189+00:00`
 - High-sec restricted ships removed: `1`
 - Final ranking uses live depth, stress survival, liquidity and volume density.
 
-| # | Grade | Status | Item | Qty | 4-HWWF | Jita live buy | Net | ROI | Score | ISK/m3 | Liquidity |
-|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|
-| 1 | A | SAFE | Caldari Navy Antimatter Charge L | 19,223 | 4.0K | 5.3K | 20.82M | 27.1% | 70.8 | 43.3K | high |
+No live-revalidated opportunity passed the V2 filters.
