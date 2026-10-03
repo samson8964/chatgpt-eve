@@ -323442,14 +323442,17 @@
   },
   "regions_checked": 114,
   "regions_total": 114,
-  "running": true,
+  "round_completed": 1,
+  "running": false,
   "scanned": 4934,
   "snapshot_error": null,
   "snapshot_modified": "2026-10-03T23:01:15.777Z",
   "snapshot_target_contracts": 51,
+  "spread_mail_enabled": false,
+  "spread_opportunities": 0,
   "stage": "等待下一次检查",
   "volume_cap": 0.04
  },
  "unavailable_until": {},
- "updated": "2026-10-03T23:06:36.763163+00:00"
+ "updated": "2026-10-03T23:06:38.519252+00:00"
 }
