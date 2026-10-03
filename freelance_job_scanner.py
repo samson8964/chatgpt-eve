@@ -161,6 +161,16 @@ def main():
             0,
         )
         detail = get_json(s, f"/freelance-jobs/{j.get('id')}") if j.get("id") else {}
+        type_ids, delivery_locations = extract_delivery(detail)
+        market_checks = []
+        for type_id in type_ids:
+            type_info = resolve_type(s, type_id)
+            quantity = int(remaining_work) if remaining_work > 0 else 1
+            pricing = executable_cost(jita_sell_orders(s, type_id), quantity)
+            cost = pricing["total_cost"]
+            net = remaining_reward - cost if pricing["fillable"] else None
+            roi = net / cost if net is not None and cost > 0 else None
+            market_checks.append({"type_id": int(type_id), "type_name": type_info.get("name"), "quantity_tested": quantity, "jita_fillable": pricing["fillable"], "jita_acquisition_cost": cost, "gross_reward": remaining_reward, "gross_spread": net, "gross_roi": roi, "fills": pricing["fills"]})
         rows.append(
             {
                 "id": j.get("id"),
@@ -174,6 +184,8 @@ def main():
                 "last_modified": j.get("last_modified"),
                 "list_record": j,
                 "detail": detail,
+                "delivery_locations": delivery_locations,
+                "market_checks": market_checks,
             }
         )
 
