@@ -25,6 +25,45 @@ USER_AGENT = os.getenv(
 )
 
 
+
+FORGE_REGION_ID = 10000002
+JITA_44_LOCATION_ID = 60003760
+
+
+def resolve_type(session, type_id):
+    return get_json(session, f"/universe/types/{int(type_id)}/")
+
+
+def jita_sell_orders(session, type_id):
+    orders = get_json(session, f"/markets/{FORGE_REGION_ID}/orders/", params={"order_type": "sell", "type_id": int(type_id)})
+    return sorted([o for o in orders if int(o.get("location_id", 0)) == JITA_44_LOCATION_ID], key=lambda o: float(o.get("price", 0)))
+
+
+def executable_cost(orders, quantity):
+    need, cost, fills = int(quantity), 0.0, []
+    for o in orders:
+        if need <= 0:
+            break
+        take = min(need, int(o.get("volume_remain") or 0))
+        if take:
+            price = float(o["price"])
+            cost += take * price
+            fills.append({"quantity": take, "price": price, "order_id": o.get("order_id")})
+            need -= take
+    return {"fillable": need == 0, "missing": need, "total_cost": cost, "fills": fills}
+
+
+def extract_delivery(detail):
+    cfg = (((detail.get("configuration") or {}).get("parameters") or {}).get("corporation_item_delivery") or {}).get("corporation_item_delivery") or {}
+    type_ids, locations = [], []
+    for block in ((cfg.get("item_type") or {}).get("values") or []):
+        type_ids.extend(block.get("values") or [])
+    for block in ((cfg.get("corporation_office_location") or {}).get("values") or []):
+        for value in block.get("values") or []:
+            locations.append({"kind": block.get("value_type"), "id": value})
+    return type_ids, locations
+
+
 def get_json(session: requests.Session, path: str, params=None, retries: int = 3):
     url = f"{ESI_BASE}{path}"
     for attempt in range(retries):
@@ -122,6 +161,16 @@ def main():
             0,
         )
         detail = get_json(s, f"/freelance-jobs/{j.get('id')}") if j.get("id") else {}
+        type_ids, delivery_locations = extract_delivery(detail)
+        market_checks = []
+        for type_id in type_ids:
+            type_info = resolve_type(s, type_id)
+            quantity = int(remaining_work) if remaining_work > 0 else 1
+            pricing = executable_cost(jita_sell_orders(s, type_id), quantity)
+            cost = pricing["total_cost"]
+            net = remaining_reward - cost if pricing["fillable"] else None
+            roi = net / cost if net is not None and cost > 0 else None
+            market_checks.append({"type_id": int(type_id), "type_name": type_info.get("name"), "quantity_tested": quantity, "jita_fillable": pricing["fillable"], "jita_acquisition_cost": cost, "gross_reward": remaining_reward, "gross_spread": net, "gross_roi": roi, "fills": pricing["fills"]})
         rows.append(
             {
                 "id": j.get("id"),
@@ -135,6 +184,8 @@ def main():
                 "last_modified": j.get("last_modified"),
                 "list_record": j,
                 "detail": detail,
+                "delivery_locations": delivery_locations,
+                "market_checks": market_checks,
             }
         )
 
