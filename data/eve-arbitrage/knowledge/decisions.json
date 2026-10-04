@@ -1,0 +1,31 @@
+{
+  "project": "EVE 捡漏与套利工具",
+  "as_of": "2026-10-04",
+  "current": [
+    {
+      "id": "roadmap-governance-approved-20261004",
+      "type": "governance",
+      "statement": "Formal roadmap governance is Approved. Current mainline is realized-profit closure, then economic-assumption consolidation, then strategy/capital optimization."
+    },
+    {
+      "id": "mail-profit-gate-current",
+      "type": "policy",
+      "statement": "Current final automatic alert floor is verified net profit >= 50,000,000 ISK. Lower scanner discovery thresholds remain allowed."
+    },
+    {
+      "id": "transport-density-current",
+      "type": "policy",
+      "statement": "Non-BPC executable opportunities require >= 2,000 ISK/m3 profit density."
+    },
+    {
+      "id": "high-value-contract-engine-current",
+      "type": "policy",
+      "statement": ">5B pure multi-item contracts use an independent engine; only 5-8B ACTIONABLE contracts that are SAFE, >=500M conservative net profit, >=10% ROI and positive under stress may alert."
+    },
+    {
+      "id": "cross-character-trade-flow-current",
+      "type": "operating_model",
+      "statement": "MikeChong and LadyBaBa primarily procure; inventory is transferred internally and LadyGuaGua primarily sells. Internal transfers do not reset cost basis."
+    }
+  ]
+}
