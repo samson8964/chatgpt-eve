@@ -1,0 +1,45 @@
+workbench_standard: "1.0"
+project:
+  name: "EVE 捡漏与套利工具"
+  project_class: formal
+  status: active
+  roadmap_status: approved
+  roadmap_approved_at: "2026-10-04"
+  objective: "建立可持续运行的 EVE 捡漏与套利系统：广泛发现机会，按可兑现价值和真实成本严格复核，只推送可执行机会，并用三角色实际交易结果反哺模型与资金分配。"
+  success_criteria:
+    - "生产扫描持续运行，核心通道相互隔离，单通道故障不污染其他结果。"
+    - "所有自动提醒经过统一最终资格 Gate；当前普通机会最低已验证净利润 50,000,000 ISK。"
+    - "非 BPC 机会继续执行最低 2,000 ISK/m³ 运输利润密度门槛。"
+    - "高价值合同保持独立规则：5–8B ACTIONABLE；仅 SAFE、保守净利润>=500M、ROI>=10%、压力情景盈利才推送。"
+    - "MikeChong/LadyBaBa 采购、LadyGuaGua 集中销售的跨角色实际利润可以被审计，并用于校准扫描规则。"
+    - "关键规则、异常、决策、阶段状态均能从 GitHub/Airtable/Notion 恢复，不依赖聊天上下文。"
+  current_phase: "Phase 3 — Realized Profit Closed Loop"
+knowledge:
+  status: active
+  health: healthy
+  last_synced_at: "2026-10-04T01:00:00Z"
+  entrypoint: "data/eve-arbitrage/knowledge/progress.json"
+evidence:
+  entrypoint: "Google Drive project folder + GitHub Actions/artifacts/results"
+decisions:
+  entrypoint: "Airtable Decisions + data/eve-arbitrage/knowledge/decisions.json"
+progress:
+  completed_units: 3
+  identified_units: 6
+  percent: 50
+  next_action: "把现有三角色 trade_realized_audit 从一次性/手动审计推进为可重复验证的经营闭环：先消除跨角色 FIFO 误归因与非捡漏库存污染，再决定固定审计频率。"
+integrations:
+  github: "https://github.com/samson8964/chatgpt-eve"
+  airtable: "AI 工作台｜结构化数据层 / EVE 捡漏与套利工具"
+  notion: "https://app.notion.com/p/3e4925dd4c6381869b83e0eee9bc765c"
+  drive: "https://drive.google.com/drive/folders/1rZNHTB08vv2ED8ATcXMHjW_tp56XDEZy"
+governance:
+  source_of_truth_order:
+    - "GitHub main production code/workflows/config"
+    - "GitHub governance and machine-readable knowledge"
+    - "Airtable control-plane records and decisions"
+    - "Notion human-readable handbook"
+    - "Google Drive evidence archive"
+  human_execution_boundary:
+    - "真实购买、资金投入、角色间资产转移由用户决定并执行。"
+    - "新增 OAuth/ESI 权限仅在确有必要时请求用户授权。"
