@@ -6,6 +6,17 @@
 
 > 本项目只负责发现、分析和提醒，不会自动接受合同、买入、运输、生产或出售物品。
 
+## 正式治理入口（2026-10-04）
+
+本项目已按 AI Workbench 1.0 完成正式路线图治理并标记为 **Approved**：
+
+- 人类可读路线图：[`docs/ROADMAP_GOVERNANCE.md`](docs/ROADMAP_GOVERNANCE.md)
+- 项目清单：[`project-manifest.yaml`](project-manifest.yaml)
+- 机器可读进度：[`data/eve-arbitrage/knowledge/progress.json`](data/eve-arbitrage/knowledge/progress.json)
+- 核心决策：[`data/eve-arbitrage/knowledge/decisions.json`](data/eve-arbitrage/knowledge/decisions.json)
+
+当前正式生产基线以 `main` 为准：普通机会统一最终提醒门槛为**已验证净利润 ≥50M ISK**；非 BPC 机会继续要求 **≥2,000 ISK/m³**；>5B 高价值合同使用独立的 5–8B ACTIONABLE / 8–20B WATCH / >20B RESEARCH 规则。生产机会收件人为 **MikeChong + LadyBaBa**。当前路线图主线是**P3 三角色实际利润闭环**，而不是继续无边界增加扫描器。
+
 ## 当前生产架构
 
 ```mermaid
