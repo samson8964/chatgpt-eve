@@ -1,0 +1,72 @@
+{
+  "project": "EVE 捡漏与套利工具",
+  "roadmap_status": "approved",
+  "approved_at": "2026-10-04",
+  "workbench_standard": "1.0",
+  "current_phase": "P3_realized_profit_closed_loop",
+  "phases": [
+    {
+      "id": "P0",
+      "name": "生产基础与故障隔离",
+      "status": "complete"
+    },
+    {
+      "id": "P1",
+      "name": "信号质量与统一Gate",
+      "status": "complete"
+    },
+    {
+      "id": "P2",
+      "name": "覆盖扩展与高价值资产包",
+      "status": "complete_monitor"
+    },
+    {
+      "id": "P3",
+      "name": "实际利润闭环",
+      "status": "in_progress"
+    },
+    {
+      "id": "P4",
+      "name": "经济参数统一与技术债复核",
+      "status": "planned_next"
+    },
+    {
+      "id": "P5",
+      "name": "策略与资金优化",
+      "status": "planned"
+    },
+    {
+      "id": "P6",
+      "name": "稳态维护",
+      "status": "planned"
+    }
+  ],
+  "production_truth": {
+    "mail_min_verified_net_profit_isk": 50000000,
+    "non_bpc_min_profit_per_m3_isk": 2000,
+    "high_value_contract": {
+      "min_contract_price_isk": 5000000000,
+      "actionable_max_isk": 8000000000,
+      "watch_max_isk": 20000000000,
+      "min_net_profit_isk": 500000000,
+      "min_roi": 0.1,
+      "require_safe": true,
+      "require_positive_stress": true
+    },
+    "procurement_characters": [
+      "MikeChong",
+      "LadyBaBa"
+    ],
+    "selling_character": "LadyGuaGua"
+  },
+  "next_action": "Harden cross-character realized-profit attribution before adding more scanners or fixed audit scheduling.",
+  "review_triggers": [
+    "mail profit gate changes",
+    "available capital materially changes from current high-value design baseline",
+    "obvious repeated false negatives",
+    "realized P&L shows systematic model bias or channel losses",
+    "runtime approaches scheduling interval",
+    "CCP/ESI or market mechanics materially change",
+    "procurement/selling roles change"
+  ]
+}
