@@ -213,7 +213,10 @@ def main():
     )
 
     jobs = fetch_public_jobs(s)
-    ranked = sorted(jobs, key=score, reverse=True)
+    # Public ESI can include historical/closed records. Only currently active
+    # jobs may enter economic evaluation or become executable opportunities.
+    active_jobs = [j for j in jobs if str(j.get("state") or "").lower() == "active"]
+    ranked = sorted(active_jobs, key=score, reverse=True)
     top = ranked[: max(args.candidates, args.top, 0)]
 
     Path(args.raw).parent.mkdir(parents=True, exist_ok=True)
@@ -224,6 +227,7 @@ def main():
                 "fetched_at": datetime.now(timezone.utc).isoformat(),
                 "compatibility_date": COMPATIBILITY_DATE,
                 "count": len(jobs),
+                "active_count": len(active_jobs),
                 "jobs": jobs,
             },
             ensure_ascii=False,
@@ -336,6 +340,7 @@ def main():
             {
                 "fetched_at": datetime.now(timezone.utc).isoformat(),
                 "public_job_count": len(jobs),
+                "active_job_count": len(active_jobs),
                 "evaluated_candidate_count": evaluated_count,
                 "top": rows,
             },
@@ -344,7 +349,7 @@ def main():
         ),
         encoding="utf-8",
     )
-    print(json.dumps({"public_job_count": len(jobs), "evaluated_candidate_count": evaluated_count, "top": rows}, ensure_ascii=False, indent=2))
+    print(json.dumps({"public_job_count": len(jobs), "active_job_count": len(active_jobs), "evaluated_candidate_count": evaluated_count, "top": rows}, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":
