@@ -1,7 +1,7 @@
 {
-  "generated_at_utc": "2026-10-04T00:20:11.873755+00:00",
-  "contracts_snapshot": "2026-10-04T00:01:20.351Z",
-  "market_snapshot": "2026-10-03T23:48:29.981Z",
+  "generated_at_utc": "2026-10-04T00:49:04.437104+00:00",
+  "contracts_snapshot": "2026-10-04T00:31:17.958Z",
+  "market_snapshot": "2026-10-04T00:18:24.285Z",
   "accounting_level": 5,
   "transaction_tax_rate": 0.033749999999999995,
   "market_broker_fee_rate": 0.0,
@@ -10,22 +10,22 @@
   "haul_isk_per_m3": 0.0,
   "factory_candidates": [
     {
-      "system_id": 30000177,
-      "system_name": "Ukkalen",
-      "station_id": 60002842,
-      "station_name": "Ukkalen IX - Moon 15 - Sukuuvestaa Corporation Foundry",
-      "sci": 0.0073,
-      "jumps": 12
-    },
-    {
       "system_id": 30000201,
       "system_name": "Uchoshi",
       "station_id": 60004381,
       "station_name": "Uchoshi I - Corporate Police Force Assembly Plant",
-      "sci": 0.0091,
+      "sci": 0.0096,
       "jumps": 15
+    },
+    {
+      "system_id": 30000177,
+      "system_name": "Ukkalen",
+      "station_id": 60002842,
+      "station_name": "Ukkalen IX - Moon 15 - Sukuuvestaa Corporation Foundry",
+      "sci": 0.0112,
+      "jumps": 12
     }
   ],
-  "ranked_count": 39,
-  "all_executable_count": 124
+  "ranked_count": 38,
+  "all_executable_count": 120
 }
