@@ -1,24 +1,24 @@
 # C-J6MT - 1st Taj Mahgoon (DJ's Retirement Fund) → Jita 4-4 Opportunity Engine V2
 
-- Source orders: `51905`; source cache: `Sun, 04 Oct 2026 20:29:56 GMT`
-- Final Jita pricing: live ESI `2026-10-04T20:29:34.220187+00:00`
+- Source orders: `51871`; source cache: `Sun, 04 Oct 2026 20:59:59 GMT`
+- Final Jita pricing: live ESI `2026-10-04T20:59:21.592236+00:00`
 - High-sec restricted ships removed: `1`
 - Final ranking uses live depth, stress survival, liquidity and volume density.
 
 | # | Grade | Status | Item | Qty | C-J6MT - 1st Taj Mahgoon (DJ's Retirement Fund) | Jita live buy | Net | ROI | Score | ISK/m3 | Liquidity |
 |---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|
-| 1 | A | SAFE | Union Contemplation Background | 11 | 500.0K | 2.73M | 18.78M | 182.8% | 76.9 | 17.07M | high |
+| 1 | A | SAFE | Union Contemplation Background | 11 | 500.0K | 2.73M | 18.77M | 182.8% | 76.9 | 17.07M | high |
 | 2 | A | SAFE | Impetus Console | 3,503 | 48.1K | 68.3K | 43.16M | 23.0% | 75.6 | 1.23M | high |
 | 3 | A | SAFE | Capital Core Defense Field Extender II | 3 | 309.70M | 362.10M | 120.34M | 13.0% | 72.1 | 1.00M | high |
-| 4 | B | SAFE | Exigent Light Drone Firepower Mutaplasmid | 28 | 997.9K | 1.51M | 11.27M | 38.1% | 69.2 | 402.7K | high |
+| 4 | B | SAFE | Exigent Light Drone Firepower Mutaplasmid | 28 | 997.9K | 1.51M | 11.27M | 38.1% | 69.3 | 402.7K | high |
 | 5 | B | SAFE | Soaring Federation Background | 49 | 1.30M | 2.15M | 28.24M | 38.4% | 69.0 | 5.76M | medium |
-| 6 | B | SAFE | Core X-Type EM Armor Hardener | 3 | 98.92M | 114.30M | 34.37M | 11.6% | 61.4 | 2.29M | high |
-| 7 | B | SAFE | 'Integrated' Valkyrie | 390 | 488.8K | 621.4K | 43.43M | 22.8% | 58.5 | 11.1K | medium |
-| 8 | B | SAFE | Domination 100MN Afterburner | 6 | 18.90M | 22.26M | 14.70M | 12.9% | 58.1 | 490.0K | high |
-| 9 | B | SAFE | Buzzard Cold Wind's Call SKIN | 1 | 125.00M | 150.10M | 20.03M | 16.0% | 57.7 | 2.00B | high |
-| 10 | B | SAFE | Mega Beam Laser II | 90 | 4.58M | 5.30M | 48.04M | 11.6% | 56.6 | 26.7K | high |
-| 11 | B | SAFE | 800mm Steel Plates II | 322 | 1.25M | 1.50M | 63.80M | 15.9% | 55.7 | 9.9K | medium |
-| 12 | C | SAFE | Gleam L | 961 | 243.8K | 287.3K | 29.77M | 12.6% | 50.3 | 31.0K | high |
-| 13 | C | CHANGED | Single-crystal Superalloy I-beam | 3,021 | 64.4K | 80.0K | 36.61M | 18.6% | 49.0 | 1.21M | high |
+| 6 | B | SAFE | 'Integrated' Valkyrie | 390 | 488.8K | 621.4K | 43.43M | 22.8% | 58.5 | 11.1K | medium |
+| 7 | B | SAFE | Domination 100MN Afterburner | 6 | 18.90M | 22.26M | 14.70M | 12.9% | 58.1 | 490.0K | high |
+| 8 | B | SAFE | Buzzard Cold Wind's Call SKIN | 1 | 125.00M | 150.10M | 20.03M | 16.0% | 57.7 | 2.00B | high |
+| 9 | B | SAFE | Mega Beam Laser II | 90 | 4.58M | 5.30M | 48.04M | 11.6% | 56.6 | 26.7K | high |
+| 10 | B | SAFE | 800mm Steel Plates II | 322 | 1.25M | 1.50M | 63.80M | 15.9% | 55.7 | 9.9K | medium |
+| 11 | C | SAFE | Gleam L | 961 | 243.8K | 287.3K | 29.77M | 12.6% | 50.3 | 31.0K | high |
+| 12 | C | CHANGED | Single-crystal Superalloy I-beam | 3,021 | 64.4K | 80.0K | 36.61M | 18.6% | 49.0 | 1.21M | high |
+| 13 | C | CHANGED | Core X-Type EM Armor Hardener | 4 | 98.92M | 115.60M | 50.16M | 12.7% | 42.9 | 2.51M | high |
 | 14 | C | CHANGED | Spike L | 204,817 | 205 | 297 | 16.81M | 40.0% | 42.6 | 3.3K | high |
 | 15 | D | CHANGED | Tholos | 1 | 119.90M | 139.90M | 15.28M | 12.7% | 34.8 | 3.1K | high |
