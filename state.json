@@ -320263,7 +320263,7 @@
   ]
  },
  "next_mail_at": 1789149515.984461,
- "next_mail_at_booster-manufacturing": 1791126402.9713645,
+ "next_mail_at_booster-manufacturing": 1791140077.2549148,
  "next_mail_at_booster-spread": 1790390041.494932,
  "push_state": {
   "booster-manufacturing:2124493042:234989144": {
@@ -320603,10 +320603,10 @@
    "updated": 1790369372.7702682
   },
   "booster-manufacturing:2124493042:236389413": {
-   "count": 45,
-   "detail": "游戏邮件编号 403251355",
-   "state": "sending",
-   "updated": 1791138273.7680323
+   "count": 46,
+   "detail": "游戏邮件编号 403252648",
+   "state": "sent",
+   "updated": 1791138277.2552443
   },
   "booster-manufacturing:2124493042:236392788": {
    "count": 4,
@@ -320681,16 +320681,16 @@
    "updated": 1790812675.4951632
   },
   "booster-manufacturing:2124493042:236568467": {
-   "count": 19,
-   "detail": "游戏邮件编号 403251355",
-   "state": "sending",
-   "updated": 1791138273.7680323
+   "count": 20,
+   "detail": "游戏邮件编号 403252648",
+   "state": "sent",
+   "updated": 1791138277.2552443
   },
   "booster-manufacturing:2124493042:236568476": {
-   "count": 19,
-   "detail": "游戏邮件编号 403251355",
-   "state": "sending",
-   "updated": 1791138273.7680323
+   "count": 20,
+   "detail": "游戏邮件编号 403252648",
+   "state": "sent",
+   "updated": 1791138277.2552443
   },
   "booster-manufacturing:2124493042:236587866": {
    "count": 2,
@@ -320699,16 +320699,16 @@
    "updated": 1790892482.2388823
   },
   "booster-manufacturing:2124493042:236606976": {
-   "count": 12,
-   "detail": "游戏邮件编号 403251355",
-   "state": "sending",
-   "updated": 1791138273.7680323
+   "count": 13,
+   "detail": "游戏邮件编号 403252648",
+   "state": "sent",
+   "updated": 1791138277.2552443
   },
   "booster-manufacturing:2124493042:236685984": {
-   "count": 1,
-   "detail": "游戏邮件编号 403251355",
-   "state": "sending",
-   "updated": 1791138273.7680323
+   "count": 2,
+   "detail": "游戏邮件编号 403252648",
+   "state": "sent",
+   "updated": 1791138277.2552443
   },
   "booster-spread:2124493042:235439334": {
    "count": 6,
@@ -320769,5 +320769,5 @@
   "volume_cap": 0.04
  },
  "unavailable_until": {},
- "updated": "2026-10-04T18:24:33.915225+00:00"
+ "updated": "2026-10-04T18:24:37.401080+00:00"
 }
