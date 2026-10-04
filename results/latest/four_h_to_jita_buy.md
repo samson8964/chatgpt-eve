@@ -1,10 +1,10 @@
 # 4-HWWF → Jita 4-4 Opportunity Engine V2
 
-- Source orders: `34523`; source cache: `Sun, 04 Oct 2026 08:30:31 GMT`
-- Final Jita pricing: live ESI `2026-10-04T08:29:52.294262+00:00`
+- Source orders: `34502`; source cache: `Sun, 04 Oct 2026 09:00:38 GMT`
+- Final Jita pricing: live ESI `2026-10-04T08:58:01.323151+00:00`
 - High-sec restricted ships removed: `1`
 - Final ranking uses live depth, stress survival, liquidity and volume density.
 
 | # | Grade | Status | Item | Qty | 4-HWWF | Jita live buy | Net | ROI | Score | ISK/m3 | Liquidity |
 |---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|
-| 1 | B | SAFE | Chaotic Firestorm Filament | 8 | 8.00M | 11.01M | 15.13M | 21.6% | 68.7 | 18.91M | high |
+| 1 | B | SAFE | Chaotic Firestorm Filament | 8 | 8.00M | 11.03M | 15.25M | 21.8% | 68.8 | 19.07M | high |
