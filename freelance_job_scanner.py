@@ -256,9 +256,13 @@ def main():
                     "quantity_options": [],
                 })
                 continue
+            contribution = detail.get("contribution") or {}
+            participant_limit = contribution.get("contribution_per_participant_limit")
             max_quantity = int(remaining_work) if remaining_work > 0 else 1
+            if participant_limit is not None:
+                max_quantity = min(max_quantity, int(participant_limit))
             orders = jita_sell_orders(s, type_id)
-            unit_reward = float((detail.get("contribution") or {}).get("reward_per_contribution") or 0)
+            unit_reward = float(contribution.get("reward_per_contribution") or 0)
             quantity_options = []
             for quantity in range(1, max_quantity + 1):
                 pricing = executable_cost(orders, quantity)
@@ -270,7 +274,7 @@ def main():
                 roi = net / cost if cost > 0 else None
                 quantity_options.append({"quantity": quantity, "jita_acquisition_cost": cost, "gross_reward": gross, "gross_spread": net, "gross_roi": roi, "fills": pricing["fills"]})
             best = max(quantity_options, key=lambda x: x["gross_spread"], default=None)
-            market_checks.append({"type_id": int(type_id), "type_name": type_info.get("name"), "max_quantity_remaining": max_quantity, "jita_available_quantity_tested": max([x["quantity"] for x in quantity_options], default=0), "best_executable": best, "quantity_options": quantity_options})
+            market_checks.append({"type_id": int(type_id), "type_name": type_info.get("name"), "max_quantity_remaining": max_quantity, "participant_contribution_limit": participant_limit, "jita_available_quantity_tested": max([x["quantity"] for x in quantity_options], default=0), "best_executable": best, "quantity_options": quantity_options})
         delivery_details = []
         for loc in delivery_locations:
             if loc["kind"] != "station":
