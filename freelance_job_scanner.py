@@ -75,7 +75,14 @@ _SYSTEM_CACHE = {}
 
 def cached_type(session, type_id):
     key = int(type_id)
-    if key not in _TYPE_CACHE: _TYPE_CACHE[key] = resolve_type(session, key)
+    if key not in _TYPE_CACHE:
+        try:
+            _TYPE_CACHE[key] = resolve_type(session, key)
+        except requests.HTTPError as exc:
+            if exc.response is not None and exc.response.status_code == 404:
+                _TYPE_CACHE[key] = None
+            else:
+                raise
     return _TYPE_CACHE[key]
 
 def cached_station(session, station_id):
@@ -239,6 +246,16 @@ def main():
         market_checks = []
         for type_id in type_ids:
             type_info = cached_type(s, type_id)
+            if type_info is None:
+                market_checks.append({
+                    "type_id": int(type_id),
+                    "type_name": None,
+                    "status": "SKIP_TYPE_NOT_FOUND",
+                    "reason": "ESI universe type returned 404; skipped without aborting the scan.",
+                    "best_executable": None,
+                    "quantity_options": [],
+                })
+                continue
             max_quantity = int(remaining_work) if remaining_work > 0 else 1
             orders = jita_sell_orders(s, type_id)
             unit_reward = float((detail.get("contribution") or {}).get("reward_per_contribution") or 0)
