@@ -1,8 +1,8 @@
 # Opportunity Engine V3 — Jita → 4-H reverse arbitrage
 
-- 4-H orders: `34740`
-- Jita snapshot: `2026-10-04T00:48:45.953Z`
-- Live revalidation: `2026-10-04T00:59:26.904244+00:00`
+- 4-H orders: `34723`
+- Jita snapshot: `2026-10-04T01:18:24.104Z`
+- Live revalidation: `2026-10-04T01:36:54.365083+00:00`
 - Logistics reserve: base `10,000,000` ISK + `500` ISK/m³
 - Final opportunities: `1`
 
