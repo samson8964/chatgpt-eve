@@ -1,3 +1,1 @@
-engine_version,channel,execution_status,score_grade,opportunity_score,type_id,item_name,quantity,jita_best_sell,jita_worst_matched_sell,four_h_best_buy,four_h_worst_matched_buy,source_cost,destination_gross,sales_tax,haul_cost,net_profit,net_roi,stress_net_profit,unit_volume_m3,total_volume_m3,profit_per_m3,live_revalidated_at
-Opportunity Engine V3,JITA_TO_4H,SAFE,C,54.9,56068,Proximity-5 'Extraction' Filament,29,7236000.0,7236000.0,8882000.0,8881000.0,209844000.0,257559000.0,8692616.249999998,10001450.0,29020933.75,0.13200606949109023,15559108.75,0.1,2.9000000000000004,10007218.534482757,2026-10-04T04:33:53.018316+00:00
-Opportunity Engine V3,JITA_TO_4H,CHANGED,C,54.4,17619,Caldari Navy Hookbill,30,7998000.0,8000000.0,18000000.0,18000000.0,239996000.0,540000000.0,18224999.999999996,47500000.0,234279000.0,0.8148948159278738,-239996000.0,2500.0,75000.0,3123.72,2026-10-04T04:33:53.018316+00:00
+
