@@ -21,8 +21,12 @@ BPC_VALUE_MIN_SAMPLES = int(os.getenv("MAIL_BPC_VALUE_MIN_SAMPLES", "5"))
 BPC_VALUE_MIN_AVG_DISCOUNT = float(os.getenv("MAIL_BPC_VALUE_MIN_AVG_DISCOUNT", "0.30"))
 BPC_VALUE_MIN_MEDIAN_DISCOUNT = float(os.getenv("MAIL_BPC_VALUE_MIN_MEDIAN_DISCOUNT", "0.20"))
 BPC_VALUE_MIN_SURPLUS = float(os.getenv("MAIL_BPC_VALUE_MIN_SURPLUS", "20000000"))
-BPC_MFG_MIN_PROFIT = max(float(os.getenv("MAIL_BPC_MFG_MIN_PROFIT", "20000000")), MAIL_MIN_VERIFIED_NET_PROFIT)
-BPC_MFG_MIN_ROI = float(os.getenv("MAIL_BPC_MFG_MIN_ROI", "0.10"))
+BPC_MFG_MIN_PROFIT = max(float(os.getenv("MAIL_BPC_MFG_MIN_PROFIT", "100000000")), MAIL_MIN_VERIFIED_NET_PROFIT)
+BPC_MFG_MIN_ROI = float(os.getenv("MAIL_BPC_MFG_MIN_ROI", "0.15"))
+BPC_MFG_MIN_STRESS_PROFIT = float(os.getenv("MAIL_BPC_MFG_MIN_STRESS_PROFIT", "50000000"))
+BPC_MFG_MIN_JITA_PROFIT = max(float(os.getenv("MAIL_BPC_MFG_MIN_JITA_PROFIT", "50000000")), MAIL_MIN_VERIFIED_NET_PROFIT)
+BPC_MFG_MIN_JITA_ROI = float(os.getenv("MAIL_BPC_MFG_MIN_JITA_ROI", "0.10"))
+BPC_MFG_MIN_JITA_STRESS_PROFIT = float(os.getenv("MAIL_BPC_MFG_MIN_JITA_STRESS_PROFIT", "0"))
 BPC_V2_ENABLED = os.getenv("MAIL_BPC_V2_ENABLED", "1").strip().lower() not in {"0", "false", "no"}
 
 
@@ -189,6 +193,11 @@ def prepare_bpc_v2_gate():
         "v2_live_net_profit",
         "v2_live_net_roi",
         "v2_stress_net_profit",
+        "v2_jita_manufacturing_cost_complete",
+        "v2_jita_manufacturing_job_cost",
+        "v2_jita_live_net_profit",
+        "v2_jita_live_net_roi",
+        "v2_jita_stress_net_profit",
         "v2_orderbook_complete",
         "v2_product_slippage",
         "v2_material_max_slippage",
@@ -202,30 +211,39 @@ def prepare_bpc_v2_gate():
     live_profit = pd.to_numeric(merged.get("v2_live_net_profit"), errors="coerce").fillna(0.0)
     live_roi = pd.to_numeric(merged.get("v2_live_net_roi"), errors="coerce").fillna(0.0)
     stress_profit = pd.to_numeric(merged.get("v2_stress_net_profit"), errors="coerce").fillna(0.0)
+    jita_cost_complete = merged.get("v2_jita_manufacturing_cost_complete", pd.Series(False, index=merged.index)).map(truth)
+    jita_profit = pd.to_numeric(merged.get("v2_jita_live_net_profit"), errors="coerce").fillna(float("-inf"))
+    jita_roi = pd.to_numeric(merged.get("v2_jita_live_net_roi"), errors="coerce").fillna(float("-inf"))
+    jita_stress_profit = pd.to_numeric(merged.get("v2_jita_stress_net_profit"), errors="coerce").fillna(float("-inf"))
     complete = merged.get("v2_orderbook_complete", pd.Series(False, index=merged.index)).map(truth)
 
     manufacturing_ok = (
         statuses.eq("SAFE")
         & (live_profit >= BPC_MFG_MIN_PROFIT)
         & (live_roi >= BPC_MFG_MIN_ROI)
-        & (stress_profit > 0)
+        & (stress_profit >= BPC_MFG_MIN_STRESS_PROFIT)
+        & jita_cost_complete
+        & (jita_profit >= BPC_MFG_MIN_JITA_PROFIT)
+        & (jita_roi >= BPC_MFG_MIN_JITA_ROI)
+        & (jita_stress_profit > BPC_MFG_MIN_JITA_STRESS_PROFIT)
         & complete
     )
 
-    # The existing sender displays net_profit/net_roi/opportunity_score. Replace those display
-    # fields with the live V2 values so the email cannot show stale baseline economics.
-    merged["net_profit"] = live_profit
-    merged["net_roi"] = live_roi
+    # Automatic BPC mail displays the conservative Jita-manufacture economics,
+    # not the theoretical best remote-factory route.  This makes the number in
+    # the mail directly reproducible in the user's normal Jita workflow.
+    merged["net_profit"] = jita_profit.where(jita_cost_complete, 0.0)
+    merged["net_roi"] = jita_roi.where(jita_cost_complete, 0.0)
     if "v2_score" in merged.columns:
         merged["opportunity_score"] = pd.to_numeric(merged["v2_score"], errors="coerce").fillna(0.0)
     merged["bpc_intrinsic_signal"] = False
     merged["bpc_manufacturing_signal"] = manufacturing_ok.astype(bool)
-    merged["mail_value_gap_isk"] = np.where(manufacturing_ok, live_profit, 0.0)
+    merged["mail_value_gap_isk"] = np.where(manufacturing_ok, jita_profit, 0.0)
     merged["mail_eligible"] = manufacturing_ok.astype(bool)
     merged["mail_filter_reason"] = np.where(
         manufacturing_ok,
-        "V2_SAFE_MANUFACTURING",
-        "V2_NOT_SAFE_OR_BELOW_MARGIN",
+        "V2_STRICT_JITA_MANUFACTURING",
+        "V2_NOT_SAFE_OR_STRICT_BPC_MARGIN",
     )
     merged.to_csv(BPC, index=False)
 
