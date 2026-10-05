@@ -631,6 +631,29 @@ def run_scan():
             if best is None or net>best["net"]: best=cand
         if not best or best["net"]<MIN_NET_PROFIT or best["roi"]<MIN_NET_ROI: continue
 
+        # Conservative mail baseline: reproduce the same job in Jita itself.
+        # The broad scanner may still rank a remote low-SCI NPC factory as the
+        # best theoretical route, but user-facing mail must never assume that
+        # materials/products can be moved to a remote factory for free.
+        jita_job_cost=0.0; jita_job_hours=0.0; jita_cost_complete=True
+        for j in p["jobs"]:
+            q=industry_quote(j["bp_tid"],j["product_tid"],j["runs"],j["me"],j["te"],JITA_SYSTEM)
+            if not q:
+                jita_cost_complete=False
+                break
+            jita_job_cost += q["job_cost"] * j["copies"]
+            jita_job_hours += q["time_hours"] * j["copies"]
+        if jita_cost_complete:
+            jita_sales_tax = p["gross_revenue"] * tax_rate
+            jita_net = p["gross_revenue"] - p["contract_price"] - p["material_cost"] - jita_job_cost - jita_sales_tax
+            jita_base = p["contract_price"] + p["material_cost"] + jita_job_cost
+            jita_roi = jita_net / jita_base if jita_base else 0.0
+        else:
+            jita_job_cost = np.nan
+            jita_job_hours = np.nan
+            jita_net = np.nan
+            jita_roi = np.nan
+
         cm=p["cm"]
         bp_desc=[]
         for j in p["jobs"]:
@@ -652,6 +675,9 @@ def run_scan():
             "contract_price":p["contract_price"],"material_cost_jita_depth":p["material_cost"],"manufacturing_job_cost":best["job_cost"],
             "sales_tax":best["sales_tax"],"configured_haul_cost":best["haul_cost"],"gross_revenue":p["gross_revenue"],"net_profit":best["net"],"net_roi":best["roi"],
             "factory_system":best["fac"]["system_name"],"factory_station":best["fac"]["station_name"],"factory_sci":best["fac"]["sci"],"factory_jumps_from_jita":best["fac"]["jumps"],
+            "jita_manufacturing_job_cost":jita_job_cost,"jita_manufacturing_job_hours":jita_job_hours,
+            "jita_manufacturing_net_profit":jita_net,"jita_manufacturing_net_roi":jita_roi,
+            "jita_manufacturing_cost_complete":bool(jita_cost_complete),
             "serial_job_hours":best["job_hours"],"profit_per_serial_job_hour":best["net"]/best["job_hours"] if best["job_hours"] else 0,
             "haul_m3":p["haul_m3"],"break_even_haul_isk_per_m3":best["net"]/p["haul_m3"] if p["haul_m3"] else np.inf,
             "worst_buy_price_used":worst_bid,"break_even_bid_per_unit":break_even_bid,"market_capacity_contracts":market_cap,
