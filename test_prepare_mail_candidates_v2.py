@@ -20,12 +20,38 @@ class PrepareMailCandidatesV2Tests(unittest.TestCase):
                 {"contract_id": 1, "net_profit": 1, "net_roi": 0.01, "opportunity_score": 1},
                 {"contract_id": 2, "net_profit": 999000000, "net_roi": 0.99, "opportunity_score": 99},
                 {"contract_id": 3, "net_profit": 999000000, "net_roi": 0.99, "opportunity_score": 99},
+                {"contract_id": 4, "net_profit": 999000000, "net_roi": 0.99, "opportunity_score": 99},
             ]).to_csv(base_path, index=False)
 
             pd.DataFrame([
-                {"contract_id": 1, "v2_status": "SAFE", "v2_grade": "A", "v2_score": 82, "v2_live_net_profit": 155000000, "v2_live_net_roi": 0.18, "v2_stress_net_profit": 20000000, "v2_orderbook_complete": True},
-                {"contract_id": 2, "v2_status": "CHANGED", "v2_grade": "C", "v2_score": 40, "v2_live_net_profit": 200000000, "v2_live_net_roi": 0.30, "v2_stress_net_profit": -1, "v2_orderbook_complete": True},
-                {"contract_id": 3, "v2_status": "SAFE", "v2_grade": "B", "v2_score": 65, "v2_live_net_profit": 15000000, "v2_live_net_roi": 0.20, "v2_stress_net_profit": 10000000, "v2_orderbook_complete": True},
+                {
+                    "contract_id": 1, "v2_status": "SAFE", "v2_grade": "A", "v2_score": 82,
+                    "v2_live_net_profit": 155000000, "v2_live_net_roi": 0.18, "v2_stress_net_profit": 80000000,
+                    "v2_jita_manufacturing_cost_complete": True, "v2_jita_manufacturing_job_cost": 40000000,
+                    "v2_jita_live_net_profit": 70000000, "v2_jita_live_net_roi": 0.12,
+                    "v2_jita_stress_net_profit": 30000000, "v2_orderbook_complete": True,
+                },
+                {
+                    "contract_id": 2, "v2_status": "CHANGED", "v2_grade": "C", "v2_score": 40,
+                    "v2_live_net_profit": 200000000, "v2_live_net_roi": 0.30, "v2_stress_net_profit": 100000000,
+                    "v2_jita_manufacturing_cost_complete": True, "v2_jita_live_net_profit": 120000000,
+                    "v2_jita_live_net_roi": 0.20, "v2_jita_stress_net_profit": 80000000,
+                    "v2_orderbook_complete": True,
+                },
+                {
+                    "contract_id": 3, "v2_status": "SAFE", "v2_grade": "B", "v2_score": 65,
+                    "v2_live_net_profit": 15000000, "v2_live_net_roi": 0.20, "v2_stress_net_profit": 10000000,
+                    "v2_jita_manufacturing_cost_complete": True, "v2_jita_live_net_profit": 10000000,
+                    "v2_jita_live_net_roi": 0.10, "v2_jita_stress_net_profit": 5000000,
+                    "v2_orderbook_complete": True,
+                },
+                {
+                    "contract_id": 4, "v2_status": "SAFE", "v2_grade": "A", "v2_score": 90,
+                    "v2_live_net_profit": 180000000, "v2_live_net_roi": 0.22, "v2_stress_net_profit": 90000000,
+                    "v2_jita_manufacturing_cost_complete": True, "v2_jita_manufacturing_job_cost": 143000000,
+                    "v2_jita_live_net_profit": -28000000, "v2_jita_live_net_roi": -0.03,
+                    "v2_jita_stress_net_profit": -40000000, "v2_orderbook_complete": True,
+                },
             ]).to_csv(v2_path, index=False)
 
             pd.DataFrame([{"contract_id": 99, "bpc_intrinsic_value_surplus": 500000000}]).to_csv(value_path, index=False)
@@ -35,9 +61,11 @@ class PrepareMailCandidatesV2Tests(unittest.TestCase):
 
             self.assertEqual(list(got.loc[got["mail_eligible"], "contract_id"]), [1])
             row = got.loc[got["contract_id"].eq(1)].iloc[0]
-            self.assertEqual(row["net_profit"], 155000000)
-            self.assertAlmostEqual(row["net_roi"], 0.18)
-            self.assertEqual(row["mail_filter_reason"], "V2_SAFE_MANUFACTURING")
+            self.assertEqual(row["net_profit"], 70000000)
+            self.assertAlmostEqual(row["net_roi"], 0.12)
+            self.assertEqual(row["mail_filter_reason"], "V2_STRICT_JITA_MANUFACTURING")
+            radar_like = got.loc[got["contract_id"].eq(4)].iloc[0]
+            self.assertFalse(bool(radar_like["mail_eligible"]))
 
             value = pd.read_csv(value_path)
             self.assertFalse(value["mail_eligible"].any())
