@@ -242,15 +242,37 @@ def enrich_manufacturing(path=MFG_SOURCE, out=MFG_V2):
         material_q = quote_bundle(materials, sell_books, "buy_materials")
         product_q = quote_bundle(products, buy_books, "sell_products")
         data_failed = bool(set(materials) & failed_sells) or product_tid in failed_buys
-        fixed = safe_float(r.get("contract_price"), 0) + safe_float(r.get("manufacturing_job_cost"), 0) + safe_float(r.get("configured_haul_cost"), 0)
+        contract_price = safe_float(r.get("contract_price"), 0)
+        best_job_cost = safe_float(r.get("manufacturing_job_cost"), 0)
+        configured_haul = safe_float(r.get("configured_haul_cost"), 0)
+        fixed = contract_price + best_job_cost + configured_haul
         live_revenue = product_q["value"]
         live_tax = live_revenue * SALES_TAX_RATE
         live_profit = live_revenue - live_tax - material_q["value"] - fixed
-        invested = safe_float(r.get("contract_price"), 0) + material_q["value"] + safe_float(r.get("manufacturing_job_cost"), 0) + safe_float(r.get("configured_haul_cost"), 0)
+        invested = contract_price + material_q["value"] + best_job_cost + configured_haul
         live_roi = live_profit / invested if invested > 0 else 0.0
         stress_revenue = product_q["stress_value"]
         stress_tax = stress_revenue * SALES_TAX_RATE
         stress_profit = stress_revenue - stress_tax - material_q["stress_value"] - fixed
+
+        # Conservative Jita-manufacture economics for mail gating.  This uses the
+        # same live Jita material/product books as V2, but replaces the remote
+        # low-SCI factory cost with the Jita-system industry quote captured by
+        # the baseline scan.  If that quote is unavailable, automatic BPC mail
+        # must fail closed.
+        raw_jita_complete = r.get("jita_manufacturing_cost_complete", False)
+        jita_cost_complete = raw_jita_complete if isinstance(raw_jita_complete, bool) else str(raw_jita_complete).strip().lower() in {"1", "true", "t", "yes", "y"}
+        jita_job_cost = safe_float(r.get("jita_manufacturing_job_cost"), 0)
+        if not jita_cost_complete or jita_job_cost <= 0:
+            jita_live_profit = float("-inf")
+            jita_live_roi = float("-inf")
+            jita_stress_profit = float("-inf")
+        else:
+            jita_fixed = contract_price + jita_job_cost
+            jita_live_profit = live_revenue - live_tax - material_q["value"] - jita_fixed
+            jita_invested = contract_price + material_q["value"] + jita_job_cost
+            jita_live_roi = jita_live_profit / jita_invested if jita_invested > 0 else 0.0
+            jita_stress_profit = stress_revenue - stress_tax - material_q["stress_value"] - jita_fixed
         change_pct = (live_profit - snapshot_profit) / abs(snapshot_profit) if snapshot_profit else (0.0 if live_profit == 0 else 1.0)
         max_slip = max(material_q["max_slippage"], product_q["max_slippage"])
         complete = material_q["complete"] and product_q["complete"]
@@ -269,6 +291,11 @@ def enrich_manufacturing(path=MFG_SOURCE, out=MFG_V2):
             "v2_live_net_profit": live_profit,
             "v2_live_net_roi": live_roi,
             "v2_stress_net_profit": stress_profit,
+            "v2_jita_manufacturing_cost_complete": bool(jita_cost_complete and jita_job_cost > 0),
+            "v2_jita_manufacturing_job_cost": jita_job_cost if jita_cost_complete else 0.0,
+            "v2_jita_live_net_profit": jita_live_profit,
+            "v2_jita_live_net_roi": jita_live_roi,
+            "v2_jita_stress_net_profit": jita_stress_profit,
             "v2_profit_change_pct": change_pct,
             "v2_material_max_slippage": material_q["max_slippage"],
             "v2_product_slippage": product_q["max_slippage"],
