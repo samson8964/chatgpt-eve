@@ -170,9 +170,28 @@ class GlobalGradeWatchTests(unittest.TestCase):
                 "v2_status": "SAFE",
                 "v2_live_net_profit": 140_000_000,
                 "v2_live_net_roi": 0.20,
-                "v2_stress_net_profit": 25_000_000,
+                "v2_stress_net_profit": 80_000_000,
+                "v2_jita_manufacturing_cost_complete": True,
+                "v2_jita_live_net_profit": 70_000_000,
+                "v2_jita_live_net_roi": 0.12,
+                "v2_jita_stress_net_profit": 30_000_000,
                 "v2_orderbook_complete": True,
                 "blueprint_name": "Good BPC",
+            },
+            {
+                "contract_id": 8003,
+                "v2_score": 92.0,
+                "v2_grade": "S",
+                "v2_status": "SAFE",
+                "v2_live_net_profit": 180_000_000,
+                "v2_live_net_roi": 0.22,
+                "v2_stress_net_profit": 90_000_000,
+                "v2_jita_manufacturing_cost_complete": True,
+                "v2_jita_live_net_profit": -28_000_000,
+                "v2_jita_live_net_roi": -0.03,
+                "v2_jita_stress_net_profit": -40_000_000,
+                "v2_orderbook_complete": True,
+                "blueprint_name": "Remote Factory False Positive",
             },
         ]).to_csv(self.latest / "ranked_opportunities_v2.csv", index=False)
 
@@ -181,6 +200,9 @@ class GlobalGradeWatchTests(unittest.TestCase):
 
         self.assertNotIn("contract:8001", candidates)
         self.assertIn("contract:8002", candidates)
+        self.assertNotIn("contract:8003", candidates)
+        self.assertEqual(candidates["contract:8002"]["profit"], 70_000_000)
+        self.assertAlmostEqual(candidates["contract:8002"]["roi"], 0.12)
 
     def test_high_score_below_50m_is_never_auto_mailed(self):
         pd.DataFrame([
