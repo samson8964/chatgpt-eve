@@ -20,8 +20,12 @@ CHANNEL = "global-grade-watch"
 MAIL_TOP = int(os.getenv("GRADE_WATCH_MAIL_TOP", "10"))
 LIVE_WORKERS = int(os.getenv("LIVE_CHECK_WORKERS", "10"))
 MIN_SCORE = float(os.getenv("GRADE_WATCH_MIN_SCORE", "70"))
-BPC_MFG_MIN_PROFIT = max(float(os.getenv("MAIL_BPC_MFG_MIN_PROFIT", "20000000")), MAIL_MIN_VERIFIED_NET_PROFIT)
-BPC_MFG_MIN_ROI = float(os.getenv("MAIL_BPC_MFG_MIN_ROI", "0.10"))
+BPC_MFG_MIN_PROFIT = max(float(os.getenv("MAIL_BPC_MFG_MIN_PROFIT", "100000000")), MAIL_MIN_VERIFIED_NET_PROFIT)
+BPC_MFG_MIN_ROI = float(os.getenv("MAIL_BPC_MFG_MIN_ROI", "0.15"))
+BPC_MFG_MIN_STRESS_PROFIT = float(os.getenv("MAIL_BPC_MFG_MIN_STRESS_PROFIT", "50000000"))
+BPC_MFG_MIN_JITA_PROFIT = max(float(os.getenv("MAIL_BPC_MFG_MIN_JITA_PROFIT", "50000000")), MAIL_MIN_VERIFIED_NET_PROFIT)
+BPC_MFG_MIN_JITA_ROI = float(os.getenv("MAIL_BPC_MFG_MIN_JITA_ROI", "0.10"))
+BPC_MFG_MIN_JITA_STRESS_PROFIT = float(os.getenv("MAIL_BPC_MFG_MIN_JITA_STRESS_PROFIT", "0"))
 AUTO_MAIL_DISABLED_SOURCES = {"BPC价值低估"}
 BPC_MFG_MAIL_EXCLUDED_RECIPIENTS = {
     x.strip().casefold()
@@ -308,6 +312,12 @@ def collect_candidates() -> tuple[dict[str, dict], int]:
                 live_profit = finite(row.get("v2_live_net_profit"), 0.0)
                 live_roi = finite(row.get("v2_live_net_roi"), 0.0)
                 stress_profit = finite(row.get("v2_stress_net_profit"), 0.0)
+                jita_profit = finite(row.get("v2_jita_live_net_profit"), float("-inf"))
+                jita_roi = finite(row.get("v2_jita_live_net_roi"), float("-inf"))
+                jita_stress_profit = finite(row.get("v2_jita_stress_net_profit"), float("-inf"))
+                jita_cost_complete = text_value(row.get("v2_jita_manufacturing_cost_complete"), "").lower() in {
+                    "1", "true", "t", "yes", "y"
+                }
                 orderbook_complete = text_value(row.get("v2_orderbook_complete"), "").lower() in {
                     "1", "true", "t", "yes", "y"
                 }
@@ -315,13 +325,23 @@ def collect_candidates() -> tuple[dict[str, dict], int]:
                     status != "SAFE"
                     or live_profit < BPC_MFG_MIN_PROFIT
                     or live_roi < BPC_MFG_MIN_ROI
-                    or stress_profit <= 0
+                    or stress_profit < BPC_MFG_MIN_STRESS_PROFIT
+                    or not jita_cost_complete
+                    or jita_profit < BPC_MFG_MIN_JITA_PROFIT
+                    or jita_roi < BPC_MFG_MIN_JITA_ROI
+                    or jita_stress_profit <= BPC_MFG_MIN_JITA_STRESS_PROFIT
                     or not orderbook_complete
                 ):
                     continue
-
-            profit = candidate_profit(row)
-            roi = candidate_roi(row)
+                # For BPC manufacturing, user-facing global alerts use the
+                # conservative Jita-manufacture profit/ROI, not the remote-factory maximum.
+                profit = jita_profit
+                roi = jita_roi
+                stress_for_record = jita_stress_profit
+            else:
+                profit = candidate_profit(row)
+                roi = candidate_roi(row)
+                stress_for_record = candidate_stress(row)
             # Universal user-facing mail gate: every automatic opportunity alert must
             # have verified net profit of at least the shared 50M ISK floor.
             if profit < MAIL_MIN_VERIFIED_NET_PROFIT:
@@ -347,7 +367,7 @@ def collect_candidates() -> tuple[dict[str, dict], int]:
                 "title": candidate_title(spec, row),
                 "profit": profit,
                 "roi": roi,
-                "stress_profit": candidate_stress(row),
+                "stress_profit": stress_for_record,
                 "system_name": system,
                 "station_name": station,
                 "risk_tier": text_value(row.get("risk_tier")),
