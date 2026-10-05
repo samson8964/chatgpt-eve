@@ -1,19 +1,19 @@
 # C-J6MT - 1st Taj Mahgoon (DJ's Retirement Fund) → Jita 4-4 Opportunity Engine V2
 
-- Source orders: `52123`; source cache: `Mon, 05 Oct 2026 02:35:26 GMT`
-- Final Jita pricing: live ESI `2026-10-05T02:31:50.426768+00:00`
+- Source orders: `52133`; source cache: `Mon, 05 Oct 2026 03:00:27 GMT`
+- Final Jita pricing: live ESI `2026-10-05T03:00:18.836387+00:00`
 - High-sec restricted ships removed: `1`
 - Final ranking uses live depth, stress survival, liquidity and volume density.
 
 | # | Grade | Status | Item | Qty | C-J6MT - 1st Taj Mahgoon (DJ's Retirement Fund) | Jita live buy | Net | ROI | Score | ISK/m3 | Liquidity |
 |---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|
 | 1 | A | SAFE | Impetus Console | 4,331 | 48.0K | 68.4K | 49.69M | 21.0% | 74.0 | 1.15M | high |
-| 2 | A | SAFE | Union Contemplation Background | 11 | 500.0K | 3.00M | 21.10M | 205.4% | 73.3 | 19.18M | high |
-| 3 | A | SAFE | Single-crystal Superalloy I-beam | 3,119 | 64.4K | 80.0K | 37.90M | 18.7% | 71.5 | 1.22M | high |
+| 2 | A | SAFE | Union Contemplation Background | 11 | 500.0K | 2.73M | 18.76M | 182.6% | 73.6 | 17.05M | high |
+| 3 | A | SAFE | Single-crystal Superalloy I-beam | 3,119 | 64.4K | 80.0K | 37.90M | 18.6% | 71.5 | 1.22M | high |
 | 4 | A | SAFE | Exigent Light Drone Firepower Mutaplasmid | 28 | 997.8K | 1.51M | 11.58M | 39.9% | 70.2 | 413.6K | high |
 | 5 | B | SAFE | Imperial Gold Metallic - Limited | 9 | 5.99M | 8.00M | 14.61M | 26.6% | 69.7 | 16.24M | high |
-| 6 | B | SAFE | Soaring Federation Background | 49 | 1.29M | 3.00M | 37.06M | 50.8% | 65.3 | 7.56M | medium |
-| 7 | B | SAFE | Domination 100MN Afterburner | 5 | 18.99M | 22.61M | 13.88M | 14.6% | 59.9 | 555.2K | high |
+| 6 | B | SAFE | Soaring Federation Background | 49 | 1.29M | 3.00M | 37.06M | 50.8% | 68.5 | 7.56M | medium |
+| 7 | B | SAFE | Domination 100MN Afterburner | 5 | 18.99M | 22.61M | 13.91M | 14.6% | 59.9 | 556.3K | high |
 | 8 | B | SAFE | 'Integrated' Valkyrie | 390 | 488.8K | 621.4K | 43.43M | 22.8% | 58.5 | 11.1K | medium |
 | 9 | B | SAFE | Buzzard Cold Wind's Call SKIN | 1 | 125.00M | 150.10M | 20.03M | 16.0% | 57.7 | 2.00B | high |
 | 10 | B | SAFE | Mega Beam Laser II | 85 | 4.57M | 5.31M | 46.13M | 11.8% | 57.0 | 27.1K | high |
