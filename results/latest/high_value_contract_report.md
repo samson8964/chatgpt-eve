@@ -5,6 +5,6 @@
 - Auto-push proof: net profit >= 500M, ROI >= 10%, stress profit > 0.
 - 7-day conservative listing requires <= 14 days and 10% price haircut.
 - Capital hulls are not deleted: same-region public buy depth is valued separately with 3% risk reserve.
-- Coarse universe: 296; deep validated: 44; actionable SAFE: 0.
+- Coarse universe: 297; deep validated: 44; actionable SAFE: 0.
 
 No <=8B contract currently passes the conservative high-value proof.
