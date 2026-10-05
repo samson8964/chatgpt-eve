@@ -94,9 +94,14 @@ def _bpc_v2_html(r):
         return ""
     grade = html.escape(_short(r.get("v2_grade", ""), 4))
     score = _num(r.get("v2_score"), 0.0)
-    profit = _num(r.get("v2_live_net_profit"), 0.0)
-    roi = _num(r.get("v2_live_net_roi"), 0.0) * 100
-    stress = _num(r.get("v2_stress_net_profit"), 0.0)
+    remote_profit = _num(r.get("v2_live_net_profit"), 0.0)
+    remote_roi = _num(r.get("v2_live_net_roi"), 0.0) * 100
+    remote_stress = _num(r.get("v2_stress_net_profit"), 0.0)
+    jita_profit = _num(r.get("v2_jita_live_net_profit"), 0.0)
+    jita_roi = _num(r.get("v2_jita_live_net_roi"), 0.0) * 100
+    jita_stress = _num(r.get("v2_jita_stress_net_profit"), 0.0)
+    jita_job = _num(r.get("v2_jita_manufacturing_job_cost"), 0.0)
+    jita_complete = str(r.get("v2_jita_manufacturing_cost_complete", "")).strip().lower() in {"1", "true", "t", "yes", "y"}
     gross = _num(r.get("v2_live_gross_revenue"), 0.0)
     material = _num(r.get("v2_live_material_cost"), 0.0)
     tax = _num(r.get("v2_live_sales_tax"), 0.0)
@@ -109,9 +114,16 @@ def _bpc_v2_html(r):
     lock_days = _num(r.get("v2_capital_lock_days"), 0.0)
     change = _num(r.get("v2_profit_change_pct"), 0.0) * 100
     verified = html.escape(_short(r.get("v2_verified_at", ""), 48))
+    jita_line = (
+        f"<b>正式推送口径：Jita制造</b> · 净利润 <b>{fmt_isk(jita_profit)}</b> · ROI {jita_roi:.1f}% · "
+        f"压力利润 {fmt_isk(jita_stress)} · 制造项目费 {fmt_isk(jita_job)}<br>"
+        if jita_complete else
+        "<b>正式推送口径：Jita制造成本未完整验证，禁止自动推荐</b><br>"
+    )
     return (
         f"<b>Opportunity Engine V2 · {grade}级 · {html.escape(status)} · 评分 {score:.1f}</b><br>"
-        f"实时净利润 <b>{fmt_isk(profit)}</b> · ROI {roi:.1f}% · 压力测试利润 {fmt_isk(stress)}<br>"
+        + jita_line
+        + f"远端最优理论路径：净利润 {fmt_isk(remote_profit)} · ROI {remote_roi:.1f}% · 压力利润 {fmt_isk(remote_stress)}<br>"
         f"实时成品收入 {fmt_isk(gross)} · 实时材料 {fmt_isk(material)} · 税 {fmt_isk(tax)}<br>"
         f"成品VWAP {fmt_isk(vwap)} · 成品滑点 {pslip:.2f}% · 材料最大滑点 {mslip:.2f}%<br>"
         f"相对扫描快照利润变化 {change:+.1f}% · 流动性 {liq} · 预计清算 {fill_days:.2f}天 · 30日覆盖 {hist:.0f}%<br>"
