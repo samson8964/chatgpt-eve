@@ -1,6 +1,6 @@
 {
   "project": "EVE 捡漏与套利工具",
-  "as_of": "2026-10-04",
+  "as_of": "2026-10-05",
   "current": [
     {
       "id": "roadmap-governance-approved-20261004",
@@ -26,6 +26,11 @@
       "id": "cross-character-trade-flow-current",
       "type": "operating_model",
       "statement": "MikeChong and LadyBaBa primarily procure; inventory is transferred internally and LadyGuaGua primarily sells. Internal transfers do not reset cost basis."
+    },
+    {
+      "id": "bpc-mail-strict-jita-baseline-20261005",
+      "type": "policy",
+      "statement": "BPC manufacturing automatic alerts use an independent stricter gate without changing 4-H: V2 SAFE, remote-route live net profit >=100M ISK, live ROI >=15%, stress profit >=50M; Jita-manufacture cost must be complete, conservative Jita live net profit >=50M, Jita ROI >=10%, and Jita stress profit >0. User-facing BPC mail displays the Jita-manufacture economics."
     }
   ]
 }
