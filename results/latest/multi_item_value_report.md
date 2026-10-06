@@ -1,9 +1,9 @@
 # Independent multi-item value engine
 
-- Multi-item universe: `6,794`
-- Live candidate pool: `123`
-- Feasible after location/item checks: `81`
-- Live Jita type books: `1,098`
+- Multi-item universe: `6,782`
+- Live candidate pool: `117`
+- Feasible after location/item checks: `78`
+- Live Jita type books: `1,115`
 - Final A instant: `2`
 - Final B cash-floor: `1`
 - SAFE: `3`; CHANGED: `0`
@@ -14,6 +14,6 @@
 
 | # | Class | Status | Grade | Contract | Price | Net | ROI | Coverage | Types | Risk |
 |---:|---|---|---|---:|---:|---:|---:|---:|---:|---|
-| 1 | A 多件即时兑现 | SAFE | A | 236752086 | 35.0M | 33.1M | 88.8% | 100.0% | 7 | B 其他高安 |
-| 2 | A 多件即时兑现 | SAFE | C | 236045015 | 120.0M | 31.4M | 21.7% | 100.0% | 7 | C 低安高风险 |
-| 3 | B 多件现金底价 | SAFE | B | 236751910 | 75.0M | 35.1M | 45.6% | 99.9% | 8 | C 低安高风险 |
+| 1 | A 多件即时兑现 | SAFE | A | 236752086 | 35.0M | 34.4M | 92.4% | 100.0% | 7 | B 其他高安 |
+| 2 | A 多件即时兑现 | SAFE | C | 236045015 | 120.0M | 31.5M | 21.7% | 100.0% | 7 | C 低安高风险 |
+| 3 | B 多件现金底价 | SAFE | B | 236751910 | 75.0M | 35.2M | 45.6% | 99.9% | 8 | C 低安高风险 |
