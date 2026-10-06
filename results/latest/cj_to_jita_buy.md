@@ -1,7 +1,7 @@
 # C-J6MT - 1st Taj Mahgoon (DJ's Retirement Fund) → Jita 4-4 Opportunity Engine V2
 
-- Source orders: `52280`; source cache: `Tue, 06 Oct 2026 03:07:15 GMT`
-- Final Jita pricing: live ESI `2026-10-06T03:07:09.256487+00:00`
+- Source orders: `52323`; source cache: `Tue, 06 Oct 2026 03:37:16 GMT`
+- Final Jita pricing: live ESI `2026-10-06T03:33:55.528311+00:00`
 - High-sec restricted ships removed: `1`
 - Final ranking uses live depth, stress survival, liquidity and volume density.
 
@@ -12,9 +12,9 @@
 | 3 | A | SAFE | Foundation Wisdom Background | 11 | 990.0K | 2.10M | 10.46M | 89.6% | 72.8 | 9.51M | high |
 | 4 | A | SAFE | Megathron Navy Issue Capsuleer Day XXIII SKIN | 1 | 80.00M | 126.00M | 41.75M | 52.2% | 72.3 | 4.17B | high |
 | 5 | A | SAFE | Impetus Console | 3,774 | 50.0K | 69.0K | 41.22M | 19.6% | 72.3 | 1.09M | high |
-| 6 | B | SAFE | Domination 100MN Afterburner | 3 | 19.07M | 24.34M | 13.14M | 23.0% | 68.6 | 876.1K | high |
+| 6 | B | SAFE | Domination 100MN Afterburner | 3 | 19.07M | 24.34M | 13.14M | 23.0% | 68.7 | 876.1K | high |
 | 7 | B | SAFE | Buzzard Cold Wind's Call SKIN | 1 | 125.00M | 154.90M | 24.67M | 19.7% | 63.3 | 2.47B | high |
-| 8 | B | SAFE | 10MN Afterburner II | 249 | 1.82M | 2.10M | 48.91M | 10.7% | 61.7 | 39.3K | high |
+| 8 | B | SAFE | 10MN Afterburner II | 249 | 1.82M | 2.11M | 49.07M | 10.8% | 61.8 | 39.4K | high |
 | 9 | B | SAFE | 800mm Steel Plates II | 403 | 1.25M | 1.50M | 80.31M | 16.0% | 55.4 | 10.0K | medium |
 | 10 | C | SAFE | Dramiel | 3 | 49.99M | 58.09M | 18.42M | 12.3% | 53.9 | 2.5K | high |
 | 11 | C | SAFE | Mining Laser Optimization Charge | 362,648 | 280 | 338 | 16.79M | 16.5% | 51.4 | 4.6K | high |
