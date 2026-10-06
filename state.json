@@ -324449,14 +324449,17 @@
   "region_errors": {},
   "regions_checked": 114,
   "regions_total": 114,
-  "running": true,
+  "round_completed": 1,
+  "running": false,
   "scanned": 23334,
   "snapshot_error": null,
   "snapshot_modified": "2026-10-06T15:31:22.784Z",
   "snapshot_target_contracts": 52,
+  "spread_mail_enabled": false,
+  "spread_opportunities": 0,
   "stage": "等待下一次检查",
   "volume_cap": 0.05
  },
  "unavailable_until": {},
- "updated": "2026-10-06T15:46:41.696171+00:00"
+ "updated": "2026-10-06T15:46:44.441843+00:00"
 }
