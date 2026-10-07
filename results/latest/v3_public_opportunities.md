@@ -2,12 +2,12 @@
 
 - Contracts snapshot: 2026-10-07T18:31:23.350Z
 - Market snapshot: 2026-10-07T18:18:28.141Z
-- Candidate universe: 24537; deep validation pool: 212; feasible: 148
+- Candidate universe: 24533; deep validation pool: 212; feasible: 148
 - FULL_CASH: 0
 - PARTIAL_CASH_FLOOR: 0
 - BARTER: 0
-- LIST-SUPPORTED: 6
-- RESEARCH: 133
+- LIST-SUPPORTED: 5
+- RESEARCH: 134
 - FORMAL MAIL: 0
 
 Design rules:
@@ -23,23 +23,23 @@ Design rules:
 ## Stages
 
 - raw_contracts: `49687`
-- eligible_contracts: `43211`
-- market_executable_contracts: `24537`
-- snapshot_candidates: `24537`
+- eligible_contracts: `43203`
+- market_executable_contracts: `24533`
+- snapshot_candidates: `24533`
 - candidate_pool: `605`
 - location_executable: `212`
 - feasible: `148`
 - full_cash: `0`
 - partial_cash_floor: `0`
 - barter: `0`
-- list_supported: `6`
-- research_watch: `133`
+- list_supported: `5`
+- research_watch: `134`
 - mail_eligible: `0`
 
 ## Rejection reasons
 
-- BPC_ROUTED: `18454`
-- MARKET_INELIGIBLE_SINGLETON: `5994`
+- BPC_ROUTED: `18450`
+- MARKET_INELIGIBLE_SINGLETON: `5991`
 - UNSAFE_OR_UNVERIFIED_LOCATION: `393`
 - HIGHSEC_RESTRICTED_CAPITAL: `60`
 - FATAL_OR_ACCESS_UNVERIFIED: `9`
