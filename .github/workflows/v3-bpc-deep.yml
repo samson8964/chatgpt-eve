@@ -1,0 +1,209 @@
+name: EVE V3 BPC deep scan
+
+on:
+  schedule:
+    - cron: '0 */3 * * *'
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Why this deep scan was started'
+        required: false
+        default: manual
+
+permissions:
+  contents: write
+
+# Heavy BPC lane. Runs every 3 hours and may also be dispatched by the 15-minute
+# fast probe when a newly discovered contract already clears the snapshot Jita
+# profit/ROI thresholds. Formal mail still requires the four live Jita gates.
+concurrency:
+  group: eve-v3-bpc-deep
+  cancel-in-progress: false
+
+jobs:
+  bpc:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      MAIL_MIN_VERIFIED_NET_PROFIT: '50000000'
+      MAIL_BPC_MFG_MIN_JITA_PROFIT: '50000000'
+      MAIL_BPC_MFG_MIN_JITA_ROI: '0.10'
+
+    steps:
+      - name: Checkout latest main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 20
+
+      - name: Clear generated BPC outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p results/latest results/state
+          rm -f results/latest/ranked_opportunities.csv
+          rm -f results/latest/ranked_opportunities_v2.csv
+          rm -f results/latest/bpc_value_opportunities.csv
+          rm -f results/latest/bpc_value_opportunities_v2.csv
+          rm -f results/latest/bpc_v2_safe_candidates.csv
+          rm -f results/latest/bpc_v2_safe_mail_preview.html
+          rm -f results/latest/v3_bpc_opportunities.csv
+          rm -f results/latest/v3_bpc_opportunities.md
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run full BPC buy-only discovery
+        id: bpc_base
+        continue-on-error: true
+        env:
+          MARKET_BROKER_FEE_RATE: '0'
+          EXPECTED_RELISTS: '0'
+          DEAL_MAX_CONTRACT_PRICE: '5000000000'
+          PREFILTER_TOP: '500'
+          BPC_POOL_RESERVE_MULTIPLIER: '1.25'
+          BPC_POOL_PROFIT_SHARE: '0.40'
+          BPC_POOL_ROI_SHARE: '0.20'
+          BPC_POOL_NEWEST_SHARE: '0.15'
+          BPC_POOL_EXPLORATION_SHARE: '0.15'
+          BPC_POOL_DIVERSITY_SHARE: '0.10'
+        run: python runner_buy_only.py
+
+      - name: Refresh BPC comparable-value research
+        id: bpc_value
+        continue-on-error: true
+        if: steps.bpc_base.outcome == 'success'
+        env:
+          BPC_VALUE_MIN_SAMPLES: '3'
+          BPC_VALUE_MIN_EXACT_SAMPLES: '3'
+          BPC_VALUE_MIN_DISCOUNT: '0.25'
+          BPC_VALUE_MIN_MEDIAN_DISCOUNT: '0.10'
+          BPC_VALUE_MIN_SURPLUS: '10000000'
+          BPC_VALUE_MIN_HOURS_TO_EXPIRE: '2'
+          BPC_VALUE_TOP: '200'
+          DEAL_MAX_CONTRACT_PRICE: '5000000000'
+          DEAL_FRIENDLY_CHARACTER_ID: '2124493042'
+          DEAL_FRIENDLY_ALLIANCE_IDS: ''
+          DEAL_FRIENDLY_REGION_IDS: ''
+        run: |
+          python bpc_contract_benchmark_buy_only.py
+          python apply_buy_only_bpc_policy.py
+
+      - name: Run BPC specialist live revalidation
+        id: bpc_live
+        continue-on-error: true
+        if: steps.bpc_base.outcome == 'success'
+        env:
+          BPC_V2_LIVE_POOL: '50'
+          BPC_V2_LIVE_WORKERS: '16'
+          BPC_V2_MIN_NET_PROFIT: '20000000'
+          BPC_V2_MIN_NET_ROI: '0.10'
+          BPC_V2_MAX_SLIPPAGE: '0.05'
+          BPC_V2_MAX_CHANGE: '0.15'
+          BPC_V2_LIQUIDITY_PARTICIPATION: '0.35'
+        run: python runner_bpc_v2.py
+
+      - name: Normalize BPC into V3 formal policy
+        id: bpc_v3
+        continue-on-error: true
+        if: steps.bpc_live.outcome == 'success'
+        run: python v3_bpc_adapter.py
+
+      - name: Send V3 BPC opportunity mail
+        id: mail_v3
+        continue-on-error: true
+        if: always()
+        env:
+          EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+          EVE_MAIL_RECIPIENT_NAME: MikeChong
+          EVE_MAIL_RECIPIENT_NAMES: 'MikeChong,LadyBaBa'
+          EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
+          V3_CHANNELS: 'v3-bpc'
+          MAIL_TOP: '10'
+        run: python send_v3_opportunity_mail.py
+
+      - name: Persist BPC results and mail state
+        id: persist_results
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "eve-arbitrage-bot"
+          git config user.email "eve-arbitrage-bot@users.noreply.github.com"
+
+          SNAPSHOT="$(mktemp -d)"
+          mkdir -p "$SNAPSHOT/latest" "$SNAPSHOT/state"
+          for f in \
+            results/latest/ranked_opportunities.csv \
+            results/latest/ranked_opportunities_v2.csv \
+            results/latest/bpc_value_opportunities.csv \
+            results/latest/bpc_value_opportunities_v2.csv \
+            results/latest/bpc_v2_safe_candidates.csv \
+            results/latest/bpc_v2_safe_mail_preview.html \
+            results/latest/v3_bpc_opportunities.csv \
+            results/latest/v3_bpc_opportunities.md
+          do
+            [ -f "$f" ] && cp "$f" "$SNAPSHOT/latest/"
+          done
+          find results/state -maxdepth 1 -type f -name 'mail_last_v3-bpc_*' -exec cp {} "$SNAPSHOT/state/" \;
+
+          for attempt in 1 2 3; do
+            echo "BPC result push attempt $attempt/3"
+            git fetch origin main
+            git reset --hard origin/main
+            mkdir -p results/latest results/state
+            cp -a "$SNAPSHOT/latest/." results/latest/ 2>/dev/null || true
+            cp -a "$SNAPSHOT/state/." results/state/ 2>/dev/null || true
+            git add results/latest results/state
+
+            if git diff --cached --quiet; then
+              echo "No BPC result changes relative to latest main."
+              exit 0
+            fi
+
+            git commit -m "data: refresh V3 BPC deep opportunities $(date -u +'%Y-%m-%d %H:%M UTC')"
+            if git push origin HEAD:main; then
+              echo "V3 BPC results pushed."
+              exit 0
+            fi
+            sleep $((attempt * 2))
+          done
+
+          echo "Failed to persist V3 BPC results."
+          exit 1
+
+      - name: Final BPC deep health gate
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          failed=0
+          for pair in \
+            "bpc_base:${{ steps.bpc_base.outcome }}" \
+            "bpc_live:${{ steps.bpc_live.outcome }}" \
+            "bpc_v3:${{ steps.bpc_v3.outcome }}" \
+            "mail_v3:${{ steps.mail_v3.outcome }}" \
+            "persist_results:${{ steps.persist_results.outcome }}"
+          do
+            name="${pair%%:*}"
+            outcome="${pair#*:}"
+            echo "$name=$outcome"
+            if [ "$outcome" != "success" ]; then failed=1; fi
+          done
+
+          echo "bpc_value=${{ steps.bpc_value.outcome }}"
+          if [ "${{ steps.bpc_value.outcome }}" = "failure" ]; then
+            echo "::warning::Comparable-value research failed; formal manufacturing mail remains independent."
+          fi
+
+          if [ "$failed" -ne 0 ]; then
+            echo "::error::BPC deep scan completed with one or more degraded critical stages."
+            exit 1
+          fi
+          echo "BPC deep production health OK."
