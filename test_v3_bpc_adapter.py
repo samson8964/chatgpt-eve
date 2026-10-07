@@ -3,7 +3,7 @@ import unittest
 import pandas as pd
 
 from v3_bpc_adapter import classify_manufacturing_row, intrinsic_rows, manufacturing_rows
-from send_v3_opportunity_mail import CHANNELS
+from send_v3_opportunity_mail import CHANNELS, render
 
 
 def strict_row(**overrides):
@@ -12,48 +12,80 @@ def strict_row(**overrides):
         "v2_status": "SAFE",
         "v2_grade": "A",
         "v2_score": 80,
-        "v2_live_net_profit": 120_000_000,
-        "v2_live_net_roi": 0.20,
-        "v2_stress_net_profit": 60_000_000,
+        "v2_live_net_profit": 10_000_000,
+        "v2_live_net_roi": 0.01,
+        "v2_stress_net_profit": -1,
         "v2_jita_manufacturing_cost_complete": True,
         "v2_jita_manufacturing_job_cost": 10_000_000,
-        "v2_jita_live_net_profit": 80_000_000,
-        "v2_jita_live_net_roi": 0.12,
-        "v2_jita_stress_net_profit": 30_000_000,
+        "v2_jita_live_net_profit": 50_000_000,
+        "v2_jita_live_net_roi": 0.10,
+        "v2_jita_stress_net_profit": 1,
         "v2_orderbook_complete": True,
         "blueprints": "1x Test Blueprint",
         "products": "10x Test Product",
+        "contract_price": 20_000_000,
     }
     row.update(overrides)
     return row
 
 
 class V3BpcAdapterTests(unittest.TestCase):
-    def test_strict_bpc_becomes_mail(self):
+    def test_exact_four_gate_boundary_becomes_mail(self):
         stage, eligible, reason = classify_manufacturing_row(strict_row())
         self.assertEqual(stage, "MAIL")
         self.assertTrue(eligible)
-        self.assertEqual(reason, "BPC_STRICT_JITA_MANUFACTURING_GATE_PASSED")
+        self.assertEqual(reason, "BPC_JITA_4_GATE_PASSED")
 
-    def test_safe_but_below_strict_gate_is_watch(self):
+    def test_legacy_remote_thresholds_do_not_block(self):
         stage, eligible, _ = classify_manufacturing_row(
-            strict_row(v2_live_net_profit=90_000_000)
+            strict_row(
+                v2_status="CHANGED",
+                v2_live_net_profit=-500_000_000,
+                v2_live_net_roi=-1.0,
+                v2_stress_net_profit=-500_000_000,
+            )
+        )
+        self.assertEqual(stage, "MAIL")
+        self.assertTrue(eligible)
+
+    def test_jita_profit_below_50m_is_watch(self):
+        stage, eligible, reason = classify_manufacturing_row(
+            strict_row(v2_jita_live_net_profit=49_999_999)
         )
         self.assertEqual(stage, "WATCH")
         self.assertFalse(eligible)
+        self.assertEqual(reason, "BPC_JITA_PROFIT_BELOW_50M")
 
-    def test_changed_bpc_never_mails(self):
-        stage, eligible, _ = classify_manufacturing_row(
-            strict_row(v2_status="CHANGED")
+    def test_jita_roi_below_10pct_is_watch(self):
+        stage, eligible, reason = classify_manufacturing_row(
+            strict_row(v2_jita_live_net_roi=0.0999)
         )
         self.assertEqual(stage, "WATCH")
         self.assertFalse(eligible)
+        self.assertEqual(reason, "BPC_JITA_ROI_BELOW_10PCT")
 
-    def test_adapter_uses_conservative_jita_profit_for_mail(self):
+    def test_stress_must_be_positive(self):
+        stage, eligible, reason = classify_manufacturing_row(
+            strict_row(v2_jita_stress_net_profit=0)
+        )
+        self.assertEqual(stage, "WATCH")
+        self.assertFalse(eligible)
+        self.assertEqual(reason, "BPC_JITA_STRESS_NOT_POSITIVE")
+
+    def test_material_and_product_depth_must_be_complete(self):
+        stage, eligible, reason = classify_manufacturing_row(
+            strict_row(v2_orderbook_complete=False)
+        )
+        self.assertEqual(stage, "RESEARCH")
+        self.assertFalse(eligible)
+        self.assertEqual(reason, "BPC_JITA_COST_OR_ORDERBOOK_INCOMPLETE")
+
+    def test_adapter_uses_jita_manufacturing_economics(self):
         rows = manufacturing_rows(pd.DataFrame([strict_row()]))
         self.assertEqual(len(rows), 1)
-        self.assertEqual(rows[0]["net_profit"], 80_000_000)
-        self.assertAlmostEqual(rows[0]["net_roi"], 0.12)
+        self.assertEqual(rows[0]["net_profit"], 50_000_000)
+        self.assertAlmostEqual(rows[0]["net_roi"], 0.10)
+        self.assertEqual(rows[0]["stress_net_profit"], 1)
         self.assertTrue(rows[0]["mail_eligible"])
 
     def test_intrinsic_signal_stays_watch_only(self):
@@ -69,6 +101,29 @@ class V3BpcAdapterTests(unittest.TestCase):
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["policy_stage"], "WATCH")
         self.assertFalse(rows[0]["mail_eligible"])
+
+    def test_bpc_mail_layout_is_compact(self):
+        row = pd.Series({
+            "products": "10x Test Product",
+            "blueprints": "1x Test Blueprint",
+            "contract_price": 20_000_000,
+            "stress_net_profit": 15_000_000,
+        })
+        picked = [{
+            "id": 123,
+            "profit": 60_000_000,
+            "roi": 0.12,
+            "score": 80,
+            "grade": "A",
+            "row": row,
+        }]
+        subject, body = render("v3-bpc", "10-07 15:00", picked)
+        self.assertEqual(subject, "[V3] BPC制造 · 1个 · 10-07 15:00")
+        self.assertIn("Jita制造净利", body)
+        self.assertIn("ROI 12.0%", body)
+        self.assertNotIn("成品VWAP", body)
+        self.assertNotIn("材料最大滑点", body)
+        self.assertNotIn("Opportunity Engine V3", body)
 
     def test_unified_mailer_has_all_production_source_types(self):
         for key in [

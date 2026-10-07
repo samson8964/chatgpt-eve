@@ -11,13 +11,8 @@ VALUE_SOURCE = Path("results/latest/bpc_value_opportunities_v2.csv")
 OUT = Path("results/latest/v3_bpc_opportunities.csv")
 REPORT = Path("results/latest/v3_bpc_opportunities.md")
 
-MAIL_MIN_VERIFIED_NET_PROFIT = float(os.getenv("MAIL_MIN_VERIFIED_NET_PROFIT", "50000000"))
-BPC_MFG_MIN_PROFIT = max(float(os.getenv("MAIL_BPC_MFG_MIN_PROFIT", "100000000")), MAIL_MIN_VERIFIED_NET_PROFIT)
-BPC_MFG_MIN_ROI = float(os.getenv("MAIL_BPC_MFG_MIN_ROI", "0.15"))
-BPC_MFG_MIN_STRESS_PROFIT = float(os.getenv("MAIL_BPC_MFG_MIN_STRESS_PROFIT", "50000000"))
-BPC_MFG_MIN_JITA_PROFIT = max(float(os.getenv("MAIL_BPC_MFG_MIN_JITA_PROFIT", "50000000")), MAIL_MIN_VERIFIED_NET_PROFIT)
+BPC_MFG_MIN_JITA_PROFIT = float(os.getenv("MAIL_BPC_MFG_MIN_JITA_PROFIT", "50000000"))
 BPC_MFG_MIN_JITA_ROI = float(os.getenv("MAIL_BPC_MFG_MIN_JITA_ROI", "0.10"))
-BPC_MFG_MIN_JITA_STRESS_PROFIT = float(os.getenv("MAIL_BPC_MFG_MIN_JITA_STRESS_PROFIT", "0"))
 
 
 def _read(path: Path) -> pd.DataFrame:
@@ -44,36 +39,31 @@ def _truth(v) -> bool:
 
 
 def classify_manufacturing_row(r) -> tuple[str, bool, str]:
-    status = str(r.get("v2_status", "") or "").strip().upper()
-    live_profit = _num(r.get("v2_live_net_profit"), float("-inf"))
-    live_roi = _num(r.get("v2_live_net_roi"), float("-inf"))
-    stress_profit = _num(r.get("v2_stress_net_profit"), float("-inf"))
-    jita_complete = _truth(r.get("v2_jita_manufacturing_cost_complete"))
+    """BPC mail gate: only the user's four Jita-manufacturing execution checks.
+
+    1) Jita manufacturing net profit >= 50M
+    2) Jita manufacturing ROI >= 10%
+    3) Jita stress profit > 0
+    4) material and product order-book depth complete
+
+    The older remote-factory profit/ROI/stress thresholds and legacy SAFE/CHANGED
+    label are analysis signals only and do not block an otherwise executable BPC.
+    """
+    jita_cost_complete = _truth(r.get("v2_jita_manufacturing_cost_complete"))
     jita_profit = _num(r.get("v2_jita_live_net_profit"), float("-inf"))
     jita_roi = _num(r.get("v2_jita_live_net_roi"), float("-inf"))
     jita_stress = _num(r.get("v2_jita_stress_net_profit"), float("-inf"))
     depth_complete = _truth(r.get("v2_orderbook_complete"))
 
-    if status == "DANGER" or not depth_complete:
-        return "RESEARCH", False, "BPC_EXECUTION_INCOMPLETE"
-    if status == "CHANGED":
-        return "WATCH", False, "BPC_MARKET_CHANGED"
-    if status != "SAFE":
-        return "RESEARCH", False, "BPC_NOT_SAFE"
-
-    strict = (
-        live_profit >= BPC_MFG_MIN_PROFIT
-        and live_roi >= BPC_MFG_MIN_ROI
-        and stress_profit >= BPC_MFG_MIN_STRESS_PROFIT
-        and jita_complete
-        and jita_profit >= BPC_MFG_MIN_JITA_PROFIT
-        and jita_roi >= BPC_MFG_MIN_JITA_ROI
-        and jita_stress > BPC_MFG_MIN_JITA_STRESS_PROFIT
-        and depth_complete
-    )
-    if strict:
-        return "MAIL", True, "BPC_STRICT_JITA_MANUFACTURING_GATE_PASSED"
-    return "WATCH", False, "BPC_SAFE_BELOW_STRICT_MAIL_GATE"
+    if not jita_cost_complete or not depth_complete:
+        return "RESEARCH", False, "BPC_JITA_COST_OR_ORDERBOOK_INCOMPLETE"
+    if jita_profit < BPC_MFG_MIN_JITA_PROFIT:
+        return "WATCH", False, "BPC_JITA_PROFIT_BELOW_50M"
+    if jita_roi < BPC_MFG_MIN_JITA_ROI:
+        return "WATCH", False, "BPC_JITA_ROI_BELOW_10PCT"
+    if jita_stress <= 0:
+        return "WATCH", False, "BPC_JITA_STRESS_NOT_POSITIVE"
+    return "MAIL", True, "BPC_JITA_4_GATE_PASSED"
 
 
 def manufacturing_rows(df: pd.DataFrame) -> list[dict]:
@@ -209,8 +199,8 @@ def main() -> None:
         f"- V3 formal MAIL: {mail_count}",
         f"- V3 WATCH: {watch_count}",
         "",
-        "BPC manufacturing keeps the stricter specialist gate: live Jita material/product depth, stress test,",
-        "remote-route margin, conservative Jita-manufacturing margin, and complete order-book evidence must all pass.",
+        "BPC formal mail uses exactly four gates: Jita manufacturing net profit >=50M, ROI >=10%,",
+        "Jita stress profit >0, and complete material/product order-book depth.",
         "Comparable BPC ask-price signals remain WATCH-only and never become automatic mail without execution proof.",
     ]
     REPORT.write_text("\n".join(lines) + "\n", encoding="utf-8")

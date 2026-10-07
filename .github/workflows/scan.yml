@@ -24,13 +24,10 @@ jobs:
       MIN_PROFIT_PER_M3: '2000'
       V3_FULL_CASH_MAIL_ENABLED: '1'
 
-      # BPC keeps its stricter specialist gate.
-      MAIL_BPC_MFG_MIN_PROFIT: '100000000'
-      MAIL_BPC_MFG_MIN_ROI: '0.15'
-      MAIL_BPC_MFG_MIN_STRESS_PROFIT: '50000000'
+      # BPC formal mail gate: Jita manufacturing profit >=50M, ROI >=10%,
+      # positive Jita stress profit, and complete material/product order-book depth.
       MAIL_BPC_MFG_MIN_JITA_PROFIT: '50000000'
       MAIL_BPC_MFG_MIN_JITA_ROI: '0.10'
-      MAIL_BPC_MFG_MIN_JITA_STRESS_PROFIT: '0'
 
     steps:
       - name: Checkout latest main
