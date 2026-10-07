@@ -331808,14 +331808,17 @@
   "region_errors": {},
   "regions_checked": 114,
   "regions_total": 114,
-  "running": true,
+  "round_completed": 1,
+  "running": false,
   "scanned": 23848,
   "snapshot_error": null,
   "snapshot_modified": "2026-10-07T00:01:22.337Z",
   "snapshot_target_contracts": 48,
+  "spread_mail_enabled": false,
+  "spread_opportunities": 0,
   "stage": "等待下一次检查",
   "volume_cap": 0.05
  },
  "unavailable_until": {},
- "updated": "2026-10-07T00:13:13.862139+00:00"
+ "updated": "2026-10-07T00:13:16.071850+00:00"
 }
