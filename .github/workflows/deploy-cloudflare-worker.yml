@@ -20,6 +20,7 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+      GITHUB_DISPATCH_TOKEN: ${{ secrets.GITHUB_DISPATCH_TOKEN }}
       WORKER_URL: https://eve-contract-opener.99617224.workers.dev
     steps:
       - name: Checkout
@@ -48,6 +49,14 @@ jobs:
             --config cloudflare/wrangler.jsonc \
             --strict
 
+      - name: Sync GitHub dispatch token to Worker
+        if: env.GITHUB_DISPATCH_TOKEN != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' "$GITHUB_DISPATCH_TOKEN" | npx --yes wrangler@latest secret put GITHUB_DISPATCH_TOKEN \
+            --config cloudflare/wrangler.jsonc
+
       - name: Verify deployed Worker health
         shell: bash
         run: |
@@ -57,15 +66,29 @@ jobs:
           mail_status=$(curl -sS -o /tmp/mail-health.txt -w '%{http_code}' \
             -H "Authorization: Bearer $EVE_MAIL_API_KEY" \
             "$WORKER_URL/api/mail-health")
+          scheduler_status=$(curl -sS -o /tmp/scheduler-health.txt -w '%{http_code}' \
+            -H "Authorization: Bearer $EVE_MAIL_API_KEY" \
+            "$WORKER_URL/api/scheduler-health")
           echo "health_status=$health_status"
           echo "mail_health_status=$mail_status"
+          echo "scheduler_health_status=$scheduler_status"
           cat /tmp/mail-health.txt
+          cat /tmp/scheduler-health.txt
           test "$health_status" = "200"
           test "$mail_status" = "200"
+          test "$scheduler_status" = "200"
           python - <<'PY'
           import json
           data = json.load(open('/tmp/mail-health.txt', encoding='utf-8'))
           assert data.get('ok') is True, data
           assert data.get('sender_name') == 'LadyGuaGua', data
           print('mail sender verified:', data.get('sender_name'), data.get('sender_id'), data.get('token_source'))
+          scheduler = json.load(open('/tmp/scheduler-health.txt', encoding='utf-8'))
+          assert scheduler.get('ok') is True, scheduler
+          print('scheduler configured:', scheduler.get('configured'), scheduler.get('fast_scan'), scheduler.get('bpc_deep'))
           PY
+
+      - name: Warn if Cloudflare scheduler token is not configured
+        if: env.GITHUB_DISPATCH_TOKEN == ''
+        run: |
+          echo "::warning::GITHUB_DISPATCH_TOKEN is missing. Cron triggers are deployed but cannot dispatch GitHub workflows until this secret is added and this deploy workflow is re-run."
