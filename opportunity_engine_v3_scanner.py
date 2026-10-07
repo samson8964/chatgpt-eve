@@ -634,17 +634,18 @@ def main():
                     **loc,
                 },
             )
-            if decision.stage == "RESEARCH":
-                research_rows.append(row)
-            elif full_cash:
-                full_cash_rows.append(row)
+            if decision.stage in {"SAFE", "MAIL"}:
+                if full_cash:
+                    full_cash_rows.append(row)
+                else:
+                    cash_rows.append(row)
             else:
-                cash_rows.append(row)
+                # A weak immediate exit may still have supported listing value.
+                # Defer its research row until listing evaluation finishes so one
+                # contract has one final public route instead of duplicate channels.
+                listing_candidates.append((p, loc, row))
         else:
             funnel.reject(decision.reason)
-
-        if decision.stage not in {"SAFE", "MAIL"}:
-            listing_candidates.append((p, loc))
 
     listing_candidates.sort(
         key=lambda x: (
@@ -664,13 +665,16 @@ def main():
         itemq = p["included"]
         if set(itemq).intersection(snapshot.failed_sell_types) or set(itemq).intersection(snapshot.failed_history_types):
             funnel.reject("LIST_DATA_INCOMPLETE")
+            research_rows.append(cash_research_row)
             continue
         q = conservative_listing_bundle(itemq, snapshot.live_sells, snapshot.history)
         if not q["complete"]:
             funnel.reject("LIST_UNSUPPORTED")
+            research_rows.append(cash_research_row)
             continue
         if q["estimated_fill_days"] > LIST_MAX_FILL_DAYS:
             funnel.reject("LIST_TOO_SLOW")
+            research_rows.append(cash_research_row)
             continue
 
         total_m3 = _volume(itemq, types)
