@@ -20,7 +20,7 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
-      GITHUB_DISPATCH_TOKEN: ${{ secrets.GITHUB_DISPATCH_TOKEN }}
+      EVE_DISPATCH_TOKEN: ${{ secrets.EVE_DISPATCH_TOKEN }}
       WORKER_URL: https://eve-contract-opener.99617224.workers.dev
     steps:
       - name: Checkout
@@ -50,11 +50,11 @@ jobs:
             --strict
 
       - name: Sync GitHub dispatch token to Worker
-        if: env.GITHUB_DISPATCH_TOKEN != ''
+        if: env.EVE_DISPATCH_TOKEN != ''
         shell: bash
         run: |
           set -euo pipefail
-          printf '%s' "$GITHUB_DISPATCH_TOKEN" | npx --yes wrangler@latest secret put GITHUB_DISPATCH_TOKEN \
+          printf '%s' "$EVE_DISPATCH_TOKEN" | npx --yes wrangler@latest secret put EVE_DISPATCH_TOKEN \
             --config cloudflare/wrangler.jsonc
 
       - name: Verify deployed Worker health
@@ -89,6 +89,6 @@ jobs:
           PY
 
       - name: Warn if Cloudflare scheduler token is not configured
-        if: env.GITHUB_DISPATCH_TOKEN == ''
+        if: env.EVE_DISPATCH_TOKEN == ''
         run: |
-          echo "::warning::GITHUB_DISPATCH_TOKEN is missing. Cron triggers are deployed but cannot dispatch GitHub workflows until this secret is added and this deploy workflow is re-run."
+          echo "::warning::EVE_DISPATCH_TOKEN is missing. Cron triggers are deployed but cannot dispatch GitHub workflows until this secret is added and this deploy workflow is re-run."
