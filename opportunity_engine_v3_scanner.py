@@ -61,6 +61,7 @@ from v3_engine import (
     contract_fingerprint,
     evaluate_execution,
     evaluate_listing,
+    is_full_cash_exit,
     load_fingerprints,
     save_fingerprints,
 )
@@ -578,7 +579,11 @@ def main():
         roi = net_profit / invested if invested > 0 else 0.0
         stress_profit = stress["net_after_tax"] - p["contract_price"] - haul_back
         density = profit_density(net_profit, total_received_m3)
-        full_cash = cash["coverage"] >= 0.999999 and stress["coverage"] >= 0.999999
+        full_cash = is_full_cash_exit(
+            coverage=cash["coverage"],
+            filled_units=cash["filled_units"],
+            requested_units=cash["requested_units"],
+        )
         channel = "FULL_CASH" if full_cash else "PARTIAL_CASH_FLOOR"
         proof = ExecutionProof(
             opportunity_id=str(cid),
