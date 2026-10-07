@@ -115,6 +115,18 @@ jobs:
         if: steps.bpc_live.outcome == 'success'
         run: python v3_bpc_adapter.py
 
+      - name: Send new BPC opportunities to Google Calendar
+        id: calendar_v3
+        continue-on-error: true
+        if: always()
+        env:
+          GOOGLE_CALENDAR_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_CALENDAR_SERVICE_ACCOUNT_JSON }}
+          GOOGLE_CALENDAR_ID: ${{ secrets.GOOGLE_CALENDAR_ID }}
+          GOOGLE_CALENDAR_TIMEZONE: 'Asia/Shanghai'
+          V3_CHANNELS: 'v3-bpc'
+          MAIL_TOP: '10'
+        run: python send_v3_calendar_alerts.py
+
       - name: Send V3 BPC opportunity mail
         id: mail_v3
         continue-on-error: true
@@ -152,6 +164,7 @@ jobs:
             [ -f "$f" ] && cp "$f" "$SNAPSHOT/latest/"
           done
           find results/state -maxdepth 1 -type f -name 'mail_last_v3-bpc_*' -exec cp {} "$SNAPSHOT/state/" \;
+          find results/state -maxdepth 1 -type f -name 'calendar_seen_v3-bpc.csv' -exec cp {} "$SNAPSHOT/state/" \;
 
           for attempt in 1 2 3; do
             echo "BPC result push attempt $attempt/3"
@@ -188,6 +201,7 @@ jobs:
             "bpc_base:${{ steps.bpc_base.outcome }}" \
             "bpc_live:${{ steps.bpc_live.outcome }}" \
             "bpc_v3:${{ steps.bpc_v3.outcome }}" \
+            "calendar_v3:${{ steps.calendar_v3.outcome }}" \
             "mail_v3:${{ steps.mail_v3.outcome }}" \
             "persist_results:${{ steps.persist_results.outcome }}"
           do
