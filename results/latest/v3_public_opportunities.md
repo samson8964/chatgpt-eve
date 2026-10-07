@@ -1,8 +1,8 @@
 # Opportunity Engine V3 — redesigned architecture
 
-- Contracts snapshot: 2026-10-07T15:01:22.653Z
+- Contracts snapshot: 2026-10-07T15:31:25.693Z
 - Market snapshot: 2026-10-07T15:18:28.288Z
-- Candidate universe: 24481; deep validation pool: 250; feasible: 185
+- Candidate universe: 24456; deep validation pool: 258; feasible: 192
 - FULL_CASH: 0
 - PARTIAL_CASH_FLOOR: 0
 - BARTER: 0
@@ -22,13 +22,13 @@ Design rules:
 
 ## Stages
 
-- raw_contracts: `49821`
-- eligible_contracts: `43231`
-- market_executable_contracts: `24481`
-- snapshot_candidates: `24481`
+- raw_contracts: `49848`
+- eligible_contracts: `43267`
+- market_executable_contracts: `24456`
+- snapshot_candidates: `24456`
 - candidate_pool: `605`
-- location_executable: `250`
-- feasible: `185`
+- location_executable: `258`
+- feasible: `192`
 - full_cash: `0`
 - partial_cash_floor: `0`
 - barter: `0`
@@ -38,11 +38,11 @@ Design rules:
 
 ## Rejection reasons
 
-- BPC_ROUTED: `18528`
-- MARKET_INELIGIBLE_SINGLETON: `6000`
-- UNSAFE_OR_UNVERIFIED_LOCATION: `355`
-- HIGHSEC_RESTRICTED_CAPITAL: `61`
+- BPC_ROUTED: `18589`
+- MARKET_INELIGIBLE_SINGLETON: `6002`
+- UNSAFE_OR_UNVERIFIED_LOCATION: `347`
+- HIGHSEC_RESTRICTED_CAPITAL: `62`
 - FATAL_OR_ACCESS_UNVERIFIED: `17`
 - SKIN_DOMINANT: `4`
-- LIST_TOO_SLOW: `3`
+- LIST_TOO_SLOW: `4`
 - BARTER_PROCUREMENT_INCOMPLETE: `2`
