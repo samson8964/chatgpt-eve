@@ -64,7 +64,7 @@ class V3ScheduleAndDeliveryTests(unittest.TestCase):
         self.assertIn('"0 */3 * * *"', wrangler)
         self.assertIn('workflow = "scan.yml"', worker)
         self.assertIn('workflow = "v3-bpc-deep.yml"', worker)
-        self.assertIn("GITHUB_DISPATCH_TOKEN", worker)
+        self.assertIn("EVE_DISPATCH_TOKEN", worker)
 
     def test_gmail_delivery_replaces_calendar_delivery(self):
         fast = Path(".github/workflows/scan.yml").read_text(encoding="utf-8")
