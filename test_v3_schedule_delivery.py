@@ -4,10 +4,10 @@ from pathlib import Path
 import pandas as pd
 
 from bpc_fast_probe import select_candidates
-from send_v3_calendar_alerts import _event_id, _plain
+from send_v3_gmail_alerts import _eve_to_plain
 
 
-class V3ScheduleAndCalendarTests(unittest.TestCase):
+class V3ScheduleAndDeliveryTests(unittest.TestCase):
     def test_bpc_fast_probe_uses_snapshot_jita_50m_10pct_gate(self):
         df = pd.DataFrame([
             {
@@ -38,34 +38,41 @@ class V3ScheduleAndCalendarTests(unittest.TestCase):
         got = select_candidates(df)
         self.assertEqual(got["contract_id"].tolist(), [1])
 
-    def test_calendar_plain_text_keeps_mail_content_without_eve_markup(self):
+    def test_gmail_plain_text_keeps_eve_mail_content(self):
         body = "<b>BPC制造｜1个</b><br>净利 <b>60.0M</b><br><url=contract:0//123><b>打开合同</b></url>"
-        plain = _plain(body)
+        plain = _eve_to_plain(body)
         self.assertIn("BPC制造｜1个", plain)
         self.assertIn("净利 60.0M", plain)
         self.assertIn("打开合同", plain)
         self.assertNotIn("<b>", plain)
         self.assertNotIn("<url=", plain)
 
-    def test_calendar_event_id_is_stable_per_channel_and_opportunity(self):
-        self.assertEqual(_event_id("v3-bpc", 123), _event_id("v3-bpc", 123))
-        self.assertNotEqual(_event_id("v3-bpc", 123), _event_id("v3-bpc", 124))
-        self.assertNotEqual(_event_id("v3-bpc", 123), _event_id("v3-four-h-contract", 123))
-
-    def test_workflow_cadence_is_split(self):
+    def test_github_workflows_are_dispatch_only(self):
         fast = Path(".github/workflows/scan.yml").read_text(encoding="utf-8")
         deep = Path(".github/workflows/v3-bpc-deep.yml").read_text(encoding="utf-8")
-        self.assertIn("cron: '*/15 * * * *'", fast)
-        self.assertIn("Lightweight BPC discovery probe", fast)
-        self.assertNotIn("Run BPC specialist live revalidation", fast)
-        self.assertIn("cron: '0 */3 * * *'", deep)
-        self.assertIn("Run BPC specialist live revalidation", deep)
-        self.assertIn("V3_CHANNELS: 'v3-bpc'", deep)
+        fast_on = fast.split("permissions:", 1)[0]
+        deep_on = deep.split("permissions:", 1)[0]
+        self.assertIn("workflow_dispatch", fast_on)
+        self.assertNotIn("schedule:", fast_on)
+        self.assertIn("workflow_dispatch", deep_on)
+        self.assertNotIn("schedule:", deep_on)
 
-    def test_fast_workflow_has_no_workflow_dispatch_to_avoid_legacy_scheduler_duplicates(self):
+    def test_cloudflare_owns_15m_and_3h_crons(self):
+        wrangler = Path("cloudflare/wrangler.jsonc").read_text(encoding="utf-8")
+        worker = Path("cloudflare/worker_mail_sender.js").read_text(encoding="utf-8")
+        self.assertIn('"*/15 * * * *"', wrangler)
+        self.assertIn('"0 */3 * * *"', wrangler)
+        self.assertIn('workflow = "scan.yml"', worker)
+        self.assertIn('workflow = "v3-bpc-deep.yml"', worker)
+        self.assertIn("EVE_DISPATCH_TOKEN", worker)
+
+    def test_gmail_delivery_replaces_calendar_delivery(self):
         fast = Path(".github/workflows/scan.yml").read_text(encoding="utf-8")
-        on_block = fast.split("permissions:", 1)[0]
-        self.assertNotIn("workflow_dispatch", on_block)
+        deep = Path(".github/workflows/v3-bpc-deep.yml").read_text(encoding="utf-8")
+        self.assertIn("send_v3_gmail_alerts.py", fast)
+        self.assertIn("send_v3_gmail_alerts.py", deep)
+        self.assertNotIn("send_v3_calendar_alerts.py", fast)
+        self.assertNotIn("send_v3_calendar_alerts.py", deep)
 
 
 if __name__ == "__main__":

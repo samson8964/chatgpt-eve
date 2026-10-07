@@ -1,6 +1,6 @@
-# Cloudflare：EVE 单角色授权、邮件和窗口服务
+# Cloudflare：EVE 授权、邮件、窗口与 V3 定时调度
 
-源码为 [worker.js](worker.js)，工作流部署名为 `eve-contract-opener`，扫描脚本使用的服务地址为 `https://eve-contract-opener.99617224.workers.dev`。它提供邮件中转、合同/市场窗口和技能读取，**不执行合同扫描或估值**。
+源码为 [worker.js](worker.js)，工作流部署名为 `eve-contract-opener`，扫描脚本使用的服务地址为 `https://eve-contract-opener.99617224.workers.dev`。它提供邮件中转、合同/市场窗口、技能读取，并通过 Cloudflare Cron **定时触发 GitHub V3 扫描**；扫描与估值本身仍在 GitHub Actions 中执行。
 
 ## 单角色共享架构
 
@@ -21,6 +21,7 @@ KV 只有一组 `refresh_token`、`character_id`、`character_name`，所有调�
 | GitHub Actions Secret | `EVE_MAIL_API_KEY` | 扫描调用 Worker；值应与 Worker 的 `MAIL_API_KEY` 一致 |
 | GitHub Actions Secret | `CLOUDFLARE_API_TOKEN` | 部署 Worker 使用 |
 | GitHub Actions Secret | `CLOUDFLARE_ACCOUNT_ID` | 部署目标账户编号 |
+| GitHub Actions Secret + Worker Secret | `EVE_DISPATCH_TOKEN` | Cloudflare Cron 调用 GitHub `workflow_dispatch`；Fine-grained PAT 至少需要本仓库 Actions: Read and write |
 
 不要把密钥或刷新令牌写进源码、文档、公共结果或日志。部署工作流不会创建 KV、EVE 应用或填写 Worker 运行变量。
 
@@ -59,3 +60,18 @@ EVE 应用需注册相同回调，允许当前源码申请的三个权限：
 当前仅 `/api/send-mail` 和 `/api/skills` 检查 API Key；`/auth`、`/logout` 和窗口路由没有额外管理鉴权。因此这是共享单角色工具，不是具备用户隔离和完整管理权限控制的多用户服务。`/logout` 只删除本服务保存的授权，代码没有调用 EVE 令牌撤销接口。
 
 增效剂本机程序另用 PKCE 和 Windows 加密文件保存授权，不会自动获得 Worker 的授权或密钥。两种模式的区别见 [增效剂 README](../booster-monitor/README.md)。
+
+
+## V3 Cloudflare Cron 调度
+
+正式周期由 `wrangler.jsonc` 中的 Cloudflare Cron Triggers 控制，而不是 GitHub `schedule`：
+
+- `*/15 * * * *` → `.github/workflows/scan.yml`：V3 快速扫描，每 15 分钟。
+- `0 */3 * * *` → `.github/workflows/v3-bpc-deep.yml`：BPC 深扫，每 3 小时。
+- 快速扫描发现新 BPC 潜力合同时，仍可使用 GitHub 自身的短链路额外触发一次 BPC 深扫；这不是周期调度。
+
+Worker 使用 Secret `EVE_DISPATCH_TOKEN` 调 GitHub Actions API。部署工作流会在同名 GitHub Actions Secret 存在时自动同步到 Worker Secret。若该 Secret 缺失，Cron 本身仍会部署，但不会成功触发扫描。
+
+可以用带 `EVE_MAIL_API_KEY` 的 `GET /api/scheduler-health` 检查调度器是否已经拿到 GitHub token；`configured: true` 才代表 Cloudflare 具备真实触发能力。
+
+V3 的 Gmail 新机会提醒仍由 GitHub 扫描完成后发送，沿用仓库已有的 `GMAIL_SMTP_USER`、`GMAIL_APP_PASSWORD`、`GMAIL_TO` Secrets。Gmail 有独立的永久机会 ID 去重状态；第一次启用只建立当前存量基线，不补发旧机会。

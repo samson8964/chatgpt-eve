@@ -1,8 +1,6 @@
 name: EVE V3 BPC deep scan
 
 on:
-  schedule:
-    - cron: '0 */3 * * *'
   workflow_dispatch:
     inputs:
       reason:
@@ -13,9 +11,10 @@ on:
 permissions:
   contents: write
 
-# Heavy BPC lane. Runs every 3 hours and may also be dispatched by the 15-minute
-# fast probe when a newly discovered contract already clears the snapshot Jita
-# profit/ROI thresholds. Formal mail still requires the four live Jita gates.
+# Heavy BPC lane. Cloudflare Cron dispatches it every 3 hours. The 15-minute
+# fast probe may also dispatch an extra deep run when a newly discovered contract
+# already clears the snapshot Jita profit/ROI thresholds. Formal mail still
+# requires the four live Jita gates.
 concurrency:
   group: eve-v3-bpc-deep
   cancel-in-progress: false
@@ -115,17 +114,17 @@ jobs:
         if: steps.bpc_live.outcome == 'success'
         run: python v3_bpc_adapter.py
 
-      - name: Send new BPC opportunities to Google Calendar
-        id: calendar_v3
+      - name: Send first-seen BPC opportunities to Gmail
+        id: gmail_v3
         continue-on-error: true
         if: always()
         env:
-          GOOGLE_CALENDAR_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_CALENDAR_SERVICE_ACCOUNT_JSON }}
-          GOOGLE_CALENDAR_ID: ${{ secrets.GOOGLE_CALENDAR_ID }}
-          GOOGLE_CALENDAR_TIMEZONE: 'Asia/Shanghai'
+          GMAIL_SMTP_USER: ${{ secrets.GMAIL_SMTP_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          GMAIL_TO: ${{ secrets.GMAIL_TO }}
           V3_CHANNELS: 'v3-bpc'
           MAIL_TOP: '10'
-        run: python send_v3_calendar_alerts.py
+        run: python send_v3_gmail_alerts.py
 
       - name: Send V3 BPC opportunity mail
         id: mail_v3
@@ -164,7 +163,7 @@ jobs:
             [ -f "$f" ] && cp "$f" "$SNAPSHOT/latest/"
           done
           find results/state -maxdepth 1 -type f -name 'mail_last_v3-bpc_*' -exec cp {} "$SNAPSHOT/state/" \;
-          find results/state -maxdepth 1 -type f -name 'calendar_seen_v3-bpc.csv' -exec cp {} "$SNAPSHOT/state/" \;
+          find results/state -maxdepth 1 -type f -name 'gmail_seen_v3-bpc.csv' -exec cp {} "$SNAPSHOT/state/" \;
 
           for attempt in 1 2 3; do
             echo "BPC result push attempt $attempt/3"
@@ -210,9 +209,9 @@ jobs:
             if [ "$outcome" != "success" ]; then failed=1; fi
           done
 
-          echo "calendar_v3=${{ steps.calendar_v3.outcome }}"
-          if [ "${{ steps.calendar_v3.outcome }}" = "failure" ]; then
-            echo "::warning::Google Calendar BPC alert delivery failed; BPC scan and EVE mail remain independent."
+          echo "gmail_v3=${{ steps.gmail_v3.outcome }}"
+          if [ "${{ steps.gmail_v3.outcome }}" = "failure" ]; then
+            echo "::warning::Gmail BPC alert delivery failed; BPC scan and EVE mail remain independent."
           fi
 
           echo "bpc_value=${{ steps.bpc_value.outcome }}"
