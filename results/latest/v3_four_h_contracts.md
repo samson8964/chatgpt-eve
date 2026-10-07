@@ -2,7 +2,7 @@
 
 - Structure: 1053970513596
 - Contract snapshot: 2026-10-07T13:31:25.005Z
-- Jita market snapshot: 2026-10-07T13:18:23.734Z
+- Jita market snapshot: 2026-10-07T13:48:28.028Z
 - Active plain-item contracts: 147
 - Deep-validation contracts: 147
 - Final rows: 120
