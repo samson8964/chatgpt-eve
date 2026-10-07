@@ -24,6 +24,29 @@ def _write_output(key: str, value: str) -> None:
             f.write(f"{key}={value}\n")
 
 
+def select_candidates(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty:
+        return pd.DataFrame()
+    required = ["contract_id", "jita_manufacturing_net_profit", "jita_manufacturing_net_roi"]
+    if any(col not in df.columns for col in required):
+        return pd.DataFrame()
+
+    if "jita_manufacturing_cost_complete" in df.columns:
+        complete = df["jita_manufacturing_cost_complete"].apply(_truth)
+    else:
+        complete = pd.Series(False, index=df.index)
+
+    candidate = df[
+        complete
+        & (pd.to_numeric(df["jita_manufacturing_net_profit"], errors="coerce").fillna(float("-inf")) >= MIN_JITA_PROFIT)
+        & (pd.to_numeric(df["jita_manufacturing_net_roi"], errors="coerce").fillna(float("-inf")) >= MIN_JITA_ROI)
+    ].copy()
+    candidate["contract_id"] = pd.to_numeric(candidate["contract_id"], errors="coerce")
+    candidate = candidate[candidate["contract_id"].notna()].copy()
+    candidate["contract_id"] = candidate["contract_id"].astype("int64")
+    return candidate[candidate["contract_id"] > 0].copy()
+
+
 def main() -> None:
     if not SOURCE.exists():
         print("BPC fast probe: no baseline output")
@@ -36,33 +59,7 @@ def main() -> None:
     except pd.errors.EmptyDataError:
         df = pd.DataFrame()
 
-    if df.empty:
-        _write_output("trigger_deep", "false")
-        _write_output("new_count", "0")
-        return
-
-    for col in ["contract_id", "jita_manufacturing_net_profit", "jita_manufacturing_net_roi"]:
-        if col not in df.columns:
-            print(f"BPC fast probe: missing {col}")
-            _write_output("trigger_deep", "false")
-            _write_output("new_count", "0")
-            return
-
-    if "jita_manufacturing_cost_complete" in df.columns:
-        complete = df["jita_manufacturing_cost_complete"].apply(_truth)
-    else:
-        complete = pd.Series(False, index=df.index)
-
-    candidate = df[
-        complete
-        & (pd.to_numeric(df["jita_manufacturing_net_profit"], errors="coerce").fillna(float("-inf")) >= MIN_JITA_PROFIT)
-        & (pd.to_numeric(df["jita_manufacturing_net_roi"], errors="coerce").fillna(float("-inf")) >= MIN_JITA_ROI)
-    ].copy()
-
-    candidate["contract_id"] = pd.to_numeric(candidate["contract_id"], errors="coerce")
-    candidate = candidate[candidate["contract_id"].notna()].copy()
-    candidate["contract_id"] = candidate["contract_id"].astype("int64")
-    candidate = candidate[candidate["contract_id"] > 0]
+    candidate = select_candidates(df)
 
     if STATE.exists():
         try:
