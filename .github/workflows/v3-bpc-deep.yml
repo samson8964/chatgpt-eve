@@ -201,7 +201,6 @@ jobs:
             "bpc_base:${{ steps.bpc_base.outcome }}" \
             "bpc_live:${{ steps.bpc_live.outcome }}" \
             "bpc_v3:${{ steps.bpc_v3.outcome }}" \
-            "calendar_v3:${{ steps.calendar_v3.outcome }}" \
             "mail_v3:${{ steps.mail_v3.outcome }}" \
             "persist_results:${{ steps.persist_results.outcome }}"
           do
@@ -210,6 +209,11 @@ jobs:
             echo "$name=$outcome"
             if [ "$outcome" != "success" ]; then failed=1; fi
           done
+
+          echo "calendar_v3=${{ steps.calendar_v3.outcome }}"
+          if [ "${{ steps.calendar_v3.outcome }}" = "failure" ]; then
+            echo "::warning::Google Calendar BPC alert delivery failed; BPC scan and EVE mail remain independent."
+          fi
 
           echo "bpc_value=${{ steps.bpc_value.outcome }}"
           if [ "${{ steps.bpc_value.outcome }}" = "failure" ]; then
