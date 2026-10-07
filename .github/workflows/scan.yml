@@ -1,33 +1,19 @@
-name: EVE V3 cutover test
+name: EVE V3 production scans
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      - 'opportunity_engine_v3.py'
-      - 'opportunity_engine_v3_scanner.py'
-      - 'v3_source_market_scanner.py'
-      - 'v3_structure_contract_scanner.py'
-      - 'v3_cutover_summary.py'
-      - 'v3_engine/**'
-      - 'four_h_reverse_scanner_v3.py'
-      - 'runner_buy_only.py'
-      - 'bpc_contract_benchmark_buy_only.py'
-      - 'apply_buy_only_bpc_policy.py'
-      - 'send_eve_mail_buy_only_multi.py'
-      - '.github/workflows/scan.yml'
 
 permissions:
   contents: write
 
-# V2 public/multi/4-H/C-J production scanners are intentionally disabled.
-# V2 is kept only in the archive branch and in the non-production shadow workflow.
-# V3 mail is also disabled during this first cutover test; results are persisted for review.
+# V3 is the sole production opportunity engine.
+# Cloudflare/manual workflow_dispatch owns scheduling.
+# Legacy V2 public/multi/4-H/C-J production scanners remain disabled.
+# The mature BPC specialist evaluator is retained as a V3 sub-engine and normalized
+# through v3_bpc_adapter.py before the unified V3 mail policy is applied.
 concurrency:
-  group: eve-v3-cutover-${{ github.event_name }}
-  cancel-in-progress: ${{ github.event_name == 'push' }}
+  group: eve-v3-production
+  cancel-in-progress: true
 
 jobs:
   scan:
@@ -37,6 +23,8 @@ jobs:
       MAIL_MIN_VERIFIED_NET_PROFIT: '50000000'
       MIN_PROFIT_PER_M3: '2000'
       V3_FULL_CASH_MAIL_ENABLED: '1'
+
+      # BPC keeps its stricter specialist gate.
       MAIL_BPC_MFG_MIN_PROFIT: '100000000'
       MAIL_BPC_MFG_MIN_ROI: '0.15'
       MAIL_BPC_MFG_MIN_STRESS_PROFIT: '50000000'
@@ -51,11 +39,22 @@ jobs:
           ref: main
           fetch-depth: 20
 
-      - name: Record scan start
+      - name: Record production scan start and clear generated outputs
         shell: bash
         run: |
-          mkdir -p results/state
+          set -euo pipefail
+          mkdir -p results/latest results/state
           date -u +%s > results/state/last_scan_started_epoch.txt
+
+          # Fail closed on partial channel outages: never let a previous run's V3
+          # result masquerade as a fresh opportunity.
+          rm -f results/latest/v3_*.csv results/latest/v3_*.md results/latest/v3_*funnel.json
+          rm -f results/latest/ranked_opportunities.csv
+          rm -f results/latest/ranked_opportunities_v2.csv
+          rm -f results/latest/bpc_value_opportunities.csv
+          rm -f results/latest/bpc_value_opportunities_v2.csv
+          rm -f results/latest/bpc_v2_safe_candidates.csv
+          rm -f results/latest/bpc_v2_safe_mail_preview.html
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -66,10 +65,9 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run BPC manufacturing sidecar
-        id: bpc_mfg
+      - name: Run BPC buy-only discovery
+        id: bpc_base
         continue-on-error: true
-        if: github.event_name == 'workflow_dispatch'
         env:
           MARKET_BROKER_FEE_RATE: '0'
           EXPECTED_RELISTS: '0'
@@ -83,10 +81,10 @@ jobs:
           BPC_POOL_DIVERSITY_SHARE: '0.10'
         run: python runner_buy_only.py
 
-      - name: Run BPC intrinsic-value sidecar
+      - name: Refresh BPC comparable-value research
         id: bpc_value
         continue-on-error: true
-        if: github.event_name == 'workflow_dispatch'
+        if: steps.bpc_base.outcome == 'success'
         env:
           BPC_VALUE_MIN_SAMPLES: '3'
           BPC_VALUE_MIN_EXACT_SAMPLES: '3'
@@ -102,6 +100,26 @@ jobs:
         run: |
           python bpc_contract_benchmark_buy_only.py
           python apply_buy_only_bpc_policy.py
+
+      - name: Run BPC specialist live revalidation
+        id: bpc_live
+        continue-on-error: true
+        if: steps.bpc_base.outcome == 'success'
+        env:
+          BPC_V2_LIVE_POOL: '50'
+          BPC_V2_LIVE_WORKERS: '16'
+          BPC_V2_MIN_NET_PROFIT: '20000000'
+          BPC_V2_MIN_NET_ROI: '0.10'
+          BPC_V2_MAX_SLIPPAGE: '0.05'
+          BPC_V2_MAX_CHANGE: '0.15'
+          BPC_V2_LIQUIDITY_PARTICIPATION: '0.35'
+        run: python runner_bpc_v2.py
+
+      - name: Normalize BPC into V3 policy output
+        id: bpc_v3
+        continue-on-error: true
+        if: steps.bpc_live.outcome == 'success'
+        run: python v3_bpc_adapter.py
 
       - name: Run V3 public-contract engine
         id: v3_public
@@ -240,7 +258,7 @@ jobs:
           V3_STRUCTURE_CONTRACT_FUNNEL_JSON: 'v3_cj_contracts_funnel.json'
         run: python v3_structure_contract_scanner.py
 
-      - name: Keep existing V3 Jita to 4-H reverse scan
+      - name: Scan Jita to 4-H reverse market with V3
         id: v3_reverse
         continue-on-error: true
         env:
@@ -253,52 +271,23 @@ jobs:
           V3_4H_REVERSE_HAUL_ISK_PER_M3: '500'
         run: python four_h_reverse_scanner_v3.py
 
-      - name: Build V3 cutover summary
+      - name: Build V3 production summary
         if: always()
         run: python v3_cutover_summary.py
 
-      - name: Upload V3 test artifact
+      - name: Send unified V3 formal opportunity mail
+        id: mail_v3
+        continue-on-error: true
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: v3-cutover-test
-          path: |
-            results/latest/v3_cutover_summary.md
-            results/latest/v3_*.csv
-            results/latest/v3_*.md
-            results/latest/v3_*funnel.json
-          if-no-files-found: warn
-          retention-days: 7
-
-      - name: Prepare BPC mail only
-        id: bpc_prepare
-        continue-on-error: true
-        if: github.event_name == 'workflow_dispatch' && steps.bpc_mfg.outcome == 'success'
         env:
-          MAIL_SPOT_MIN_PROFIT: '50000000'
-          MAIL_SPOT_MIN_ROI: '0.10'
-          MAIL_BPC_VALUE_MIN_SAMPLES: '5'
-          MAIL_BPC_VALUE_MIN_AVG_DISCOUNT: '0.30'
-          MAIL_BPC_VALUE_MIN_MEDIAN_DISCOUNT: '0.20'
-          MAIL_BPC_VALUE_MIN_SURPLUS: '20000000'
-        run: python prepare_mail_candidates.py
-
-      - name: Send BPC sidecar mail only
-        id: bpc_mail
-        continue-on-error: true
-        if: github.event_name == 'workflow_dispatch' && steps.bpc_prepare.outcome == 'success'
-        env:
-          DISABLE_SPOT_MAIL: '1'
           EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
           EVE_MAIL_RECIPIENT_NAME: MikeChong
           EVE_MAIL_RECIPIENT_NAMES: 'MikeChong,LadyBaBa'
-          BPC_MFG_MAIL_EXCLUDED_RECIPIENTS: ''
           EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
           MAIL_TOP: '10'
-          MAIL_LIVE_POOL: '80'
-        run: python send_eve_mail_buy_only_multi.py
+        run: python send_v3_opportunity_mail.py
 
-      - name: Persist V3 test results
+      - name: Persist V3 production results
         id: persist_results
         if: always()
         shell: bash
@@ -311,6 +300,7 @@ jobs:
           cp -a results/. "$RESULTS_SNAPSHOT/"
 
           for attempt in 1 2 3; do
+            echo "Result push attempt $attempt/3"
             git fetch origin main
             git reset --hard origin/main
             rm -rf results
@@ -319,25 +309,33 @@ jobs:
             git add results
 
             if git diff --cached --quiet; then
-              echo "No result changes."
+              echo "No result changes relative to latest main."
               exit 0
             fi
 
-            git commit -m "data: refresh V3 cutover test $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git commit -m "data: refresh V3 production opportunities $(date -u +'%Y-%m-%d %H:%M UTC')"
             if git push origin HEAD:main; then
+              echo "V3 production results pushed."
               exit 0
             fi
+
+            echo "Remote main advanced during push; retrying..."
             sleep $((attempt * 2))
           done
+
+          echo "Failed to persist V3 production results."
           exit 1
 
-      - name: Final V3 cutover health gate
+      - name: Final V3 production health gate
         if: always()
         shell: bash
         run: |
           set -euo pipefail
           failed=0
           for pair in \
+            "bpc_base:${{ steps.bpc_base.outcome }}" \
+            "bpc_live:${{ steps.bpc_live.outcome }}" \
+            "bpc_v3:${{ steps.bpc_v3.outcome }}" \
             "v3_public:${{ steps.v3_public.outcome }}" \
             "amarr:${{ steps.amarr.outcome }}" \
             "dodixie:${{ steps.dodixie.outcome }}" \
@@ -346,6 +344,7 @@ jobs:
             "four_h_contract:${{ steps.four_h_contract.outcome }}" \
             "cj_contract:${{ steps.cj_contract.outcome }}" \
             "v3_reverse:${{ steps.v3_reverse.outcome }}" \
+            "mail_v3:${{ steps.mail_v3.outcome }}" \
             "persist_results:${{ steps.persist_results.outcome }}"
           do
             name="${pair%%:*}"
@@ -356,8 +355,13 @@ jobs:
             fi
           done
 
+          echo "bpc_value=${{ steps.bpc_value.outcome }}"
+          if [ "${{ steps.bpc_value.outcome }}" = "failure" ]; then
+            echo "::warning::BPC comparable-value research failed; strict manufacturing mail remains independent."
+          fi
+
           if [ "$failed" -ne 0 ]; then
-            echo "::error::V3 cutover test completed with one or more degraded channels."
+            echo "::error::V3 production completed with one or more degraded critical channels."
             exit 1
           fi
-          echo "V3 cutover test health OK. V2 production scanners remain disabled."
+          echo "V3 production health OK."
