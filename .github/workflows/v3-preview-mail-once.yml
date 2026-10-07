@@ -1,0 +1,35 @@
+name: V3 one-time mail preview
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'send_v3_preview_once.py'
+
+permissions:
+  contents: read
+
+jobs:
+  send-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Send V3 preview opportunity to MikeChong
+        env:
+          EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+          EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
+          EVE_MAIL_RECIPIENT_NAME: MikeChong
+          V3_PREVIEW_CONTRACT_ID: '236775678'
+        run: python send_v3_preview_once.py
