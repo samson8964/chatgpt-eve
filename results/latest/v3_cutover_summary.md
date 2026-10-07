@@ -8,11 +8,11 @@ Amarr and Dodixie are procurement sources only; all exit valuation remains Jita 
 | Public FULL_CASH | 0 | 0 | 0 | 0 | 0 | - |
 | Public PARTIAL_CASH_FLOOR | 0 | 0 | 0 | 0 | 0 | - |
 | Public BARTER | 0 | 0 | 0 | 0 | 0 | - |
-| Public LIST-SUPPORTED | 4 | 0 | 0 | 4 | 0 | 38.8M |
-| Amarr -> Jita | 95 | 0 | 0 | 4 | 91 | 6.7M |
-| Dodixie -> Jita | 69 | 0 | 0 | 2 | 67 | 0.9M |
-| 4-H market -> Jita | 116 | 0 | 0 | 11 | 105 | 37.2M |
-| C-J market -> Jita | 120 | 0 | 0 | 35 | 85 | 837.2M |
+| Public LIST-SUPPORTED | 4 | 0 | 0 | 4 | 0 | 38.7M |
+| Amarr -> Jita | 94 | 0 | 0 | 4 | 90 | 6.7M |
+| Dodixie -> Jita | 67 | 0 | 0 | 2 | 65 | 0.9M |
+| 4-H market -> Jita | 114 | 0 | 0 | 11 | 103 | 37.2M |
+| C-J market -> Jita | 120 | 0 | 0 | 33 | 87 | 837.2M |
 | 4-H contracts | 120 | 0 | 0 | 4 | 116 | 387.2M |
 | C-J contracts | 120 | 0 | 0 | 8 | 112 | 11.5M |
 | Jita -> 4-H | 0 | 0 | 0 | 0 | 0 | - |
