@@ -2,9 +2,9 @@
 
 - Manufacturing rows: 32
 - Intrinsic-value rows: 100
-- V3 formal MAIL: 1
-- V3 WATCH: 47
+- V3 formal MAIL: 2
+- V3 WATCH: 63
 
-BPC manufacturing keeps the stricter specialist gate: live Jita material/product depth, stress test,
-remote-route margin, conservative Jita-manufacturing margin, and complete order-book evidence must all pass.
+BPC formal mail uses exactly four gates: Jita manufacturing net profit >=50M, ROI >=10%,
+Jita stress profit >0, and complete material/product order-book depth.
 Comparable BPC ask-price signals remain WATCH-only and never become automatic mail without execution proof.

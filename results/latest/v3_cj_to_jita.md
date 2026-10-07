@@ -1,7 +1,7 @@
 # V3 C-J6MT - 1st Taj Mahgoon (DJ's Retirement Fund) -> Jita 4-4 procurement arbitrage
 
 - Source kind: structure
-- Market snapshot: 2026-10-07T06:48:50.060Z
+- Market snapshot: 2026-10-07T07:18:19.726Z
 - Secure jumps to Jita: 0
 - Deep-validation types: 180
 - Final rows: 120
