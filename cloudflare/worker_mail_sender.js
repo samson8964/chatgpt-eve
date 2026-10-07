@@ -8,6 +8,9 @@ const MAIL_ACCESS_TOKEN_CACHE_KEY = "https://eve-contract-opener.internal/mail-a
 const SKILL_SCOPE = "esi-skills.read_skills.v1 esi-skills.read_skillqueue.v1 esi-wallet.read_character_wallet.v1 esi-markets.read_character_orders.v1 esi-contracts.read_character_contracts.v1 esi-assets.read_assets.v1";
 const SKILL_ACCESS_TOKEN_CACHE_KEY = "https://eve-contract-opener.internal/skill-access-token";
 const REQUIRED_SKILL_CHARACTER = "MikeChong";
+const GITHUB_REPO = "samson8964/chatgpt-eve";
+const FAST_SCAN_CRON = "*/15 * * * *";
+const BPC_DEEP_CRON = "0 */3 * * *";
 
 let memoryMailAccessToken = "";
 let memoryMailAccessTokenExp = 0;
@@ -24,6 +27,7 @@ export default {
     if (url.pathname === "/logout-mail") return logoutMail(env);
     if (url.pathname === "/mail-status") return mailStatus(env);
     if (url.pathname === "/api/mail-health") return handleMailHealth(request, env);
+    if (url.pathname === "/api/scheduler-health") return handleSchedulerHealth(request, env);
     if (url.pathname === "/auth-skills") return startSkillAuth(env);
     if (url.pathname === "/logout-skills") return logoutSkills(env);
     if (url.pathname === "/skill-status") return skillStatus(env);
@@ -40,7 +44,91 @@ export default {
 
     return baseWorker.fetch(request, env);
   },
+
+  async scheduled(controller, env, ctx) {
+    ctx.waitUntil(handleScheduledDispatch(controller, env));
+  },
 };
+
+async function handleSchedulerHealth(request, env) {
+  if (request.method !== "GET") return text("Method not allowed", 405);
+  const denied = requireApiKey(request, env);
+  if (denied) return denied;
+  return json({
+    ok: true,
+    configured: Boolean(env.GITHUB_DISPATCH_TOKEN),
+    repository: GITHUB_REPO,
+    fast_scan: { cron: FAST_SCAN_CRON, workflow: "scan.yml" },
+    bpc_deep: { cron: BPC_DEEP_CRON, workflow: "v3-bpc-deep.yml" },
+  });
+}
+
+async function dispatchGitHubWorkflow(env, workflow, inputs = null) {
+  if (!env.GITHUB_DISPATCH_TOKEN) {
+    throw new Error("missing Cloudflare secret GITHUB_DISPATCH_TOKEN");
+  }
+  const payload = { ref: "main" };
+  if (inputs && Object.keys(inputs).length) payload.inputs = inputs;
+
+  const resp = await fetch(
+    `https://api.github.com/repos/${GITHUB_REPO}/actions/workflows/${workflow}/dispatches`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${env.GITHUB_DISPATCH_TOKEN}`,
+        Accept: "application/vnd.github+json",
+        "Content-Type": "application/json",
+        "User-Agent": "eve-v3-cloudflare-scheduler/1.0",
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+      body: JSON.stringify(payload),
+    },
+  );
+  const detail = await resp.text();
+  if (resp.status !== 204) {
+    throw new Error(`GitHub workflow dispatch failed workflow=${workflow} status=${resp.status} detail=${detail.slice(0, 500)}`);
+  }
+}
+
+async function handleScheduledDispatch(controller, env) {
+  const cron = String(controller.cron || "");
+  const scheduledTime = Number(controller.scheduledTime || Date.now());
+
+  let workflow = "";
+  let inputs = null;
+  if (cron === FAST_SCAN_CRON) {
+    workflow = "scan.yml";
+  } else if (cron === BPC_DEEP_CRON) {
+    workflow = "v3-bpc-deep.yml";
+    inputs = { reason: "cloudflare-cron" };
+  } else {
+    console.warn("Unknown scheduled cron; skip", cron);
+    return;
+  }
+
+  const idemKey = `scheduler_dispatch:${workflow}:${scheduledTime}`;
+  if (env.AUTH_STORE) {
+    try {
+      if (await env.AUTH_STORE.get(idemKey)) {
+        console.log("scheduled dispatch duplicate skipped", workflow, scheduledTime);
+        return;
+      }
+    } catch (err) {
+      console.warn("scheduler idempotency read failed", String(err));
+    }
+  }
+
+  await dispatchGitHubWorkflow(env, workflow, inputs);
+
+  if (env.AUTH_STORE) {
+    try {
+      await env.AUTH_STORE.put(idemKey, "1", { expirationTtl: 21600 });
+    } catch (err) {
+      console.warn("scheduler idempotency persistence failed", String(err));
+    }
+  }
+  console.log("scheduled dispatch accepted", { cron, workflow, scheduledTime });
+}
 
 async function startMailAuth(env) {
   if (!env.EVE_CLIENT_ID || !env.EVE_CLIENT_SECRET || !env.EVE_REDIRECT_URI) {
