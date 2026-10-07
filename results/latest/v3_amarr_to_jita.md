@@ -3,8 +3,8 @@
 - Source kind: npc
 - Market snapshot: 2026-10-07T20:48:25.478Z
 - Secure jumps to Jita: 45
-- Deep-validation types: 95
-- Final rows: 84
+- Deep-validation types: 103
+- Final rows: 89
 - Formal MAIL: 1
 
 Destination valuation uses Jita 4-4 BUY orders only. Amarr/Dodixie sell prices are never used as an exit valuation.
