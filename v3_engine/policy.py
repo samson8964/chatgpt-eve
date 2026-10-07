@@ -53,6 +53,17 @@ def _finite(value: float, default: float = 0.0) -> float:
         return default
 
 
+def is_full_cash_exit(*, coverage: float, filled_units: int, requested_units: int) -> bool:
+    """True only when the current live buy book can execute the entire bundle."""
+    try:
+        coverage = float(coverage)
+        filled_units = int(filled_units)
+        requested_units = int(requested_units)
+    except Exception:
+        return False
+    return requested_units > 0 and filled_units >= requested_units and coverage >= 0.999999
+
+
 def evaluate_execution(proof: ExecutionProof, cfg: PolicyConfig) -> PolicyDecision:
     """Apply strict policy to an immediate/cash-backed execution proof."""
     channel = proof.channel.upper()
