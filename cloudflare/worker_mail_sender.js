@@ -56,7 +56,7 @@ async function handleSchedulerHealth(request, env) {
   if (denied) return denied;
   return json({
     ok: true,
-    configured: Boolean(env.GITHUB_DISPATCH_TOKEN),
+    configured: Boolean(env.EVE_DISPATCH_TOKEN),
     repository: GITHUB_REPO,
     fast_scan: { cron: FAST_SCAN_CRON, workflow: "scan.yml" },
     bpc_deep: { cron: BPC_DEEP_CRON, workflow: "v3-bpc-deep.yml" },
@@ -64,8 +64,8 @@ async function handleSchedulerHealth(request, env) {
 }
 
 async function dispatchGitHubWorkflow(env, workflow, inputs = null) {
-  if (!env.GITHUB_DISPATCH_TOKEN) {
-    throw new Error("missing Cloudflare secret GITHUB_DISPATCH_TOKEN");
+  if (!env.EVE_DISPATCH_TOKEN) {
+    throw new Error("missing Cloudflare secret EVE_DISPATCH_TOKEN");
   }
   const payload = { ref: "main" };
   if (inputs && Object.keys(inputs).length) payload.inputs = inputs;
@@ -75,7 +75,7 @@ async function dispatchGitHubWorkflow(env, workflow, inputs = null) {
     {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${env.GITHUB_DISPATCH_TOKEN}`,
+        Authorization: `Bearer ${env.EVE_DISPATCH_TOKEN}`,
         Accept: "application/vnd.github+json",
         "Content-Type": "application/json",
         "User-Agent": "eve-v3-cloudflare-scheduler/1.0",
