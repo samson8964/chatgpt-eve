@@ -16,7 +16,7 @@ from send_eve_mail_fast import contract_is_live, fmt_isk, resolve_character
 LATEST = Path("results/latest")
 STATE = Path("results/state")
 MAIL_TOP = int(os.getenv("MAIL_TOP", "10"))
-POLICY_VERSION = "opportunity-v3-redesign-2026-10-07"
+POLICY_VERSION = "opportunity-v3-production-2026-10-07"
 RESEND_ABS_PROFIT = float(os.getenv("MAIL_RESEND_ABS_PROFIT", "20000000"))
 RESEND_REL_PROFIT = float(os.getenv("MAIL_RESEND_REL_PROFIT", "0.10"))
 RESEND_ROI_DELTA = float(os.getenv("MAIL_RESEND_ROI_DELTA", "0.02"))
@@ -44,14 +44,56 @@ CHANNELS = {
     "v3-conservative-list": {
         "path": LATEST / "v3_conservative_listing.csv",
         "id_col": "contract_id",
-        "title": "V3保守挂卖套利",
+        "title": "V3保守挂卖观察",
         "kind": "contract",
+    },
+    "v3-four-h-contract": {
+        "path": LATEST / "v3_four_h_contracts.csv",
+        "id_col": "contract_id",
+        "title": "V3 4-H合同捡漏",
+        "kind": "structure-contract",
+    },
+    "v3-cj-contract": {
+        "path": LATEST / "v3_cj_contracts.csv",
+        "id_col": "contract_id",
+        "title": "V3 C-J合同捡漏",
+        "kind": "structure-contract",
+    },
+    "v3-amarr-to-jita": {
+        "path": LATEST / "v3_amarr_to_jita.csv",
+        "id_col": "type_id",
+        "title": "V3 Amarr采购→Jita",
+        "kind": "source-market",
+    },
+    "v3-dodixie-to-jita": {
+        "path": LATEST / "v3_dodixie_to_jita.csv",
+        "id_col": "type_id",
+        "title": "V3 Dodixie采购→Jita",
+        "kind": "source-market",
+    },
+    "v3-four-h-to-jita": {
+        "path": LATEST / "v3_four_h_to_jita.csv",
+        "id_col": "type_id",
+        "title": "V3 4-H采购→Jita",
+        "kind": "source-market",
+    },
+    "v3-cj-to-jita": {
+        "path": LATEST / "v3_cj_to_jita.csv",
+        "id_col": "type_id",
+        "title": "V3 C-J采购→Jita",
+        "kind": "source-market",
     },
     "v3-jita-to-4h": {
         "path": LATEST / "v3_jita_to_four_h.csv",
         "id_col": "type_id",
         "title": "V3 Jita→4-H套利",
-        "kind": "market",
+        "kind": "reverse-market",
+    },
+    "v3-bpc": {
+        "path": LATEST / "v3_bpc_opportunities.csv",
+        "id_col": "contract_id",
+        "title": "V3 BPC制造捡漏",
+        "kind": "bpc",
     },
 }
 
@@ -115,27 +157,31 @@ def build_candidates(channel: str):
     df = _read(cfg["path"])
     if df.empty or cfg["id_col"] not in df.columns:
         return []
+
     if "mail_eligible" in df.columns:
         df = df[df["mail_eligible"].fillna(False).astype(str).str.lower().isin({"1", "true", "t", "yes", "y"})].copy()
     elif "execution_status" in df.columns:
-        # Compatibility fallback for pre-redesign files.
         df = df[df["execution_status"].fillna("").astype(str).str.upper().eq("SAFE")].copy()
     if df.empty:
         return []
+
     profit = pd.to_numeric(df.get("net_profit"), errors="coerce").fillna(0.0)
     roi = pd.to_numeric(df.get("net_roi"), errors="coerce").fillna(0.0)
     score = pd.to_numeric(df.get("opportunity_score"), errors="coerce").fillna(0.0)
     df = df.assign(_profit=profit, _roi=roi, _score=score)
     df = df[(df["_profit"] >= MAIL_MIN_VERIFIED_NET_PROFIT) & (df["_roi"] > 0)].copy()
     df.sort_values(["_score", "_profit", "_roi"], ascending=False, inplace=True)
+
     out = []
-    candidate_limit = MAIL_TOP * 3 if cfg["kind"] == "contract" else MAIL_TOP
+    needs_live_contract = cfg["kind"] in {"contract", "structure-contract", "bpc"}
+    candidate_limit = MAIL_TOP * 3 if needs_live_contract else MAIL_TOP
     for _, r in df.head(candidate_limit).iterrows():
         try:
             ident = int(float(r[cfg["id_col"]]))
         except Exception:
             continue
-        if cfg["kind"] == "contract":
+
+        if needs_live_contract:
             try:
                 if not contract_is_live(ident):
                     print(f"{channel}: skip stale contract {ident}")
@@ -143,6 +189,7 @@ def build_candidates(channel: str):
             except Exception as exc:
                 print(f"{channel}: live check failed closed for {ident}: {type(exc).__name__}: {exc}")
                 continue
+
         out.append(
             {
                 "id": ident,
@@ -241,30 +288,93 @@ def _loc(r):
     return " · ".join(bits)
 
 
+def _render_public_contract(i, c, r):
+    return (
+        f"<b>{i}. [{html.escape(c['grade'] or '-')}] 合同 {c['id']}</b><br>"
+        f"净利 {fmt_isk(c['profit'])} · ROI {c['roi']:.1%} · 压力净利 {fmt_isk(r.get('stress_net_profit',0))}<br>"
+        f"当前可兑现 {fmt_isk(r.get('cash_floor_gross', r.get('destination_value',0)))} · "
+        f"覆盖 {100*_num(r.get('cash_floor_coverage', r.get('coverage'))):.0f}% · "
+        f"置信 {html.escape(_text(r.get('confidence_class'), '-'))}<br>"
+        f"{html.escape(_text(r.get('cash_items', r.get('items',''))))}<br>{_loc(r)}<br>"
+        f"<url=contract:0//{c['id']}><b>打开合同</b></url><br><br>"
+    )
+
+
+def _render_structure_contract(i, c, r):
+    source = html.escape(_text(r.get("source_label"), "-"))
+    exit_market = html.escape(_text(r.get("exit_market"), "Jita 4-4 buy"))
+    return (
+        f"<b>{i}. [{html.escape(c['grade'] or '-')}] 合同 {c['id']}</b><br>"
+        f"来源 {source} · 退出 {exit_market}<br>"
+        f"合同价 {fmt_isk(r.get('contract_price', r.get('source_cost',0)))} · "
+        f"净利 {fmt_isk(c['profit'])} · ROI {c['roi']:.1%}<br>"
+        f"压力净利 {fmt_isk(r.get('stress_net_profit',0))} · "
+        f"利润密度 {_num(r.get('profit_per_m3')):,.0f} ISK/m³ · "
+        f"现金覆盖 {_num(r.get('cash_floor_coverage', r.get('coverage'))):.1%}<br>"
+        f"{html.escape(_text(r.get('items')))}<br>"
+        f"<url=contract:0//{c['id']}><b>打开合同</b></url><br><br>"
+    )
+
+
+def _render_source_market(i, c, r):
+    tid = int(c["id"])
+    source = html.escape(_text(r.get("source_label"), "-"))
+    item = html.escape(_text(r.get("item_name"), str(tid)))
+    return (
+        f"<b>{i}. [{html.escape(c['grade'] or '-')}] {item}</b><br>"
+        f"{source}采购 → Jita 4-4买单兑现<br>"
+        f"数量 {int(_num(r.get('quantity'))):,} · 源卖价 {fmt_isk(r.get('source_best_sell',0))}/件 · "
+        f"Jita买价 {fmt_isk(r.get('jita_best_buy',0))}/件<br>"
+        f"净利 {fmt_isk(c['profit'])} · ROI {c['roi']:.1%} · "
+        f"压力净利 {fmt_isk(r.get('stress_net_profit',0))} · 物流预留 {fmt_isk(r.get('haul_cost',0))}<br>"
+        f"<url=showinfo:{tid}><b>查看物品</b></url><br><br>"
+    )
+
+
+def _render_reverse_market(i, c, r):
+    tid = int(c["id"])
+    return (
+        f"<b>{i}. [{html.escape(c['grade'] or '-')}] {html.escape(_text(r.get('item_name'), str(tid)))}</b><br>"
+        f"数量 {int(_num(r.get('quantity'))):,} · 净利 {fmt_isk(c['profit'])} · ROI {c['roi']:.1%}<br>"
+        f"Jita买入 {fmt_isk(r.get('jita_best_sell',0))}/件 → 4-H买单 {fmt_isk(r.get('four_h_best_buy',0))}/件<br>"
+        f"物流预留 {fmt_isk(r.get('haul_cost',0))} · 压力净利 {fmt_isk(r.get('stress_net_profit',0))}<br>"
+        f"<url=showinfo:{tid}><b>查看物品</b></url><br><br>"
+    )
+
+
+def _render_bpc(i, c, r):
+    products = html.escape(_text(r.get("products"), "BPC制造机会"))
+    blueprints = html.escape(_text(r.get("blueprints"), ""))
+    return (
+        f"<b>{i}. [{html.escape(c['grade'] or '-')}] {products}</b><br>"
+        f"合同 {c['id']} · 合同价 {fmt_isk(r.get('contract_price',0))}<br>"
+        f"<b>Jita保守制造净利 {fmt_isk(c['profit'])}</b> · ROI {c['roi']:.1%} · "
+        f"压力净利 {fmt_isk(r.get('stress_net_profit',0))}<br>"
+        f"材料 {fmt_isk(r.get('material_cost',0))} · Jita制造费 {fmt_isk(r.get('jita_manufacturing_job_cost',0))} · "
+        f"预计清算 {_num(r.get('estimated_fill_days')):.2f}天<br>"
+        f"成品VWAP {fmt_isk(r.get('product_vwap',0))} · 成品滑点 {_num(r.get('product_slippage')):.2%} · "
+        f"材料最大滑点 {_num(r.get('material_max_slippage')):.2%}<br>"
+        f"{blueprints}<br>"
+        f"<url=contract:0//{c['id']}><b>打开合同</b></url><br><br>"
+    )
+
+
 def render(channel: str, stamp: str, picked):
     cfg = CHANNELS[channel]
     subject = f"{cfg['title']} {stamp} · TOP{len(picked)}"
     if not picked:
-        return subject, f"<b>{cfg['title']}</b><br>{stamp}<br><br>当前没有 SAFE 机会。"
+        return subject, f"<b>{cfg['title']}</b><br>{stamp}<br><br>当前没有正式可推送机会。"
 
     parts = [f"<b>{cfg['title']} · Opportunity Engine V3 · TOP{len(picked)}</b><br>{stamp}<br><br>"]
     for i, c in enumerate(picked, 1):
         r = c["row"]
-        if channel in {"v3-full-cash", "v3-cash-floor"}:
+        kind = cfg["kind"]
+        if channel == "v3-barter":
             parts.append(
                 f"<b>{i}. [{html.escape(c['grade'] or '-')}] 合同 {c['id']}</b><br>"
                 f"净利 {fmt_isk(c['profit'])} · ROI {c['roi']:.1%} · 压力净利 {fmt_isk(r.get('stress_net_profit',0))}<br>"
-                f"当前可兑现 {fmt_isk(r.get('cash_floor_gross',0))} · 覆盖 {100*_num(r.get('cash_floor_coverage')):.0f}% · "
-                f"置信类别 {html.escape(_text(r.get('confidence_class'), '-'))} · "
-                f"剩余 {int(_num(r.get('leftover_units_valued_zero')))} 件按0估值<br>"
-                f"{html.escape(_text(r.get('cash_items')))}<br>{_loc(r)}<br>"
-                f"<url=contract:0//{c['id']}><b>打开合同</b></url><br><br>"
-            )
-        elif channel == "v3-barter":
-            parts.append(
-                f"<b>{i}. [{html.escape(c['grade'] or '-')}] 合同 {c['id']}</b><br>"
-                f"净利 {fmt_isk(c['profit'])} · ROI {c['roi']:.1%} · 压力净利 {fmt_isk(r.get('stress_net_profit',0))}<br>"
-                f"需提供物品采购 {fmt_isk(r.get('requested_purchase_cost',0))} · 收到物品当前兑现 {fmt_isk(r.get('cash_floor_gross',0))}<br>"
+                f"需提供物品采购 {fmt_isk(r.get('requested_purchase_cost',0))} · "
+                f"收到物品当前兑现 {fmt_isk(r.get('cash_floor_gross',0))}<br>"
                 f"提供：{html.escape(_text(r.get('provide_items')))}<br>"
                 f"收到：{html.escape(_text(r.get('receive_items')))}<br>{_loc(r)}<br>"
                 f"<url=contract:0//{c['id']}><b>打开合同</b></url><br><br>"
@@ -272,20 +382,23 @@ def render(channel: str, stamp: str, picked):
         elif channel == "v3-conservative-list":
             parts.append(
                 f"<b>{i}. [{html.escape(c['grade'] or '-')}] 合同 {c['id']}</b><br>"
-                f"净利估算 {fmt_isk(c['profit'])} · ROI {c['roi']:.1%} · 额外5%压力净利 {fmt_isk(r.get('stress_net_profit',0))}<br>"
-                f"保守挂卖总值 {fmt_isk(r.get('conservative_gross',0))} · 预计消化 {_num(r.get('estimated_fill_days')):.1f}天<br>"
+                f"净利估算 {fmt_isk(c['profit'])} · ROI {c['roi']:.1%} · "
+                f"额外压力净利 {fmt_isk(r.get('stress_net_profit',0))}<br>"
+                f"保守挂卖总值 {fmt_isk(r.get('conservative_gross',0))} · "
+                f"预计消化 {_num(r.get('estimated_fill_days')):.1f}天<br>"
                 f"{html.escape(_text(r.get('items')))}<br>{_loc(r)}<br>"
                 f"<url=contract:0//{c['id']}><b>打开合同</b></url><br><br>"
             )
+        elif kind == "structure-contract":
+            parts.append(_render_structure_contract(i, c, r))
+        elif kind == "source-market":
+            parts.append(_render_source_market(i, c, r))
+        elif kind == "reverse-market":
+            parts.append(_render_reverse_market(i, c, r))
+        elif kind == "bpc":
+            parts.append(_render_bpc(i, c, r))
         else:
-            tid = int(c["id"])
-            parts.append(
-                f"<b>{i}. [{html.escape(c['grade'] or '-')}] {html.escape(_text(r.get('item_name'), str(tid)))}</b><br>"
-                f"数量 {int(_num(r.get('quantity'))):,} · 净利 {fmt_isk(c['profit'])} · ROI {c['roi']:.1%}<br>"
-                f"Jita买入 {fmt_isk(r.get('jita_best_sell',0))}/件 → 4-H买单 {fmt_isk(r.get('four_h_best_buy',0))}/件<br>"
-                f"物流预留 {fmt_isk(r.get('haul_cost',0))} · 压力净利 {fmt_isk(r.get('stress_net_profit',0))}<br>"
-                f"<url=showinfo:{tid}><b>查看物品</b></url><br><br>"
-            )
+            parts.append(_render_public_contract(i, c, r))
     return subject, "".join(parts)
 
 
@@ -309,7 +422,7 @@ def main():
 
     for channel in enabled_channels():
         picked = build_candidates(channel)
-        print(f"{channel}: SAFE candidates={len(picked)}")
+        print(f"{channel}: formal candidates={len(picked)}")
         for name, rid in recipients:
             if should_suppress(channel, name, picked):
                 print(f"{channel} skipped for {name}: no material change TOP{len(picked)}")
