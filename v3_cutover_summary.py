@@ -19,6 +19,7 @@ CHANNELS = [
     ("4-H contracts", "v3_four_h_contracts.csv"),
     ("C-J contracts", "v3_cj_contracts.csv"),
     ("Jita -> 4-H", "v3_jita_to_four_h.csv"),
+    ("BPC manufacturing/value", "v3_bpc_opportunities.csv"),
 ]
 
 
@@ -39,9 +40,9 @@ def truthy(series: pd.Series) -> pd.Series:
 def main() -> None:
     LATEST.mkdir(parents=True, exist_ok=True)
     lines = [
-        "# V3 cutover test summary",
+        "# V3 production summary",
         "",
-        "Production V2 public/structure scanners are not part of this test run.",
+        "V3 is the production opportunity engine. Legacy V2 public/structure production scanners are disabled.",
         "Amarr and Dodixie are procurement sources only; all exit valuation remains Jita 4-4 BUY depth.",
         "",
         "| Channel | Rows | MAIL | SAFE | WATCH | RESEARCH | Best net profit |",
@@ -73,7 +74,7 @@ def main() -> None:
     lines += [
         "",
         f"- Total formal MAIL decisions across V3 test outputs: **{total_mail}**",
-        "- V3 mail delivery is intentionally disabled during this cutover test; decisions are recorded only.",
+        "- Formal MAIL decisions are eligible for the unified V3 in-game mail sender.",
     ]
     OUT.write_text("\n".join(lines) + "\n", "utf-8")
     print("\n".join(lines))
