@@ -44,7 +44,10 @@ def main():
         v2_safe = v2[v2["execution_status"].fillna("").astype(str).str.upper().eq("SAFE")].copy()
 
     v2_ids = ids(v2_safe)
-    full_ids = ids(full)
+    full_safe = full
+    if not full.empty and "policy_stage" in full.columns:
+        full_safe = full[full["policy_stage"].fillna("").astype(str).str.upper().isin({"SAFE", "MAIL"})].copy()
+    full_ids = ids(full_safe)
     intersection = v2_ids & full_ids
     v2_only = v2_ids - full_ids
     v3_only = full_ids - v2_ids
@@ -64,7 +67,8 @@ def main():
         "",
         "## V2-equivalent FULL_CASH comparison",
         f"- V2 SAFE contracts: {len(v2_ids)}",
-        f"- V3 FULL_CASH contracts: {len(full_ids)}",
+        f"- V3 FULL_CASH SAFE/MAIL contracts: {len(full_ids)}",
+        f"- V3 FULL_CASH total rows: {len(full)}",
         f"- overlap: {len(intersection)}",
         f"- V2-only: {len(v2_only)}",
         f"- V3-only FULL_CASH: {len(v3_only)}",
