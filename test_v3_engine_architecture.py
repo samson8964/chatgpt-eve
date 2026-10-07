@@ -11,6 +11,7 @@ from v3_engine import (
     evaluate_listing,
     load_fingerprints,
     save_fingerprints,
+    is_full_cash_exit,
 )
 
 
@@ -49,6 +50,10 @@ class V3ArchitectureTests(unittest.TestCase):
         decision = evaluate_execution(proof(channel="FULL_CASH", net_profit=80_000_000), cfg)
         self.assertEqual(decision.stage, "SAFE")
         self.assertFalse(decision.mail_eligible)
+
+    def test_full_cash_depends_on_live_completeness_not_stress_book(self):
+        self.assertTrue(is_full_cash_exit(coverage=1.0, filled_units=221294, requested_units=221294))
+        self.assertFalse(is_full_cash_exit(coverage=0.99, filled_units=220000, requested_units=221294))
 
     def test_stress_failure_never_safe(self):
         decision = evaluate_execution(proof(stress_net_profit=-1), PolicyConfig())
