@@ -7,9 +7,9 @@
     "formal_mail": 0
   },
   "rejection_reasons": {
-    "BELOW_SAFE_PROFIT": 4,
-    "STRESS_NEGATIVE": 5,
-    "NON_POSITIVE_ECONOMICS": 61,
+    "BELOW_SAFE_PROFIT": 3,
+    "STRESS_NEGATIVE": 7,
+    "NON_POSITIVE_ECONOMICS": 60,
     "NO_EXECUTABLE_DEPTH": 4
   }
 }
