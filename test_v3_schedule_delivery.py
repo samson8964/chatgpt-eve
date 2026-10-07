@@ -3,40 +3,76 @@ from pathlib import Path
 
 import pandas as pd
 
-from bpc_fast_probe import select_candidates
+from bpc_light_probe import select_light_bpc_contracts
 from send_v3_gmail_alerts import _eve_to_plain
 
 
 class V3ScheduleAndDeliveryTests(unittest.TestCase):
-    def test_bpc_fast_probe_uses_snapshot_jita_50m_10pct_gate(self):
-        df = pd.DataFrame([
+    def test_light_bpc_probe_only_discovers_bpc_only_npc_station_contracts(self):
+        now = pd.Timestamp("2026-10-07T10:00:00Z")
+        contracts = pd.DataFrame([
             {
                 "contract_id": 1,
-                "jita_manufacturing_cost_complete": True,
-                "jita_manufacturing_net_profit": 50_000_000,
-                "jita_manufacturing_net_roi": 0.10,
+                "type": "item_exchange",
+                "price": 100_000_000,
+                "date_expired": "2026-10-07T15:00:00Z",
+                "start_location_id": 60003760,
             },
             {
                 "contract_id": 2,
-                "jita_manufacturing_cost_complete": True,
-                "jita_manufacturing_net_profit": 49_999_999,
-                "jita_manufacturing_net_roi": 0.50,
+                "type": "item_exchange",
+                "price": 6_000_000_000,
+                "date_expired": "2026-10-07T15:00:00Z",
+                "start_location_id": 60003760,
             },
             {
                 "contract_id": 3,
-                "jita_manufacturing_cost_complete": True,
-                "jita_manufacturing_net_profit": 500_000_000,
-                "jita_manufacturing_net_roi": 0.0999,
+                "type": "item_exchange",
+                "price": 100_000_000,
+                "date_expired": "2026-10-07T15:00:00Z",
+                "start_location_id": 1_050_000_000_000,
             },
             {
                 "contract_id": 4,
-                "jita_manufacturing_cost_complete": False,
-                "jita_manufacturing_net_profit": 500_000_000,
-                "jita_manufacturing_net_roi": 0.50,
+                "type": "item_exchange",
+                "price": 100_000_000,
+                "date_expired": "2026-10-07T15:00:00Z",
+                "start_location_id": 60003760,
+            },
+            {
+                "contract_id": 5,
+                "type": "item_exchange",
+                "price": 100_000_000,
+                "date_expired": "2026-10-07T15:00:00Z",
+                "start_location_id": 60003760,
+            },
+            {
+                "contract_id": 6,
+                "type": "item_exchange",
+                "price": 100_000_000,
+                "date_expired": "2026-10-07T11:00:00Z",
+                "start_location_id": 60003760,
             },
         ])
-        got = select_candidates(df)
+        items = pd.DataFrame([
+            {"contract_id": 1, "is_included": True, "is_blueprint_copy": True, "type_id": 1001, "runs": 10, "quantity": 1, "material_efficiency": 10, "time_efficiency": 20},
+            {"contract_id": 2, "is_included": True, "is_blueprint_copy": True, "type_id": 1002, "runs": 10, "quantity": 1, "material_efficiency": 10, "time_efficiency": 20},
+            {"contract_id": 3, "is_included": True, "is_blueprint_copy": True, "type_id": 1003, "runs": 10, "quantity": 1, "material_efficiency": 10, "time_efficiency": 20},
+            {"contract_id": 4, "is_included": True, "is_blueprint_copy": True, "type_id": 1004, "runs": 10, "quantity": 1, "material_efficiency": 10, "time_efficiency": 20},
+            {"contract_id": 4, "is_included": True, "is_blueprint_copy": False, "type_id": 2004, "runs": 0, "quantity": 1, "material_efficiency": 0, "time_efficiency": 0},
+            {"contract_id": 5, "is_included": True, "is_blueprint_copy": True, "type_id": 1005, "runs": 10, "quantity": 1, "material_efficiency": 10, "time_efficiency": 20},
+            {"contract_id": 5, "is_included": False, "is_blueprint_copy": False, "type_id": 3005, "runs": 0, "quantity": 1, "material_efficiency": 0, "time_efficiency": 0},
+            {"contract_id": 6, "is_included": True, "is_blueprint_copy": True, "type_id": 1006, "runs": 10, "quantity": 1, "material_efficiency": 10, "time_efficiency": 20},
+        ])
+        got = select_light_bpc_contracts(
+            contracts,
+            items,
+            now=now,
+            max_contract_price=5_000_000_000,
+            min_hours_to_expire=2,
+        )
         self.assertEqual(got["contract_id"].tolist(), [1])
+        self.assertEqual(int(got.iloc[0]["total_bpc_runs"]), 10)
 
     def test_gmail_plain_text_keeps_eve_mail_content(self):
         body = "<b>BPC制造｜1个</b><br>净利 <b>60.0M</b><br><url=contract:0//123><b>打开合同</b></url>"
@@ -65,6 +101,17 @@ class V3ScheduleAndDeliveryTests(unittest.TestCase):
         self.assertIn('workflow = "scan.yml"', worker)
         self.assertIn('workflow = "v3-bpc-deep.yml"', worker)
         self.assertIn("EVE_DISPATCH_TOKEN", worker)
+
+    def test_fast_lane_uses_true_light_probe_and_dispatches_before_core_scan(self):
+        fast = Path(".github/workflows/scan.yml").read_text(encoding="utf-8")
+        deep = Path(".github/workflows/v3-bpc-deep.yml").read_text(encoding="utf-8")
+        self.assertIn("python bpc_light_probe.py", fast)
+        self.assertNotIn("python runner_buy_only.py", fast)
+        self.assertLess(
+            fast.index("Trigger immediate BPC deep scan for new contracts"),
+            fast.index("Run V3 public-contract engine"),
+        )
+        self.assertIn("python runner_buy_only.py", deep)
 
     def test_gmail_delivery_replaces_calendar_delivery(self):
         fast = Path(".github/workflows/scan.yml").read_text(encoding="utf-8")
