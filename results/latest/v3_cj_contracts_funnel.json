@@ -1,8 +1,8 @@
 {
   "stages": {
-    "active_contracts": 802,
-    "plain_item_contracts": 538,
-    "prefilter_candidates": 538,
+    "active_contracts": 803,
+    "plain_item_contracts": 539,
+    "prefilter_candidates": 539,
     "deep_validation_contracts": 160,
     "final_rows": 160,
     "formal_mail": 0
