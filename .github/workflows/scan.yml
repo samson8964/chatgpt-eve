@@ -1,60 +1,32 @@
-name: EVE arbitrage scans
+name: EVE V3 cutover test
 
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
     paths:
-      - 'runner.py'
-      - 'runner_buy_only.py'
-      - 'scanner_source.py'
-      - 'bpc_contract_benchmark.py'
-      - 'bpc_contract_benchmark_buy_only.py'
-      - 'apply_buy_only_bpc_policy.py'
-      - 'buy_only_contract_scanner.py'
-      - 'buy_only_contract_scanner_v2.py'
-      - 'opportunity_engine_v2.py'
       - 'opportunity_engine_v3.py'
       - 'opportunity_engine_v3_scanner.py'
+      - 'v3_source_market_scanner.py'
+      - 'v3_structure_contract_scanner.py'
+      - 'v3_cutover_summary.py'
+      - 'v3_engine/**'
       - 'four_h_reverse_scanner_v3.py'
-      - 'send_v3_opportunity_mail.py'
-      - 'bpc_opportunity_engine_v2.py'
-      - 'runner_bpc_v2.py'
-      - 'export_bpc_v2_safe.py'
-      - 'build_bpc_v2_safe_mail_preview.py'
-      - 'buy_only_mail_templates.py'
+      - 'runner_buy_only.py'
+      - 'bpc_contract_benchmark_buy_only.py'
+      - 'apply_buy_only_bpc_policy.py'
       - 'send_eve_mail_buy_only_multi.py'
-      - 'send_multi_item_buy_only_multi.py'
-      - 'high_value_contract_scanner.py'
-      - 'send_high_value_contract_mail.py'
-      - 'send_multi_grade_watch.py'
-      - 'send_global_grade_watch.py'
-      - 'send_global_grade_watch_gmail.py'
-      - 'send_four_h_mail_multi.py'
-      - 'prepare_mail_candidates.py'
-      - 'four_h_contract_scanner.py'
-      - 'four_h_contract_scanner_v2.py'
-      - 'structure_market_arbitrage.py'
-      - 'four_h_market_scanner_v2.py'
-      - 'payload/**'
-      - 'requirements.txt'
-      - 'add_action_links.py'
-      - 'send_eve_mail_fast.py'
-      - 'send_eve_mail_dual.py'
-      - 'send_eve_mail_quality.py'
-      - 'send_eve_mail_quality_multi.py'
-      - 'send_multi_item_mail.py'
-      - 'send_multi_item_mail_multi.py'
       - '.github/workflows/scan.yml'
 
 permissions:
   contents: write
 
-# Cloudflare Cron is the sole production scheduler.
-# Push events load/validate the workflow but never run production scans or send mail.
-# 4-H depends on an authenticated Cloudflare/ESI path and is deliberately isolated:
-# an outage there must never suppress BPC/spot/multi alerts.
+# V2 public/multi/4-H/C-J production scanners are intentionally disabled.
+# V2 is kept only in the archive branch and in the non-production shadow workflow.
+# V3 mail is also disabled during this first cutover test; results are persisted for review.
 concurrency:
-  group: eve-arbitrage-v11-${{ github.event_name }}
+  group: eve-v3-cutover-${{ github.event_name }}
   cancel-in-progress: ${{ github.event_name == 'push' }}
 
 jobs:
@@ -63,14 +35,15 @@ jobs:
     timeout-minutes: 60
     env:
       MAIL_MIN_VERIFIED_NET_PROFIT: '50000000'
-      # BPC manufacturing uses a stricter, independent user-facing gate.
-      # 4-H and other channels continue to use the shared 50M floor unchanged.
+      MIN_PROFIT_PER_M3: '2000'
+      V3_FULL_CASH_MAIL_ENABLED: '1'
       MAIL_BPC_MFG_MIN_PROFIT: '100000000'
       MAIL_BPC_MFG_MIN_ROI: '0.15'
       MAIL_BPC_MFG_MIN_STRESS_PROFIT: '50000000'
       MAIL_BPC_MFG_MIN_JITA_PROFIT: '50000000'
       MAIL_BPC_MFG_MIN_JITA_ROI: '0.10'
       MAIL_BPC_MFG_MIN_JITA_STRESS_PROFIT: '0'
+
     steps:
       - name: Checkout latest main
         uses: actions/checkout@v4
@@ -78,39 +51,25 @@ jobs:
           ref: main
           fetch-depth: 20
 
-      - name: Cloudflare/manual dispatch gate
-        id: cadence
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "run_scan=true" >> "$GITHUB_OUTPUT"
-            echo "Run full production scan. Cloudflare owns the half-hour cadence."
-          else
-            echo "run_scan=false" >> "$GITHUB_OUTPUT"
-            echo "Push validation only: production scan and mail are intentionally skipped."
-          fi
-
       - name: Record scan start
-        if: steps.cadence.outputs.run_scan == 'true'
         shell: bash
         run: |
           mkdir -p results/state
           date -u +%s > results/state/last_scan_started_epoch.txt
 
       - name: Set up Python
-        if: steps.cadence.outputs.run_scan == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
           cache: 'pip'
 
       - name: Install dependencies
-        if: steps.cadence.outputs.run_scan == 'true'
         run: pip install -r requirements.txt
 
-      - name: Run BPC manufacturing scanner with Jita buy-only revenue
-        if: steps.cadence.outputs.run_scan == 'true'
+      - name: Run BPC manufacturing sidecar
+        id: bpc_mfg
+        continue-on-error: true
+        if: github.event_name == 'workflow_dispatch'
         env:
           MARKET_BROKER_FEE_RATE: '0'
           EXPECTED_RELISTS: '0'
@@ -124,8 +83,10 @@ jobs:
           BPC_POOL_DIVERSITY_SHARE: '0.10'
         run: python runner_buy_only.py
 
-      - name: Scan BPC intrinsic value with capped/clean benchmark pool
-        if: steps.cadence.outputs.run_scan == 'true'
+      - name: Run BPC intrinsic-value sidecar
+        id: bpc_value
+        continue-on-error: true
+        if: github.event_name == 'workflow_dispatch'
         env:
           BPC_VALUE_MIN_SAMPLES: '3'
           BPC_VALUE_MIN_EXACT_SAMPLES: '3'
@@ -138,173 +99,13 @@ jobs:
           DEAL_FRIENDLY_CHARACTER_ID: '2124493042'
           DEAL_FRIENDLY_ALLIANCE_IDS: ''
           DEAL_FRIENDLY_REGION_IDS: ''
-        run: python bpc_contract_benchmark_buy_only.py
+        run: |
+          python bpc_contract_benchmark_buy_only.py
+          python apply_buy_only_bpc_policy.py
 
-      - name: Enforce BPC price cap, SKIN exclusions and buy-only economics
-        if: steps.cadence.outputs.run_scan == 'true'
-        env:
-          DEAL_MAX_CONTRACT_PRICE: '5000000000'
-        run: python apply_buy_only_bpc_policy.py
-
-      - name: Scan spot and multi-item contracts with Opportunity Engine V2
-        if: steps.cadence.outputs.run_scan == 'true'
-        env:
-          DEAL_MIN_CONTRACT_PRICE: '1000000'
-          DEAL_MAX_CONTRACT_PRICE: '5000000000'
-          DEAL_MIN_NET_PROFIT: '30000000'
-          DEAL_MIN_NET_ROI: '0.10'
-          DEAL_MIN_HOURS_TO_EXPIRE: '0.5'
-          DEAL_TOP: '250'
-          MULTI_TOP: '250'
-          DEAL_SKIN_MAJOR_SHARE: '0.50'
-          DEAL_HAUL_BASE_ISK: '2000000'
-          DEAL_HAUL_ISK_PER_M3_JUMP: '200'
-          DEAL_FRIENDLY_CHARACTER_ID: '2124493042'
-          DEAL_FRIENDLY_ALLIANCE_IDS: ''
-          DEAL_FRIENDLY_REGION_IDS: ''
-          V2_LIVE_REVALIDATE_LIMIT: '120'
-          V2_HISTORY_CANDIDATE_LIMIT: '60'
-          MIN_PROFIT_PER_M3: '2000'
-        run: python buy_only_contract_scanner_v2.py
-
-      - name: Scan multi-item value contracts independently
-        if: steps.cadence.outputs.run_scan == 'true'
-        env:
-          MULTI_MIN_TYPES: '2'
-          MULTI_MIN_CONTRACT_PRICE: '1000000'
-          MULTI_MAX_CONTRACT_PRICE: '5000000000'
-          MULTI_MIN_HOURS_TO_EXPIRE: '0.5'
-          MULTI_LIVE_LIMIT: '300'
-          MULTI_PER_METRIC: '120'
-          MULTI_NEWEST_COUNT: '60'
-          MULTI_PROFIT_SHARE: '0.30'
-          MULTI_ROI_SHARE: '0.20'
-          MULTI_VALUE_SHARE: '0.15'
-          MULTI_NEWEST_SHARE: '0.15'
-          MULTI_EXPLORATION_SHARE: '0.20'
-          MULTI_INSTANT_MIN_PROFIT: '30000000'
-          MULTI_INSTANT_MIN_ROI: '0.10'
-          MULTI_CASH_FLOOR_MIN_PROFIT: '30000000'
-          MULTI_CASH_FLOOR_MIN_ROI: '0.10'
-          MULTI_SAFE_PRICE_CHANGE_PCT: '0.15'
-          MIN_PROFIT_PER_M3: '2000'
-          DEAL_SKIN_MAJOR_SHARE: '0.50'
-          DEAL_HAUL_BASE_ISK: '2000000'
-          DEAL_HAUL_ISK_PER_M3_JUMP: '200'
-          DEAL_FRIENDLY_CHARACTER_ID: '2124493042'
-          DEAL_FRIENDLY_ALLIANCE_IDS: ''
-          DEAL_FRIENDLY_REGION_IDS: ''
-        run: python multi_item_contract_scanner.py
-
-      - name: Scan high-value multi-item contracts independently
-        id: high_value
-        continue-on-error: true
-        if: steps.cadence.outputs.run_scan == 'true'
-        env:
-          HVC_MIN_CONTRACT_PRICE: '5000000000'
-          HVC_ACTIONABLE_CAPITAL: '8000000000'
-          HVC_WATCH_MAX: '20000000000'
-          HVC_MIN_TYPES: '2'
-          HVC_MIN_HOURS_TO_EXPIRE: '0.5'
-          HVC_MIN_NET_PROFIT: '500000000'
-          HVC_MIN_NET_ROI: '0.10'
-          HVC_LIST_MAX_FILL_DAYS: '14'
-          HVC_LIST_PRICE_HAIRCUT: '0.10'
-          HVC_LIST_PARTICIPATION: '0.20'
-          HVC_CAPITAL_LOCAL_RISK_RATE: '0.03'
-          HVC_ACTIONABLE_LIVE_LIMIT: '60'
-          HVC_WATCH_LIVE_LIMIT: '15'
-          HVC_RESEARCH_LIVE_LIMIT: '5'
-          HVC_HISTORY_CANDIDATES: '30'
-          HVC_MAX_LIVE_TYPES_PER_CONTRACT: '25'
-          DEAL_SKIN_MAJOR_SHARE: '0.50'
-          DEAL_HAUL_BASE_ISK: '2000000'
-          DEAL_HAUL_ISK_PER_M3_JUMP: '200'
-          DEAL_FRIENDLY_CHARACTER_ID: '2124493042'
-          DEAL_FRIENDLY_ALLIANCE_IDS: ''
-          DEAL_FRIENDLY_REGION_IDS: ''
-          ACCOUNTING_LEVEL: '5'
-        run: python high_value_contract_scanner.py
-
-      - name: Scan 4-H contracts with Opportunity Engine V2
-        id: four_h_contract
-        continue-on-error: true
-        if: steps.cadence.outputs.run_scan == 'true'
-        env:
-          EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
-          EVE_MARKET_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
-          FOUR_H_STRUCTURE_ID: '1053970513596'
-          FOUR_H_CONTRACT_MIN_PRICE: '1000000'
-          FOUR_H_CONTRACT_MIN_NET_PROFIT: '5000000'
-          FOUR_H_CONTRACT_MIN_NET_ROI: '0.05'
-          FOUR_H_CONTRACT_TOP: '100'
-          MIN_PROFIT_PER_M3: '2000'
-          ACCOUNTING_LEVEL: '5'
-        run: python four_h_contract_scanner.py
-
-      - name: Scan 4-H market to Jita with Opportunity Engine V2
-        id: four_h_market
-        continue-on-error: true
-        if: steps.cadence.outputs.run_scan == 'true'
-        env:
-          EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
-          EVE_MARKET_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
-          FOUR_H_STRUCTURE_ID: '1053970513596'
-          FOUR_H_MIN_NET_PROFIT: '10000000'
-          FOUR_H_MIN_NET_ROI: '0.10'
-          FOUR_H_TOP: '100'
-          ACCOUNTING_LEVEL: '5'
-          V2_FOUR_H_MARKET_LIVE_LIMIT: '150'
-          V2_FOUR_H_MARKET_HISTORY_LIMIT: '80'
-          MIN_PROFIT_PER_M3: '2000'
-        run: python structure_market_arbitrage.py
-
-      - name: Scan C-J6MT contracts with Opportunity Engine V2
-        id: cj_contract
-        continue-on-error: true
-        if: steps.cadence.outputs.run_scan == 'true'
-        env:
-          EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
-          EVE_MARKET_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
-          SOURCE_STRUCTURE_ID: '1049588174021'
-          SOURCE_LABEL: 'C-J6MT'
-          SOURCE_AUTH_PROFILE: 'cj'
-          SOURCE_CONTRACT_MIN_PRICE: '1000000'
-          SOURCE_CONTRACT_MIN_NET_PROFIT: '5000000'
-          SOURCE_CONTRACT_MIN_NET_ROI: '0.05'
-          SOURCE_CONTRACT_TOP: '100'
-          SOURCE_CONTRACT_RESULT_CSV: 'cj_contract_bargains.csv'
-          SOURCE_CONTRACT_REPORT_MD: 'cj_contract_bargains.md'
-          MIN_PROFIT_PER_M3: '2000'
-          ACCOUNTING_LEVEL: '5'
-        run: python four_h_contract_scanner.py
-
-      - name: Scan C-J6MT market to Jita with Opportunity Engine V2
-        id: cj_market
-        continue-on-error: true
-        if: steps.cadence.outputs.run_scan == 'true'
-        env:
-          EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
-          EVE_MARKET_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
-          SOURCE_STRUCTURE_ID: '1049588174021'
-          SOURCE_MARKET_KEY: 'cj'
-          SOURCE_MARKET_LABEL: "C-J6MT - 1st Taj Mahgoon (DJ's Retirement Fund)"
-          SOURCE_AUTH_PROFILE: 'cj'
-          SOURCE_RESULT_CSV: 'cj_to_jita_buy.csv'
-          SOURCE_REPORT_MD: 'cj_to_jita_buy.md'
-          SOURCE_MIN_NET_PROFIT: '10000000'
-          SOURCE_MIN_NET_ROI: '0.10'
-          SOURCE_TOP: '100'
-          ACCOUNTING_LEVEL: '5'
-          V2_SOURCE_MARKET_LIVE_LIMIT: '150'
-          V2_SOURCE_MARKET_HISTORY_LIMIT: '80'
-          MIN_PROFIT_PER_M3: '2000'
-        run: python structure_market_arbitrage.py
-
-      - name: Scan V3 public missed-opportunity channels
+      - name: Run V3 public-contract engine
         id: v3_public
         continue-on-error: true
-        if: steps.cadence.outputs.run_scan == 'true'
         env:
           DEAL_MIN_CONTRACT_PRICE: '1000000'
           DEAL_MAX_CONTRACT_PRICE: '5000000000'
@@ -315,23 +116,133 @@ jobs:
           DEAL_FRIENDLY_CHARACTER_ID: '2124493042'
           DEAL_FRIENDLY_ALLIANCE_IDS: ''
           DEAL_FRIENDLY_REGION_IDS: ''
-          V3_PUBLIC_LIVE_LIMIT: '300'
-          V3_PUBLIC_PER_METRIC: '110'
-          V3_PUBLIC_NEWEST_COUNT: '60'
-          V3_PUBLIC_PROFIT_SHARE: '0.18'
-          V3_PUBLIC_ROI_SHARE: '0.18'
-          V3_PUBLIC_LIST_PROFIT_SHARE: '0.18'
-          V3_PUBLIC_LIST_ROI_SHARE: '0.18'
+          V3_PUBLIC_LIVE_LIMIT: '600'
+          V3_PUBLIC_PROFIT_SHARE: '0.25'
+          V3_PUBLIC_ROI_SHARE: '0.15'
+          V3_PUBLIC_LIST_PROFIT_SHARE: '0.10'
+          V3_PUBLIC_LIST_ROI_SHARE: '0.05'
+          V3_PUBLIC_CHANGE_SHARE: '0.15'
           V3_PUBLIC_NEWEST_SHARE: '0.13'
-          V3_PUBLIC_EXPLORATION_SHARE: '0.15'
-          V3_LIST_HISTORY_LIMIT: '120'
-          MIN_PROFIT_PER_M3: '2000'
+          V3_PUBLIC_EXPLORATION_SHARE: '0.12'
+          V3_PUBLIC_DIVERSITY_SHARE: '0.05'
+          V3_LIST_HISTORY_LIMIT: '160'
         run: python opportunity_engine_v3_scanner.py
 
-      - name: Scan V3 Jita to 4-H reverse market
+      - name: Scan Amarr procurement to Jita
+        id: amarr
+        continue-on-error: true
+        env:
+          V3_SOURCE_KIND: npc
+          V3_SOURCE_KEY: amarr
+          V3_SOURCE_LABEL: 'Amarr VIII (Oris) - Emperor Family Academy'
+          V3_SOURCE_REGION_ID: '10000043'
+          V3_SOURCE_STATION_ID: '60008494'
+          V3_SOURCE_LIVE_LIMIT: '180'
+          V3_SOURCE_TOP: '120'
+          V3_SOURCE_RESULT_CSV: 'v3_amarr_to_jita.csv'
+          V3_SOURCE_REPORT_MD: 'v3_amarr_to_jita.md'
+          V3_SOURCE_FUNNEL_JSON: 'v3_amarr_to_jita_funnel.json'
+          DEAL_HAUL_BASE_ISK: '2000000'
+          DEAL_HAUL_ISK_PER_M3_JUMP: '200'
+        run: python v3_source_market_scanner.py
+
+      - name: Scan Dodixie procurement to Jita
+        id: dodixie
+        continue-on-error: true
+        env:
+          V3_SOURCE_KIND: npc
+          V3_SOURCE_KEY: dodixie
+          V3_SOURCE_LABEL: 'Dodixie IX - Moon 20 - Federation Navy Assembly Plant'
+          V3_SOURCE_REGION_ID: '10000032'
+          V3_SOURCE_STATION_ID: '60011866'
+          V3_SOURCE_LIVE_LIMIT: '180'
+          V3_SOURCE_TOP: '120'
+          V3_SOURCE_RESULT_CSV: 'v3_dodixie_to_jita.csv'
+          V3_SOURCE_REPORT_MD: 'v3_dodixie_to_jita.md'
+          V3_SOURCE_FUNNEL_JSON: 'v3_dodixie_to_jita_funnel.json'
+          DEAL_HAUL_BASE_ISK: '2000000'
+          DEAL_HAUL_ISK_PER_M3_JUMP: '200'
+        run: python v3_source_market_scanner.py
+
+      - name: Scan 4-H market procurement with V3
+        id: four_h_market
+        continue-on-error: true
+        env:
+          V3_SOURCE_KIND: structure
+          V3_SOURCE_KEY: four_h
+          V3_SOURCE_LABEL: '4-HWWF'
+          SOURCE_STRUCTURE_ID: '1053970513596'
+          SOURCE_MARKET_KEY: four_h
+          SOURCE_MARKET_LABEL: '4-HWWF'
+          SOURCE_AUTH_PROFILE: main
+          EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+          EVE_MARKET_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
+          V3_SOURCE_HAUL_BASE: '10000000'
+          V3_SOURCE_HAUL_ISK_PER_M3: '500'
+          V3_SOURCE_HAUL_ISK_PER_M3_JUMP: '0'
+          V3_SOURCE_RESULT_CSV: 'v3_four_h_to_jita.csv'
+          V3_SOURCE_REPORT_MD: 'v3_four_h_to_jita.md'
+          V3_SOURCE_FUNNEL_JSON: 'v3_four_h_to_jita_funnel.json'
+        run: python v3_source_market_scanner.py
+
+      - name: Scan C-J6MT market procurement with V3
+        id: cj_market
+        continue-on-error: true
+        env:
+          V3_SOURCE_KIND: structure
+          V3_SOURCE_KEY: cj
+          V3_SOURCE_LABEL: "C-J6MT - 1st Taj Mahgoon (DJ's Retirement Fund)"
+          SOURCE_STRUCTURE_ID: '1049588174021'
+          SOURCE_MARKET_KEY: cj
+          SOURCE_MARKET_LABEL: "C-J6MT - 1st Taj Mahgoon (DJ's Retirement Fund)"
+          SOURCE_AUTH_PROFILE: cj
+          EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+          EVE_MARKET_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
+          V3_SOURCE_HAUL_BASE: '10000000'
+          V3_SOURCE_HAUL_ISK_PER_M3: '500'
+          V3_SOURCE_HAUL_ISK_PER_M3_JUMP: '0'
+          V3_SOURCE_RESULT_CSV: 'v3_cj_to_jita.csv'
+          V3_SOURCE_REPORT_MD: 'v3_cj_to_jita.md'
+          V3_SOURCE_FUNNEL_JSON: 'v3_cj_to_jita_funnel.json'
+        run: python v3_source_market_scanner.py
+
+      - name: Scan 4-H contracts with V3 ExecutionProof
+        id: four_h_contract
+        continue-on-error: true
+        env:
+          SOURCE_STRUCTURE_ID: '1053970513596'
+          SOURCE_LABEL: '4-HWWF'
+          SOURCE_AUTH_PROFILE: main
+          EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+          EVE_MARKET_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
+          V3_STRUCTURE_KEY: four_h
+          V3_STRUCTURE_HAUL_BASE: '10000000'
+          V3_STRUCTURE_HAUL_ISK_PER_M3: '500'
+          V3_STRUCTURE_CONTRACT_RESULT_CSV: 'v3_four_h_contracts.csv'
+          V3_STRUCTURE_CONTRACT_REPORT_MD: 'v3_four_h_contracts.md'
+          V3_STRUCTURE_CONTRACT_FUNNEL_JSON: 'v3_four_h_contracts_funnel.json'
+        run: python v3_structure_contract_scanner.py
+
+      - name: Scan C-J6MT contracts with V3 ExecutionProof
+        id: cj_contract
+        continue-on-error: true
+        env:
+          SOURCE_STRUCTURE_ID: '1049588174021'
+          SOURCE_LABEL: 'C-J6MT'
+          SOURCE_AUTH_PROFILE: cj
+          EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+          EVE_MARKET_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
+          V3_STRUCTURE_KEY: cj
+          V3_STRUCTURE_HAUL_BASE: '10000000'
+          V3_STRUCTURE_HAUL_ISK_PER_M3: '500'
+          V3_STRUCTURE_CONTRACT_RESULT_CSV: 'v3_cj_contracts.csv'
+          V3_STRUCTURE_CONTRACT_REPORT_MD: 'v3_cj_contracts.md'
+          V3_STRUCTURE_CONTRACT_FUNNEL_JSON: 'v3_cj_contracts_funnel.json'
+        run: python v3_structure_contract_scanner.py
+
+      - name: Keep existing V3 Jita to 4-H reverse scan
         id: v3_reverse
         continue-on-error: true
-        if: steps.cadence.outputs.run_scan == 'true'
         env:
           EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
           EVE_MARKET_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
@@ -340,11 +251,29 @@ jobs:
           V3_4H_REVERSE_MIN_ROI: '0.10'
           V3_4H_REVERSE_HAUL_BASE: '10000000'
           V3_4H_REVERSE_HAUL_ISK_PER_M3: '500'
-          MIN_PROFIT_PER_M3: '2000'
         run: python four_h_reverse_scanner_v3.py
 
-      - name: Prepare mail candidates
-        if: steps.cadence.outputs.run_scan == 'true'
+      - name: Build V3 cutover summary
+        if: always()
+        run: python v3_cutover_summary.py
+
+      - name: Upload V3 test artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-cutover-test
+          path: |
+            results/latest/v3_cutover_summary.md
+            results/latest/v3_*.csv
+            results/latest/v3_*.md
+            results/latest/v3_*funnel.json
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Prepare BPC mail only
+        id: bpc_prepare
+        continue-on-error: true
+        if: github.event_name == 'workflow_dispatch' && steps.bpc_mfg.outcome == 'success'
         env:
           MAIL_SPOT_MIN_PROFIT: '50000000'
           MAIL_SPOT_MIN_ROI: '0.10'
@@ -352,23 +281,14 @@ jobs:
           MAIL_BPC_VALUE_MIN_AVG_DISCOUNT: '0.30'
           MAIL_BPC_VALUE_MIN_MEDIAN_DISCOUNT: '0.20'
           MAIL_BPC_VALUE_MIN_SURPLUS: '20000000'
-          MAIL_BPC_MFG_MIN_PROFIT: '100000000'
-          MAIL_BPC_MFG_MIN_ROI: '0.15'
-          MAIL_BPC_MFG_MIN_STRESS_PROFIT: '50000000'
-          MAIL_BPC_MFG_MIN_JITA_PROFIT: '50000000'
-          MAIL_BPC_MFG_MIN_JITA_ROI: '0.10'
-          MAIL_BPC_MFG_MIN_JITA_STRESS_PROFIT: '0'
         run: python prepare_mail_candidates.py
 
-      - name: Add one-click EVE links
-        if: steps.cadence.outputs.run_scan == 'true'
-        run: python add_action_links.py
-
-      - name: Send changed spot and BPC top-10 digests
-        id: mail_core
+      - name: Send BPC sidecar mail only
+        id: bpc_mail
         continue-on-error: true
-        if: steps.cadence.outputs.run_scan == 'true'
+        if: github.event_name == 'workflow_dispatch' && steps.bpc_prepare.outcome == 'success'
         env:
+          DISABLE_SPOT_MAIL: '1'
           EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
           EVE_MAIL_RECIPIENT_NAME: MikeChong
           EVE_MAIL_RECIPIENT_NAMES: 'MikeChong,LadyBaBa'
@@ -376,236 +296,11 @@ jobs:
           EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
           MAIL_TOP: '10'
           MAIL_LIVE_POOL: '80'
-        shell: bash
-        run: |
-          set -o pipefail
-          python send_eve_mail_buy_only_multi.py 2>&1 | tee /tmp/mail-core.log
-          if grep -q 'mail delivery incomplete:' /tmp/mail-core.log; then
-            echo 'Core mail delivery reported failure.'
-            exit 2
-          fi
+        run: python send_eve_mail_buy_only_multi.py
 
-      - name: Send changed multi-item top-10 digest
-        id: mail_multi
-        continue-on-error: true
-        if: steps.cadence.outputs.run_scan == 'true'
-        env:
-          EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
-          EVE_MAIL_RECIPIENT_NAME: MikeChong
-          EVE_MAIL_RECIPIENT_NAMES: 'MikeChong,LadyBaBa'
-          EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
-          MAIL_TOP: '10'
-          MAIL_LIVE_POOL: '80'
-        shell: bash
-        run: |
-          set -o pipefail
-          python send_multi_item_buy_only_multi.py 2>&1 | tee /tmp/mail-multi.log
-          if grep -q 'delivery incomplete:' /tmp/mail-multi.log; then
-            echo 'Multi-item mail delivery reported failure.'
-            exit 2
-          fi
-
-      - name: Send high-value contract SAFE digest
-        id: mail_high_value
-        continue-on-error: true
-        if: steps.cadence.outputs.run_scan == 'true' && steps.high_value.outcome == 'success'
-        env:
-          EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
-          EVE_MAIL_RECIPIENT_NAME: MikeChong
-          EVE_MAIL_RECIPIENT_NAMES: 'MikeChong,LadyBaBa'
-          EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
-          HVC_MAIL_TOP: '10'
-          HVC_MAIL_MIN_PROFIT: '500000000'
-          HVC_MAIL_MIN_ROI: '0.10'
-          HVC_MAIL_REMIND_AFTER_HOURS: '6'
-        shell: bash
-        run: |
-          set -o pipefail
-          python send_high_value_contract_mail.py 2>&1 | tee /tmp/mail-high-value.log
-
-      - name: Report degraded high-value channel without blocking existing alerts
-        if: steps.cadence.outputs.run_scan == 'true' && (steps.high_value.outcome != 'success' || steps.mail_high_value.outcome == 'failure')
-        shell: bash
-        run: |
-          echo "::warning::High-value contract channel degraded: scan=${{ steps.high_value.outcome }}, mail=${{ steps.mail_high_value.outcome }}. Existing channels are unchanged."
-
-      - name: Send first-seen global A/S opportunity alerts
-        id: mail_global_watch
-        continue-on-error: true
-        if: steps.cadence.outputs.run_scan == 'true'
-        env:
-          EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
-          EVE_MAIL_RECIPIENT_NAME: MikeChong
-          EVE_MAIL_RECIPIENT_NAMES: 'MikeChong,LadyBaBa'
-          BPC_MFG_MAIL_EXCLUDED_RECIPIENTS: ''
-          EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
-          GRADE_WATCH_MIN_SCORE: '70'
-          GRADE_WATCH_MAIL_TOP: '10'
-        shell: bash
-        run: |
-          set -o pipefail
-          python send_global_grade_watch.py 2>&1 | tee /tmp/mail-global-watch.log
-
-      - name: Report degraded global A/S alert without blocking scans
-        if: steps.cadence.outputs.run_scan == 'true' && steps.mail_global_watch.outcome == 'failure'
-        shell: bash
-        run: |
-          echo "::warning::Global A/S first-seen alert failed; scan results and formal channel alerts remain valid."
-
-      - name: Send first-seen global A/S alerts to Gmail
-        id: mail_global_gmail
-        continue-on-error: true
-        if: steps.cadence.outputs.run_scan == 'true'
-        env:
-          GMAIL_SMTP_USER: ${{ secrets.GMAIL_SMTP_USER }}
-          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
-          GMAIL_TO: ${{ secrets.GMAIL_TO }}
-          GRADE_WATCH_MIN_SCORE: '70'
-          GRADE_WATCH_GMAIL_TOP: '20'
-        shell: bash
-        run: |
-          set -o pipefail
-          python send_global_grade_watch_gmail.py 2>&1 | tee /tmp/mail-global-gmail.log
-
-      - name: Report degraded Gmail A/S alert without blocking scans
-        if: steps.cadence.outputs.run_scan == 'true' && steps.mail_global_gmail.outcome == 'failure'
-        shell: bash
-        run: |
-          echo "::warning::Gmail A/S first-seen alert failed; scan results and all other alerts remain valid."
-
-      - name: Send 4-H contract SAFE digest
-        id: mail_four_h_contract
-        continue-on-error: true
-        if: steps.cadence.outputs.run_scan == 'true' && steps.four_h_contract.outcome == 'success'
-        env:
-          EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
-          EVE_MAIL_RECIPIENT_NAME: MikeChong
-          EVE_MAIL_RECIPIENT_NAMES: 'MikeChong,LadyBaBa'
-          EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
-          MAIL_TOP: '10'
-          STRUCTURE_MAIL_CHANNELS: 'four-h-contract'
-        shell: bash
-        run: |
-          set -o pipefail
-          python send_four_h_mail_multi.py 2>&1 | tee /tmp/mail-four-h-contract.log
-          if grep -q 'structure mail delivery incomplete:' /tmp/mail-four-h-contract.log; then
-            echo '4-H contract mail delivery reported failure.'
-            exit 2
-          fi
-
-      - name: Send 4-H market SAFE digest
-        id: mail_four_h_market
-        continue-on-error: true
-        if: steps.cadence.outputs.run_scan == 'true' && steps.four_h_market.outcome == 'success'
-        env:
-          EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
-          EVE_MAIL_RECIPIENT_NAME: MikeChong
-          EVE_MAIL_RECIPIENT_NAMES: 'MikeChong,LadyBaBa'
-          EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
-          MAIL_TOP: '10'
-          STRUCTURE_MAIL_CHANNELS: 'four-h-market'
-        shell: bash
-        run: |
-          set -o pipefail
-          python send_four_h_mail_multi.py 2>&1 | tee /tmp/mail-four-h-market.log
-          if grep -q 'structure mail delivery incomplete:' /tmp/mail-four-h-market.log; then
-            echo '4-H market mail delivery reported failure.'
-            exit 2
-          fi
-
-      - name: Send C-J6MT contract SAFE digest
-        id: mail_cj_contract
-        continue-on-error: true
-        if: steps.cadence.outputs.run_scan == 'true' && steps.cj_contract.outcome == 'success'
-        env:
-          EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
-          EVE_MAIL_RECIPIENT_NAME: MikeChong
-          EVE_MAIL_RECIPIENT_NAMES: 'MikeChong,LadyBaBa'
-          EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
-          MAIL_TOP: '10'
-          STRUCTURE_MAIL_CHANNELS: 'cj-contract'
-        shell: bash
-        run: |
-          set -o pipefail
-          python send_four_h_mail_multi.py 2>&1 | tee /tmp/mail-cj-contract.log
-          if grep -q 'structure mail delivery incomplete:' /tmp/mail-cj-contract.log; then
-            echo 'C-J6MT contract mail delivery reported failure.'
-            exit 2
-          fi
-
-      - name: Send C-J6MT market SAFE digest
-        id: mail_cj
-        continue-on-error: true
-        if: steps.cadence.outputs.run_scan == 'true' && steps.cj_market.outcome == 'success'
-        env:
-          EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
-          EVE_MAIL_RECIPIENT_NAME: MikeChong
-          EVE_MAIL_RECIPIENT_NAMES: 'MikeChong,LadyBaBa'
-          EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
-          MAIL_TOP: '10'
-          STRUCTURE_MAIL_CHANNELS: 'cj-market'
-        shell: bash
-        run: |
-          set -o pipefail
-          python send_four_h_mail_multi.py 2>&1 | tee /tmp/mail-cj.log
-          if grep -q 'structure mail delivery incomplete:' /tmp/mail-cj.log; then
-            echo 'C-J6MT mail delivery reported failure.'
-            exit 2
-          fi
-
-      - name: Send V3 public SAFE digests
-        id: mail_v3_public
-        continue-on-error: true
-        if: steps.cadence.outputs.run_scan == 'true' && steps.v3_public.outcome == 'success'
-        env:
-          EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
-          EVE_MAIL_RECIPIENT_NAME: MikeChong
-          EVE_MAIL_RECIPIENT_NAMES: 'MikeChong,LadyBaBa'
-          EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
-          MAIL_TOP: '10'
-          V3_CHANNELS: 'v3-cash-floor,v3-barter,v3-conservative-list'
-        shell: bash
-        run: |
-          set -o pipefail
-          python send_v3_opportunity_mail.py 2>&1 | tee /tmp/mail-v3-public.log
-
-      - name: Send V3 Jita to 4-H SAFE digest
-        id: mail_v3_reverse
-        continue-on-error: true
-        if: steps.cadence.outputs.run_scan == 'true' && steps.v3_reverse.outcome == 'success'
-        env:
-          EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
-          EVE_MAIL_RECIPIENT_NAME: MikeChong
-          EVE_MAIL_RECIPIENT_NAMES: 'MikeChong,LadyBaBa'
-          EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
-          MAIL_TOP: '10'
-          V3_CHANNELS: 'v3-jita-to-4h'
-        shell: bash
-        run: |
-          set -o pipefail
-          python send_v3_opportunity_mail.py 2>&1 | tee /tmp/mail-v3-reverse.log
-
-      - name: Report degraded V3 scan without blocking V2 alerts
-        if: steps.cadence.outputs.run_scan == 'true' && (steps.v3_public.outcome != 'success' || steps.v3_reverse.outcome != 'success')
-        shell: bash
-        run: |
-          echo "::warning::V3 scan degraded: public=${{ steps.v3_public.outcome }}, reverse=${{ steps.v3_reverse.outcome }}. Existing V2 alerts were not blocked."
-
-      - name: Report degraded 4-H scan without blocking core alerts
-        if: steps.cadence.outputs.run_scan == 'true' && (steps.four_h_contract.outcome != 'success' || steps.four_h_market.outcome != 'success')
-        shell: bash
-        run: |
-          echo "::warning::4-H scan degraded: contract=${{ steps.four_h_contract.outcome }}, market=${{ steps.four_h_market.outcome }}. Core BPC/spot/multi alerts were not blocked."
-
-      - name: Report degraded C-J6MT scan without blocking other alerts
-        if: steps.cadence.outputs.run_scan == 'true' && (steps.cj_contract.outcome != 'success' || steps.cj_market.outcome != 'success')
-        shell: bash
-        run: |
-          echo "::warning::C-J6MT scan degraded: contract=${{ steps.cj_contract.outcome }}, market=${{ steps.cj_market.outcome }}. Existing 4-H/core alerts were not blocked."
-
-      - name: Commit refreshed results safely
+      - name: Persist V3 test results
         id: persist_results
-        if: steps.cadence.outputs.run_scan == 'true'
+        if: always()
         shell: bash
         run: |
           set -euo pipefail
@@ -616,7 +311,6 @@ jobs:
           cp -a results/. "$RESULTS_SNAPSHOT/"
 
           for attempt in 1 2 3; do
-            echo "Result push attempt $attempt/3"
             git fetch origin main
             git reset --hard origin/main
             rm -rf results
@@ -625,91 +319,45 @@ jobs:
             git add results
 
             if git diff --cached --quiet; then
-              echo "No result changes relative to latest main."
+              echo "No result changes."
               exit 0
             fi
 
-            git commit -m "data: refresh EVE arbitrage opportunities $(date -u +'%Y-%m-%d %H:%M UTC')"
-
+            git commit -m "data: refresh V3 cutover test $(date -u +'%Y-%m-%d %H:%M UTC')"
             if git push origin HEAD:main; then
-              echo "Results pushed successfully."
               exit 0
             fi
-
-            echo "Remote main advanced during push; retrying on newest main..."
             sleep $((attempt * 2))
           done
-
-          echo "Failed to push refreshed results after 3 attempts."
           exit 1
 
-      - name: Final production health gate
-        if: always() && steps.cadence.outputs.run_scan == 'true'
+      - name: Final V3 cutover health gate
+        if: always()
         shell: bash
         run: |
           set -euo pipefail
           failed=0
-          echo "four_h_contract=${{ steps.four_h_contract.outcome }}"
-          echo "four_h_market=${{ steps.four_h_market.outcome }}"
-          echo "cj_contract=${{ steps.cj_contract.outcome }}"
-          echo "cj_market=${{ steps.cj_market.outcome }}"
-          echo "v3_public=${{ steps.v3_public.outcome }}"
-          echo "v3_reverse=${{ steps.v3_reverse.outcome }}"
-          echo "mail_core=${{ steps.mail_core.outcome }}"
-          echo "mail_multi=${{ steps.mail_multi.outcome }}"
-          echo "high_value=${{ steps.high_value.outcome }}"
-          echo "mail_high_value=${{ steps.mail_high_value.outcome }}"
-          echo "mail_four_h_contract=${{ steps.mail_four_h_contract.outcome }}"
-          echo "mail_four_h_market=${{ steps.mail_four_h_market.outcome }}"
-          echo "mail_cj_contract=${{ steps.mail_cj_contract.outcome }}"
-          echo "mail_cj=${{ steps.mail_cj.outcome }}"
-          echo "mail_v3_public=${{ steps.mail_v3_public.outcome }}"
-          echo "mail_v3_reverse=${{ steps.mail_v3_reverse.outcome }}"
-          echo "persist_results=${{ steps.persist_results.outcome }}"
-
-          if [ "${{ steps.persist_results.outcome }}" != "success" ]; then
-            echo "::error::Result persistence failed."
-            failed=1
-          fi
-          if [ "${{ steps.mail_core.outcome }}" = "failure" ]; then
-            echo "::error::Core spot/BPC mail delivery failed."
-            failed=1
-          fi
-          if [ "${{ steps.mail_multi.outcome }}" = "failure" ]; then
-            echo "::error::Multi-item mail delivery failed."
-            failed=1
-          fi
-          if [ "${{ steps.four_h_contract.outcome }}" != "success" ] || [ "${{ steps.four_h_market.outcome }}" != "success" ]; then
-            echo "::error::4-H scan is degraded."
-            failed=1
-          fi
-          if [ "${{ steps.mail_four_h_contract.outcome }}" = "failure" ] || [ "${{ steps.mail_four_h_market.outcome }}" = "failure" ]; then
-            echo "::error::4-H mail delivery failed."
-            failed=1
-          fi
-          if [ "${{ steps.cj_contract.outcome }}" != "success" ] || [ "${{ steps.cj_market.outcome }}" != "success" ]; then
-            echo "::warning::C-J6MT scan is degraded; core/4-H production remains independent."
-          fi
-          if [ "${{ steps.mail_cj_contract.outcome }}" = "failure" ] || [ "${{ steps.mail_cj.outcome }}" = "failure" ]; then
-            echo "::warning::C-J6MT mail delivery is degraded; core/4-H production remains independent."
-          fi
-          if [ "${{ steps.v3_public.outcome }}" != "success" ]; then
-            echo "::error::V3 public opportunity scan is degraded."
-            failed=1
-          elif [ "${{ steps.mail_v3_public.outcome }}" = "failure" ]; then
-            echo "::error::V3 public mail delivery failed."
-            failed=1
-          fi
-          if [ "${{ steps.v3_reverse.outcome }}" != "success" ]; then
-            echo "::error::V3 Jita-to-4-H reverse scan is degraded."
-            failed=1
-          elif [ "${{ steps.mail_v3_reverse.outcome }}" = "failure" ]; then
-            echo "::error::V3 reverse mail delivery failed."
-            failed=1
-          fi
+          for pair in \
+            "v3_public:${{ steps.v3_public.outcome }}" \
+            "amarr:${{ steps.amarr.outcome }}" \
+            "dodixie:${{ steps.dodixie.outcome }}" \
+            "four_h_market:${{ steps.four_h_market.outcome }}" \
+            "cj_market:${{ steps.cj_market.outcome }}" \
+            "four_h_contract:${{ steps.four_h_contract.outcome }}" \
+            "cj_contract:${{ steps.cj_contract.outcome }}" \
+            "v3_reverse:${{ steps.v3_reverse.outcome }}" \
+            "persist_results:${{ steps.persist_results.outcome }}"
+          do
+            name="${pair%%:*}"
+            outcome="${pair#*:}"
+            echo "$name=$outcome"
+            if [ "$outcome" != "success" ]; then
+              failed=1
+            fi
+          done
 
           if [ "$failed" -ne 0 ]; then
-            echo "Production scan completed with degraded delivery/health. Results were preserved where possible."
+            echo "::error::V3 cutover test completed with one or more degraded channels."
             exit 1
           fi
-          echo "Production scan health OK."
+          echo "V3 cutover test health OK. V2 production scanners remain disabled."

@@ -1,0 +1,211 @@
+name: V3 shadow validation
+
+on:
+  push:
+    branches:
+      - 'v3-redesign-execution-proof-2026-10-07'
+    paths:
+      - 'opportunity_engine_v3.py'
+      - 'opportunity_engine_v3_scanner.py'
+      - 'v3_source_market_scanner.py'
+      - 'v3_structure_contract_scanner.py'
+      - 'v3_cutover_summary.py'
+      - 'v3_engine/**'
+      - 'v3_shadow_compare.py'
+      - '.github/workflows/v3-shadow-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  shadow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      MAIL_MIN_VERIFIED_NET_PROFIT: '50000000'
+      MIN_PROFIT_PER_M3: '2000'
+      V3_FULL_CASH_MAIL_ENABLED: '1'
+    steps:
+      - name: Checkout redesign branch
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run V2 baseline scanner for comparison only
+        env:
+          DEAL_MIN_CONTRACT_PRICE: '1000000'
+          DEAL_MAX_CONTRACT_PRICE: '5000000000'
+          DEAL_MIN_NET_PROFIT: '30000000'
+          DEAL_MIN_NET_ROI: '0.10'
+          DEAL_MIN_HOURS_TO_EXPIRE: '0.5'
+          DEAL_TOP: '250'
+          MULTI_TOP: '250'
+          DEAL_SKIN_MAJOR_SHARE: '0.50'
+          DEAL_HAUL_BASE_ISK: '2000000'
+          DEAL_HAUL_ISK_PER_M3_JUMP: '200'
+          DEAL_FRIENDLY_CHARACTER_ID: '2124493042'
+          DEAL_FRIENDLY_ALLIANCE_IDS: ''
+          DEAL_FRIENDLY_REGION_IDS: ''
+          V2_LIVE_REVALIDATE_LIMIT: '120'
+          V2_HISTORY_CANDIDATE_LIMIT: '60'
+        run: python buy_only_contract_scanner_v2.py
+
+      - name: Run redesigned V3 public contracts
+        env:
+          DEAL_MIN_CONTRACT_PRICE: '1000000'
+          DEAL_MAX_CONTRACT_PRICE: '5000000000'
+          DEAL_MIN_HOURS_TO_EXPIRE: '0.5'
+          DEAL_SKIN_MAJOR_SHARE: '0.50'
+          DEAL_HAUL_BASE_ISK: '2000000'
+          DEAL_HAUL_ISK_PER_M3_JUMP: '200'
+          DEAL_FRIENDLY_CHARACTER_ID: '2124493042'
+          DEAL_FRIENDLY_ALLIANCE_IDS: ''
+          DEAL_FRIENDLY_REGION_IDS: ''
+          V3_PUBLIC_LIVE_LIMIT: '600'
+          V3_PUBLIC_PROFIT_SHARE: '0.25'
+          V3_PUBLIC_ROI_SHARE: '0.15'
+          V3_PUBLIC_LIST_PROFIT_SHARE: '0.10'
+          V3_PUBLIC_LIST_ROI_SHARE: '0.05'
+          V3_PUBLIC_CHANGE_SHARE: '0.15'
+          V3_PUBLIC_NEWEST_SHARE: '0.13'
+          V3_PUBLIC_EXPLORATION_SHARE: '0.12'
+          V3_PUBLIC_DIVERSITY_SHARE: '0.05'
+          V3_LIST_HISTORY_LIMIT: '160'
+        run: python opportunity_engine_v3_scanner.py
+
+      - name: Scan Amarr procurement to Jita exit
+        env:
+          V3_SOURCE_KIND: npc
+          V3_SOURCE_KEY: amarr
+          V3_SOURCE_LABEL: 'Amarr VIII (Oris) - Emperor Family Academy'
+          V3_SOURCE_REGION_ID: '10000043'
+          V3_SOURCE_STATION_ID: '60008494'
+          V3_SOURCE_LIVE_LIMIT: '180'
+          V3_SOURCE_TOP: '120'
+          V3_SOURCE_RESULT_CSV: 'v3_amarr_to_jita.csv'
+          V3_SOURCE_REPORT_MD: 'v3_amarr_to_jita.md'
+          V3_SOURCE_FUNNEL_JSON: 'v3_amarr_to_jita_funnel.json'
+          DEAL_HAUL_BASE_ISK: '2000000'
+          DEAL_HAUL_ISK_PER_M3_JUMP: '200'
+        run: python v3_source_market_scanner.py
+
+      - name: Scan Dodixie procurement to Jita exit
+        env:
+          V3_SOURCE_KIND: npc
+          V3_SOURCE_KEY: dodixie
+          V3_SOURCE_LABEL: 'Dodixie IX - Moon 20 - Federation Navy Assembly Plant'
+          V3_SOURCE_REGION_ID: '10000032'
+          V3_SOURCE_STATION_ID: '60011866'
+          V3_SOURCE_LIVE_LIMIT: '180'
+          V3_SOURCE_TOP: '120'
+          V3_SOURCE_RESULT_CSV: 'v3_dodixie_to_jita.csv'
+          V3_SOURCE_REPORT_MD: 'v3_dodixie_to_jita.md'
+          V3_SOURCE_FUNNEL_JSON: 'v3_dodixie_to_jita_funnel.json'
+          DEAL_HAUL_BASE_ISK: '2000000'
+          DEAL_HAUL_ISK_PER_M3_JUMP: '200'
+        run: python v3_source_market_scanner.py
+
+      - name: Scan 4-H market procurement with V3
+        env:
+          V3_SOURCE_KIND: structure
+          V3_SOURCE_KEY: four_h
+          V3_SOURCE_LABEL: '4-HWWF'
+          SOURCE_STRUCTURE_ID: '1053970513596'
+          SOURCE_MARKET_KEY: four_h
+          SOURCE_MARKET_LABEL: '4-HWWF'
+          SOURCE_AUTH_PROFILE: main
+          EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+          EVE_MARKET_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
+          V3_SOURCE_HAUL_BASE: '10000000'
+          V3_SOURCE_HAUL_ISK_PER_M3: '500'
+          V3_SOURCE_HAUL_ISK_PER_M3_JUMP: '0'
+          V3_SOURCE_RESULT_CSV: 'v3_four_h_to_jita.csv'
+          V3_SOURCE_REPORT_MD: 'v3_four_h_to_jita.md'
+          V3_SOURCE_FUNNEL_JSON: 'v3_four_h_to_jita_funnel.json'
+        run: python v3_source_market_scanner.py
+
+      - name: Scan C-J6MT market procurement with V3
+        env:
+          V3_SOURCE_KIND: structure
+          V3_SOURCE_KEY: cj
+          V3_SOURCE_LABEL: "C-J6MT - 1st Taj Mahgoon (DJ's Retirement Fund)"
+          SOURCE_STRUCTURE_ID: '1049588174021'
+          SOURCE_MARKET_KEY: cj
+          SOURCE_MARKET_LABEL: "C-J6MT - 1st Taj Mahgoon (DJ's Retirement Fund)"
+          SOURCE_AUTH_PROFILE: cj
+          EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+          EVE_MARKET_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
+          V3_SOURCE_HAUL_BASE: '10000000'
+          V3_SOURCE_HAUL_ISK_PER_M3: '500'
+          V3_SOURCE_HAUL_ISK_PER_M3_JUMP: '0'
+          V3_SOURCE_RESULT_CSV: 'v3_cj_to_jita.csv'
+          V3_SOURCE_REPORT_MD: 'v3_cj_to_jita.md'
+          V3_SOURCE_FUNNEL_JSON: 'v3_cj_to_jita_funnel.json'
+        run: python v3_source_market_scanner.py
+
+      - name: Scan 4-H contracts with V3 ExecutionProof
+        env:
+          SOURCE_STRUCTURE_ID: '1053970513596'
+          SOURCE_LABEL: '4-HWWF'
+          SOURCE_AUTH_PROFILE: main
+          EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+          EVE_MARKET_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
+          V3_STRUCTURE_KEY: four_h
+          V3_STRUCTURE_HAUL_BASE: '10000000'
+          V3_STRUCTURE_HAUL_ISK_PER_M3: '500'
+          V3_STRUCTURE_CONTRACT_RESULT_CSV: 'v3_four_h_contracts.csv'
+          V3_STRUCTURE_CONTRACT_REPORT_MD: 'v3_four_h_contracts.md'
+          V3_STRUCTURE_CONTRACT_FUNNEL_JSON: 'v3_four_h_contracts_funnel.json'
+        run: python v3_structure_contract_scanner.py
+
+      - name: Scan C-J6MT contracts with V3 ExecutionProof
+        env:
+          SOURCE_STRUCTURE_ID: '1049588174021'
+          SOURCE_LABEL: 'C-J6MT'
+          SOURCE_AUTH_PROFILE: cj
+          EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+          EVE_MARKET_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
+          V3_STRUCTURE_KEY: cj
+          V3_STRUCTURE_HAUL_BASE: '10000000'
+          V3_STRUCTURE_HAUL_ISK_PER_M3: '500'
+          V3_STRUCTURE_CONTRACT_RESULT_CSV: 'v3_cj_contracts.csv'
+          V3_STRUCTURE_CONTRACT_REPORT_MD: 'v3_cj_contracts.md'
+          V3_STRUCTURE_CONTRACT_FUNNEL_JSON: 'v3_cj_contracts_funnel.json'
+        run: python v3_structure_contract_scanner.py
+
+      - name: Compare public V3 with V2 baseline
+        run: python v3_shadow_compare.py
+
+      - name: Build V3 cutover summary
+        run: python v3_cutover_summary.py
+
+      - name: Upload shadow report
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-shadow-validation
+          path: |
+            results/latest/v3_shadow_comparison.md
+            results/latest/v3_cutover_summary.md
+            results/latest/v3_rejection_funnel.json
+            results/latest/v3_full_cash.csv
+            results/latest/v3_cash_floor.csv
+            results/latest/v3_barter.csv
+            results/latest/v3_conservative_listing.csv
+            results/latest/v3_research.csv
+            results/latest/v3_amarr_to_jita.csv
+            results/latest/v3_dodixie_to_jita.csv
+            results/latest/v3_four_h_to_jita.csv
+            results/latest/v3_cj_to_jita.csv
+            results/latest/v3_four_h_contracts.csv
+            results/latest/v3_cj_contracts.csv
+            results/latest/*_funnel.json
+          if-no-files-found: error
+          retention-days: 7

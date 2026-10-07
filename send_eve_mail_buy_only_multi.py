@@ -280,7 +280,10 @@ def main():
         quality.top_signature = smart_signature
         quality.top_is_unchanged = _smart_top_is_unchanged
 
-        run_channel("spot-deals", quality.send_spot)
+        if os.getenv("DISABLE_SPOT_MAIL", "").strip().lower() not in {"1", "true", "yes", "y", "on"}:
+            run_channel("spot-deals", quality.send_spot)
+        else:
+            print("spot-deals mail disabled: V2 public scanner is stopped during V3 cutover")
         run_channel("bpc-value", quality.send_bpc)
 
         quality.HISTORY.parent.mkdir(parents=True, exist_ok=True)

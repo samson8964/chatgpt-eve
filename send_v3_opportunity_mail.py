@@ -16,13 +16,19 @@ from send_eve_mail_fast import contract_is_live, fmt_isk, resolve_character
 LATEST = Path("results/latest")
 STATE = Path("results/state")
 MAIL_TOP = int(os.getenv("MAIL_TOP", "10"))
-POLICY_VERSION = "opportunity-v3-1"
+POLICY_VERSION = "opportunity-v3-redesign-2026-10-07"
 RESEND_ABS_PROFIT = float(os.getenv("MAIL_RESEND_ABS_PROFIT", "20000000"))
 RESEND_REL_PROFIT = float(os.getenv("MAIL_RESEND_REL_PROFIT", "0.10"))
 RESEND_ROI_DELTA = float(os.getenv("MAIL_RESEND_ROI_DELTA", "0.02"))
 REMIND_AFTER_HOURS = float(os.getenv("MAIL_REMIND_AFTER_HOURS", "6"))
 
 CHANNELS = {
+    "v3-full-cash": {
+        "path": LATEST / "v3_full_cash.csv",
+        "id_col": "contract_id",
+        "title": "V3完整现金套利",
+        "kind": "contract",
+    },
     "v3-cash-floor": {
         "path": LATEST / "v3_cash_floor.csv",
         "id_col": "contract_id",
@@ -109,7 +115,10 @@ def build_candidates(channel: str):
     df = _read(cfg["path"])
     if df.empty or cfg["id_col"] not in df.columns:
         return []
-    if "execution_status" in df.columns:
+    if "mail_eligible" in df.columns:
+        df = df[df["mail_eligible"].fillna(False).astype(str).str.lower().isin({"1", "true", "t", "yes", "y"})].copy()
+    elif "execution_status" in df.columns:
+        # Compatibility fallback for pre-redesign files.
         df = df[df["execution_status"].fillna("").astype(str).str.upper().eq("SAFE")].copy()
     if df.empty:
         return []
@@ -241,11 +250,12 @@ def render(channel: str, stamp: str, picked):
     parts = [f"<b>{cfg['title']} · Opportunity Engine V3 · TOP{len(picked)}</b><br>{stamp}<br><br>"]
     for i, c in enumerate(picked, 1):
         r = c["row"]
-        if channel == "v3-cash-floor":
+        if channel in {"v3-full-cash", "v3-cash-floor"}:
             parts.append(
                 f"<b>{i}. [{html.escape(c['grade'] or '-')}] 合同 {c['id']}</b><br>"
                 f"净利 {fmt_isk(c['profit'])} · ROI {c['roi']:.1%} · 压力净利 {fmt_isk(r.get('stress_net_profit',0))}<br>"
                 f"当前可兑现 {fmt_isk(r.get('cash_floor_gross',0))} · 覆盖 {100*_num(r.get('cash_floor_coverage')):.0f}% · "
+                f"置信类别 {html.escape(_text(r.get('confidence_class'), '-'))} · "
                 f"剩余 {int(_num(r.get('leftover_units_valued_zero')))} 件按0估值<br>"
                 f"{html.escape(_text(r.get('cash_items')))}<br>{_loc(r)}<br>"
                 f"<url=contract:0//{c['id']}><b>打开合同</b></url><br><br>"
