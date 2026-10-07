@@ -44,6 +44,9 @@ jobs:
           python -m unittest -v \
             test_opportunity_engine_v2.py \
             test_opportunity_engine_v3.py \
+            test_v3_engine_architecture.py \
+            test_v3_source_scanners.py \
+            test_v3_bpc_adapter.py \
             test_bpc_opportunity_engine_v2.py \
             test_mail_reminder_policy.py \
             test_prepare_mail_candidates_v2.py \
