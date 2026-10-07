@@ -10,7 +10,6 @@ const SKILL_ACCESS_TOKEN_CACHE_KEY = "https://eve-contract-opener.internal/skill
 const REQUIRED_SKILL_CHARACTER = "MikeChong";
 const GITHUB_REPO = "samson8964/chatgpt-eve";
 const FAST_SCAN_CRON = "*/15 * * * *";
-const BPC_DEEP_CRON = "0 */3 * * *";
 
 let memoryMailAccessToken = "";
 let memoryMailAccessTokenExp = 0;
@@ -58,8 +57,8 @@ async function handleSchedulerHealth(request, env) {
     ok: true,
     configured: Boolean(env.EVE_DISPATCH_TOKEN),
     repository: GITHUB_REPO,
-    fast_scan: { cron: FAST_SCAN_CRON, workflow: "scan.yml" },
-    bpc_deep: { cron: BPC_DEEP_CRON, workflow: "v3-bpc-deep.yml" },
+    fast_scan: { enabled: true, cron: FAST_SCAN_CRON, workflow: "scan.yml" },
+    bpc_deep: { enabled: false, workflow: "v3-bpc-deep.yml", reason: "temporarily_paused" },
   });
 }
 
@@ -99,9 +98,6 @@ async function handleScheduledDispatch(controller, env) {
   if (cron === FAST_SCAN_CRON) {
     workflow = "scan.yml";
     inputs = { source: "cloudflare-cron" };
-  } else if (cron === BPC_DEEP_CRON) {
-    workflow = "v3-bpc-deep.yml";
-    inputs = { reason: "cloudflare-cron" };
   } else {
     console.warn("Unknown scheduled cron; skip", cron);
     return;
