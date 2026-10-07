@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import math
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -24,26 +23,18 @@ from opportunity_engine_v2 import (
     aggregate_market_executable_items,
     analyze_contract_items,
     drop_best_price_level,
-    MIN_PROFIT_PER_M3,
     opportunity_score,
     profit_density,
     score_grade,
 )
 from opportunity_engine_v3 import (
-    BARTER_MIN_PROFIT,
-    BARTER_MIN_ROI,
-    CASH_FLOOR_MIN_PROFIT,
-    CASH_FLOOR_MIN_ROI,
     LIST_MAX_FILL_DAYS,
-    LIST_MIN_PROFIT,
-    LIST_MIN_ROI,
     conservative_listing_bundle,
     fetch_live_jita_books,
     fetch_market_history,
     material_change,
     partial_liquidation,
     procurement_cost,
-    v3_status,
 )
 from scanner_source import (
     DATA,
@@ -62,22 +53,41 @@ from scanner_source import (
     type_group_id,
     type_volume,
 )
+from v3_engine import (
+    ExecutionProof,
+    MarketSnapshot,
+    PolicyConfig,
+    RejectionFunnel,
+    contract_fingerprint,
+    evaluate_execution,
+    evaluate_listing,
+    load_fingerprints,
+    save_fingerprints,
+)
 
-LIVE_LIMIT = int(os.getenv("V3_PUBLIC_LIVE_LIMIT", "300"))
-PER_METRIC = int(os.getenv("V3_PUBLIC_PER_METRIC", "110"))
-NEWEST_COUNT = int(os.getenv("V3_PUBLIC_NEWEST_COUNT", "60"))
-V3_PROFIT_SHARE = float(os.getenv("V3_PUBLIC_PROFIT_SHARE", "0.18"))
-V3_ROI_SHARE = float(os.getenv("V3_PUBLIC_ROI_SHARE", "0.18"))
-V3_LIST_PROFIT_SHARE = float(os.getenv("V3_PUBLIC_LIST_PROFIT_SHARE", "0.18"))
-V3_LIST_ROI_SHARE = float(os.getenv("V3_PUBLIC_LIST_ROI_SHARE", "0.18"))
+ENGINE_VERSION = "Opportunity Engine V3 Redesign 2026-10-07"
+
+LIVE_LIMIT = int(os.getenv("V3_PUBLIC_LIVE_LIMIT", "600"))
+V3_PROFIT_SHARE = float(os.getenv("V3_PUBLIC_PROFIT_SHARE", "0.25"))
+V3_ROI_SHARE = float(os.getenv("V3_PUBLIC_ROI_SHARE", "0.15"))
+V3_LIST_PROFIT_SHARE = float(os.getenv("V3_PUBLIC_LIST_PROFIT_SHARE", "0.10"))
+V3_LIST_ROI_SHARE = float(os.getenv("V3_PUBLIC_LIST_ROI_SHARE", "0.05"))
+V3_CHANGE_SHARE = float(os.getenv("V3_PUBLIC_CHANGE_SHARE", "0.15"))
 V3_NEWEST_SHARE = float(os.getenv("V3_PUBLIC_NEWEST_SHARE", "0.13"))
-V3_EXPLORATION_SHARE = float(os.getenv("V3_PUBLIC_EXPLORATION_SHARE", "0.15"))
-LIST_HISTORY_LIMIT = int(os.getenv("V3_LIST_HISTORY_LIMIT", "120"))
+V3_EXPLORATION_SHARE = float(os.getenv("V3_PUBLIC_EXPLORATION_SHARE", "0.12"))
+V3_DIVERSITY_SHARE = float(os.getenv("V3_PUBLIC_DIVERSITY_SHARE", "0.05"))
+LIST_HISTORY_LIMIT = int(os.getenv("V3_LIST_HISTORY_LIMIT", "160"))
 
+FULL_CASH_RESULT = LATEST / "v3_full_cash.csv"
 CASH_RESULT = LATEST / "v3_cash_floor.csv"
 BARTER_RESULT = LATEST / "v3_barter.csv"
 LIST_RESULT = LATEST / "v3_conservative_listing.csv"
+RESEARCH_RESULT = LATEST / "v3_research.csv"
+ALL_RESULT = LATEST / "v3_opportunities.csv"
+FUNNEL_JSON = LATEST / "v3_rejection_funnel.json"
 REPORT = LATEST / "v3_public_opportunities.md"
+FINGERPRINT_STATE = STATE / "v3_contract_fingerprints.json"
+POOL_STATE = STATE / "candidate_pool_state.json"
 
 
 def _aggregate(df: pd.DataFrame) -> dict[int, int]:
@@ -113,13 +123,12 @@ def _prefilter_market_executable_groups(df):
             raw = row.get("is_singleton", row.get("singleton", False))
             if str(raw or "").strip().lower() in {"1", "true", "t", "yes", "y"}:
                 candidate_meta_tids.add(tid)
-        for tid, n in unit_counts.items():
-            if n >= 2:
+        for tid, count in unit_counts.items():
+            if count >= 2:
                 candidate_meta_tids.add(tid)
 
     meta_types, meta_groups = _metadata(candidate_meta_tids) if candidate_meta_tids else ({}, {})
-    grouped = {}
-    excluded = {}
+    grouped, excluded = {}, {}
     for cid, g in df.groupby("contract_id", sort=False):
         q, ex = aggregate_market_executable_items(g.to_dict("records"), meta_types, meta_groups)
         if q:
@@ -127,6 +136,7 @@ def _prefilter_market_executable_groups(df):
         if ex:
             excluded[int(cid)] = ex
     return grouped, excluded
+
 
 def _resolve_locations(candidates):
     friendly, aid, aname, aticker = current_friendly_alliances()
@@ -145,9 +155,20 @@ def _resolve_locations(candidates):
     return out, aid, aname, aticker
 
 
+def _safe_location(loc):
+    if not loc:
+        return False
+    if int(float(loc.get("system_id", 0) or 0)) <= 0:
+        return False
+    if int(float(loc.get("shortest_jumps_to_jita", -1) or -1)) < 0:
+        return False
+    if bool(loc.get("is_player_structure")) and not bool(loc.get("friendly_sov")) and not bool(loc.get("friendly_region")):
+        return False
+    return True
+
+
 def _snapshot_partial(itemq, buy_books):
-    q = partial_liquidation(itemq, buy_books, SALES_TAX_RATE)
-    return q
+    return partial_liquidation(itemq, buy_books, SALES_TAX_RATE)
 
 
 def _snapshot_procure(itemq, sell_books):
@@ -184,20 +205,13 @@ def _top_value_lines(quote, types, limit=8):
     )
 
 
-def _safe_location(loc):
-    if not loc:
-        return False
-    if int(float(loc.get("system_id", 0) or 0)) <= 0:
-        return False
-    if int(float(loc.get("shortest_jumps_to_jita", -1) or -1)) < 0:
-        return False
-    # Unknown/unfriendly player structures are deliberately fail-closed.
-    if bool(loc.get("is_player_structure")) and not bool(loc.get("friendly_sov")) and not bool(loc.get("friendly_region")):
-        return False
-    return True
+def _dominant_type(itemq: dict[int, int]) -> int:
+    if not itemq:
+        return 0
+    return int(max(itemq.items(), key=lambda kv: (int(kv[1]), -int(kv[0])))[0])
 
 
-def _candidate_snapshot_rows(c, included_groups, requested_groups, buy_books, sell_books):
+def _candidate_snapshot_rows(c, included_groups, requested_groups, snapshot: MarketSnapshot, previous_fingerprints):
     rows = []
     c_by_id = c.set_index("contract_id", drop=False)
     for cid, incq in included_groups.items():
@@ -208,16 +222,13 @@ def _candidate_snapshot_rows(c, included_groups, requested_groups, buy_books, se
             cm = cm.iloc[0]
         price = legacy.safe_num(cm.get("price"))
         reqq = requested_groups.get(cid, {})
-        cash = _snapshot_partial(incq, buy_books)
-        req = _snapshot_procure(reqq, sell_books) if reqq else {"complete": True, "cost": 0.0, "rows": []}
+        cash = _snapshot_partial(incq, snapshot.snapshot_buys)
+        req = _snapshot_procure(reqq, snapshot.snapshot_sells) if reqq else {"complete": True, "cost": 0.0, "rows": []}
         preliminary_cost = price + (req["cost"] if req["complete"] else 0.0)
         snap_profit = cash["net_after_tax"] - preliminary_cost if req["complete"] else -math.inf
         snap_roi = snap_profit / preliminary_cost if preliminary_cost > 0 and math.isfinite(snap_profit) else -math.inf
 
-        # Separate sell-side prefilter. A contract can have weak buy orders yet still
-        # be a strong conservative listing candidate, so it must not compete only on
-        # the cash-floor metric.
-        list_quote = _snapshot_procure(incq, sell_books)
+        list_quote = _snapshot_procure(incq, snapshot.snapshot_sells)
         if list_quote["complete"] and list_quote["cost"] > 0:
             list_gross = float(list_quote["cost"])
             list_broker = list_gross * BROKER_FEE_RATE
@@ -230,6 +241,18 @@ def _candidate_snapshot_rows(c, included_groups, requested_groups, buy_books, se
             list_gross = 0.0
             snap_list_profit = -math.inf
             snap_list_roi = -math.inf
+
+        fp = contract_fingerprint(
+            int(cid),
+            price,
+            incq,
+            reqq,
+            int(cm["start_location_id"]),
+            str(cm.get("date_expired", "") or ""),
+        )
+        old_fp = previous_fingerprints.get(int(cid))
+        change_priority = 2.0 if old_fp is None else (1.0 if old_fp != fp else 0.0)
+
         rows.append(
             {
                 "contract_id": int(cid),
@@ -247,15 +270,57 @@ def _candidate_snapshot_rows(c, included_groups, requested_groups, buy_books, se
                 "snapshot_list_gross": list_gross,
                 "snapshot_list_profit": snap_list_profit,
                 "snapshot_list_roi": snap_list_roi,
+                "change_priority": change_priority,
+                "fingerprint": fp,
+                "dominant_type_id": _dominant_type(incq),
                 "has_requested": bool(reqq),
             }
         )
     return rows
 
 
+def _decision_row(proof: ExecutionProof, decision, *, score: float = 0.0, legacy_fields: dict | None = None):
+    row = {
+        "engine_version": ENGINE_VERSION,
+        **proof.to_dict(),
+        "policy_stage": decision.stage,
+        "execution_status": decision.execution_status,
+        "confidence_class": decision.confidence_class,
+        "mail_eligible": bool(decision.mail_eligible),
+        "policy_reason": decision.reason,
+        "opportunity_score": score,
+        "score_grade": score_grade(score) if score else "",
+    }
+    if legacy_fields:
+        row.update(legacy_fields)
+    return row
+
+
+def _score(proof: ExecutionProof, loc: dict, liquidity_score: float, hours: float, decision) -> float:
+    status = "SAFE" if decision.stage in {"MAIL", "SAFE"} else "CHANGED"
+    return opportunity_score(
+        proof.net_profit,
+        proof.net_roi,
+        proof.profit_per_m3,
+        liquidity_score,
+        proof.stress_net_profit,
+        loc.get("risk_rank", 5),
+        hours,
+        proof.market_change_pct,
+        status,
+    )
+
+
+def _write_csv(path: Path, rows: list[dict]):
+    pd.DataFrame(rows).to_csv(path, index=False)
+
+
 def main():
     LATEST.mkdir(parents=True, exist_ok=True)
-    print("Opportunity Engine V3: additive missed-opportunity scan")
+    STATE.mkdir(parents=True, exist_ok=True)
+    cfg = PolicyConfig.from_env()
+    funnel = RejectionFunnel()
+    print(f"{ENGINE_VERSION}: broad discovery -> candidate pool -> ExecutionProof -> PolicyEngine")
 
     c_url, c_modified = latest_file(PUBLIC_CONTRACTS_INDEX)
     m_url, m_modified = latest_file(MARKET_ORDERS_INDEX)
@@ -266,6 +331,7 @@ def main():
         download(m_url, m_path)
 
     contracts, items = load_contracts(c_path)
+    funnel.stage("raw_contracts", len(contracts))
     contracts["contract_id"] = pd.to_numeric(contracts["contract_id"], errors="coerce").astype("Int64")
     contracts["price"] = pd.to_numeric(contracts["price"], errors="coerce").fillna(0.0)
     contracts["start_location_id"] = pd.to_numeric(contracts["start_location_id"], errors="coerce").astype("Int64")
@@ -278,6 +344,7 @@ def main():
     if "date_expired" in c.columns:
         exp = pd.to_datetime(c["date_expired"], utc=True, errors="coerce")
         c = c[exp.isna() | (exp > pd.Timestamp.now(tz="UTC") + pd.Timedelta(hours=legacy.MIN_HOURS_TO_EXPIRE))].copy()
+    funnel.stage("eligible_contracts", len(c))
 
     valid = set(c["contract_id"].dropna().astype(int))
     ii = items[items["contract_id"].isin(valid)].copy()
@@ -287,9 +354,8 @@ def main():
     ii["quantity"] = pd.to_numeric(ii["quantity"], errors="coerce").fillna(0).astype(int)
     ii["type_id"] = pd.to_numeric(ii["type_id"], errors="coerce").fillna(0).astype(int)
 
-    # Keep V3 public-contract logic separate from BPC logic. Any BPC in the contract
-    # removes it here so blueprint valuation never leaks into cash-floor/barter math.
     bpc_ids = set(ii.loc[ii["_bpc"], "contract_id"].dropna().astype(int))
+    funnel.reject("BPC_ROUTED", len(bpc_ids))
     valid_no_bpc = valid - bpc_ids
     c = c[c["contract_id"].isin(valid_no_bpc)].copy()
     ii = ii[ii["contract_id"].isin(valid_no_bpc) & (ii["quantity"] > 0) & (ii["type_id"] > 0)].copy()
@@ -298,47 +364,65 @@ def main():
     requested = ii[~ii["_included"]].copy()
     included_groups, early_singletons = _prefilter_market_executable_groups(included)
     requested_groups = {int(cid): _aggregate(g) for cid, g in requested.groupby("contract_id", sort=False)}
-    early_singleton_qty = sum(sum(x.values()) for x in early_singletons.values())
-
-    print(
-        f"V3 contracts={len(c):,}; BPC-containing excluded={len(bpc_ids):,}; "
-        f"barter={len(requested_groups):,}; market-ineligible singleton contracts={len(early_singletons):,} "
-        f"qty={early_singleton_qty:,}"
-    )
+    funnel.reject("MARKET_INELIGIBLE_SINGLETON", len(early_singletons))
+    funnel.stage("market_executable_contracts", len(included_groups))
 
     orders = load_market_orders(m_path)
     snapshot_sells, snapshot_buys = prepare_jita_books(orders)
     del orders
+    snapshot = MarketSnapshot(snapshot_buys=snapshot_buys, snapshot_sells=snapshot_sells)
 
-    snapshot_rows = _candidate_snapshot_rows(c, included_groups, requested_groups, snapshot_buys, snapshot_sells)
-    # Do not require snapshot profitability. The diverse union intentionally includes
-    # recent/near-threshold contracts so a fresh live order can create an opportunity.
-    pool_state_path = STATE / "candidate_pool_state.json"
-    selected, pool_stats = select_candidate_pool(
-        snapshot_rows, LIVE_LIMIT,
-        metric_shares=(("snapshot_profit", V3_PROFIT_SHARE), ("snapshot_roi", V3_ROI_SHARE), ("snapshot_list_profit", V3_LIST_PROFIT_SHARE), ("snapshot_list_roi", V3_LIST_ROI_SHARE)),
-        newest_share=V3_NEWEST_SHARE, exploration_share=V3_EXPLORATION_SHARE,
-        fill_metrics=("snapshot_profit","snapshot_roi","snapshot_list_profit","snapshot_list_roi"),
-        state_path=pool_state_path, channel="v3-public",
+    previous_fingerprints = load_fingerprints(FINGERPRINT_STATE)
+    snapshot_rows = _candidate_snapshot_rows(
+        c,
+        included_groups,
+        requested_groups,
+        snapshot,
+        previous_fingerprints,
     )
-    # Barter contracts are rare. Include every one instead of forcing them to win a
-    # ranking contest against tens of thousands of normal item-exchange contracts.
+    save_fingerprints(FINGERPRINT_STATE, {int(r["contract_id"]): r["fingerprint"] for r in snapshot_rows})
+    funnel.stage("snapshot_candidates", len(snapshot_rows))
+
+    selected, pool_stats = select_candidate_pool(
+        snapshot_rows,
+        LIVE_LIMIT,
+        metric_shares=(
+            ("snapshot_profit", V3_PROFIT_SHARE),
+            ("snapshot_roi", V3_ROI_SHARE),
+            ("snapshot_list_profit", V3_LIST_PROFIT_SHARE),
+            ("snapshot_list_roi", V3_LIST_ROI_SHARE),
+            ("change_priority", V3_CHANGE_SHARE),
+        ),
+        newest_share=V3_NEWEST_SHARE,
+        exploration_share=V3_EXPLORATION_SHARE,
+        diversity_share=V3_DIVERSITY_SHARE,
+        product_key="dominant_type_id",
+        fill_metrics=("snapshot_profit", "snapshot_roi", "snapshot_list_profit", "snapshot_list_roi"),
+        state_path=POOL_STATE,
+        channel="v3-redesign-public",
+    )
     selected_by_id = {int(x["contract_id"]): x for x in selected}
     for row in snapshot_rows:
         if row["has_requested"]:
             selected_by_id[int(row["contract_id"])] = row
     selected = list(selected_by_id.values())
-    record_candidate_pool(pool_state_path, "v3-public", selected)
-    print(f"V3 live public-contract pool={len(selected)} (including all barter contracts); overlap_prev={pool_stats['previous_overlap']:.1%} never_recent={pool_stats['never_recent_selected']} reasons={pool_stats['by_reason']}")
+    record_candidate_pool(POOL_STATE, "v3-redesign-public", selected)
+    funnel.stage("candidate_pool", len(selected))
 
     if not selected:
-        for path in (CASH_RESULT, BARTER_RESULT, LIST_RESULT):
-            pd.DataFrame().to_csv(path, index=False)
-        REPORT.write_text("# Opportunity Engine V3\n\nNo candidates.\n", encoding="utf-8")
+        for path in (FULL_CASH_RESULT, CASH_RESULT, BARTER_RESULT, LIST_RESULT, RESEARCH_RESULT, ALL_RESULT):
+            _write_csv(path, [])
+        funnel.stage("mail_eligible", 0)
+        funnel.write_json(FUNNEL_JSON)
+        REPORT.write_text(funnel.markdown("Opportunity Engine V3 — no candidates"), "utf-8")
         return
 
-    locations, own_aid, own_name, own_ticker = _resolve_locations(selected)
+    locations, _, _, _ = _resolve_locations(selected)
+    before_location = len(selected)
     selected = [x for x in selected if _safe_location(locations.get(int(x["start_location_id"])))]
+    funnel.reject("UNSAFE_OR_UNVERIFIED_LOCATION", before_location - len(selected))
+    funnel.stage("location_executable", len(selected))
+
     all_tids = {
         int(tid)
         for p in selected
@@ -348,20 +432,18 @@ def main():
     types, groups = _metadata(all_tids)
 
     feasible = []
-    skin_removed = capital_removed = singleton_adjusted = 0
+    capital_removed = skin_removed = no_items = 0
     for p in selected:
         cid = int(p["contract_id"])
         raw_inc = included[included["contract_id"] == cid].to_dict("records")
-        f = analyze_contract_items(raw_inc, types, groups)
-        if f.has_highsec_restricted_ship:
+        feasibility = analyze_contract_items(raw_inc, types, groups)
+        if feasibility.has_highsec_restricted_ship:
             capital_removed += 1
             continue
-        if not f.adjusted_itemq:
+        if not feasibility.adjusted_itemq:
+            no_items += 1
             continue
-        if f.excluded_market_singletons:
-            singleton_adjusted += 1
-        # SKIN-heavy bundles remain excluded from automated recommendations.
-        snap = _snapshot_partial(f.adjusted_itemq, snapshot_buys)
+        snap = _snapshot_partial(feasibility.adjusted_itemq, snapshot.snapshot_buys)
         gross = float(snap["gross"] or 0)
         skin_value = sum(
             float(r.get("gross", 0) or 0)
@@ -372,231 +454,286 @@ def main():
             skin_removed += 1
             continue
         p = dict(p)
-        p["included"] = f.adjusted_itemq
-        p["feasibility"] = f
-        p["excluded_market_singleton_types"] = len(f.excluded_market_singletons)
-        p["excluded_market_singleton_qty"] = sum(f.excluded_market_singletons.values())
+        p["included"] = feasibility.adjusted_itemq
+        p["feasibility"] = feasibility
         feasible.append(p)
 
-    print(
-        f"V3 feasible={len(feasible)} capital_removed={capital_removed} "
-        f"skin_removed={skin_removed} singleton_adjusted={singleton_adjusted}"
-    )
+    funnel.reject("HIGHSEC_RESTRICTED_CAPITAL", capital_removed)
+    funnel.reject("NO_EXECUTABLE_ITEMS", no_items)
+    funnel.reject("SKIN_DOMINANT", skin_removed)
+    funnel.stage("feasible", len(feasible))
+
     all_tids = {
         int(tid)
         for p in feasible
         for bundle in (p["included"], p["requested"])
         for tid in bundle
     }
-    live_buys, failed_buy, live_at_buy = fetch_live_jita_books(all_tids, "buy")
-    live_sells, failed_sell, live_at_sell = fetch_live_jita_books(all_tids, "sell")
+    snapshot.live_buys, snapshot.failed_buy_types, snapshot.live_buy_at = fetch_live_jita_books(all_tids, "buy")
+    snapshot.live_sells, snapshot.failed_sell_types, snapshot.live_sell_at = fetch_live_jita_books(all_tids, "sell")
 
-    cash_rows, barter_rows = [], []
+    full_cash_rows = []
+    cash_rows = []
+    barter_rows = []
+    list_rows = []
+    research_rows = []
     listing_candidates = []
+
     for p in feasible:
         cid = int(p["contract_id"])
         loc = locations[int(p["start_location_id"])]
         included_q = p["included"]
         requested_q = p["requested"]
-        fatal_buy = bool(set(included_q).intersection(failed_buy))
-        cash = partial_liquidation(included_q, live_buys, SALES_TAX_RATE)
-        stress = _stress_partial(included_q, live_buys)
-
-        matched_m3 = _matched_volume(cash, types)
-        # Cargo-efficiency gate is deliberately conservative: the whole received
-        # contract bundle counts as return volume, even if cash-floor leftovers are
-        # valued at zero.
+        cash = partial_liquidation(included_q, snapshot.live_buys, SALES_TAX_RATE)
+        stress = _stress_partial(included_q, snapshot.live_buys)
         total_received_m3 = _volume(included_q, types)
+        matched_m3 = _matched_volume(cash, types)
         haul_back = haul_reserve(total_received_m3, loc)
-        snapshot_cash_gross = float(p["snapshot_cash"].get("gross", 0) or 0)
-        change = material_change(snapshot_cash_gross, cash["gross"])
+        change = material_change(float(p["snapshot_cash"].get("gross", 0) or 0), cash["gross"])
 
-        if not requested_q:
-            profit = cash["net_after_tax"] - p["contract_price"] - haul_back
-            invested = p["contract_price"] + haul_back
-            roi = profit / invested if invested > 0 else 0.0
-            stress_profit = stress["net_after_tax"] - p["contract_price"] - haul_back
-            status = v3_status(
-                profit, roi, stress_profit,
-                CASH_FLOOR_MIN_PROFIT, CASH_FLOOR_MIN_ROI,
-                change_pct=change,
-                fatal=fatal_buy or cash["filled_units"] <= 0,
-            )
-            if status != "DANGER":
-                density = profit_density(profit, total_received_m3)
-                if density < MIN_PROFIT_PER_M3:
-                    continue
-                score = opportunity_score(
-                    profit, roi, density, 70.0, stress_profit,
-                    loc.get("risk_rank", 5), 0.3, change, status,
-                )
-                cash_rows.append(
-                    {
-                        "engine_version": "Opportunity Engine V3",
-                        "channel": "CASH_FLOOR",
-                        "execution_status": status,
-                        "score_grade": score_grade(score),
-                        "opportunity_score": score,
-                        "contract_id": cid,
-                        "contract_price": p["contract_price"],
-                        "net_profit": profit,
-                        "net_roi": roi,
-                        "stress_net_profit": stress_profit,
-                        "cash_floor_gross": cash["gross"],
-                        "sales_tax": cash["sales_tax"],
-                        "cash_floor_coverage": cash["coverage"],
-                        "cash_floor_filled_units": cash["filled_units"],
-                        "bundle_total_units": cash["requested_units"],
-                        "leftover_units_valued_zero": max(0, cash["requested_units"] - cash["filled_units"]),
-                        "matched_volume_m3": matched_m3,
-                        "total_volume_m3": total_received_m3,
-                        "profit_per_m3": density,
-                        "haul_reserve": haul_back,
-                        "snapshot_change_pct": change,
-                        "items": _row_items(included_q, types),
-                        "cash_items": _top_value_lines(cash, types),
-                        "contract_title": p["title"],
-                        "date_issued": p["date_issued"],
-                        "date_expired": p["date_expired"],
-                        "live_revalidated_at": live_at_buy,
-                        **loc,
-                    }
-                )
-        else:
-            fatal_sell = bool(set(requested_q).intersection(failed_sell))
-            req = procurement_cost(requested_q, live_sells)
-            req_stress_books = {int(tid): drop_best_price_level(live_sells.get(int(tid), [])) for tid in requested_q}
-            # For asks, dropping the best level makes procurement more expensive.
-            req_stress = procurement_cost(requested_q, req_stress_books)
+        if requested_q:
+            fatal_sell = bool(set(requested_q).intersection(snapshot.failed_sell_types))
+            req = procurement_cost(requested_q, snapshot.live_sells)
+            stress_sell_books = {
+                int(tid): drop_best_price_level(snapshot.live_sells.get(int(tid), []))
+                for tid in requested_q
+            }
+            req_stress = procurement_cost(requested_q, stress_sell_books)
+            if not req["complete"] or not req_stress["complete"]:
+                funnel.reject("BARTER_PROCUREMENT_INCOMPLETE")
+                research_rows.append({"contract_id": cid, "channel": "BARTER", "reason": "PROCUREMENT_INCOMPLETE"})
+                continue
+
             req_m3 = _volume(requested_q, types)
             haul_out = haul_reserve(req_m3, loc)
-            if req["complete"] and req_stress["complete"]:
-                profit = cash["net_after_tax"] - p["contract_price"] - req["cost"] - haul_out - haul_back
-                invested = p["contract_price"] + req["cost"] + haul_out + haul_back
-                roi = profit / invested if invested > 0 else 0.0
-                stress_profit = (
-                    stress["net_after_tax"] - p["contract_price"] - req_stress["cost"] - haul_out - haul_back
-                )
-                status = v3_status(
-                    profit, roi, stress_profit,
-                    BARTER_MIN_PROFIT, BARTER_MIN_ROI,
-                    change_pct=change,
-                    fatal=fatal_buy or fatal_sell or cash["filled_units"] <= 0,
-                )
-                if status != "DANGER":
-                    transport_m3 = req_m3 + total_received_m3
-                    density = profit_density(profit, transport_m3)
-                    if density < MIN_PROFIT_PER_M3:
-                        continue
-                    score = opportunity_score(
-                        profit, roi, density, 65.0, stress_profit,
-                        loc.get("risk_rank", 5), 0.5, change, status,
-                    )
-                    barter_rows.append(
-                        {
-                            "engine_version": "Opportunity Engine V3",
-                            "channel": "BARTER",
-                            "execution_status": status,
-                            "score_grade": score_grade(score),
-                            "opportunity_score": score,
-                            "contract_id": cid,
-                            "contract_price": p["contract_price"],
-                            "requested_purchase_cost": req["cost"],
-                            "net_profit": profit,
-                            "net_roi": roi,
-                            "stress_net_profit": stress_profit,
-                            "cash_floor_gross": cash["gross"],
-                            "sales_tax": cash["sales_tax"],
-                            "cash_floor_coverage": cash["coverage"],
-                            "requested_volume_m3": req_m3,
-                            "matched_return_volume_m3": matched_m3,
-                            "received_total_volume_m3": total_received_m3,
-                            "transport_volume_m3": transport_m3,
-                            "profit_per_m3": density,
-                            "haul_out_reserve": haul_out,
-                            "haul_back_reserve": haul_back,
-                            "snapshot_change_pct": change,
-                            "receive_items": _row_items(included_q, types),
-                            "provide_items": _row_items(requested_q, types),
-                            "cash_items": _top_value_lines(cash, types),
-                            "contract_title": p["title"],
-                            "date_issued": p["date_issued"],
-                            "date_expired": p["date_expired"],
-                            "live_revalidated_at": max(live_at_buy, live_at_sell),
-                            **loc,
-                        }
-                    )
+            source_cost = p["contract_price"] + req["cost"]
+            net_profit = cash["net_after_tax"] - source_cost - haul_out - haul_back
+            invested = source_cost + haul_out + haul_back
+            roi = net_profit / invested if invested > 0 else 0.0
+            stress_profit = stress["net_after_tax"] - p["contract_price"] - req_stress["cost"] - haul_out - haul_back
+            transport_m3 = req_m3 + total_received_m3
+            density = profit_density(net_profit, transport_m3)
+            proof = ExecutionProof(
+                opportunity_id=str(cid),
+                channel="BARTER",
+                source_cost=source_cost,
+                destination_value=cash["gross"],
+                sales_tax=cash["sales_tax"],
+                haul_cost=haul_out + haul_back,
+                volume_m3=transport_m3,
+                source_depth_complete=req["complete"],
+                destination_depth_complete=cash["coverage"] >= 0.999999,
+                access_verified=True,
+                stress_value=stress["gross"],
+                live_timestamp=max(snapshot.live_buy_at, snapshot.live_sell_at),
+                coverage=cash["coverage"],
+                net_profit=net_profit,
+                net_roi=roi,
+                stress_net_profit=stress_profit,
+                profit_per_m3=density,
+                market_change_pct=change,
+                fatal=fatal_sell or bool(set(included_q).intersection(snapshot.failed_buy_types)) or cash["filled_units"] <= 0,
+            )
+            decision = evaluate_execution(proof, cfg)
+            if decision.stage == "DANGER":
+                funnel.reject(decision.reason)
+                continue
+            score = _score(proof, loc, 65.0, 0.5, decision) if decision.stage != "RESEARCH" else 0.0
+            row = _decision_row(
+                proof,
+                decision,
+                score=score,
+                legacy_fields={
+                    "contract_id": cid,
+                    "contract_price": p["contract_price"],
+                    "requested_purchase_cost": req["cost"],
+                    "cash_floor_gross": cash["gross"],
+                    "cash_floor_coverage": cash["coverage"],
+                    "requested_volume_m3": req_m3,
+                    "matched_return_volume_m3": matched_m3,
+                    "received_total_volume_m3": total_received_m3,
+                    "transport_volume_m3": transport_m3,
+                    "haul_out_reserve": haul_out,
+                    "haul_back_reserve": haul_back,
+                    "snapshot_change_pct": change,
+                    "receive_items": _row_items(included_q, types),
+                    "provide_items": _row_items(requested_q, types),
+                    "cash_items": _top_value_lines(cash, types),
+                    "contract_title": p["title"],
+                    "date_issued": p["date_issued"],
+                    "date_expired": p["date_expired"],
+                    "selection_reason": p.get("selection_reason", ""),
+                    **loc,
+                },
+            )
+            if decision.stage == "RESEARCH":
+                research_rows.append(row)
+            else:
+                barter_rows.append(row)
+            continue
 
-        # Conservative sell-order channel is intentionally limited to pure item
-        # contracts with no requested inputs. It is evaluated later with history.
-        if not requested_q:
+        fatal_buy = bool(set(included_q).intersection(snapshot.failed_buy_types))
+        net_profit = cash["net_after_tax"] - p["contract_price"] - haul_back
+        invested = p["contract_price"] + haul_back
+        roi = net_profit / invested if invested > 0 else 0.0
+        stress_profit = stress["net_after_tax"] - p["contract_price"] - haul_back
+        density = profit_density(net_profit, total_received_m3)
+        full_cash = cash["coverage"] >= 0.999999 and stress["coverage"] >= 0.999999
+        channel = "FULL_CASH" if full_cash else "PARTIAL_CASH_FLOOR"
+        proof = ExecutionProof(
+            opportunity_id=str(cid),
+            channel=channel,
+            source_cost=p["contract_price"],
+            destination_value=cash["gross"],
+            sales_tax=cash["sales_tax"],
+            haul_cost=haul_back,
+            volume_m3=total_received_m3,
+            source_depth_complete=True,
+            destination_depth_complete=full_cash,
+            access_verified=True,
+            stress_value=stress["gross"],
+            live_timestamp=snapshot.live_buy_at,
+            coverage=cash["coverage"],
+            net_profit=net_profit,
+            net_roi=roi,
+            stress_net_profit=stress_profit,
+            profit_per_m3=density,
+            market_change_pct=change,
+            fatal=fatal_buy or cash["filled_units"] <= 0,
+        )
+        decision = evaluate_execution(proof, cfg)
+        if decision.stage != "DANGER":
+            score = _score(proof, loc, 70.0, 0.3, decision) if decision.stage != "RESEARCH" else 0.0
+            row = _decision_row(
+                proof,
+                decision,
+                score=score,
+                legacy_fields={
+                    "contract_id": cid,
+                    "contract_price": p["contract_price"],
+                    "net_profit": net_profit,
+                    "net_roi": roi,
+                    "stress_net_profit": stress_profit,
+                    "cash_floor_gross": cash["gross"],
+                    "sales_tax": cash["sales_tax"],
+                    "cash_floor_coverage": cash["coverage"],
+                    "cash_floor_filled_units": cash["filled_units"],
+                    "bundle_total_units": cash["requested_units"],
+                    "leftover_units_valued_zero": max(0, cash["requested_units"] - cash["filled_units"]),
+                    "matched_volume_m3": matched_m3,
+                    "total_volume_m3": total_received_m3,
+                    "profit_per_m3": density,
+                    "haul_reserve": haul_back,
+                    "snapshot_change_pct": change,
+                    "items": _row_items(included_q, types),
+                    "cash_items": _top_value_lines(cash, types),
+                    "contract_title": p["title"],
+                    "date_issued": p["date_issued"],
+                    "date_expired": p["date_expired"],
+                    "selection_reason": p.get("selection_reason", ""),
+                    **loc,
+                },
+            )
+            if decision.stage == "RESEARCH":
+                research_rows.append(row)
+            elif full_cash:
+                full_cash_rows.append(row)
+            else:
+                cash_rows.append(row)
+        else:
+            funnel.reject(decision.reason)
+
+        if decision.stage not in {"SAFE", "MAIL"}:
             listing_candidates.append((p, loc))
 
-    # Listing candidates rank on their own sell-side snapshot economics, not on
-    # buy-order cash-floor economics.
     listing_candidates.sort(
         key=lambda x: (
             float(x[0]["snapshot_list_profit"]) if math.isfinite(float(x[0]["snapshot_list_profit"])) else -math.inf,
             float(x[0]["snapshot_list_roi"]) if math.isfinite(float(x[0]["snapshot_list_roi"])) else -math.inf,
+            float(x[0]["change_priority"]),
             str(x[0]["date_issued"]),
         ),
         reverse=True,
     )
     listing_candidates = listing_candidates[:LIST_HISTORY_LIMIT]
     listing_types = {int(tid) for p, _ in listing_candidates for tid in p["included"]}
-    history, history_failed = fetch_market_history(listing_types)
+    snapshot.history, snapshot.failed_history_types = fetch_market_history(listing_types)
 
-    list_rows = []
     for p, loc in listing_candidates:
+        cid = int(p["contract_id"])
         itemq = p["included"]
-        if set(itemq).intersection(failed_sell) or set(itemq).intersection(history_failed):
+        if set(itemq).intersection(snapshot.failed_sell_types) or set(itemq).intersection(snapshot.failed_history_types):
+            funnel.reject("LIST_DATA_INCOMPLETE")
             continue
-        q = conservative_listing_bundle(itemq, live_sells, history)
-        if not q["complete"] or q["estimated_fill_days"] > LIST_MAX_FILL_DAYS:
+        q = conservative_listing_bundle(itemq, snapshot.live_sells, snapshot.history)
+        if not q["complete"]:
+            funnel.reject("LIST_UNSUPPORTED")
             continue
+        if q["estimated_fill_days"] > LIST_MAX_FILL_DAYS:
+            funnel.reject("LIST_TOO_SLOW")
+            continue
+
         total_m3 = _volume(itemq, types)
         haul = haul_reserve(total_m3, loc)
         broker = q["gross"] * BROKER_FEE_RATE
         tax = q["gross"] * SALES_TAX_RATE
         relist = q["gross"] * RELIST_RESERVE_RATE
-        profit = q["gross"] - broker - tax - relist - p["contract_price"] - haul
+        net_profit = q["gross"] - broker - tax - relist - p["contract_price"] - haul
         invested = p["contract_price"] + haul + broker + relist
-        roi = profit / invested if invested > 0 else 0.0
-
-        # Extra 5% price shock across the already-haircut conservative valuation.
+        roi = net_profit / invested if invested > 0 else 0.0
         stress_gross = q["gross"] * 0.95
-        stress_profit = stress_gross - stress_gross * (BROKER_FEE_RATE + SALES_TAX_RATE + RELIST_RESERVE_RATE) - p["contract_price"] - haul
-        status = v3_status(
-            profit, roi, stress_profit,
-            LIST_MIN_PROFIT, LIST_MIN_ROI,
-            change_pct=0.0,
-            fatal=False,
+        stress_profit = (
+            stress_gross
+            - stress_gross * (BROKER_FEE_RATE + SALES_TAX_RATE + RELIST_RESERVE_RATE)
+            - p["contract_price"]
+            - haul
         )
-        if status == "DANGER":
-            continue
-        density = profit_density(profit, total_m3)
-        if density < MIN_PROFIT_PER_M3:
+        density = profit_density(net_profit, total_m3)
+        proof = ExecutionProof(
+            opportunity_id=str(cid),
+            channel="CONSERVATIVE_LIST",
+            source_cost=p["contract_price"],
+            destination_value=q["gross"],
+            sales_tax=tax,
+            broker_fee=broker,
+            haul_cost=haul,
+            other_cost=relist,
+            volume_m3=total_m3,
+            source_depth_complete=True,
+            destination_depth_complete=False,
+            access_verified=True,
+            stress_value=stress_gross,
+            live_timestamp=snapshot.live_sell_at,
+            coverage=1.0,
+            net_profit=net_profit,
+            net_roi=roi,
+            stress_net_profit=stress_profit,
+            profit_per_m3=density,
+        )
+        decision = evaluate_listing(
+            proof,
+            cfg,
+            max_fill_days=LIST_MAX_FILL_DAYS,
+            estimated_fill_days=q["estimated_fill_days"],
+        )
+        if decision.stage == "DANGER":
+            funnel.reject(decision.reason)
             continue
         liquidity_score = max(10.0, 100.0 - min(90.0, q["estimated_fill_days"] / LIST_MAX_FILL_DAYS * 90.0))
-        score = opportunity_score(
-            profit, roi, density, liquidity_score, stress_profit,
-            loc.get("risk_rank", 5), max(0.5, q["estimated_fill_days"] * 24), 0.0, status,
-        )
-        list_rows.append(
-            {
-                "engine_version": "Opportunity Engine V3",
-                "channel": "CONSERVATIVE_LIST",
-                "execution_status": status,
-                "score_grade": score_grade(score),
-                "opportunity_score": score,
-                "contract_id": int(p["contract_id"]),
+        score = _score(proof, loc, liquidity_score, max(0.5, q["estimated_fill_days"] * 24), decision) if decision.stage == "WATCH" else 0.0
+        row = _decision_row(
+            proof,
+            decision,
+            score=score,
+            legacy_fields={
+                "contract_id": cid,
                 "contract_price": p["contract_price"],
                 "conservative_gross": q["gross"],
                 "broker_fee": broker,
                 "sales_tax": tax,
                 "relist_reserve": relist,
                 "haul_reserve": haul,
-                "net_profit": profit,
+                "net_profit": net_profit,
                 "net_roi": roi,
                 "stress_net_profit": stress_profit,
                 "estimated_fill_days": q["estimated_fill_days"],
@@ -606,38 +743,75 @@ def main():
                 "contract_title": p["title"],
                 "date_issued": p["date_issued"],
                 "date_expired": p["date_expired"],
-                "live_revalidated_at": live_at_sell,
+                "selection_reason": p.get("selection_reason", ""),
                 **loc,
-            }
+            },
+        )
+        if decision.stage == "RESEARCH":
+            research_rows.append(row)
+        else:
+            list_rows.append(row)
+
+    def rank_rows(rows):
+        rows.sort(
+            key=lambda x: (
+                x.get("policy_stage") != "MAIL",
+                x.get("policy_stage") != "SAFE",
+                -float(x.get("opportunity_score", 0) or 0),
+                -float(x.get("net_profit", 0) or 0),
+            )
         )
 
-    cash_rows.sort(key=lambda x: (x["execution_status"] != "SAFE", -x["opportunity_score"], -x["net_profit"]))
-    barter_rows.sort(key=lambda x: (x["execution_status"] != "SAFE", -x["opportunity_score"], -x["net_profit"]))
-    list_rows.sort(key=lambda x: (x["execution_status"] != "SAFE", -x["opportunity_score"], -x["net_profit"]))
+    for rows in (full_cash_rows, cash_rows, barter_rows, list_rows):
+        rank_rows(rows)
 
-    pd.DataFrame(cash_rows).to_csv(CASH_RESULT, index=False)
-    pd.DataFrame(barter_rows).to_csv(BARTER_RESULT, index=False)
-    pd.DataFrame(list_rows).to_csv(LIST_RESULT, index=False)
+    all_rows = full_cash_rows + cash_rows + barter_rows + list_rows
+    mail_count = sum(1 for r in all_rows if bool(r.get("mail_eligible")))
+    funnel.stage("full_cash", len(full_cash_rows))
+    funnel.stage("partial_cash_floor", len(cash_rows))
+    funnel.stage("barter", len(barter_rows))
+    funnel.stage("list_supported", len(list_rows))
+    funnel.stage("research_watch", len(research_rows))
+    funnel.stage("mail_eligible", mail_count)
+
+    _write_csv(FULL_CASH_RESULT, full_cash_rows)
+    _write_csv(CASH_RESULT, cash_rows)
+    _write_csv(BARTER_RESULT, barter_rows)
+    _write_csv(LIST_RESULT, list_rows)
+    _write_csv(RESEARCH_RESULT, research_rows[:1000])
+    _write_csv(ALL_RESULT, all_rows)
+    funnel.write_json(FUNNEL_JSON)
 
     lines = [
-        "# Opportunity Engine V3 — missed-opportunity channels",
+        "# Opportunity Engine V3 — redesigned architecture",
         "",
-        f"- Contracts snapshot: `{c_modified}`",
-        f"- Market snapshot: `{m_modified}`",
-        f"- Live pool: `{len(selected)}`; feasible: `{len(feasible)}`",
-        f"- CASH_FLOOR: `{len(cash_rows)}`",
-        f"- BARTER: `{len(barter_rows)}`",
-        f"- CONSERVATIVE_LIST: `{len(list_rows)}`",
+        f"- Contracts snapshot: {c_modified}",
+        f"- Market snapshot: {m_modified}",
+        f"- Candidate universe: {len(snapshot_rows)}; deep validation pool: {len(selected)}; feasible: {len(feasible)}",
+        f"- FULL_CASH: {len(full_cash_rows)}",
+        f"- PARTIAL_CASH_FLOOR: {len(cash_rows)}",
+        f"- BARTER: {len(barter_rows)}",
+        f"- LIST-SUPPORTED: {len(list_rows)}",
+        f"- RESEARCH: {len(research_rows)}",
+        f"- FORMAL MAIL: {mail_count}",
         "",
-        "V3 is additive. Existing V2 SAFE channels are unchanged.",
-        "Cash-floor leftovers are explicitly valued at zero.",
-        "Barter requires complete live Jita procurement depth for all requested inputs.",
-        "Conservative-list requires current asks, historical turnover, haircut pricing and <= configured fill-days.",
+        "Design rules:",
+        "- Broad discovery is separate from final purchase recommendation.",
+        "- Every deep candidate produces an ExecutionProof before policy classification.",
+        "- FULL_CASH -> PARTIAL_CASH_FLOOR -> LIST-SUPPORTED are mutually exclusive for pure item contracts.",
+        "- Listing valuation is WATCH-only and can never masquerade as locked cash.",
+        "- Formal mail still requires the production profit/ROI/profit-density gate.",
+        "- FULL_CASH mail is disabled by default while V2 remains the production fallback; set V3_FULL_CASH_MAIL_ENABLED=1 only at cutover.",
+        "",
+        funnel.markdown("Rejection Funnel"),
     ]
-    REPORT.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    REPORT.write_text("\n".join(lines).rstrip() + "\n", "utf-8")
+
     print(
-        f"V3 public done: cash={len(cash_rows)} barter={len(barter_rows)} "
-        f"list={len(list_rows)}"
+        f"V3 redesign done: pool={len(selected)} full_cash={len(full_cash_rows)} "
+        f"partial={len(cash_rows)} barter={len(barter_rows)} list={len(list_rows)} "
+        f"research={len(research_rows)} mail={mail_count}; reasons={dict(funnel.reasons)}; "
+        f"pool={pool_stats}"
     )
 
 
