@@ -1,3 +1,9 @@
-# V3 Jita → 4-H
+# Opportunity Engine V3 — Jita → 4-H reverse arbitrage
 
-No broad candidates.
+- 4-H orders: `34411`
+- Jita snapshot: `2026-10-07T06:48:50.060Z`
+- Live revalidation: `2026-10-07T07:06:06.254068+00:00`
+- Logistics reserve: base `10,000,000` ISK + `500` ISK/m³
+- Final opportunities: `0`
+
+Stress test removes the best Jita sell level and the best 4-H buy level separately.
