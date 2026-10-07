@@ -1,33 +1,29 @@
-name: EVE V3 production scans
+name: EVE V3 fast scan
 
 on:
-  workflow_dispatch:
+  schedule:
+    - cron: '*/15 * * * *'
 
 permissions:
   contents: write
+  actions: write
 
-# V3 is the sole production opportunity engine.
-# Cloudflare/manual workflow_dispatch owns scheduling.
-# Legacy V2 public/multi/4-H/C-J production scanners remain disabled.
-# The mature BPC specialist evaluator is retained as a V3 sub-engine and normalized
-# through v3_bpc_adapter.py before the unified V3 mail policy is applied.
+# Fast V3 production lane.
+# Native GitHub schedule owns the 15-minute cadence.
+# Heavy BPC validation lives in v3-bpc-deep.yml (every 3 hours or on fast-probe trigger).
+# The old external workflow_dispatch scheduler is intentionally no longer used for scan.yml.
 concurrency:
-  group: eve-v3-production
+  group: eve-v3-fast
   cancel-in-progress: true
 
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 30
     env:
       MAIL_MIN_VERIFIED_NET_PROFIT: '50000000'
       MIN_PROFIT_PER_M3: '2000'
       V3_FULL_CASH_MAIL_ENABLED: '1'
-
-      # BPC formal mail gate: Jita manufacturing profit >=50M, ROI >=10%,
-      # positive Jita stress profit, and complete material/product order-book depth.
-      MAIL_BPC_MFG_MIN_JITA_PROFIT: '50000000'
-      MAIL_BPC_MFG_MIN_JITA_ROI: '0.10'
 
     steps:
       - name: Checkout latest main
@@ -36,22 +32,14 @@ jobs:
           ref: main
           fetch-depth: 20
 
-      - name: Record production scan start and clear generated outputs
+      - name: Record fast scan start and clear fast outputs
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p results/latest results/state
           date -u +%s > results/state/last_scan_started_epoch.txt
-
-          # Fail closed on partial channel outages: never let a previous run's V3
-          # result masquerade as a fresh opportunity.
-          rm -f results/latest/v3_*.csv results/latest/v3_*.md results/latest/v3_*funnel.json
-          rm -f results/latest/ranked_opportunities.csv
-          rm -f results/latest/ranked_opportunities_v2.csv
-          rm -f results/latest/bpc_value_opportunities.csv
-          rm -f results/latest/bpc_value_opportunities_v2.csv
-          rm -f results/latest/bpc_v2_safe_candidates.csv
-          rm -f results/latest/bpc_v2_safe_mail_preview.html
+          # Keep the last deep-BPC output intact. Only clear fast-lane V3 files.
+          find results/latest -maxdepth 1 -type f -name 'v3_*' ! -name 'v3_bpc_*' -delete
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -62,15 +50,15 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run BPC buy-only discovery
+      - name: Lightweight BPC discovery probe
         id: bpc_base
         continue-on-error: true
         env:
           MARKET_BROKER_FEE_RATE: '0'
           EXPECTED_RELISTS: '0'
           DEAL_MAX_CONTRACT_PRICE: '5000000000'
-          PREFILTER_TOP: '500'
-          BPC_POOL_RESERVE_MULTIPLIER: '1.25'
+          PREFILTER_TOP: '100'
+          BPC_POOL_RESERVE_MULTIPLIER: '1.10'
           BPC_POOL_PROFIT_SHARE: '0.40'
           BPC_POOL_ROI_SHARE: '0.20'
           BPC_POOL_NEWEST_SHARE: '0.15'
@@ -78,45 +66,14 @@ jobs:
           BPC_POOL_DIVERSITY_SHARE: '0.10'
         run: python runner_buy_only.py
 
-      - name: Refresh BPC comparable-value research
-        id: bpc_value
+      - name: Detect new promising BPC and request deep validation
+        id: bpc_probe
         continue-on-error: true
         if: steps.bpc_base.outcome == 'success'
         env:
-          BPC_VALUE_MIN_SAMPLES: '3'
-          BPC_VALUE_MIN_EXACT_SAMPLES: '3'
-          BPC_VALUE_MIN_DISCOUNT: '0.25'
-          BPC_VALUE_MIN_MEDIAN_DISCOUNT: '0.10'
-          BPC_VALUE_MIN_SURPLUS: '10000000'
-          BPC_VALUE_MIN_HOURS_TO_EXPIRE: '2'
-          BPC_VALUE_TOP: '200'
-          DEAL_MAX_CONTRACT_PRICE: '5000000000'
-          DEAL_FRIENDLY_CHARACTER_ID: '2124493042'
-          DEAL_FRIENDLY_ALLIANCE_IDS: ''
-          DEAL_FRIENDLY_REGION_IDS: ''
-        run: |
-          python bpc_contract_benchmark_buy_only.py
-          python apply_buy_only_bpc_policy.py
-
-      - name: Run BPC specialist live revalidation
-        id: bpc_live
-        continue-on-error: true
-        if: steps.bpc_base.outcome == 'success'
-        env:
-          BPC_V2_LIVE_POOL: '50'
-          BPC_V2_LIVE_WORKERS: '16'
-          BPC_V2_MIN_NET_PROFIT: '20000000'
-          BPC_V2_MIN_NET_ROI: '0.10'
-          BPC_V2_MAX_SLIPPAGE: '0.05'
-          BPC_V2_MAX_CHANGE: '0.15'
-          BPC_V2_LIQUIDITY_PARTICIPATION: '0.35'
-        run: python runner_bpc_v2.py
-
-      - name: Normalize BPC into V3 policy output
-        id: bpc_v3
-        continue-on-error: true
-        if: steps.bpc_live.outcome == 'success'
-        run: python v3_bpc_adapter.py
+          BPC_FAST_MIN_JITA_PROFIT: '50000000'
+          BPC_FAST_MIN_JITA_ROI: '0.10'
+        run: python bpc_fast_probe.py
 
       - name: Run V3 public-contract engine
         id: v3_public
@@ -268,11 +225,23 @@ jobs:
           V3_4H_REVERSE_HAUL_ISK_PER_M3: '500'
         run: python four_h_reverse_scanner_v3.py
 
-      - name: Build V3 production summary
+      - name: Build V3 fast summary
         if: always()
         run: python v3_cutover_summary.py
 
-      - name: Send unified V3 formal opportunity mail
+      - name: Send new V3 opportunities to Google Calendar
+        id: calendar_v3
+        continue-on-error: true
+        if: always()
+        env:
+          GOOGLE_CALENDAR_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_CALENDAR_SERVICE_ACCOUNT_JSON }}
+          GOOGLE_CALENDAR_ID: ${{ secrets.GOOGLE_CALENDAR_ID }}
+          GOOGLE_CALENDAR_TIMEZONE: 'Asia/Shanghai'
+          V3_CHANNELS: 'v3-full-cash,v3-cash-floor,v3-barter,v3-conservative-list,v3-four-h-contract,v3-cj-contract,v3-amarr-to-jita,v3-dodixie-to-jita,v3-four-h-to-jita,v3-cj-to-jita,v3-jita-to-4h'
+          MAIL_TOP: '10'
+        run: python send_v3_calendar_alerts.py
+
+      - name: Send V3 fast opportunity mail
         id: mail_v3
         continue-on-error: true
         if: always()
@@ -281,10 +250,11 @@ jobs:
           EVE_MAIL_RECIPIENT_NAME: MikeChong
           EVE_MAIL_RECIPIENT_NAMES: 'MikeChong,LadyBaBa'
           EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
+          V3_CHANNELS: 'v3-full-cash,v3-cash-floor,v3-barter,v3-conservative-list,v3-four-h-contract,v3-cj-contract,v3-amarr-to-jita,v3-dodixie-to-jita,v3-four-h-to-jita,v3-cj-to-jita,v3-jita-to-4h'
           MAIL_TOP: '10'
         run: python send_v3_opportunity_mail.py
 
-      - name: Persist V3 production results
+      - name: Persist fast V3 results and dedupe state
         id: persist_results
         if: always()
         shell: bash
@@ -293,46 +263,56 @@ jobs:
           git config user.name "eve-arbitrage-bot"
           git config user.email "eve-arbitrage-bot@users.noreply.github.com"
 
-          RESULTS_SNAPSHOT="$(mktemp -d)"
-          cp -a results/. "$RESULTS_SNAPSHOT/"
+          SNAPSHOT="$(mktemp -d)"
+          mkdir -p "$SNAPSHOT/latest" "$SNAPSHOT/state"
+
+          find results/latest -maxdepth 1 -type f -name 'v3_*' ! -name 'v3_bpc_*' -exec cp {} "$SNAPSHOT/latest/" \;
+          find results/state -maxdepth 1 -type f -name 'mail_last_v3-*' ! -name 'mail_last_v3-bpc_*' -exec cp {} "$SNAPSHOT/state/" \;
+          find results/state -maxdepth 1 -type f -name 'calendar_seen_v3-*' ! -name 'calendar_seen_v3-bpc.csv' -exec cp {} "$SNAPSHOT/state/" \;
+          for f in results/state/bpc_fast_probe_seen.csv results/state/last_scan_started_epoch.txt; do
+            [ -f "$f" ] && cp "$f" "$SNAPSHOT/state/"
+          done
 
           for attempt in 1 2 3; do
-            echo "Result push attempt $attempt/3"
+            echo "Fast result push attempt $attempt/3"
             git fetch origin main
             git reset --hard origin/main
-            rm -rf results
-            mkdir -p results
-            cp -a "$RESULTS_SNAPSHOT/." results/
-            git add results
+            mkdir -p results/latest results/state
+            cp -a "$SNAPSHOT/latest/." results/latest/ 2>/dev/null || true
+            cp -a "$SNAPSHOT/state/." results/state/ 2>/dev/null || true
+            git add results/latest results/state
 
             if git diff --cached --quiet; then
-              echo "No result changes relative to latest main."
+              echo "No fast result changes relative to latest main."
               exit 0
             fi
 
-            git commit -m "data: refresh V3 production opportunities $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git commit -m "data: refresh V3 fast opportunities $(date -u +'%Y-%m-%d %H:%M UTC')"
             if git push origin HEAD:main; then
-              echo "V3 production results pushed."
+              echo "V3 fast results pushed."
               exit 0
             fi
-
-            echo "Remote main advanced during push; retrying..."
             sleep $((attempt * 2))
           done
 
-          echo "Failed to persist V3 production results."
+          echo "Failed to persist V3 fast results."
           exit 1
 
-      - name: Final V3 production health gate
+      - name: Trigger BPC deep scan for new promising contract
+        if: steps.bpc_probe.outputs.trigger_deep == 'true' && steps.persist_results.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NEW_IDS: ${{ steps.bpc_probe.outputs.new_ids }}
+        run: |
+          gh workflow run v3-bpc-deep.yml --repo "$GITHUB_REPOSITORY" --ref main -f reason="fast-probe:$NEW_IDS"
+
+      - name: Final V3 fast health gate
         if: always()
         shell: bash
         run: |
           set -euo pipefail
           failed=0
           for pair in \
-            "bpc_base:${{ steps.bpc_base.outcome }}" \
-            "bpc_live:${{ steps.bpc_live.outcome }}" \
-            "bpc_v3:${{ steps.bpc_v3.outcome }}" \
             "v3_public:${{ steps.v3_public.outcome }}" \
             "amarr:${{ steps.amarr.outcome }}" \
             "dodixie:${{ steps.dodixie.outcome }}" \
@@ -347,18 +327,22 @@ jobs:
             name="${pair%%:*}"
             outcome="${pair#*:}"
             echo "$name=$outcome"
-            if [ "$outcome" != "success" ]; then
-              failed=1
-            fi
+            if [ "$outcome" != "success" ]; then failed=1; fi
           done
 
-          echo "bpc_value=${{ steps.bpc_value.outcome }}"
-          if [ "${{ steps.bpc_value.outcome }}" = "failure" ]; then
-            echo "::warning::BPC comparable-value research failed; strict manufacturing mail remains independent."
+          echo "calendar_v3=${{ steps.calendar_v3.outcome }}"
+          if [ "${{ steps.calendar_v3.outcome }}" = "failure" ]; then
+            echo "::warning::Google Calendar alert delivery failed; opportunity scanning and EVE mail remain independent."
+          fi
+
+          echo "bpc_base=${{ steps.bpc_base.outcome }}"
+          echo "bpc_probe=${{ steps.bpc_probe.outcome }}"
+          if [ "${{ steps.bpc_base.outcome }}" = "failure" ] || [ "${{ steps.bpc_probe.outcome }}" = "failure" ]; then
+            echo "::warning::Light BPC probe degraded; 3-hour deep BPC scan remains independent."
           fi
 
           if [ "$failed" -ne 0 ]; then
-            echo "::error::V3 production completed with one or more degraded critical channels."
+            echo "::error::V3 fast scan completed with one or more degraded critical channels."
             exit 1
           fi
-          echo "V3 production health OK."
+          echo "V3 fast production health OK."
