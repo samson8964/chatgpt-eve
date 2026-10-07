@@ -66,9 +66,9 @@ EVE 应用需注册相同回调，允许当前源码申请的三个权限：
 
 正式周期由 `wrangler.jsonc` 中的 Cloudflare Cron Triggers 控制，而不是 GitHub `schedule`：
 
-- `*/15 * * * *` → `.github/workflows/scan.yml`：V3 快速扫描，每 15 分钟。
-- `0 */3 * * *` → `.github/workflows/v3-bpc-deep.yml`：BPC 深扫，每 3 小时。
-- 快速扫描发现新 BPC 潜力合同时，仍可使用 GitHub 自身的短链路额外触发一次 BPC 深扫；这不是周期调度。
+- `*/15 * * * *` → `.github/workflows/scan.yml`：V3 非 BPC 快速扫描，每 15 分钟。
+- BPC 轻探针与每 3 小时 BPC 深扫当前均**临时暂停**，用于单独测量其他 V3 模块的实际运行时间。
+- `.github/workflows/v3-bpc-deep.yml` 保留手动入口，但 Cloudflare 当前不会定时触发它。
 
 Worker 使用 Secret `EVE_DISPATCH_TOKEN` 调 GitHub Actions API。部署工作流会在同名 GitHub Actions Secret 存在时自动同步到 Worker Secret。若该 Secret 缺失，Cron 本身仍会部署，但不会成功触发扫描。
 
