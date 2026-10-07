@@ -8,8 +8,8 @@
   },
   "rejection_reasons": {
     "BELOW_SAFE_PROFIT": 2,
-    "STRESS_NEGATIVE": 8,
-    "NON_POSITIVE_ECONOMICS": 61,
+    "STRESS_NEGATIVE": 7,
+    "NON_POSITIVE_ECONOMICS": 62,
     "NO_EXECUTABLE_DEPTH": 2
   }
 }
