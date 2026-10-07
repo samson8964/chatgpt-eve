@@ -1,8 +1,8 @@
 {
   "stages": {
-    "active_contracts": 806,
-    "plain_item_contracts": 543,
-    "prefilter_candidates": 543,
+    "active_contracts": 805,
+    "plain_item_contracts": 542,
+    "prefilter_candidates": 542,
     "deep_validation_contracts": 160,
     "final_rows": 160,
     "formal_mail": 0
@@ -11,7 +11,8 @@
     "BPC_DEFER_TO_BPC_ENGINE": 263,
     "NON_POSITIVE_ECONOMICS": 145,
     "FATAL_OR_ACCESS_UNVERIFIED": 7,
-    "LOW_PROFIT_DENSITY": 7,
+    "BELOW_SAFE_PROFIT": 1,
+    "LOW_PROFIT_DENSITY": 6,
     "STRESS_NEGATIVE": 1
   }
 }
