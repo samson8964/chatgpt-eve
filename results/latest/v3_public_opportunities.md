@@ -1,8 +1,8 @@
 # Opportunity Engine V3 — redesigned architecture
 
 - Contracts snapshot: 2026-10-07T14:01:20.631Z
-- Market snapshot: 2026-10-07T13:48:28.028Z
-- Candidate universe: 24531; deep validation pool: 246; feasible: 180
+- Market snapshot: 2026-10-07T14:18:28.079Z
+- Candidate universe: 24524; deep validation pool: 245; feasible: 180
 - FULL_CASH: 0
 - PARTIAL_CASH_FLOOR: 0
 - BARTER: 0
@@ -23,11 +23,11 @@ Design rules:
 ## Stages
 
 - raw_contracts: `49828`
-- eligible_contracts: `43237`
-- market_executable_contracts: `24531`
-- snapshot_candidates: `24531`
+- eligible_contracts: `43230`
+- market_executable_contracts: `24524`
+- snapshot_candidates: `24524`
 - candidate_pool: `605`
-- location_executable: `246`
+- location_executable: `245`
 - feasible: `180`
 - full_cash: `0`
 - partial_cash_floor: `0`
@@ -40,9 +40,9 @@ Design rules:
 
 - BPC_ROUTED: `18484`
 - MARKET_INELIGIBLE_SINGLETON: `6004`
-- UNSAFE_OR_UNVERIFIED_LOCATION: `359`
-- HIGHSEC_RESTRICTED_CAPITAL: `62`
-- FATAL_OR_ACCESS_UNVERIFIED: `17`
+- UNSAFE_OR_UNVERIFIED_LOCATION: `360`
+- HIGHSEC_RESTRICTED_CAPITAL: `61`
+- FATAL_OR_ACCESS_UNVERIFIED: `16`
 - SKIN_DOMINANT: `4`
 - LIST_TOO_SLOW: `3`
 - LIST_DATA_INCOMPLETE: `3`
