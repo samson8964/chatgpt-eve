@@ -7,19 +7,27 @@ on:
     paths:
       - 'opportunity_engine_v3.py'
       - 'opportunity_engine_v3_scanner.py'
+      - 'v3_source_market_scanner.py'
+      - 'v3_structure_contract_scanner.py'
+      - 'v3_cutover_summary.py'
       - 'send_v3_opportunity_mail.py'
       - 'v3_engine/**'
       - 'test_opportunity_engine_v3.py'
       - 'test_v3_engine_architecture.py'
+      - 'test_v3_source_scanners.py'
       - '.github/workflows/v3-redesign-ci.yml'
   pull_request:
     paths:
       - 'opportunity_engine_v3.py'
       - 'opportunity_engine_v3_scanner.py'
+      - 'v3_source_market_scanner.py'
+      - 'v3_structure_contract_scanner.py'
+      - 'v3_cutover_summary.py'
       - 'send_v3_opportunity_mail.py'
       - 'v3_engine/**'
       - 'test_opportunity_engine_v3.py'
       - 'test_v3_engine_architecture.py'
+      - 'test_v3_source_scanners.py'
       - '.github/workflows/v3-redesign-ci.yml'
 
 permissions:
@@ -28,7 +36,7 @@ permissions:
 jobs:
   v3-unit:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     steps:
       - name: Checkout proposed V3
         uses: actions/checkout@v4
@@ -37,14 +45,20 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+          cache: 'pip'
 
-      - name: Install minimal test dependency
-        run: python -m pip install requests
+      - name: Install test dependencies
+        run: pip install -r requirements.txt
 
       - name: Compile V3 code
         run: |
           python -m py_compile opportunity_engine_v3.py opportunity_engine_v3_scanner.py send_v3_opportunity_mail.py
+          python -m py_compile v3_source_market_scanner.py v3_structure_contract_scanner.py v3_cutover_summary.py
           python -m py_compile v3_engine/*.py
 
       - name: Run V3 unit tests
-        run: python -m unittest test_opportunity_engine_v3.py test_v3_engine_architecture.py
+        run: |
+          python -m unittest \
+            test_opportunity_engine_v3.py \
+            test_v3_engine_architecture.py \
+            test_v3_source_scanners.py
