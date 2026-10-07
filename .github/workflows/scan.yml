@@ -2,6 +2,10 @@ name: EVE V3 fast scan
 
 on:
   workflow_dispatch:
+    inputs:
+      source:
+        description: 'Dispatch source'
+        required: true
 
 permissions:
   contents: write
