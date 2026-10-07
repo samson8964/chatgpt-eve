@@ -321,7 +321,6 @@ jobs:
             "four_h_contract:${{ steps.four_h_contract.outcome }}" \
             "cj_contract:${{ steps.cj_contract.outcome }}" \
             "v3_reverse:${{ steps.v3_reverse.outcome }}" \
-            "calendar_v3:${{ steps.calendar_v3.outcome }}" \
             "mail_v3:${{ steps.mail_v3.outcome }}" \
             "persist_results:${{ steps.persist_results.outcome }}"
           do
@@ -330,6 +329,11 @@ jobs:
             echo "$name=$outcome"
             if [ "$outcome" != "success" ]; then failed=1; fi
           done
+
+          echo "calendar_v3=${{ steps.calendar_v3.outcome }}"
+          if [ "${{ steps.calendar_v3.outcome }}" = "failure" ]; then
+            echo "::warning::Google Calendar alert delivery failed; opportunity scanning and EVE mail remain independent."
+          fi
 
           echo "bpc_base=${{ steps.bpc_base.outcome }}"
           echo "bpc_probe=${{ steps.bpc_probe.outcome }}"
