@@ -21,7 +21,7 @@ KV 只有一组 `refresh_token`、`character_id`、`character_name`，所有调�
 | GitHub Actions Secret | `EVE_MAIL_API_KEY` | 扫描调用 Worker；值应与 Worker 的 `MAIL_API_KEY` 一致 |
 | GitHub Actions Secret | `CLOUDFLARE_API_TOKEN` | 部署 Worker 使用 |
 | GitHub Actions Secret | `CLOUDFLARE_ACCOUNT_ID` | 部署目标账户编号 |
-| GitHub Actions Secret + Worker Secret | `GITHUB_DISPATCH_TOKEN` | Cloudflare Cron 调用 GitHub `workflow_dispatch`；Fine-grained PAT 至少需要本仓库 Actions: Read and write |
+| GitHub Actions Secret + Worker Secret | `EVE_DISPATCH_TOKEN` | Cloudflare Cron 调用 GitHub `workflow_dispatch`；Fine-grained PAT 至少需要本仓库 Actions: Read and write |
 
 不要把密钥或刷新令牌写进源码、文档、公共结果或日志。部署工作流不会创建 KV、EVE 应用或填写 Worker 运行变量。
 
@@ -70,7 +70,7 @@ EVE 应用需注册相同回调，允许当前源码申请的三个权限：
 - `0 */3 * * *` → `.github/workflows/v3-bpc-deep.yml`：BPC 深扫，每 3 小时。
 - 快速扫描发现新 BPC 潜力合同时，仍可使用 GitHub 自身的短链路额外触发一次 BPC 深扫；这不是周期调度。
 
-Worker 使用 Secret `GITHUB_DISPATCH_TOKEN` 调 GitHub Actions API。部署工作流会在同名 GitHub Actions Secret 存在时自动同步到 Worker Secret。若该 Secret 缺失，Cron 本身仍会部署，但不会成功触发扫描。
+Worker 使用 Secret `EVE_DISPATCH_TOKEN` 调 GitHub Actions API。部署工作流会在同名 GitHub Actions Secret 存在时自动同步到 Worker Secret。若该 Secret 缺失，Cron 本身仍会部署，但不会成功触发扫描。
 
 可以用带 `EVE_MAIL_API_KEY` 的 `GET /api/scheduler-health` 检查调度器是否已经拿到 GitHub token；`configured: true` 才代表 Cloudflare 具备真实触发能力。
 
