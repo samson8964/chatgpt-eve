@@ -229,6 +229,18 @@ jobs:
         if: always()
         run: python v3_cutover_summary.py
 
+      - name: Send new V3 opportunities to Google Calendar
+        id: calendar_v3
+        continue-on-error: true
+        if: always()
+        env:
+          GOOGLE_CALENDAR_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_CALENDAR_SERVICE_ACCOUNT_JSON }}
+          GOOGLE_CALENDAR_ID: ${{ secrets.GOOGLE_CALENDAR_ID }}
+          GOOGLE_CALENDAR_TIMEZONE: 'Asia/Shanghai'
+          V3_CHANNELS: 'v3-full-cash,v3-cash-floor,v3-barter,v3-conservative-list,v3-four-h-contract,v3-cj-contract,v3-amarr-to-jita,v3-dodixie-to-jita,v3-four-h-to-jita,v3-cj-to-jita,v3-jita-to-4h'
+          MAIL_TOP: '10'
+        run: python send_v3_calendar_alerts.py
+
       - name: Send V3 fast opportunity mail
         id: mail_v3
         continue-on-error: true
@@ -256,6 +268,7 @@ jobs:
 
           find results/latest -maxdepth 1 -type f -name 'v3_*' ! -name 'v3_bpc_*' -exec cp {} "$SNAPSHOT/latest/" \;
           find results/state -maxdepth 1 -type f -name 'mail_last_v3-*' ! -name 'mail_last_v3-bpc_*' -exec cp {} "$SNAPSHOT/state/" \;
+          find results/state -maxdepth 1 -type f -name 'calendar_seen_v3-*' ! -name 'calendar_seen_v3-bpc.csv' -exec cp {} "$SNAPSHOT/state/" \;
           for f in results/state/bpc_fast_probe_seen.csv results/state/last_scan_started_epoch.txt; do
             [ -f "$f" ] && cp "$f" "$SNAPSHOT/state/"
           done
@@ -308,6 +321,7 @@ jobs:
             "four_h_contract:${{ steps.four_h_contract.outcome }}" \
             "cj_contract:${{ steps.cj_contract.outcome }}" \
             "v3_reverse:${{ steps.v3_reverse.outcome }}" \
+            "calendar_v3:${{ steps.calendar_v3.outcome }}" \
             "mail_v3:${{ steps.mail_v3.outcome }}" \
             "persist_results:${{ steps.persist_results.outcome }}"
           do
