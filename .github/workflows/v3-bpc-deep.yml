@@ -12,9 +12,9 @@ permissions:
   contents: write
 
 # Heavy BPC lane. Cloudflare Cron dispatches it every 3 hours. The 15-minute
-# fast probe may also dispatch an extra deep run when a newly discovered contract
-# already clears the snapshot Jita profit/ROI thresholds. Formal mail still
-# requires the four live Jita gates.
+# fast lane may also dispatch an extra deep run when its cheap contract-only probe
+# sees a newly listed BPC-only NPC-station contract. Formal mail still requires
+# the four live Jita gates after full validation.
 concurrency:
   group: eve-v3-bpc-deep
   cancel-in-progress: false
