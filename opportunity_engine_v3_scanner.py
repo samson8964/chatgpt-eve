@@ -657,10 +657,10 @@ def main():
         reverse=True,
     )
     listing_candidates = listing_candidates[:LIST_HISTORY_LIMIT]
-    listing_types = {int(tid) for p, _ in listing_candidates for tid in p["included"]}
+    listing_types = {int(tid) for p, _, _ in listing_candidates for tid in p["included"]}
     snapshot.history, snapshot.failed_history_types = fetch_market_history(listing_types)
 
-    for p, loc in listing_candidates:
+    for p, loc, cash_research_row in listing_candidates:
         cid = int(p["contract_id"])
         itemq = p["included"]
         if set(itemq).intersection(snapshot.failed_sell_types) or set(itemq).intersection(snapshot.failed_history_types):
