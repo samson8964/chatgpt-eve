@@ -48,8 +48,13 @@ def main() -> None:
             _write_output("new_count", "0")
             return
 
+    if "jita_manufacturing_cost_complete" in df.columns:
+        complete = df["jita_manufacturing_cost_complete"].apply(_truth)
+    else:
+        complete = pd.Series(False, index=df.index)
+
     candidate = df[
-        df.get("jita_manufacturing_cost_complete", False).apply(_truth)
+        complete
         & (pd.to_numeric(df["jita_manufacturing_net_profit"], errors="coerce").fillna(float("-inf")) >= MIN_JITA_PROFIT)
         & (pd.to_numeric(df["jita_manufacturing_net_roi"], errors="coerce").fillna(float("-inf")) >= MIN_JITA_ROI)
     ].copy()
