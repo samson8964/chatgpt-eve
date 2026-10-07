@@ -15,6 +15,8 @@ on:
       - 'opportunity_engine_v2.py'
       - 'opportunity_engine_v3.py'
       - 'opportunity_engine_v3_scanner.py'
+      - 'v3_engine/**'
+      - 'test_v3_engine_architecture.py'
       - 'four_h_reverse_scanner_v3.py'
       - 'send_v3_opportunity_mail.py'
       - 'bpc_opportunity_engine_v2.py'
@@ -315,16 +317,17 @@ jobs:
           DEAL_FRIENDLY_CHARACTER_ID: '2124493042'
           DEAL_FRIENDLY_ALLIANCE_IDS: ''
           DEAL_FRIENDLY_REGION_IDS: ''
-          V3_PUBLIC_LIVE_LIMIT: '300'
-          V3_PUBLIC_PER_METRIC: '110'
-          V3_PUBLIC_NEWEST_COUNT: '60'
-          V3_PUBLIC_PROFIT_SHARE: '0.18'
-          V3_PUBLIC_ROI_SHARE: '0.18'
-          V3_PUBLIC_LIST_PROFIT_SHARE: '0.18'
-          V3_PUBLIC_LIST_ROI_SHARE: '0.18'
+          V3_PUBLIC_LIVE_LIMIT: '600'
+          V3_PUBLIC_PROFIT_SHARE: '0.25'
+          V3_PUBLIC_ROI_SHARE: '0.15'
+          V3_PUBLIC_LIST_PROFIT_SHARE: '0.10'
+          V3_PUBLIC_LIST_ROI_SHARE: '0.05'
+          V3_PUBLIC_CHANGE_SHARE: '0.15'
           V3_PUBLIC_NEWEST_SHARE: '0.13'
-          V3_PUBLIC_EXPLORATION_SHARE: '0.15'
-          V3_LIST_HISTORY_LIMIT: '120'
+          V3_PUBLIC_EXPLORATION_SHARE: '0.12'
+          V3_PUBLIC_DIVERSITY_SHARE: '0.05'
+          V3_FULL_CASH_MAIL_ENABLED: '0'
+          V3_LIST_HISTORY_LIMIT: '160'
           MIN_PROFIT_PER_M3: '2000'
         run: python opportunity_engine_v3_scanner.py
 
@@ -563,7 +566,7 @@ jobs:
           EVE_MAIL_RECIPIENT_NAMES: 'MikeChong,LadyBaBa'
           EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
           MAIL_TOP: '10'
-          V3_CHANNELS: 'v3-cash-floor,v3-barter,v3-conservative-list'
+          V3_CHANNELS: 'v3-full-cash,v3-cash-floor,v3-barter'
         shell: bash
         run: |
           set -o pipefail
