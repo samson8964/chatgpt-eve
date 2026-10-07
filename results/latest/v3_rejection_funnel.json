@@ -1,0 +1,29 @@
+{
+  "stages": {
+    "raw_contracts": 49640,
+    "eligible_contracts": 43194,
+    "market_executable_contracts": 24590,
+    "snapshot_candidates": 24590,
+    "candidate_pool": 605,
+    "location_executable": 245,
+    "feasible": 173,
+    "full_cash": 1,
+    "partial_cash_floor": 0,
+    "barter": 0,
+    "list_supported": 4,
+    "research_watch": 158,
+    "mail_eligible": 0
+  },
+  "rejection_reasons": {
+    "BPC_ROUTED": 18378,
+    "MARKET_INELIGIBLE_SINGLETON": 5997,
+    "UNSAFE_OR_UNVERIFIED_LOCATION": 360,
+    "HIGHSEC_RESTRICTED_CAPITAL": 68,
+    "SKIN_DOMINANT": 4,
+    "BARTER_PROCUREMENT_INCOMPLETE": 2,
+    "FATAL_OR_ACCESS_UNVERIFIED": 4,
+    "LIST_TOO_SLOW": 5,
+    "LIST_UNSUPPORTED": 8,
+    "LIST_DATA_INCOMPLETE": 3
+  }
+}
