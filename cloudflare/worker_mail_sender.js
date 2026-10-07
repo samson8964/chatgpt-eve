@@ -98,6 +98,7 @@ async function handleScheduledDispatch(controller, env) {
   let inputs = null;
   if (cron === FAST_SCAN_CRON) {
     workflow = "scan.yml";
+    inputs = { source: "cloudflare-cron" };
   } else if (cron === BPC_DEEP_CRON) {
     workflow = "v3-bpc-deep.yml";
     inputs = { reason: "cloudflare-cron" };
