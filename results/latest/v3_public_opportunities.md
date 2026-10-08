@@ -2,7 +2,7 @@
 
 - Contracts snapshot: 2026-10-08T16:01:40.716Z
 - Market snapshot: 2026-10-08T15:48:51.102Z
-- Candidate universe: 24567; deep validation pool: 250; feasible: 181
+- Candidate universe: 24543; deep validation pool: 253; feasible: 183
 - FULL_CASH: 1
 - PARTIAL_CASH_FLOOR: 0
 - BARTER: 0
@@ -23,12 +23,12 @@ Design rules:
 ## Stages
 
 - raw_contracts: `50090`
-- eligible_contracts: `43541`
-- market_executable_contracts: `24567`
-- snapshot_candidates: `24567`
+- eligible_contracts: `43514`
+- market_executable_contracts: `24543`
+- snapshot_candidates: `24543`
 - candidate_pool: `606`
-- location_executable: `250`
-- feasible: `181`
+- location_executable: `253`
+- feasible: `183`
 - full_cash: `1`
 - partial_cash_floor: `0`
 - barter: `0`
@@ -38,12 +38,12 @@ Design rules:
 
 ## Rejection reasons
 
-- BPC_ROUTED: `18747`
-- MARKET_INELIGIBLE_SINGLETON: `6096`
-- UNSAFE_OR_UNVERIFIED_LOCATION: `356`
-- HIGHSEC_RESTRICTED_CAPITAL: `65`
-- FATAL_OR_ACCESS_UNVERIFIED: `10`
+- BPC_ROUTED: `18744`
+- MARKET_INELIGIBLE_SINGLETON: `6092`
+- UNSAFE_OR_UNVERIFIED_LOCATION: `353`
+- HIGHSEC_RESTRICTED_CAPITAL: `66`
+- FATAL_OR_ACCESS_UNVERIFIED: `8`
 - SKIN_DOMINANT: `4`
 - LIST_TOO_SLOW: `3`
-- LIST_DATA_INCOMPLETE: `3`
 - BARTER_PROCUREMENT_INCOMPLETE: `2`
+- LIST_DATA_INCOMPLETE: `1`
