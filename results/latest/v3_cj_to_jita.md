@@ -1,11 +1,11 @@
 # V3 C-J6MT - 1st Taj Mahgoon (DJ's Retirement Fund) -> Jita 4-4 procurement arbitrage
 
 - Source kind: structure
-- Market snapshot: 2026-10-08T12:49:02.748Z
+- Market snapshot: 2026-10-08T13:18:34.851Z
 - Secure jumps to Jita: 0
 - Deep-validation types: 180
 - Final rows: 120
-- Formal MAIL: 3
+- Formal MAIL: 1
 
 Destination valuation uses Jita 4-4 BUY orders only. Amarr/Dodixie sell prices are never used as an exit valuation.
 Stress removes the best source ask level and best Jita bid level.
