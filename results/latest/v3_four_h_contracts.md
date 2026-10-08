@@ -1,10 +1,10 @@
 # V3 4-HWWF contract opportunities
 
 - Structure: 1053970513596
-- Contract snapshot: 2026-10-07T22:31:50.701Z
-- Jita market snapshot: 2026-10-07T22:18:27.127Z
-- Active plain-item contracts: 150
-- Deep-validation contracts: 150
+- Contract snapshot: 2026-10-07T23:31:36.226Z
+- Jita market snapshot: 2026-10-07T23:48:25.413Z
+- Active plain-item contracts: 148
+- Deep-validation contracts: 148
 - Final rows: 120
 - Formal MAIL: 0
 
