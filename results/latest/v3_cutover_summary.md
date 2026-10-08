@@ -5,18 +5,18 @@ Amarr and Dodixie are procurement sources only; all exit valuation remains Jita 
 
 | Channel | Rows | MAIL | SAFE | WATCH | RESEARCH | Best net profit |
 |---|---:|---:|---:|---:|---:|---:|
-| Public FULL_CASH | 4 | 3 | 4 | 0 | 0 | 140.6M |
-| Public PARTIAL_CASH_FLOOR | 0 | 0 | 0 | 0 | 0 | - |
+| Public FULL_CASH | 3 | 2 | 3 | 0 | 0 | 697.7M |
+| Public PARTIAL_CASH_FLOOR | 1 | 0 | 1 | 0 | 0 | 30.1M |
 | Public BARTER | 0 | 0 | 0 | 0 | 0 | - |
-| Public LIST-SUPPORTED | 9 | 0 | 0 | 9 | 0 | 49.0M |
-| Amarr -> Jita | 75 | 0 | 0 | 0 | 75 | -1.5M |
-| Dodixie -> Jita | 54 | 0 | 0 | 0 | 54 | -1.5M |
-| 4-H market -> Jita | 81 | 1 | 1 | 2 | 78 | 70.2M |
-| C-J market -> Jita | 120 | 3 | 3 | 44 | 73 | 740.2M |
+| Public LIST-SUPPORTED | 9 | 0 | 0 | 9 | 0 | 24.1M |
+| Amarr -> Jita | 80 | 0 | 0 | 1 | 79 | 2.4M |
+| Dodixie -> Jita | 55 | 0 | 0 | 0 | 55 | -1.5M |
+| 4-H market -> Jita | 0 | 0 | 0 | 0 | 0 | - |
+| C-J market -> Jita | 0 | 0 | 0 | 0 | 0 | - |
 | 4-H contracts | 0 | 0 | 0 | 0 | 0 | - |
 | C-J contracts | 0 | 0 | 0 | 0 | 0 | - |
 | Jita -> 4-H | 0 | 0 | 0 | 0 | 0 | - |
 | BPC manufacturing/value | 66 | 2 | 2 | 63 | 1 | 84.7M |
 
-- Total formal MAIL decisions across V3 test outputs: **9**
+- Total formal MAIL decisions across V3 test outputs: **4**
 - Formal MAIL decisions are eligible for the unified V3 in-game mail sender.
