@@ -3,9 +3,9 @@
 - Source kind: npc
 - Market snapshot: 2026-10-08T23:18:30.316Z
 - Secure jumps to Jita: 45
-- Deep-validation types: 119
-- Final rows: 107
-- Formal MAIL: 0
+- Deep-validation types: 108
+- Final rows: 104
+- Formal MAIL: 1
 
 Destination valuation uses Jita 4-4 BUY orders only. Amarr/Dodixie sell prices are never used as an exit valuation.
 Stress removes the best source ask level and best Jita bid level.
