@@ -1,8 +1,8 @@
 # Opportunity Engine V3 — redesigned architecture
 
-- Contracts snapshot: 2026-10-08T15:31:31.339Z
+- Contracts snapshot: 2026-10-08T16:01:40.716Z
 - Market snapshot: 2026-10-08T15:48:51.102Z
-- Candidate universe: 24584; deep validation pool: 238; feasible: 169
+- Candidate universe: 24567; deep validation pool: 250; feasible: 181
 - FULL_CASH: 1
 - PARTIAL_CASH_FLOOR: 0
 - BARTER: 0
@@ -22,13 +22,13 @@ Design rules:
 
 ## Stages
 
-- raw_contracts: `50088`
-- eligible_contracts: `43553`
-- market_executable_contracts: `24584`
-- snapshot_candidates: `24584`
+- raw_contracts: `50090`
+- eligible_contracts: `43541`
+- market_executable_contracts: `24567`
+- snapshot_candidates: `24567`
 - candidate_pool: `606`
-- location_executable: `238`
-- feasible: `169`
+- location_executable: `250`
+- feasible: `181`
 - full_cash: `1`
 - partial_cash_floor: `0`
 - barter: `0`
@@ -38,12 +38,12 @@ Design rules:
 
 ## Rejection reasons
 
-- BPC_ROUTED: `18743`
-- MARKET_INELIGIBLE_SINGLETON: `6101`
-- UNSAFE_OR_UNVERIFIED_LOCATION: `368`
+- BPC_ROUTED: `18747`
+- MARKET_INELIGIBLE_SINGLETON: `6096`
+- UNSAFE_OR_UNVERIFIED_LOCATION: `356`
 - HIGHSEC_RESTRICTED_CAPITAL: `65`
-- FATAL_OR_ACCESS_UNVERIFIED: `6`
-- LIST_DATA_INCOMPLETE: `5`
+- FATAL_OR_ACCESS_UNVERIFIED: `10`
 - SKIN_DOMINANT: `4`
 - LIST_TOO_SLOW: `3`
+- LIST_DATA_INCOMPLETE: `3`
 - BARTER_PROCUREMENT_INCOMPLETE: `2`
