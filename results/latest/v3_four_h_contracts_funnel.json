@@ -1,10 +1,10 @@
 {
   "stages": {
-    "active_contracts": 363,
-    "plain_item_contracts": 150,
-    "prefilter_candidates": 150,
-    "deep_validation_contracts": 150,
-    "final_rows": 150,
+    "active_contracts": 361,
+    "plain_item_contracts": 148,
+    "prefilter_candidates": 148,
+    "deep_validation_contracts": 148,
+    "final_rows": 148,
     "formal_mail": 0
   },
   "rejection_reasons": {
@@ -14,6 +14,6 @@
     "STRESS_NEGATIVE": 2,
     "BELOW_SAFE_ROI": 1,
     "BELOW_SAFE_PROFIT": 1,
-    "LOW_PROFIT_DENSITY": 4
+    "LOW_PROFIT_DENSITY": 2
   }
 }
