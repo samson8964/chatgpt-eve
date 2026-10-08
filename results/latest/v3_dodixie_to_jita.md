@@ -1,7 +1,7 @@
 # V3 Dodixie IX - Moon 20 - Federation Navy Assembly Plant -> Jita 4-4 procurement arbitrage
 
 - Source kind: npc
-- Market snapshot: 2026-10-08T08:48:29.430Z
+- Market snapshot: 2026-10-08T09:18:30.384Z
 - Secure jumps to Jita: 15
 - Deep-validation types: 71
 - Final rows: 60
