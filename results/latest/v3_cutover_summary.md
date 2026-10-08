@@ -6,15 +6,15 @@ Amarr and Dodixie are procurement sources only; all exit valuation remains Jita 
 | Channel | Rows | MAIL | SAFE | WATCH | RESEARCH | Best net profit |
 |---|---:|---:|---:|---:|---:|---:|
 | Public FULL_CASH | 1 | 1 | 1 | 0 | 0 | 97.8M |
-| Public PARTIAL_CASH_FLOOR | 1 | 0 | 1 | 0 | 0 | 31.3M |
+| Public PARTIAL_CASH_FLOOR | 0 | 0 | 0 | 0 | 0 | - |
 | Public BARTER | 0 | 0 | 0 | 0 | 0 | - |
-| Public LIST-SUPPORTED | 4 | 0 | 0 | 4 | 0 | 49.0M |
-| Amarr -> Jita | 88 | 0 | 0 | 0 | 88 | -1.2M |
-| Dodixie -> Jita | 74 | 0 | 0 | 1 | 73 | 13.5M |
-| 4-H market -> Jita | 120 | 0 | 0 | 5 | 115 | 30.8M |
+| Public LIST-SUPPORTED | 3 | 0 | 0 | 3 | 0 | 13.9M |
+| Amarr -> Jita | 90 | 0 | 0 | 0 | 90 | -0.9M |
+| Dodixie -> Jita | 95 | 0 | 0 | 3 | 92 | 14.1M |
+| 4-H market -> Jita | 120 | 0 | 0 | 6 | 114 | 32.3M |
 | C-J market -> Jita | 120 | 0 | 0 | 47 | 73 | 740.2M |
 | 4-H contracts | 120 | 0 | 0 | 5 | 115 | 387.2M |
-| C-J contracts | 0 | 0 | 0 | 0 | 0 | - |
+| C-J contracts | 120 | 0 | 0 | 7 | 113 | 31.8M |
 | Jita -> 4-H | 0 | 0 | 0 | 0 | 0 | - |
 | BPC manufacturing/value | 66 | 2 | 2 | 63 | 1 | 84.7M |
 
