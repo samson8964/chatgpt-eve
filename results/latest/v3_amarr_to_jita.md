@@ -3,7 +3,7 @@
 - Source kind: npc
 - Market snapshot: 2026-10-08T15:18:32.841Z
 - Secure jumps to Jita: 45
-- Deep-validation types: 89
+- Deep-validation types: 88
 - Final rows: 82
 - Formal MAIL: 0
 
