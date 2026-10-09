@@ -1,7 +1,7 @@
 # V3 4-HWWF -> Jita 4-4 procurement arbitrage
 
 - Source kind: structure
-- Market snapshot: 2026-10-09T06:49:03.020Z
+- Market snapshot: 2026-10-09T07:18:29.587Z
 - Secure jumps to Jita: 0
 - Deep-validation types: 129
 - Final rows: 120
