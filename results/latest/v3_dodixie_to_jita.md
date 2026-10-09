@@ -1,10 +1,10 @@
 # V3 Dodixie IX - Moon 20 - Federation Navy Assembly Plant -> Jita 4-4 procurement arbitrage
 
 - Source kind: npc
-- Market snapshot: 2026-10-09T09:48:30.313Z
+- Market snapshot: 2026-10-09T10:18:32.028Z
 - Secure jumps to Jita: 15
 - Deep-validation types: 77
-- Final rows: 68
+- Final rows: 67
 - Formal MAIL: 0
 
 Destination valuation uses Jita 4-4 BUY orders only. Amarr/Dodixie sell prices are never used as an exit valuation.
