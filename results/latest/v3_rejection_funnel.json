@@ -1,28 +1,28 @@
 {
   "stages": {
     "raw_contracts": 50240,
-    "eligible_contracts": 43592,
-    "market_executable_contracts": 24522,
-    "snapshot_candidates": 24522,
+    "eligible_contracts": 43574,
+    "market_executable_contracts": 24515,
+    "snapshot_candidates": 24515,
     "candidate_pool": 610,
-    "location_executable": 249,
+    "location_executable": 251,
     "feasible": 178,
-    "full_cash": 8,
-    "partial_cash_floor": 1,
+    "full_cash": 7,
+    "partial_cash_floor": 0,
     "barter": 0,
     "list_supported": 9,
-    "research_watch": 154,
+    "research_watch": 157,
     "mail_eligible": 5
   },
   "rejection_reasons": {
-    "BPC_ROUTED": 18860,
-    "MARKET_INELIGIBLE_SINGLETON": 6182,
-    "UNSAFE_OR_UNVERIFIED_LOCATION": 361,
-    "HIGHSEC_RESTRICTED_CAPITAL": 68,
-    "SKIN_DOMINANT": 3,
-    "BARTER_PROCUREMENT_INCOMPLETE": 6,
-    "FATAL_OR_ACCESS_UNVERIFIED": 6,
-    "LIST_TOO_SLOW": 6,
+    "BPC_ROUTED": 18845,
+    "MARKET_INELIGIBLE_SINGLETON": 6181,
+    "UNSAFE_OR_UNVERIFIED_LOCATION": 359,
+    "HIGHSEC_RESTRICTED_CAPITAL": 72,
+    "SKIN_DOMINANT": 1,
+    "BARTER_PROCUREMENT_INCOMPLETE": 7,
+    "FATAL_OR_ACCESS_UNVERIFIED": 5,
+    "LIST_TOO_SLOW": 5,
     "LIST_DATA_INCOMPLETE": 6
   }
 }
