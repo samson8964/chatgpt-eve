@@ -4,12 +4,12 @@
     "prefilter_candidates": 142,
     "deep_validation_types": 142,
     "final_rows": 142,
-    "formal_mail": 1
+    "formal_mail": 0
   },
   "rejection_reasons": {
     "STRESS_NEGATIVE": 22,
     "NON_POSITIVE_ECONOMICS": 116,
-    "LOW_PROFIT_DENSITY": 1,
+    "LOW_PROFIT_DENSITY": 2,
     "BELOW_SAFE_PROFIT": 2
   }
 }
