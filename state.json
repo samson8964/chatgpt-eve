@@ -342319,14 +342319,17 @@
   "region_errors": {},
   "regions_checked": 114,
   "regions_total": 114,
-  "running": true,
+  "round_completed": 1,
+  "running": false,
   "scanned": 24222,
   "snapshot_error": null,
   "snapshot_modified": "2026-10-09T21:01:37.962Z",
   "snapshot_target_contracts": 40,
+  "spread_mail_enabled": false,
+  "spread_opportunities": 0,
   "stage": "等待下一次检查",
   "volume_cap": 0.06
  },
  "unavailable_until": {},
- "updated": "2026-10-09T21:22:34.479927+00:00"
+ "updated": "2026-10-09T21:22:36.664119+00:00"
 }
