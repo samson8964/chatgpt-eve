@@ -1,14 +1,14 @@
 # Opportunity Engine V3 — redesigned architecture
 
 - Contracts snapshot: 2026-10-09T21:01:37.962Z
-- Market snapshot: 2026-10-09T20:48:37.302Z
-- Candidate universe: 24596; deep validation pool: 314; feasible: 253
-- FULL_CASH: 1
+- Market snapshot: 2026-10-09T21:18:30.842Z
+- Candidate universe: 24590; deep validation pool: 317; feasible: 245
+- FULL_CASH: 0
 - PARTIAL_CASH_FLOOR: 0
 - BARTER: 0
-- LIST-SUPPORTED: 5
-- RESEARCH: 165
-- FORMAL MAIL: 1
+- LIST-SUPPORTED: 3
+- RESEARCH: 163
+- FORMAL MAIL: 0
 
 Design rules:
 - Broad discovery is separate from final purchase recommendation.
@@ -23,27 +23,26 @@ Design rules:
 ## Stages
 
 - raw_contracts: `50326`
-- eligible_contracts: `43693`
-- market_executable_contracts: `24596`
-- snapshot_candidates: `24596`
+- eligible_contracts: `43692`
+- market_executable_contracts: `24590`
+- snapshot_candidates: `24590`
 - candidate_pool: `610`
-- location_executable: `314`
-- feasible: `253`
-- full_cash: `1`
+- location_executable: `317`
+- feasible: `245`
+- full_cash: `0`
 - partial_cash_floor: `0`
 - barter: `0`
-- list_supported: `5`
-- research_watch: `165`
-- mail_eligible: `1`
+- list_supported: `3`
+- research_watch: `163`
+- mail_eligible: `0`
 
 ## Rejection reasons
 
-- BPC_ROUTED: `18889`
-- MARKET_INELIGIBLE_SINGLETON: `6223`
-- UNSAFE_OR_UNVERIFIED_LOCATION: `296`
-- HIGHSEC_RESTRICTED_CAPITAL: `56`
-- BARTER_PROCUREMENT_INCOMPLETE: `10`
-- FATAL_OR_ACCESS_UNVERIFIED: `4`
-- LIST_TOO_SLOW: `4`
-- SKIN_DOMINANT: `3`
-- NO_EXECUTABLE_ITEMS: `2`
+- BPC_ROUTED: `18888`
+- MARKET_INELIGIBLE_SINGLETON: `6225`
+- UNSAFE_OR_UNVERIFIED_LOCATION: `293`
+- HIGHSEC_RESTRICTED_CAPITAL: `68`
+- BARTER_PROCUREMENT_INCOMPLETE: `6`
+- FATAL_OR_ACCESS_UNVERIFIED: `6`
+- SKIN_DOMINANT: `4`
+- LIST_TOO_SLOW: `3`
