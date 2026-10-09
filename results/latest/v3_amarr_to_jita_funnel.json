@@ -3,13 +3,13 @@
     "source_sell_types": 11738,
     "prefilter_candidates": 108,
     "deep_validation_types": 108,
-    "final_rows": 105,
+    "final_rows": 96,
     "formal_mail": 0
   },
   "rejection_reasons": {
-    "NON_POSITIVE_ECONOMICS": 99,
-    "STRESS_NEGATIVE": 5,
-    "BELOW_SAFE_PROFIT": 1,
-    "NO_EXECUTABLE_DEPTH": 3
+    "NON_POSITIVE_ECONOMICS": 94,
+    "STRESS_NEGATIVE": 1,
+    "NO_EXECUTABLE_DEPTH": 12,
+    "BELOW_SAFE_PROFIT": 1
   }
 }
