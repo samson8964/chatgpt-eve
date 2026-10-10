@@ -1,5 +1,5 @@
 name: EVE DC shadow scan
-# verification-bump: 2026-10-10-after-dc-auth
+# verification-bump: 2026-10-10-after-dc-auth-alias
 
 on:
   workflow_dispatch:
