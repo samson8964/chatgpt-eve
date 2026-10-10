@@ -6,7 +6,8 @@
   "keep_vars": true,
   "triggers": {
     "crons": [
-      "*/15 * * * *"
+      "*/15 * * * *",
+      "0 */3 * * *"
     ]
   },
   "vars": {
