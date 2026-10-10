@@ -1,14 +1,14 @@
 # Opportunity Engine V3 — redesigned architecture
 
-- Contracts snapshot: 2026-10-10T19:31:24.660Z
-- Market snapshot: 2026-10-10T19:48:36.023Z
-- Candidate universe: 24738; deep validation pool: 270; feasible: 194
-- FULL_CASH: 2
+- Contracts snapshot: 2026-10-10T20:01:40.935Z
+- Market snapshot: 2026-10-10T20:18:34.045Z
+- Candidate universe: 24734; deep validation pool: 274; feasible: 201
+- FULL_CASH: 1
 - PARTIAL_CASH_FLOOR: 0
 - BARTER: 0
-- LIST-SUPPORTED: 11
-- RESEARCH: 155
-- FORMAL MAIL: 2
+- LIST-SUPPORTED: 9
+- RESEARCH: 157
+- FORMAL MAIL: 1
 
 Design rules:
 - Broad discovery is separate from final purchase recommendation.
@@ -22,27 +22,27 @@ Design rules:
 
 ## Stages
 
-- raw_contracts: `50454`
-- eligible_contracts: `43740`
-- market_executable_contracts: `24738`
-- snapshot_candidates: `24738`
+- raw_contracts: `50444`
+- eligible_contracts: `43767`
+- market_executable_contracts: `24734`
+- snapshot_candidates: `24734`
 - candidate_pool: `610`
-- location_executable: `270`
-- feasible: `194`
-- full_cash: `2`
+- location_executable: `274`
+- feasible: `201`
+- full_cash: `1`
 - partial_cash_floor: `0`
 - barter: `0`
-- list_supported: `11`
-- research_watch: `155`
-- mail_eligible: `2`
+- list_supported: `9`
+- research_watch: `157`
+- mail_eligible: `1`
 
 ## Rejection reasons
 
-- BPC_ROUTED: `18778`
-- MARKET_INELIGIBLE_SINGLETON: `6301`
-- UNSAFE_OR_UNVERIFIED_LOCATION: `340`
-- HIGHSEC_RESTRICTED_CAPITAL: `74`
-- FATAL_OR_ACCESS_UNVERIFIED: `12`
+- BPC_ROUTED: `18801`
+- MARKET_INELIGIBLE_SINGLETON: `6300`
+- UNSAFE_OR_UNVERIFIED_LOCATION: `336`
+- HIGHSEC_RESTRICTED_CAPITAL: `70`
 - BARTER_PROCUREMENT_INCOMPLETE: `6`
+- FATAL_OR_ACCESS_UNVERIFIED: `5`
 - LIST_TOO_SLOW: `4`
-- SKIN_DOMINANT: `2`
+- SKIN_DOMINANT: `3`
