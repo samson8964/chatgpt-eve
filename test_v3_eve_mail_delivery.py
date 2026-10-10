@@ -80,9 +80,9 @@ class EveDeliveryTests(unittest.TestCase):
         included, body = mail.compose_digest(
             [("v3-cj-to-jita", [a]), ("v3-amarr-to-jita", [b])],
             "10-10 21:00",
-            max_body_chars=290,
+            max_body_chars=75,
         )
-        self.assertLessEqual(len(body), 290)
+        self.assertLessEqual(len(body), 75)
         self.assertEqual(len(included), 0)
 
 
