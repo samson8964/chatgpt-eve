@@ -1,5 +1,5 @@
 name: EVE DC shadow scan
-# verification-bump: 2026-10-10-after-dc-auth-alias
+# verification-bump: 2026-10-10-private-location-discovery
 
 on:
   workflow_dispatch:
@@ -69,15 +69,17 @@ jobs:
                   continue
               r.raise_for_status()
               rows=data.get("structures") or []
-              print(f"{k}: discovery search_status={data.get('search_status')} direct_ids={data.get('direct_search_ids')} candidates={data.get('candidate_count')} market_accessible={len(rows)}")
+              target_system_id=int(data.get("target_system_id") or 0)
+              print(f"{k}: discovery search_status={data.get('search_status')} direct_ids={data.get('direct_search_ids')} private={data.get('private_discovery')} private_ids={data.get('private_candidate_ids')} candidates={data.get('candidate_count')} market_accessible={len(rows)} target_system={target_system_id}")
+              by_system=[x for x in rows if int(x.get("solar_system_id") or 0)==target_system_id]
               exact=[x for x in rows if q.lower() in str(x.get("name","")).lower()]
               prime=[x for x in rows if "dracarys" in str(x.get("name","")).lower() and "prime" in str(x.get("name","")).lower()]
-              chosen=(exact or prime or rows)
+              chosen=(by_system or exact or prime or rows)
               if not chosen:
                   print(f"{k}: no market-accessible structure candidates found for {q}")
                   continue
               chosen=chosen[0]
-              if not (exact or prime):
+              if not (by_system or exact or prime):
                   print(f"{k}: structure name unavailable; using highest-volume market-accessible candidate {chosen}")
               sid=int(chosen["structure_id"])
               mr=requests.get(f"{base}/api/structure-market",
