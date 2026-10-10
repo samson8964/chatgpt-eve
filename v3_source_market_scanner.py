@@ -177,6 +177,21 @@ def route_jumps_to_jita() -> int:
         return 0
 
 
+def verified_unit_m3(meta: dict | None) -> float | None:
+    """Do not turn failed reference-data lookups into zero-cost transport.
+
+    A missing or non-positive packaged volume is not enough evidence for a
+    cash-executable arbitrage MAIL, even if ESI books are otherwise live.
+    """
+    if not isinstance(meta, dict):
+        return None
+    try:
+        size = float(type_volume(meta))
+    except (TypeError, ValueError, OverflowError):
+        return None
+    return size if math.isfinite(size) and size > 0 else None
+
+
 def haul_cost(total_m3: float, jumps: int) -> float:
     return max(0.0, HAUL_BASE) + max(0.0, total_m3) * (
         max(0.0, HAUL_PER_M3) + max(0, jumps) * max(0.0, HAUL_PER_M3_JUMP)
@@ -367,7 +382,10 @@ def main() -> None:
             continue
         asks = live_source.get(tid, [])
         bids = live_jita.get(tid, [])
-        unit_m3 = max(0.0, float(type_volume(meta.get(tid)) or 0.0))
+        unit_m3 = verified_unit_m3(meta.get(tid))
+        if unit_m3 is None:
+            funnel.reject("MISSING_OR_ZERO_ITEM_VOLUME")
+            continue
         quote, chosen_cutoff = select_trade_quote(
             asks, bids, unit_m3=unit_m3, jumps=jumps, cfg=cfg
         )
