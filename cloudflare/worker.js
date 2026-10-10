@@ -229,24 +229,36 @@ async function handleStructureSearch(request, env) {
     return json({ ok: false, error: "unsupported_dc_structure_query", query }, 400);
   }
 
-  // First try the authenticated structure-search endpoint with the market token.
-  // Some current ESI deployments allow the endpoint even though requesting the
-  // legacy search scope through SSO is rejected for this application.
+  // First try authenticated structure search with several aliases. Exact
+  // system-prefixed names are not always indexed consistently, while alliance
+  // structure names such as "Dracarys Prime" often are.
   let searchStatus = 0;
   let directIds = [];
+  const searchTerms = [...new Set([
+    query,
+    "Dracarys Prime",
+    "Dracarys. Prime",
+    "Dracarys",
+  ])];
   try {
-    const su = new URL(`${ESI_BASE}/characters/${characterId}/search/`);
-    su.searchParams.set("categories", "structure");
-    su.searchParams.set("datasource", "tranquility");
-    su.searchParams.set("language", "en");
-    su.searchParams.set("search", query);
-    su.searchParams.set("strict", "false");
-    const sr = await fetch(su, { headers: { Authorization: `Bearer ${token.access_token}`, Accept: "application/json" } });
-    searchStatus = sr.status;
-    if (sr.status === 200) {
+    const found = new Set();
+    for (const term of searchTerms) {
+      const su = new URL(`${ESI_BASE}/characters/${characterId}/search/`);
+      su.searchParams.set("categories", "structure");
+      su.searchParams.set("datasource", "tranquility");
+      su.searchParams.set("language", "en");
+      su.searchParams.set("search", term);
+      su.searchParams.set("strict", "false");
+      const sr = await fetch(su, { headers: { Authorization: `Bearer ${token.access_token}`, Accept: "application/json" } });
+      searchStatus = sr.status;
+      if (sr.status !== 200) continue;
       const payload = await sr.json();
-      directIds = Array.isArray(payload.structure) ? payload.structure.map(Number).filter(Number.isSafeInteger) : [];
+      for (const raw of Array.isArray(payload.structure) ? payload.structure : []) {
+        const id = Number(raw);
+        if (Number.isSafeInteger(id)) found.add(id);
+      }
     }
+    directIds = [...found];
   } catch {}
 
   const counts = new Map();
