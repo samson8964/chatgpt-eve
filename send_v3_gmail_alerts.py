@@ -6,11 +6,14 @@ import re
 import smtplib
 import time
 from email.message import EmailMessage
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
 
-from send_v3_opportunity_mail import build_candidates, enabled_channels, render
+from send_v3_opportunity_mail import CHANNELS, build_candidates, enabled_channels, render
+from v3_market_alert_state import acknowledge as acknowledge_market, plan as plan_market
+from v3_scan_health import channel_healthy
 
 STATE = Path("results/state")
 SMTP_HOST = "smtp.gmail.com"
@@ -111,8 +114,33 @@ def main() -> None:
     failures = []
 
     for channel in enabled_channels():
-        path = state_path(channel)
+        kind = CHANNELS[channel]["kind"]
+        is_market = kind in {"source-market", "reverse-market"}
+        if is_market and not channel_healthy(channel, require_manifest=True):
+            print(f"::warning::{channel}: skip Gmail and preserve dedupe state: scan missing, failed or stale")
+            continue
+
         candidates = build_candidates(channel)
+        if is_market:
+            market_path = STATE / f"gmail_market_state_{channel}.csv"
+            now = datetime.now(timezone.utc)
+            pending = plan_market(
+                market_path, candidates, now=now,
+                cooldown_hours=float(os.getenv("V3_MARKET_GMAIL_COOLDOWN_HOURS", "6")),
+            )
+            print(f"{channel}: Gmail market eligible={len(candidates)} pending={len(pending)}")
+            for candidate in pending:
+                ident = int(candidate["id"])
+                subject, body = render(channel, stamp, [candidate])
+                try:
+                    _send(f"【EVE捡漏】{subject}", _eve_to_plain(body), _eve_to_html(body))
+                    acknowledge_market(market_path, candidate, now=datetime.now(timezone.utc))
+                except Exception as exc:
+                    failures.append((channel, ident, exc))
+                    print(f"::warning::Gmail market alert failed {channel}:{ident}: {type(exc).__name__}: {exc}")
+            continue
+
+        path = state_path(channel)
         current_ids = {int(c["id"]) for c in candidates}
 
         # First configured run establishes a no-backfill baseline. It also absorbs
