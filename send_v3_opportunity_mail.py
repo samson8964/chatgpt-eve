@@ -84,6 +84,18 @@ CHANNELS = {
         "title": "C-J→Jita",
         "kind": "source-market",
     },
+    "v3-dc-o4t-contract": {
+        "path": LATEST / "v3_dc_o4t_contracts.csv",
+        "id_col": "contract_id",
+        "title": "O4T Prime合同",
+        "kind": "structure-contract",
+    },
+    "v3-dc-o4t-to-jita": {
+        "path": LATEST / "v3_dc_o4t_to_jita.csv",
+        "id_col": "type_id",
+        "title": "O4T Prime→Jita",
+        "kind": "source-market",
+    },
     "v3-jita-to-4h": {
         "path": LATEST / "v3_jita_to_four_h.csv",
         "id_col": "type_id",
@@ -410,7 +422,7 @@ def main():
     failures = []
 
     for channel in enabled_channels():
-        if CHANNELS[channel]["kind"] in {"source-market", "reverse-market"} and not channel_healthy(
+        if (CHANNELS[channel]["kind"] in {"source-market", "reverse-market"} or channel == "v3-dc-o4t-contract") and not channel_healthy(
             channel, require_manifest=True
         ):
             print(f"::warning::{channel}: skip EVE mail and preserve prior state: scan missing, failed or stale")
