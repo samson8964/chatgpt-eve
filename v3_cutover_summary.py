@@ -57,7 +57,7 @@ def main() -> None:
     health_by_channel = health.get("channels", {})
     total_mail = 0
     for label, name in CHANNELS:
-        key = name.removesuffix(".csv").replace("_", "-")
+        key = name.removesuffix(".csv").replace("_", "-").replace("v3-jita-to-four-h", "v3-jita-to-4h")
         status = health_by_channel.get(key, {}).get("status", "-")
         df = read(name)
         if df.empty:
