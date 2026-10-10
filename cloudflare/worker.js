@@ -225,7 +225,8 @@ async function handleStructureSearch(request, env) {
 
   const upper = query.toUpperCase();
   const regionId = upper.includes("TCAG-3") ? 10000063 : upper.includes("O4T-Z5") ? 10000059 : 0;
-  if (!regionId) {
+  const targetSystemId = upper.includes("TCAG-3") ? 30004937 : upper.includes("O4T-Z5") ? 30004691 : 0;
+  if (!regionId || !targetSystemId) {
     return json({ ok: false, error: "unsupported_dc_structure_query", query }, 400);
   }
 
@@ -286,9 +287,73 @@ async function handleStructureSearch(request, env) {
     }
   }
 
-  const candidateIds = directIds.length
-    ? [...new Set(directIds)]
-    : [...counts.entries()].sort((a,b) => b[1] - a[1]).slice(0, 160).map(([sid]) => sid);
+  // LadyBaBa already has a broader, proven C-J profile with read-only
+  // assets/contracts scopes. Reuse it for location-ID discovery when the DC
+  // profile belongs to the same character, so no extra OAuth round-trip is
+  // required just to identify the structure ID.
+  const privateIds = new Set();
+  let privateDiscovery = "unavailable";
+  let privateToken = null;
+  try {
+    const cjCharacterId = Number(await env.AUTH_STORE.get("cj_character_id") || 0);
+    if (cjCharacterId === characterId) {
+      const cjToken = await getFreshCjToken(env);
+      if (cjToken.ok) {
+        privateToken = cjToken.access_token;
+        privateDiscovery = "cj-profile";
+
+        let assetPages = 1;
+        for (let page = 1; page <= assetPages; page++) {
+          const ar = await fetch(`${ESI_BASE}/characters/${characterId}/assets/?datasource=tranquility&page=${page}`, {
+            headers: { Authorization: `Bearer ${privateToken}`, Accept: "application/json" },
+          });
+          if (ar.status !== 200) break;
+          assetPages = Math.max(1, Number(ar.headers.get("X-Pages") || 1));
+          let rows = [];
+          try { rows = await ar.json(); } catch { rows = []; }
+          for (const row of Array.isArray(rows) ? rows : []) {
+            const sid = Number(row.location_id || 0);
+            if (Number.isSafeInteger(sid) && sid >= 1000000000000) privateIds.add(sid);
+          }
+        }
+
+        let contractPages = 1;
+        for (let page = 1; page <= contractPages; page++) {
+          const cr = await fetch(`${ESI_BASE}/characters/${characterId}/contracts/?datasource=tranquility&page=${page}`, {
+            headers: { Authorization: `Bearer ${privateToken}`, Accept: "application/json" },
+          });
+          if (cr.status !== 200) break;
+          contractPages = Math.max(1, Number(cr.headers.get("X-Pages") || 1));
+          let rows = [];
+          try { rows = await cr.json(); } catch { rows = []; }
+          for (const row of Array.isArray(rows) ? rows : []) {
+            for (const raw of [row.start_location_id, row.end_location_id]) {
+              const sid = Number(raw || 0);
+              if (Number.isSafeInteger(sid) && sid >= 1000000000000) privateIds.add(sid);
+            }
+          }
+        }
+
+        const or = await fetch(`${ESI_BASE}/characters/${characterId}/orders/?datasource=tranquility`, {
+          headers: { Authorization: `Bearer ${privateToken}`, Accept: "application/json" },
+        });
+        if (or.status === 200) {
+          let rows = [];
+          try { rows = await or.json(); } catch { rows = []; }
+          for (const row of Array.isArray(rows) ? rows : []) {
+            const sid = Number(row.location_id || 0);
+            if (Number.isSafeInteger(sid) && sid >= 1000000000000) privateIds.add(sid);
+          }
+        }
+      }
+    }
+  } catch {}
+
+  const candidateIds = [...new Set([
+    ...directIds,
+    ...[...counts.entries()].sort((a,b) => b[1] - a[1]).slice(0, 160).map(([sid]) => sid),
+    ...privateIds,
+  ])];
 
   const structures = [];
   for (const structureId of candidateIds.slice(0, 100)) {
@@ -297,9 +362,14 @@ async function handleStructureSearch(request, env) {
     let typeId = 0;
     let metadataStatus = 0;
 
-    const rr = await fetch(`${ESI_BASE}/universe/structures/${structureId}/?datasource=tranquility`, {
+    let rr = await fetch(`${ESI_BASE}/universe/structures/${structureId}/?datasource=tranquility`, {
       headers: { Authorization: `Bearer ${token.access_token}`, Accept: "application/json" },
     });
+    if (rr.status !== 200 && privateToken) {
+      rr = await fetch(`${ESI_BASE}/universe/structures/${structureId}/?datasource=tranquility`, {
+        headers: { Authorization: `Bearer ${privateToken}`, Accept: "application/json" },
+      });
+    }
     metadataStatus = rr.status;
     if (rr.status === 200) {
       try {
@@ -309,6 +379,8 @@ async function handleStructureSearch(request, env) {
         typeId = Number(info.type_id || 0);
       } catch {}
     }
+
+    if (solarSystemId && solarSystemId !== targetSystemId) continue;
 
     const mr = await fetch(`${ESI_BASE}/markets/structures/${structureId}/?datasource=tranquility&page=1`, {
       headers: { Authorization: `Bearer ${token.access_token}`, Accept: "application/json" },
@@ -342,6 +414,9 @@ async function handleStructureSearch(request, env) {
     region_id: regionId,
     search_status: searchStatus,
     direct_search_ids: directIds.length,
+    private_discovery: privateDiscovery,
+    private_candidate_ids: privateIds.size,
+    target_system_id: targetSystemId,
     candidate_count: candidateIds.length,
     structures
   });
