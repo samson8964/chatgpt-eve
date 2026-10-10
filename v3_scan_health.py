@@ -10,6 +10,11 @@ import pandas as pd
 
 LATEST = Path("results/latest")
 HEALTH = LATEST / "v3_scan_health.json"
+O4T_HEALTH = LATEST / "v3_dc_o4t_scan_health.json"
+O4T_LANES = {
+    "v3-dc-o4t-to-jita": ("V3_DC_O4T_MARKET_OUTCOME", "v3_dc_o4t_to_jita.csv"),
+    "v3-dc-o4t-contract": ("V3_DC_O4T_CONTRACT_OUTCOME", "v3_dc_o4t_contracts.csv"),
+}
 LANES = {
     "v3-amarr-to-jita": ("V3_AMARR_OUTCOME", "v3_amarr_to_jita.csv"),
     "v3-dodixie-to-jita": ("V3_DODIXIE_OUTCOME", "v3_dodixie_to_jita.csv"),
@@ -51,12 +56,17 @@ def collect() -> dict:
 
 
 def channel_healthy(channel: str, *, require_manifest: bool = False, max_age_hours: float = 2.0) -> bool:
-    if channel not in LANES:
+    if channel in O4T_LANES:
+        manifest = O4T_HEALTH
+        max_age_hours = 4.5 if max_age_hours == 2.0 else min(max_age_hours, 4.5)
+    elif channel in LANES:
+        manifest = HEALTH
+    else:
         return True
-    if not HEALTH.exists():
+    if not manifest.exists():
         return not require_manifest
     try:
-        health = json.loads(HEALTH.read_text(encoding="utf-8"))
+        health = json.loads(manifest.read_text(encoding="utf-8"))
         started = int(health.get("started_epoch") or 0)
         age = datetime.now(timezone.utc).timestamp() - started
         if started <= 0 or age < -120 or age > max_age_hours * 3600:
@@ -66,10 +76,28 @@ def channel_healthy(channel: str, *, require_manifest: bool = False, max_age_hou
         return False
 
 
+def collect_o4t() -> dict:
+    try:
+        started = int(Path("results/state/o4t_scan_started_epoch.txt").read_text(encoding="utf-8").strip())
+    except (OSError, ValueError):
+        started = 0
+    return {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "started_epoch": started,
+        "run_id": os.getenv("GITHUB_RUN_ID", ""),
+        "channels": {
+            channel: _inspect(os.getenv(env, ""), LATEST / filename)
+            for channel, (env, filename) in O4T_LANES.items()
+        },
+    }
+
+
 def main() -> None:
     LATEST.mkdir(parents=True, exist_ok=True)
-    health = collect()
-    HEALTH.write_text(json.dumps(health, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    o4t = "--o4t" in __import__("sys").argv
+    health = collect_o4t() if o4t else collect()
+    out = O4T_HEALTH if o4t else HEALTH
+    out.write_text(json.dumps(health, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     for channel, row in health["channels"].items():
         print(f"{channel}: {row['status']} rows={row['rows']} outcome={row['outcome']}")
         if row["status"] not in {"ok", "empty"}:

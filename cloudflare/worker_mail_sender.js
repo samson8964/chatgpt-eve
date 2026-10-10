@@ -11,6 +11,7 @@ const REQUIRED_SKILL_CHARACTER = "MikeChong";
 const GITHUB_REPO = "samson8964/chatgpt-eve";
 const FAST_SCAN_CRON = "*/15 * * * *";
 const BPC_DEEP_CRON = "0 */3 * * *";
+const O4T_PRIME_CRON = "17 */2 * * *";
 
 let memoryMailAccessToken = "";
 let memoryMailAccessTokenExp = 0;
@@ -60,6 +61,7 @@ async function handleSchedulerHealth(request, env) {
     repository: GITHUB_REPO,
     fast_scan: { enabled: true, cron: FAST_SCAN_CRON, workflow: "scan.yml" },
     bpc_deep: { enabled: true, cron: BPC_DEEP_CRON, workflow: "v3-bpc-deep.yml" },
+    o4t_prime: { enabled: true, cron: O4T_PRIME_CRON, workflow: "v3-dc-o4t.yml" },
   });
 }
 
@@ -123,6 +125,9 @@ async function handleScheduledDispatch(controller, env) {
   } else if (cron === BPC_DEEP_CRON) {
     workflow = "v3-bpc-deep.yml";
     inputs = { reason: "cloudflare-3h-cron" };
+  } else if (cron === O4T_PRIME_CRON) {
+    workflow = "v3-dc-o4t.yml";
+    inputs = { reason: "cloudflare-2h-cron" };
   } else {
     console.warn("Unknown scheduled cron; skip", cron);
     return;

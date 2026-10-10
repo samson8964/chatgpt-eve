@@ -5,6 +5,7 @@ from datetime import datetime, timezone, timedelta
 import json
 
 import pandas as pd
+from v3_scan_health import channel_healthy, O4T_HEALTH
 
 LATEST = Path("results/latest")
 OUT = LATEST / "v3_cutover_summary.md"
@@ -20,6 +21,8 @@ CHANNELS = [
     ("C-J market -> Jita", "v3_cj_to_jita.csv"),
     ("4-H contracts", "v3_four_h_contracts.csv"),
     ("C-J contracts", "v3_cj_contracts.csv"),
+    ("O4T Prime market -> Jita", "v3_dc_o4t_to_jita.csv"),
+    ("O4T Prime contracts", "v3_dc_o4t_contracts.csv"),
     ("Jita -> 4-H", "v3_jita_to_four_h.csv"),
     ("BPC manufacturing/value", "v3_bpc_opportunities.csv"),
 ]
@@ -61,7 +64,17 @@ def main() -> None:
     for label, name in CHANNELS:
         key = name.removesuffix(".csv").replace("_", "-").replace("v3-jita-to-four-h", "v3-jita-to-4h")
         status = health_by_channel.get(key, {}).get("status", "-")
+        if name.startswith("v3_dc_o4t_"):
+            key = key.replace("v3-dc-o4t-contracts", "v3-dc-o4t-contract")
+            try:
+                o4t_health = json.loads(O4T_HEALTH.read_text(encoding="utf-8"))
+                status = o4t_health.get("channels", {}).get(key, {}).get("status", "-")
+            except (OSError, ValueError):
+                status = "missing"
         df = read(name)
+        if name.startswith("v3_dc_o4t_") and not channel_healthy(key, require_manifest=True):
+            status = "stale_or_failed"
+            df = pd.DataFrame()
         if name == "v3_bpc_opportunities.csv" and not df.empty:
             # Fast scans retain previous deep-BPC files. Historical verified
             # opportunities must never inflate the live formal MAIL summary.

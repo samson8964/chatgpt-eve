@@ -47,7 +47,7 @@ export default {
         <p>C-J6MT市场授权：<b>${cjHasToken ? "已授权" : "尚未授权"}</b>${cjName ? ` · ${escapeHtml(cjName)} (${escapeHtml(cjId || "")})` : ""} · <a href="/auth-cj">授权/更换</a> · <a href="/logout-cj">清除</a></p>
         <p>C-J6MT接口使用 <code>auth_profile=cj</code>，与原4-H主授权彼此独立。</p>
         <p>DC影子市场授权：<b>${dcHasToken ? "已授权" : "尚未授权"}</b>${dcName ? ` · ${escapeHtml(dcName)} (${escapeHtml(dcId || "")})` : ""} · <a href="/auth-dc">授权/更换</a> · <a href="/logout-dc">清除</a></p>
-        <p>DC接口使用 <code>auth_profile=dc</code>；只用于TCAG-3 / O4T-Z5影子扫描，不影响4-H、C-J6MT和邮件角色。</p>
+        <p>DC接口使用 <code>auth_profile=dc</code>；用于O4T-Z5 Prime正式V3扫描与TCAG-3影子研究，不影响4-H、C-J6MT和邮件角色。</p>
         <p>打开合同：<code>/c/合同ID</code></p>
         <p>打开市场：<code>/m/物品Type ID</code></p>
         <p><a href="/auth">重新授权角色</a> · <a href="/logout">清除授权</a></p>`);

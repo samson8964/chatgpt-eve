@@ -116,7 +116,7 @@ def main() -> None:
     for channel in enabled_channels():
         kind = CHANNELS[channel]["kind"]
         is_market = kind in {"source-market", "reverse-market"}
-        if is_market and not channel_healthy(channel, require_manifest=True):
+        if (is_market or channel == "v3-dc-o4t-contract") and not channel_healthy(channel, require_manifest=True):
             print(f"::warning::{channel}: skip Gmail and preserve dedupe state: scan missing, failed or stale")
             continue
 
