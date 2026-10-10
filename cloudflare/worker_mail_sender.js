@@ -10,6 +10,7 @@ const SKILL_ACCESS_TOKEN_CACHE_KEY = "https://eve-contract-opener.internal/skill
 const REQUIRED_SKILL_CHARACTER = "MikeChong";
 const GITHUB_REPO = "samson8964/chatgpt-eve";
 const FAST_SCAN_CRON = "*/15 * * * *";
+const BPC_DEEP_CRON = "0 */3 * * *";
 
 let memoryMailAccessToken = "";
 let memoryMailAccessTokenExp = 0;
@@ -58,7 +59,7 @@ async function handleSchedulerHealth(request, env) {
     configured: Boolean(env.EVE_DISPATCH_TOKEN),
     repository: GITHUB_REPO,
     fast_scan: { enabled: true, cron: FAST_SCAN_CRON, workflow: "scan.yml" },
-    bpc_deep: { enabled: false, workflow: "v3-bpc-deep.yml", reason: "temporarily_paused" },
+    bpc_deep: { enabled: true, cron: BPC_DEEP_CRON, workflow: "v3-bpc-deep.yml" },
   });
 }
 
@@ -89,6 +90,27 @@ async function dispatchGitHubWorkflow(env, workflow, inputs = null) {
   }
 }
 
+async function workflowIsActive(env, workflow) {
+  // With a 15-minute cron and ~30-minute full scan, GitHub's single pending
+  // concurrency slot cancels intermediate runs. Dispatch only after idle.
+  const url = `https://api.github.com/repos/${GITHUB_REPO}/actions/workflows/${workflow}/runs?per_page=20`;
+  const resp = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${env.EVE_DISPATCH_TOKEN}`,
+      Accept: "application/vnd.github+json",
+      "User-Agent": "eve-v3-cloudflare-scheduler/1.0",
+      "X-GitHub-Api-Version": "2022-11-28",
+    },
+  });
+  if (!resp.ok) {
+    throw new Error(`GitHub workflow health check failed workflow=${workflow} status=${resp.status}`);
+  }
+  const data = await resp.json();
+  return (data.workflow_runs || []).some(run =>
+    ["in_progress", "queued", "pending", "requested", "waiting"].includes(run.status)
+  );
+}
+
 async function handleScheduledDispatch(controller, env) {
   const cron = String(controller.cron || "");
   const scheduledTime = Number(controller.scheduledTime || Date.now());
@@ -98,6 +120,9 @@ async function handleScheduledDispatch(controller, env) {
   if (cron === FAST_SCAN_CRON) {
     workflow = "scan.yml";
     inputs = { source: "cloudflare-cron" };
+  } else if (cron === BPC_DEEP_CRON) {
+    workflow = "v3-bpc-deep.yml";
+    inputs = { reason: "cloudflare-3h-cron" };
   } else {
     console.warn("Unknown scheduled cron; skip", cron);
     return;
@@ -115,6 +140,11 @@ async function handleScheduledDispatch(controller, env) {
     }
   }
 
+  // If GitHub is unreachable, fail closed instead of piling up canceled runs.
+  if (await workflowIsActive(env, workflow)) {
+    console.log("scheduled dispatch skipped: preceding run still active", workflow);
+    return;
+  }
   await dispatchGitHubWorkflow(env, workflow, inputs);
 
   if (env.AUTH_STORE) {
