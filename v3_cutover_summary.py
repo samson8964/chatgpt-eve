@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from datetime import datetime, timezone, timedelta
 import json
 
 import pandas as pd
@@ -60,6 +61,16 @@ def main() -> None:
         key = name.removesuffix(".csv").replace("_", "-").replace("v3-jita-to-four-h", "v3-jita-to-4h")
         status = health_by_channel.get(key, {}).get("status", "-")
         df = read(name)
+        if name == "v3_bpc_opportunities.csv" and not df.empty:
+            # Fast scans retain previous deep-BPC files. Historical verified
+            # opportunities must never inflate the live formal MAIL summary.
+            verified = pd.to_datetime(df.get("verified_at", pd.Series(index=df.index, dtype="object")), utc=True, errors="coerce")
+            now = datetime.now(timezone.utc)
+            fresh = verified.between(now - timedelta(hours=6), now + timedelta(minutes=2))
+            skipped = int((~fresh).sum())
+            df = df.loc[fresh].copy()
+            status = "fresh" if not df.empty else "stale"
+            lines.append(f"<!-- BPC historic/unverified rows excluded from live counts: {skipped} -->")
         if df.empty:
             lines.append(f"| {label} | {status} | 0 | 0 | 0 | 0 | 0 | - |")
             continue
@@ -82,9 +93,10 @@ def main() -> None:
 
     lines += [
         "",
-        f"- Total formal MAIL decisions across V3 test outputs: **{total_mail}**",
+        f"- Total currently verified formal MAIL decisions across V3 outputs: **{total_mail}**",
         "- Formal MAIL decisions are eligible for the unified V3 in-game mail sender.",
         "- Market scan health: ok = fresh nonempty, empty = completed with no rows; failed/missing_output/invalid_output must not trigger mail.",
+        "- BPC live count excludes manufacturing rows whose live verification is older than six hours or missing; historical BPC CSV can still exist.",
     ]
     OUT.write_text("\n".join(lines) + "\n", "utf-8")
     print("\n".join(lines))
