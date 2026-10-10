@@ -68,13 +68,15 @@ jobs:
                   continue
               r.raise_for_status()
               rows=data.get("structures") or []
-              rows=[x for x in rows if q.lower() in str(x.get("name","")).lower()]
+              exact=[x for x in rows if q.lower() in str(x.get("name","")).lower()]
               prime=[x for x in rows if "dracarys" in str(x.get("name","")).lower() and "prime" in str(x.get("name","")).lower()]
-              chosen=(prime or rows)
+              chosen=(exact or prime or rows)
               if not chosen:
-                  print(f"{k}: no matching accessible structure found for {q}")
+                  print(f"{k}: no market-accessible structure candidates found for {q}")
                   continue
               chosen=chosen[0]
+              if not (exact or prime):
+                  print(f"{k}: structure name unavailable; using highest-volume market-accessible candidate {chosen}")
               sid=int(chosen["structure_id"])
               mr=requests.get(f"{base}/api/structure-market",
                               params={"structure_id":sid,"page":1,"auth_profile":"dc"},
