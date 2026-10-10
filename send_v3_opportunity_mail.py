@@ -404,15 +404,50 @@ def render(channel: str, stamp: str, picked):
 
 
 def send_with_retry(recipient_id, subject, body, channel, name):
-    for attempt in range(1, 4):
+    """Do not hammer the ESI monolith after a 520 rate-limit response."""
+    for attempt in range(1, 3):
         try:
-            print(f"sending {channel} to {name} ({recipient_id}) attempt={attempt}")
+            print(f"sending consolidated {channel} to {name} ({recipient_id}) attempt={attempt}")
             return send_mail(recipient_id, subject, body, channel)
         except requests.exceptions.HTTPError as exc:
+            detail = exc.response.text if exc.response is not None else ""
             status = exc.response.status_code if exc.response is not None else 0
-            if status < 500 or attempt >= 3:
+            if "EVE mail failed (520)" in detail:
+                print(f"::warning::EVE mail ESI 520 monolith rate limit: {name}; stop retries for this scan and preserve state")
                 raise
-            time.sleep(2 * attempt)
+            if status not in (502, 503, 504) or attempt >= 2:
+                raise
+            time.sleep(5 * attempt)
+
+
+MAIL_DIGEST_BODY_LIMIT = 6800
+
+
+def compose_digest(entries, stamp, *, max_body_chars=MAIL_DIGEST_BODY_LIMIT):
+    """At most one mail per recipient per scan, never an empty-opportunity mail.
+
+    Return only channels actually included. Other changed channels keep their
+    old sent-state and will be eligible in the following scan.
+    """
+    header = f"<b>V3正式捡漏机会汇总</b><br>{stamp}<br><br>"
+    body = header
+    included = []
+    for channel, picked in entries:
+        if not picked:
+            continue
+        displayed = list(picked)
+        _, section = render(channel, stamp, displayed)
+        while len(body) + len(section) > max_body_chars and len(displayed) > 1:
+            displayed.pop()
+            _, section = render(channel, stamp, displayed)
+        if len(displayed) < len(picked):
+            section += f"<br>本频道共{len(picked)}条，只显示前{len(displayed)}条；完整数据请查看扫描结果。<br>"
+        if len(body) + len(section) > max_body_chars:
+            print(f"::warning::{channel}: deferred from bundled game mail due to body limit")
+            continue
+        body += section + "<br>"
+        included.append((channel, picked))
+    return included, body
 
 
 def main():
@@ -420,31 +455,53 @@ def main():
     recipients = [(name, resolve_character(name)) for name in names]
     stamp = pd.Timestamp.now(tz="Asia/Shanghai").strftime("%m-%d %H:%M")
     failures = []
+    eligible = []
 
     for channel in enabled_channels():
-        if (CHANNELS[channel]["kind"] in {"source-market", "reverse-market"} or channel == "v3-dc-o4t-contract") and not channel_healthy(
+        if (CHANNELS[channel]["kind"] in {"source-market", "reverse-market"}
+                or channel == "v3-dc-o4t-contract") and not channel_healthy(
             channel, require_manifest=True
         ):
-            print(f"::warning::{channel}: skip EVE mail and preserve prior state: scan missing, failed or stale")
+            print(f"::warning::{channel}: EVE mail skipped, scan missing/failed/stale; no state change")
             continue
         picked = build_candidates(channel)
         print(f"{channel}: formal candidates={len(picked)}")
-        for name, rid in recipients:
+        if picked:
+            eligible.append((channel, picked))
+        else:
+            # Do not generate 'zero opportunities' mail or record it as sent.
+            print(f"{channel}: no actionable candidates, no game mail")
+
+    for recipient_index, (name, rid) in enumerate(recipients):
+        changed = []
+        for channel, picked in eligible:
             if should_suppress(channel, name, picked):
                 print(f"{channel} skipped for {name}: no material change TOP{len(picked)}")
                 continue
-            subject, body = render(channel, stamp, picked)
-            try:
-                send_with_retry(rid, subject, body, channel, name)
+            changed.append((channel, picked))
+        included, body = compose_digest(changed, stamp)
+        if not included:
+            print(f"V3 EVE mail: no actionable updates for {name}")
+            continue
+
+        subject = f"[V3]捡漏汇总 · {sum(len(v) for _, v in included)}个 · {stamp}"
+        channel_key = "v3-consolidated-" + ",".join(ch for ch, _ in included)
+        if recipient_index > 0:
+            # Avoid a same-second burst against ESI's internal mail rate limit.
+            time.sleep(5)
+        try:
+            send_with_retry(rid, subject, body, channel_key, name)
+            for channel, picked in included:
                 save_state(channel, name, picked)
-            except Exception as exc:
-                failures.append((channel, name, exc))
-                print(f"::warning::{channel} mail failed for {name}: {type(exc).__name__}: {exc}")
+            print(f"V3 EVE mail: sent {len(included)} channels to {name} in one message")
+        except Exception as exc:
+            failures.append((name, exc))
+            print(f"::warning::V3 EVE mail failed for {name}; pending channel state preserved: {type(exc).__name__}: {exc}")
 
     if failures:
-        for channel, name, exc in failures:
-            print(f"mail failure detail: channel={channel} recipient={name} error={exc}")
-        raise RuntimeError(f"V3 mail delivery failed for {len(failures)} channel/recipient attempt(s)")
+        for name, exc in failures:
+            print(f"mail failure recipient={name}: {type(exc).__name__}: {exc}")
+        raise RuntimeError(f"V3 EVE mail delivery failed for {len(failures)} recipient(s)")
 
 
 if __name__ == "__main__":
