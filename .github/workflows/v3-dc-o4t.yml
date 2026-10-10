@@ -1,0 +1,187 @@
+name: EVE V3 O4T Prime market and contracts
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'DC O4T formal V3 scan request'
+        required: false
+        default: cloudflare-dc-cron
+
+permissions:
+  contents: write
+
+# O4T is an independent production lane: never wait for TCAG-3 and never
+# block the 4-H/C-J fast scan. Cloudflare dispatches it separately.
+concurrency:
+  group: eve-v3-o4t-prime
+  cancel-in-progress: false
+
+jobs:
+  scan_o4t:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+      EVE_MARKET_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
+      MAIL_MIN_VERIFIED_NET_PROFIT: '50000000'
+      MIN_PROFIT_PER_M3: '2000'
+    steps:
+      - name: Checkout fresh main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 20
+
+      - name: Clear O4T-only outputs and mark this run
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p results/latest results/state
+          date -u +%s > results/state/o4t_scan_started_epoch.txt
+          find results/latest -maxdepth 1 -type f -name 'v3_dc_o4t_*' -delete
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Resolve exact SummerHall Prime using LadyBaBa DC ESI
+        id: resolve
+        continue-on-error: true
+        run: python v3_o4t_resolve.py
+
+      - name: Scan O4T-Z5 market to Jita buy depth
+        id: o4t_market
+        continue-on-error: true
+        if: steps.resolve.outcome == 'success'
+        env:
+          V3_SOURCE_KIND: structure
+          V3_SOURCE_KEY: dc_o4t
+          V3_SOURCE_LABEL: O4T-Z5 - Dracarys. Prime (SummerHall)
+          SOURCE_STRUCTURE_ID: '${{ steps.resolve.outputs.structure_id }}'
+          SOURCE_MARKET_KEY: dc_o4t
+          SOURCE_MARKET_LABEL: O4T-Z5 - Dracarys. Prime (SummerHall)
+          SOURCE_AUTH_PROFILE: dc
+          V3_SOURCE_PREFILTER_MIN_PROFIT: '2000000'
+          V3_SOURCE_PREFILTER_MIN_ROI: '0.02'
+          V3_SOURCE_LIVE_LIMIT: '180'
+          V3_SOURCE_TOP: '120'
+          V3_SOURCE_HAUL_BASE: '10000000'
+          V3_SOURCE_HAUL_ISK_PER_M3: '1250'
+          V3_SOURCE_HAUL_ISK_PER_M3_JUMP: '0'
+          V3_SOURCE_RESULT_CSV: v3_dc_o4t_to_jita.csv
+          V3_SOURCE_REPORT_MD: v3_dc_o4t_to_jita.md
+          V3_SOURCE_FUNNEL_JSON: v3_dc_o4t_to_jita_funnel.json
+        run: python v3_source_market_scanner.py
+
+      - name: Scan O4T-Z5 item-exchange contracts
+        id: o4t_contract
+        continue-on-error: true
+        if: steps.resolve.outcome == 'success'
+        env:
+          SOURCE_STRUCTURE_ID: '${{ steps.resolve.outputs.structure_id }}'
+          SOURCE_LABEL: O4T-Z5 - Dracarys. Prime (SummerHall)
+          SOURCE_AUTH_PROFILE: dc
+          V3_STRUCTURE_KEY: dc_o4t
+          SOURCE_CONTRACT_MIN_PRICE: '1000000'
+          SOURCE_CONTRACT_MAX_PRICE: '5000000000'
+          V3_STRUCTURE_CONTRACT_LIVE_LIMIT: '160'
+          V3_STRUCTURE_CONTRACT_TOP: '120'
+          V3_STRUCTURE_HAUL_BASE: '10000000'
+          V3_STRUCTURE_HAUL_ISK_PER_M3: '1250'
+          V3_STRUCTURE_CONTRACT_RESULT_CSV: v3_dc_o4t_contracts.csv
+          V3_STRUCTURE_CONTRACT_REPORT_MD: v3_dc_o4t_contracts.md
+          V3_STRUCTURE_CONTRACT_FUNNEL_JSON: v3_dc_o4t_contracts_funnel.json
+        run: python v3_structure_contract_scanner.py
+
+      - name: Write isolated O4T market and contract health
+        id: o4t_health
+        if: always()
+        env:
+          V3_DC_O4T_MARKET_OUTCOME: '${{ steps.o4t_market.outcome }}'
+          V3_DC_O4T_CONTRACT_OUTCOME: '${{ steps.o4t_contract.outcome }}'
+        run: python v3_scan_health.py --o4t
+
+      - name: Deliver first-seen O4T opportunities to Gmail
+        id: gmail
+        if: always() && steps.resolve.outcome == 'success'
+        continue-on-error: true
+        env:
+          GMAIL_SMTP_USER: ${{ secrets.GMAIL_SMTP_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          GMAIL_TO: ${{ secrets.GMAIL_TO }}
+          V3_CHANNELS: v3-dc-o4t-to-jita,v3-dc-o4t-contract
+          MAIL_TOP: '10'
+        run: python send_v3_gmail_alerts.py
+
+      - name: Deliver formal O4T opportunities in EVE mail
+        id: eve_mail
+        if: always() && steps.resolve.outcome == 'success'
+        continue-on-error: true
+        env:
+          EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+          EVE_MAIL_RECIPIENT_NAME: MikeChong
+          EVE_MAIL_RECIPIENT_NAMES: MikeChong,LadyBaBa
+          EVE_MAIL_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
+          V3_CHANNELS: v3-dc-o4t-to-jita,v3-dc-o4t-contract
+          MAIL_TOP: '10'
+        run: python send_v3_opportunity_mail.py
+
+      - name: Persist O4T outputs and mail dedupe
+        id: persist
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "eve-arbitrage-bot"
+          git config user.email "eve-arbitrage-bot@users.noreply.github.com"
+          SNAP="$(mktemp -d)"
+          mkdir -p "$SNAP/latest" "$SNAP/state"
+          find results/latest -maxdepth 1 -type f -name 'v3_dc_o4t_*' -exec cp {} "$SNAP/latest/" \;
+          for f in results/state/mail_last_v3-dc-o4t-* results/state/gmail_seen_v3-dc-o4t* results/state/gmail_market_state_v3-dc-o4t* results/state/o4t_scan_started_epoch.txt; do
+            [ -f "$f" ] && cp "$f" "$SNAP/state/"
+          done
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git reset --hard origin/main
+            mkdir -p results/latest results/state
+            find results/latest -maxdepth 1 -type f -name 'v3_dc_o4t_*' -delete
+            cp -a "$SNAP/latest/." results/latest/ 2>/dev/null || true
+            cp -a "$SNAP/state/." results/state/ 2>/dev/null || true
+            git add -A results/latest results/state
+            if git diff --cached --quiet; then
+              echo "No new O4T result changes."
+              exit 0
+            fi
+            git commit -m "data: refresh O4T Prime V3 formal scan $(date -u +'%F %H:%M UTC')"
+            if git push origin HEAD:main; then exit 0; fi
+            sleep $((attempt * 2))
+          done
+          echo "::error::Failed to persist O4T V3 results"
+          exit 1
+
+      - name: Final O4T formal channel health gate
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          for pair in \
+            "resolve:${{ steps.resolve.outcome }}" \
+            "market:${{ steps.o4t_market.outcome }}" \
+            "contracts:${{ steps.o4t_contract.outcome }}" \
+            "health:${{ steps.o4t_health.outcome }}" \
+            "eve_mail:${{ steps.eve_mail.outcome }}" \
+            "persist:${{ steps.persist.outcome }}"
+          do
+            echo "$pair"
+            if [ "${pair#*:}" != "success" ]; then
+              echo "::error::V3 O4T Prime lane degraded at ${pair%%:*}"
+              exit 1
+            fi
+          done
+          echo "O4T Prime formal V3 market and contract scan healthy."
