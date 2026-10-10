@@ -1,6 +1,6 @@
 {
   "stages": {
-    "source_sell_types": 5533,
+    "source_sell_types": 5531,
     "prefilter_candidates": 98,
     "deep_validation_types": 98,
     "final_rows": 98,
