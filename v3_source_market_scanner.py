@@ -271,6 +271,42 @@ def select_candidate_ids(rows: list[dict], limit: int) -> list[int]:
     return list(chosen)[:limit]
 
 
+def select_trade_quote(
+    asks: list[dict], bids: list[dict], *, unit_m3: float, jumps: int, cfg: PolicyConfig
+) -> tuple[dict | None, float]:
+    """Avoid diluting profitable small fills with marginal low-ROI depth.
+
+    Evaluate full positive spread and two stricter marginal-ROI cutoffs. The
+    formal profit/ROI/density/stress gates remain unchanged; only trade size
+    selection improves. Stress always uses the same cutoff as the chosen fill.
+    """
+    stress_asks = drop_best_price_level(asks)
+    stress_bids = drop_best_price_level(bids)
+    best_quote, best_cutoff, best_rank = None, 0.0, None
+    for cutoff in sorted({0.0, cfg.mail_min_roi, cfg.mail_min_roi + 0.05}):
+        q = match_books(asks, bids, min_marginal_roi=cutoff)
+        if not q:
+            continue
+        volume = unit_m3 * int(q["quantity"])
+        transport = haul_cost(volume, jumps)
+        net = q["net_before_haul"] - transport
+        roi = net / (q["source_cost"] + transport) if q["source_cost"] + transport > 0 else 0.0
+        density = profit_density(net, volume)
+        stressed = match_books(stress_asks, stress_bids, min_marginal_roi=cutoff)
+        stress_net = (
+            stressed["net_before_haul"] - haul_cost(unit_m3 * int(stressed["quantity"]), jumps)
+            if stressed else -1.0
+        )
+        formal = (
+            net >= cfg.mail_min_profit and roi >= cfg.mail_min_roi
+            and density >= cfg.min_profit_per_m3 and stress_net > 0
+        )
+        rank = (int(formal), int(stress_net > 0), net)
+        if best_rank is None or rank > best_rank:
+            best_quote, best_cutoff, best_rank = q, cutoff, rank
+    return best_quote, best_cutoff
+
+
 def main() -> None:
     LATEST.mkdir(parents=True, exist_ok=True)
     funnel = RejectionFunnel()
@@ -331,12 +367,14 @@ def main() -> None:
             continue
         asks = live_source.get(tid, [])
         bids = live_jita.get(tid, [])
-        quote = match_books(asks, bids, min_marginal_roi=0.0)
+        unit_m3 = max(0.0, float(type_volume(meta.get(tid)) or 0.0))
+        quote, chosen_cutoff = select_trade_quote(
+            asks, bids, unit_m3=unit_m3, jumps=jumps, cfg=cfg
+        )
         if not quote:
             funnel.reject("NO_EXECUTABLE_DEPTH")
             continue
 
-        unit_m3 = max(0.0, float(type_volume(meta.get(tid)) or 0.0))
         total_m3 = unit_m3 * int(quote["quantity"])
         haul = haul_cost(total_m3, jumps)
         net_profit = quote["net_before_haul"] - haul
@@ -346,7 +384,7 @@ def main() -> None:
 
         stress_asks = drop_best_price_level(asks)
         stress_bids = drop_best_price_level(bids)
-        stress = match_books(stress_asks, stress_bids, min_marginal_roi=0.0)
+        stress = match_books(stress_asks, stress_bids, min_marginal_roi=chosen_cutoff)
         if stress:
             stress_m3 = unit_m3 * int(stress["quantity"])
             stress_haul = haul_cost(stress_m3, jumps)
@@ -383,6 +421,7 @@ def main() -> None:
                 "source_station_id": STATION_ID if SOURCE_KIND == "npc" else STRUCTURE_ID,
                 "jumps_to_jita": jumps,
                 "quantity": int(quote["quantity"]),
+                "chosen_min_marginal_roi": chosen_cutoff,
                 "source_best_sell": quote["source_best_sell"],
                 "source_worst_matched_sell": quote["source_worst_sell"],
                 "jita_best_buy": quote["jita_best_buy"],

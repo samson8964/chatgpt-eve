@@ -12,6 +12,7 @@ import requests
 from mail_profit_policy import MAIL_MIN_VERIFIED_NET_PROFIT
 from send_eve_mail_dual import send_mail
 from send_eve_mail_fast import contract_is_live, fmt_isk, resolve_character
+from v3_scan_health import channel_healthy
 
 LATEST = Path("results/latest")
 STATE = Path("results/state")
@@ -409,6 +410,11 @@ def main():
     failures = []
 
     for channel in enabled_channels():
+        if CHANNELS[channel]["kind"] in {"source-market", "reverse-market"} and not channel_healthy(
+            channel, require_manifest=True
+        ):
+            print(f"::warning::{channel}: skip EVE mail and preserve prior state: scan missing, failed or stale")
+            continue
         picked = build_candidates(channel)
         print(f"{channel}: formal candidates={len(picked)}")
         for name, rid in recipients:

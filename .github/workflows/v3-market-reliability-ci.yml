@@ -1,0 +1,38 @@
+name: V3 market alert reliability CI
+
+on:
+  pull_request:
+    paths:
+      - 'v3_market_alert_state.py'
+      - 'v3_scan_health.py'
+      - 'send_v3_gmail_alerts.py'
+      - 'send_v3_opportunity_mail.py'
+      - 'v3_source_market_scanner.py'
+      - 'v3_cutover_summary.py'
+      - 'test_v3_market_alert_reliability.py'
+      - 'test_v3_source_scanners.py'
+      - '.github/workflows/scan.yml'
+      - '.github/workflows/v3-market-reliability-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Compile changed Python modules
+        run: |
+          python -m py_compile v3_market_alert_state.py v3_scan_health.py send_v3_gmail_alerts.py send_v3_opportunity_mail.py v3_source_market_scanner.py v3_cutover_summary.py
+      - name: Run market alert and policy regression tests
+        run: |
+          python -m unittest -v test_v3_market_alert_reliability test_v3_source_scanners test_v3_engine_architecture

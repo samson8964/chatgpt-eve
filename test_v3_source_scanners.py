@@ -1,6 +1,7 @@
 import unittest
 
-from v3_source_market_scanner import haul_cost, match_books, select_candidate_ids
+from v3_source_market_scanner import haul_cost, match_books, select_candidate_ids, select_trade_quote
+from v3_engine import PolicyConfig
 from v3_structure_contract_scanner import choose_candidate_ids
 
 
@@ -19,6 +20,26 @@ class V3SourceScannerTests(unittest.TestCase):
         self.assertEqual(q["quantity"], 4)
         self.assertAlmostEqual(q["source_cost"], 400.0)
         self.assertAlmostEqual(q["destination_gross"], 600.0)
+
+    def test_optimize_small_high_roi_fill_instead_of_diluting_with_tail(self):
+        asks = [
+            {"price": 100.0, "vol": 1_000_000, "min": 1},
+            {"price": 105.0, "vol": 1_000_000, "min": 1},
+            {"price": 130.0, "vol": 20_000_000, "min": 1},
+        ]
+        bids = [
+            {"price": 200.0, "vol": 1_000_000, "min": 1},
+            {"price": 180.0, "vol": 1_000_000, "min": 1},
+            {"price": 140.0, "vol": 20_000_000, "min": 1},
+        ]
+        full = match_books(asks, bids, min_marginal_roi=0)
+        self.assertLess(full["net_roi_before_haul"], 0.10)
+        selected, cutoff = select_trade_quote(
+            asks, bids, unit_m3=0.001, jumps=0, cfg=PolicyConfig()
+        )
+        self.assertGreaterEqual(cutoff, 0.10)
+        self.assertEqual(selected["quantity"], 2_000_000)
+        self.assertGreater(selected["net_before_haul"] - haul_cost(2_000, 0), 50_000_000)
 
     def test_haul_cost_supports_base_per_m3_and_jump(self):
         self.assertGreaterEqual(haul_cost(100.0, 10), 2_000_000.0)
