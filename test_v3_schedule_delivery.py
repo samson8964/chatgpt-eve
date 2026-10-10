@@ -109,11 +109,10 @@ class V3ScheduleAndDeliveryTests(unittest.TestCase):
     def test_o4t_is_dispatch_only_and_fast_scan_preserves_its_outputs(self):
         fast = Path(".github/workflows/scan.yml").read_text(encoding="utf-8")
         o4t = Path(".github/workflows/v3-dc-o4t.yml").read_text(encoding="utf-8")
-        old_shadow = Path(".github/workflows/dc-shadow-scan.yml").read_text(encoding="utf-8")
+        self.assertFalse(Path(".github/workflows/dc-shadow-scan.yml").exists())
         self.assertIn("workflow_dispatch:", o4t.split("permissions:", 1)[0])
         self.assertNotIn("schedule:", o4t.split("permissions:", 1)[0])
         self.assertIn("v3_dc_o4t_*", fast)
-        self.assertNotIn("schedule:", old_shadow.split("permissions:", 1)[0])
         self.assertIn("SOURCE_AUTH_PROFILE: dc", o4t)
         self.assertIn("v3-dc-o4t-to-jita,v3-dc-o4t-contract", o4t)
 
