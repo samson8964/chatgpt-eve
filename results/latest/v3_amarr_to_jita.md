@@ -1,9 +1,9 @@
 # V3 Amarr VIII (Oris) - Emperor Family Academy -> Jita 4-4 procurement arbitrage
 
 - Source kind: npc
-- Market snapshot: 2026-10-10T11:19:11.538Z
+- Market snapshot: 2026-10-10T11:48:37.312Z
 - Secure jumps to Jita: 45
-- Deep-validation types: 144
+- Deep-validation types: 146
 - Final rows: 120
 - Formal MAIL: 2
 
