@@ -57,6 +57,7 @@ def main() -> None:
         health = {}
     health_by_channel = health.get("channels", {})
     total_mail = 0
+    bpc_historical_count = 0
     for label, name in CHANNELS:
         key = name.removesuffix(".csv").replace("_", "-").replace("v3-jita-to-four-h", "v3-jita-to-4h")
         status = health_by_channel.get(key, {}).get("status", "-")
@@ -67,10 +68,9 @@ def main() -> None:
             verified = pd.to_datetime(df.get("verified_at", pd.Series(index=df.index, dtype="object")), utc=True, errors="coerce")
             now = datetime.now(timezone.utc)
             fresh = verified.between(now - timedelta(hours=6), now + timedelta(minutes=2))
-            skipped = int((~fresh).sum())
+            bpc_historical_count = int((~fresh).sum())
             df = df.loc[fresh].copy()
             status = "fresh" if not df.empty else "stale"
-            lines.append(f"<!-- BPC historic/unverified rows excluded from live counts: {skipped} -->")
         if df.empty:
             lines.append(f"| {label} | {status} | 0 | 0 | 0 | 0 | 0 | - |")
             continue
@@ -96,6 +96,7 @@ def main() -> None:
         f"- Total currently verified formal MAIL decisions across V3 outputs: **{total_mail}**",
         "- Formal MAIL decisions are eligible for the unified V3 in-game mail sender.",
         "- Market scan health: ok = fresh nonempty, empty = completed with no rows; failed/missing_output/invalid_output must not trigger mail.",
+        f"- Historical/unverified BPC rows excluded from live counts: {bpc_historical_count}.",
         "- BPC live count excludes manufacturing rows whose live verification is older than six hours or missing; historical BPC CSV can still exist.",
     ]
     OUT.write_text("\n".join(lines) + "\n", "utf-8")
