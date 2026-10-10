@@ -1,10 +1,10 @@
 # V3 4-HWWF -> Jita 4-4 procurement arbitrage
 
 - Source kind: structure
-- Market snapshot: 2026-10-10T21:48:39.668Z
+- Market snapshot: 2026-10-10T22:18:39.554Z
 - Secure jumps to Jita: 0
 - Deep-validation types: 101
-- Final rows: 76
+- Final rows: 75
 - Formal MAIL: 0
 
 Destination valuation uses Jita 4-4 BUY orders only. Amarr/Dodixie sell prices are never used as an exit valuation.
