@@ -1,4 +1,5 @@
 import unittest
+from datetime import datetime, timedelta, timezone
 
 import pandas as pd
 
@@ -12,9 +13,10 @@ def strict_row(**overrides):
         "v2_status": "SAFE",
         "v2_grade": "A",
         "v2_score": 80,
-        "v2_live_net_profit": 10_000_000,
-        "v2_live_net_roi": 0.01,
-        "v2_stress_net_profit": -1,
+        "v2_live_net_profit": 100_000_000,
+        "v2_live_net_roi": 0.15,
+        "v2_stress_net_profit": 50_000_000,
+        "v2_verified_at": datetime.now(timezone.utc).isoformat(),
         "v2_jita_manufacturing_cost_complete": True,
         "v2_jita_manufacturing_job_cost": 10_000_000,
         "v2_jita_live_net_profit": 50_000_000,
@@ -30,13 +32,13 @@ def strict_row(**overrides):
 
 
 class V3BpcAdapterTests(unittest.TestCase):
-    def test_exact_four_gate_boundary_becomes_mail(self):
+    def test_approved_seven_gate_boundary_becomes_mail(self):
         stage, eligible, reason = classify_manufacturing_row(strict_row())
         self.assertEqual(stage, "MAIL")
         self.assertTrue(eligible)
-        self.assertEqual(reason, "BPC_JITA_4_GATE_PASSED")
+        self.assertEqual(reason, "BPC_APPROVED_SEVEN_GATE_PASSED")
 
-    def test_legacy_remote_thresholds_do_not_block(self):
+    def test_legacy_remote_failure_blocks_mail(self):
         stage, eligible, _ = classify_manufacturing_row(
             strict_row(
                 v2_status="CHANGED",
@@ -45,8 +47,18 @@ class V3BpcAdapterTests(unittest.TestCase):
                 v2_stress_net_profit=-500_000_000,
             )
         )
-        self.assertEqual(stage, "MAIL")
-        self.assertTrue(eligible)
+        self.assertEqual(stage, "WATCH")
+        self.assertFalse(eligible)
+
+    def test_stale_verification_and_remote_profit_fail_closed(self):
+        stage, eligible, reason = classify_manufacturing_row(
+            strict_row(v2_verified_at=(datetime.now(timezone.utc) - timedelta(hours=48)).isoformat())
+        )
+        self.assertEqual((stage, eligible, reason), ("RESEARCH", False, "BPC_LIVE_VERIFICATION_STALE_OR_MISSING"))
+        stage, eligible, reason = classify_manufacturing_row(
+            strict_row(v2_live_net_profit=99_999_999)
+        )
+        self.assertEqual((stage, eligible, reason), ("WATCH", False, "BPC_REMOTE_RISK_GATE_FAILED"))
 
     def test_jita_profit_below_50m_is_watch(self):
         stage, eligible, reason = classify_manufacturing_row(

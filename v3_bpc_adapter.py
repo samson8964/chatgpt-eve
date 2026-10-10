@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 import os
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -13,6 +14,10 @@ REPORT = Path("results/latest/v3_bpc_opportunities.md")
 
 BPC_MFG_MIN_JITA_PROFIT = float(os.getenv("MAIL_BPC_MFG_MIN_JITA_PROFIT", "50000000"))
 BPC_MFG_MIN_JITA_ROI = float(os.getenv("MAIL_BPC_MFG_MIN_JITA_ROI", "0.10"))
+BPC_MFG_MIN_REMOTE_PROFIT = float(os.getenv("MAIL_BPC_MFG_MIN_REMOTE_PROFIT", "100000000"))
+BPC_MFG_MIN_REMOTE_ROI = float(os.getenv("MAIL_BPC_MFG_MIN_REMOTE_ROI", "0.15"))
+BPC_MFG_MIN_REMOTE_STRESS = float(os.getenv("MAIL_BPC_MFG_MIN_REMOTE_STRESS", "50000000"))
+BPC_MAX_VERIFICATION_AGE_HOURS = 6.0
 
 
 def _read(path: Path) -> pd.DataFrame:
@@ -38,23 +43,39 @@ def _truth(v) -> bool:
     return str(v or "").strip().lower() in {"1", "true", "t", "yes", "y"}
 
 
+def verification_is_fresh(value: object, *, now: datetime | None = None) -> bool:
+    """Reject cached manufacturing quotes without recent live proof."""
+    parsed = pd.to_datetime(value, utc=True, errors="coerce")
+    if pd.isna(parsed):
+        return False
+    current = now or datetime.now(timezone.utc)
+    age_seconds = (current - parsed.to_pydatetime()).total_seconds()
+    return -120 <= age_seconds <= BPC_MAX_VERIFICATION_AGE_HOURS * 3600
+
+
 def classify_manufacturing_row(r) -> tuple[str, bool, str]:
-    """BPC mail gate: only the user's four Jita-manufacturing execution checks.
+    """Approved BPC policy: legacy V2 SAFE + remote risk gates + Jita gates.
 
-    1) Jita manufacturing net profit >= 50M
-    2) Jita manufacturing ROI >= 10%
-    3) Jita stress profit > 0
-    4) material and product order-book depth complete
-
-    The older remote-factory profit/ROI/stress thresholds and legacy SAFE/CHANGED
-    label are analysis signals only and do not block an otherwise executable BPC.
+    Reference: docs/ROADMAP_GOVERNANCE.md section 3.2. The older four-gate
+    adapter alone is insufficient for a production manufacturing MAIL.
     """
+    if not verification_is_fresh(r.get("v2_verified_at")):
+        return "RESEARCH", False, "BPC_LIVE_VERIFICATION_STALE_OR_MISSING"
+    if str(r.get("v2_status") or "").strip().upper() != "SAFE":
+        return "WATCH", False, "BPC_V2_NOT_SAFE"
+    remote_profit = _num(r.get("v2_live_net_profit"), float("-inf"))
+    remote_roi = _num(r.get("v2_live_net_roi"), float("-inf"))
+    remote_stress = _num(r.get("v2_stress_net_profit"), float("-inf"))
+    if (remote_profit < BPC_MFG_MIN_REMOTE_PROFIT
+        or remote_roi < BPC_MFG_MIN_REMOTE_ROI
+        or remote_stress < BPC_MFG_MIN_REMOTE_STRESS):
+        return "WATCH", False, "BPC_REMOTE_RISK_GATE_FAILED"
+
     jita_cost_complete = _truth(r.get("v2_jita_manufacturing_cost_complete"))
     jita_profit = _num(r.get("v2_jita_live_net_profit"), float("-inf"))
     jita_roi = _num(r.get("v2_jita_live_net_roi"), float("-inf"))
     jita_stress = _num(r.get("v2_jita_stress_net_profit"), float("-inf"))
     depth_complete = _truth(r.get("v2_orderbook_complete"))
-
     if not jita_cost_complete or not depth_complete:
         return "RESEARCH", False, "BPC_JITA_COST_OR_ORDERBOOK_INCOMPLETE"
     if jita_profit < BPC_MFG_MIN_JITA_PROFIT:
@@ -63,7 +84,7 @@ def classify_manufacturing_row(r) -> tuple[str, bool, str]:
         return "WATCH", False, "BPC_JITA_ROI_BELOW_10PCT"
     if jita_stress <= 0:
         return "WATCH", False, "BPC_JITA_STRESS_NOT_POSITIVE"
-    return "MAIL", True, "BPC_JITA_4_GATE_PASSED"
+    return "MAIL", True, "BPC_APPROVED_SEVEN_GATE_PASSED"
 
 
 def manufacturing_rows(df: pd.DataFrame) -> list[dict]:
@@ -199,8 +220,8 @@ def main() -> None:
         f"- V3 formal MAIL: {mail_count}",
         f"- V3 WATCH: {watch_count}",
         "",
-        "BPC formal mail uses exactly four gates: Jita manufacturing net profit >=50M, ROI >=10%,",
-        "Jita stress profit >0, and complete material/product order-book depth.",
+        "BPC formal MAIL requires fresh live validation, V2 SAFE, remote net >=100M, remote ROI >=15%,",
+        "remote stress net >=50M, plus Jita manufacturing net >=50M, ROI >=10%, stress >0, and complete depth.",
         "Comparable BPC ask-price signals remain WATCH-only and never become automatic mail without execution proof.",
     ]
     REPORT.write_text("\n".join(lines) + "\n", encoding="utf-8")

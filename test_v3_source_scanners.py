@@ -1,11 +1,18 @@
 import unittest
 
-from v3_source_market_scanner import haul_cost, match_books, select_candidate_ids, select_trade_quote
+from v3_source_market_scanner import haul_cost, match_books, select_candidate_ids, select_trade_quote, verified_unit_m3
 from v3_engine import PolicyConfig
 from v3_structure_contract_scanner import choose_candidate_ids
 
 
 class V3SourceScannerTests(unittest.TestCase):
+    def test_missing_item_metadata_must_not_get_free_transport(self):
+        self.assertIsNone(verified_unit_m3(None))
+        self.assertIsNone(verified_unit_m3({}))
+        self.assertIsNone(verified_unit_m3({"volume": 0}))
+        self.assertIsNone(verified_unit_m3({"packaged_volume": float("inf")}))
+        self.assertEqual(verified_unit_m3({"packaged_volume": 0.01}), 0.01)
+
     def test_source_market_matches_only_profitable_depth(self):
         asks = [
             {"price": 100.0, "vol": 5, "min": 1},

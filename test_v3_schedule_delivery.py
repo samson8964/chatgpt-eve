@@ -93,16 +93,18 @@ class V3ScheduleAndDeliveryTests(unittest.TestCase):
         self.assertIn("workflow_dispatch", deep_on)
         self.assertNotIn("schedule:", deep_on)
 
-    def test_cloudflare_runs_only_15m_fast_cron_while_bpc_is_paused(self):
+    def test_cloudflare_fast_dedupe_and_three_hour_bpc_schedule(self):
         wrangler = Path("cloudflare/wrangler.jsonc").read_text(encoding="utf-8")
         worker = Path("cloudflare/worker_mail_sender.js").read_text(encoding="utf-8")
         self.assertIn('"*/15 * * * *"', wrangler)
-        self.assertNotIn('"0 */3 * * *"', wrangler)
+        self.assertIn('"0 */3 * * *"', wrangler)
         self.assertIn('workflow = "scan.yml"', worker)
-        self.assertIn('bpc_deep: { enabled: false', worker)
+        self.assertIn('bpc_deep: { enabled: true', worker)
+        self.assertIn('workflow = "v3-bpc-deep.yml"', worker)
+        self.assertIn("workflowIsActive(env, workflow)", worker)
         self.assertIn("EVE_DISPATCH_TOKEN", worker)
 
-    def test_fast_lane_has_no_bpc_work_while_paused(self):
+    def test_fast_lane_has_no_heavy_bpc_work(self):
         fast = Path(".github/workflows/scan.yml").read_text(encoding="utf-8")
         deep = Path(".github/workflows/v3-bpc-deep.yml").read_text(encoding="utf-8")
         self.assertNotIn("python bpc_light_probe.py", fast)

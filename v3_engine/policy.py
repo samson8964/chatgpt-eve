@@ -77,6 +77,9 @@ def evaluate_execution(proof: ExecutionProof, cfg: PolicyConfig) -> PolicyDecisi
 
     if proof.fatal or not proof.access_verified:
         return PolicyDecision("DANGER", confidence, False, "FATAL_OR_ACCESS_UNVERIFIED")
+    if (not math.isfinite(proof.volume_m3) or proof.volume_m3 <= 0
+        or not math.isfinite(proof.profit_per_m3)):
+        return PolicyDecision("RESEARCH", confidence, False, "VOLUME_OR_DENSITY_UNVERIFIED")
     if proof.destination_value <= 0 or proof.coverage <= 0:
         return PolicyDecision("RESEARCH", confidence, False, "NO_EXECUTABLE_EXIT")
     if proof.net_profit <= 0 or proof.net_roi <= 0:
@@ -114,6 +117,9 @@ def evaluate_listing(
     """Listing value can support WATCH, but never masquerades as locked cash."""
     if proof.fatal or not proof.access_verified:
         return PolicyDecision("DANGER", "LIST-SUPPORTED", False, "FATAL_OR_ACCESS_UNVERIFIED")
+    if (not math.isfinite(proof.volume_m3) or proof.volume_m3 <= 0
+        or not math.isfinite(proof.profit_per_m3)):
+        return PolicyDecision("RESEARCH", "LIST-SUPPORTED", False, "VOLUME_OR_DENSITY_UNVERIFIED")
     if proof.net_profit <= 0 or proof.net_roi <= 0:
         return PolicyDecision("RESEARCH", "LIST-SUPPORTED", False, "NON_POSITIVE_ECONOMICS")
     if estimated_fill_days <= 0 or estimated_fill_days > max_fill_days:

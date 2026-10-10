@@ -1,4 +1,5 @@
 import tempfile
+import math
 import unittest
 from pathlib import Path
 
@@ -44,6 +45,16 @@ class V3ArchitectureTests(unittest.TestCase):
         decision = evaluate_execution(proof(net_profit=60_000_000), cfg)
         self.assertEqual(decision.stage, "MAIL")
         self.assertTrue(decision.mail_eligible)
+
+    def test_invalid_volume_and_infinite_profit_density_never_mail(self):
+        cfg = PolicyConfig(full_cash_mail_enabled=True)
+        for bad in (proof(volume_m3=0, profit_per_m3=math.inf),
+                    proof(volume_m3=0, profit_per_m3=65000),
+                    proof(volume_m3=1000, profit_per_m3=math.inf),
+                    proof(volume_m3=float("nan"), profit_per_m3=65000)):
+            decision = evaluate_execution(bad, cfg)
+            self.assertFalse(decision.mail_eligible)
+            self.assertEqual(decision.reason, "VOLUME_OR_DENSITY_UNVERIFIED")
 
     def test_full_cash_mail_is_disabled_during_parallel_rollout(self):
         cfg = PolicyConfig(full_cash_mail_enabled=False)

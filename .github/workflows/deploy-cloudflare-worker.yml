@@ -3,6 +3,8 @@ name: Deploy Cloudflare EVE Worker
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
     paths:
       - 'cloudflare/worker.js'
       - 'cloudflare/worker_mail_sender.js'
@@ -87,6 +89,29 @@ jobs:
           assert scheduler.get('ok') is True, scheduler
           print('scheduler configured:', scheduler.get('configured'), scheduler.get('fast_scan'), scheduler.get('bpc_deep'))
           PY
+
+      - name: Verify C-J6MT live ESI market permission (non-blocking)
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="$(mktemp)"
+          status=$(curl -sS -o "$output" -w '%{http_code}' --max-time 50 \
+            -H "Authorization: Bearer $EVE_MAIL_API_KEY" \
+            "$WORKER_URL/api/structure-market?structure_id=1049588174021&page=1&auth_profile=cj")
+          echo "cj_market_http_status=$status"
+          if [ "$status" != "200" ]; then
+            echo "::warning::C-J6MT still lacks ESI market access (HTTP $status). Check in-game structure ACL and /auth-cj."
+          else
+            python - "$output" <<'PY'
+          import json, sys
+          payload=json.load(open(sys.argv[1], encoding="utf-8"))
+          if payload.get("ok"):
+              print("cj_live_market_access=verified")
+              print("cj_market_page1_orders=", len(payload.get("orders") or []))
+          else:
+              print("::warning::C-J market returned HTTP 200 but ok=false; access not verified")
+          PY
+          fi
 
       - name: Warn if Cloudflare scheduler token is not configured
         if: env.EVE_DISPATCH_TOKEN == ''

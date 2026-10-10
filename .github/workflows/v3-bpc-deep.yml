@@ -11,10 +11,8 @@ on:
 permissions:
   contents: write
 
-# Heavy BPC lane. Cloudflare Cron dispatches it every 3 hours. The 15-minute
-# fast lane may also dispatch an extra deep run when its cheap contract-only probe
-# sees a newly listed BPC-only NPC-station contract. Formal mail still requires
-# the four live Jita gates after full validation.
+# Heavy BPC lane: Cloudflare Cron dispatches every three hours.
+# Formal mail requires the approved SAFE/remote/Jita gates with fresh live proof.
 concurrency:
   group: eve-v3-bpc-deep
   cancel-in-progress: false
@@ -117,7 +115,7 @@ jobs:
       - name: Send first-seen BPC opportunities to Gmail
         id: gmail_v3
         continue-on-error: true
-        if: always()
+        if: steps.bpc_v3.outcome == 'success'
         env:
           GMAIL_SMTP_USER: ${{ secrets.GMAIL_SMTP_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
@@ -129,7 +127,7 @@ jobs:
       - name: Send V3 BPC opportunity mail
         id: mail_v3
         continue-on-error: true
-        if: always()
+        if: steps.bpc_v3.outcome == 'success'
         env:
           EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
           EVE_MAIL_RECIPIENT_NAME: MikeChong
