@@ -203,6 +203,7 @@ jobs:
         run: python opportunity_engine_v3_scanner.py
 
       - name: Record market lane health and freshness
+        id: market_health
         if: always()
         env:
           V3_AMARR_OUTCOME: ${{ steps.amarr.outcome }}
@@ -304,6 +305,7 @@ jobs:
             "four_h_contract:${{ steps.four_h_contract.outcome }}" \
             "cj_contract:${{ steps.cj_contract.outcome }}" \
             "v3_reverse:${{ steps.v3_reverse.outcome }}" \
+            "market_health:${{ steps.market_health.outcome }}" \
             "mail_v3:${{ steps.mail_v3.outcome }}" \
             "persist_results:${{ steps.persist_results.outcome }}"
           do
