@@ -6,7 +6,7 @@ const SCOPE = "esi-ui.open_window.v1 esi-mail.send_mail.v1 esi-skills.read_skill
 const ACCESS_TOKEN_CACHE_KEY = "https://eve-contract-opener.internal/access-token";
 const CJ_MARKET_SCOPE = "esi-markets.structure_markets.v1 esi-wallet.read_character_wallet.v1 esi-markets.read_character_orders.v1 esi-contracts.read_character_contracts.v1 esi-assets.read_assets.v1";
 const CJ_ACCESS_TOKEN_CACHE_KEY = "https://eve-contract-opener.internal/cj-market-access-token";
-const DC_MARKET_SCOPE = "esi-markets.structure_markets.v1 esi-universe.read_structures.v1";
+const DC_MARKET_SCOPE = "esi-markets.structure_markets.v1";
 const DC_ACCESS_TOKEN_CACHE_KEY = "https://eve-contract-opener.internal/dc-market-access-token";
 
 let memoryAccessToken = "";
@@ -218,16 +218,14 @@ async function handleStructureSearch(request, env) {
     return json({ ok: false, error: "token_refresh_failed", detail: token.detail || token.status, auth_profile: "dc", auth_url: "/auth-dc" }, 401);
   }
 
-  // The legacy esi-search.search_structures.v1 scope is no longer accepted by
-  // current EVE SSO. Discover candidate Upwell IDs from public regional contracts,
-  // then resolve their names through /universe/structures/{id}/ using the
-  // still-valid esi-universe.read_structures.v1 scope.
   const upper = query.toUpperCase();
   const regionId = upper.includes("TCAG-3") ? 10000063 : upper.includes("O4T-Z5") ? 10000059 : 0;
   if (!regionId) {
     return json({ ok: false, error: "unsupported_dc_structure_query", query }, 400);
   }
 
+  // Discover likely Upwell structure IDs from public contracts in the region.
+  // This avoids the retired SSO search/universe scopes.
   const counts = new Map();
   let pages = 1;
   for (let page = 1; page <= pages; page++) {
@@ -252,27 +250,57 @@ async function handleStructureSearch(request, env) {
 
   const candidateIds = [...counts.entries()]
     .sort((a,b) => b[1] - a[1])
-    .slice(0, 120)
+    .slice(0, 160)
     .map(([sid]) => sid);
+
+  const nameMap = new Map();
+  for (let i = 0; i < candidateIds.length; i += 1000) {
+    const batch = candidateIds.slice(i, i + 1000);
+    const nr = await fetch(`${ESI_BASE}/universe/names/?datasource=tranquility`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(batch),
+    });
+    if (nr.status === 200) {
+      try {
+        const rows = await nr.json();
+        for (const row of Array.isArray(rows) ? rows : []) {
+          const id = Number(row.id || 0);
+          if (Number.isSafeInteger(id)) nameMap.set(id, String(row.name || ""));
+        }
+      } catch {}
+    }
+  }
 
   const structures = [];
   for (const structureId of candidateIds) {
+    let name = nameMap.get(structureId) || "";
+    let solarSystemId = 0;
+    let typeId = 0;
+
+    // Best effort: current ESI may still return structure metadata with an
+    // authenticated token even though the legacy read_structures scope itself
+    // is no longer accepted by SSO. Failure here is non-fatal.
     const rr = await fetch(`${ESI_BASE}/universe/structures/${structureId}/?datasource=tranquility`, {
       headers: { Authorization: `Bearer ${token.access_token}`, Accept: "application/json" },
     });
-    if (rr.status !== 200) continue;
-    try {
-      const info = await rr.json();
-      const name = String(info.name || "");
-      if (!name.toUpperCase().includes(upper)) continue;
-      structures.push({
-        structure_id: structureId,
-        name,
-        solar_system_id: Number(info.solar_system_id || 0),
-        type_id: Number(info.type_id || 0),
-        contract_mentions: Number(counts.get(structureId) || 0),
-      });
-    } catch {}
+    if (rr.status === 200) {
+      try {
+        const info = await rr.json();
+        name = String(info.name || name);
+        solarSystemId = Number(info.solar_system_id || 0);
+        typeId = Number(info.type_id || 0);
+      } catch {}
+    }
+
+    if (!name.toUpperCase().includes(upper)) continue;
+    structures.push({
+      structure_id: structureId,
+      name,
+      solar_system_id: solarSystemId,
+      type_id: typeId,
+      contract_mentions: Number(counts.get(structureId) || 0),
+    });
   }
 
   return json({
