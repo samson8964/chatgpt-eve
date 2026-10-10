@@ -49,6 +49,7 @@ jobs:
             test_v3_source_scanners.py \
             test_v3_o4t_integration.py \
             test_v3_market_alert_reliability.py \
+            test_v3_eve_mail_delivery.py \
             test_v3_bpc_adapter.py \
             test_v3_schedule_delivery.py \
             test_bpc_opportunity_engine_v2.py \
