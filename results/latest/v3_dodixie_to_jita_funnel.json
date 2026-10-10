@@ -1,15 +1,15 @@
 {
   "stages": {
-    "source_sell_types": 9525,
-    "prefilter_candidates": 98,
-    "deep_validation_types": 98,
-    "final_rows": 90,
+    "source_sell_types": 9521,
+    "prefilter_candidates": 95,
+    "deep_validation_types": 95,
+    "final_rows": 92,
     "formal_mail": 0
   },
   "rejection_reasons": {
-    "NON_POSITIVE_ECONOMICS": 86,
+    "NON_POSITIVE_ECONOMICS": 88,
     "BELOW_SAFE_PROFIT": 2,
     "STRESS_NEGATIVE": 2,
-    "NO_EXECUTABLE_DEPTH": 8
+    "NO_EXECUTABLE_DEPTH": 3
   }
 }
