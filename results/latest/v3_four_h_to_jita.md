@@ -3,7 +3,7 @@
 - Source kind: structure
 - Market snapshot: 2026-10-10T06:18:29.795Z
 - Secure jumps to Jita: 0
-- Deep-validation types: 111
+- Deep-validation types: 110
 - Final rows: 110
 - Formal MAIL: 0
 
