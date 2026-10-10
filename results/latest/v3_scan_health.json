@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-10-10T15:35:20.888180+00:00",
-  "started_epoch": 1791645329,
-  "run_id": "38062860078",
+  "generated_at": "2026-10-10T16:03:15.936154+00:00",
+  "started_epoch": 1791647128,
+  "run_id": "38064886037",
   "channels": {
     "v3-amarr-to-jita": {
       "status": "ok",
-      "rows": 107,
+      "rows": 118,
       "outcome": "success"
     },
     "v3-dodixie-to-jita": {
@@ -15,7 +15,7 @@
     },
     "v3-four-h-to-jita": {
       "status": "ok",
-      "rows": 79,
+      "rows": 80,
       "outcome": "success"
     },
     "v3-cj-to-jita": {

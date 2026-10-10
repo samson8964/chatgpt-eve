@@ -1,11 +1,11 @@
 # V3 C-J6MT contract opportunities
 
 - Structure: 1049588174021
-- Contract snapshot: 2026-10-10T15:01:43.901Z
-- Jita market snapshot: 2026-10-10T15:18:46.702Z
-- Active plain-item contracts: 488
+- Contract snapshot: 2026-10-10T15:31:45.114Z
+- Jita market snapshot: 2026-10-10T15:48:45.021Z
+- Active plain-item contracts: 476
 - Deep-validation contracts: 160
-- Final rows: 27
+- Final rows: 24
 - Formal MAIL: 0
 
 Authenticated structure access is treated as verified.
