@@ -60,8 +60,21 @@ def aggregate_items(df: pd.DataFrame) -> dict[int, int]:
     return out
 
 
-def total_volume(itemq: dict[int, int], types: dict[int, dict]) -> float:
-    return sum(max(0.0, float(type_volume(types.get(int(tid))) or 0.0)) * int(qty) for tid, qty in itemq.items())
+def total_volume(itemq: dict[int, int], types: dict[int, dict]) -> float | None:
+    """Missing any included item's cargo metadata fails the haul proof closed."""
+    total = 0.0
+    for tid, qty in itemq.items():
+        meta = types.get(int(tid))
+        if not meta or int(qty) <= 0:
+            return None
+        try:
+            unit = float(type_volume(meta))
+        except (TypeError, ValueError, OverflowError):
+            return None
+        if not math.isfinite(unit) or unit <= 0:
+            return None
+        total += unit * int(qty)
+    return total if math.isfinite(total) and total > 0 else None
 
 
 def structure_haul(total_m3: float) -> float:
@@ -207,6 +220,9 @@ def main() -> None:
         local = partial_liquidation(itemq, local_buys, SALES_TAX_RATE)
         jita = partial_liquidation(itemq, live_jita_buys, SALES_TAX_RATE)
         volume_m3 = total_volume(itemq, types)
+        if volume_m3 is None:
+            funnel.reject("MISSING_CONTRACT_CARGO_VOLUME")
+            continue
         jita_haul = structure_haul(volume_m3)
         local_profit = float(local["net_after_tax"]) - float(p["price"])
         jita_profit = float(jita["net_after_tax"]) - float(p["price"]) - jita_haul
