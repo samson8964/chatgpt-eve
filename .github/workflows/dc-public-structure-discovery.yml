@@ -48,3 +48,22 @@ jobs:
               time.sleep(0.05)
           print('HITS_JSON='+json.dumps(hits,ensure_ascii=False))
           PY
+
+      - name: Probe exact names through public universe IDs
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, urllib.request
+          names=["TCAG-3 - Dracarys Prime","TCAG-3 - Dracarys. Prime","O4T-Z5 - Dracarys Prime","O4T-Z5 - Dracarys. Prime"]
+          body=json.dumps(names).encode()
+          req=urllib.request.Request(
+              'https://esi.evetech.net/latest/universe/ids/?datasource=tranquility&language=en',
+              data=body, method='POST',
+              headers={'Content-Type':'application/json','Accept':'application/json','User-Agent':'chatgpt-eve-dc-discovery/1.0'}
+          )
+          try:
+              with urllib.request.urlopen(req, timeout=60) as r:
+                  print(json.dumps(json.load(r),ensure_ascii=False,indent=2))
+          except Exception as e:
+              print('IDS_ERROR',repr(e))
+          PY
