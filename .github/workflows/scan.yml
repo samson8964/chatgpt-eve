@@ -16,7 +16,7 @@ permissions:
 # BPC scanning is temporarily paused to measure the runtime of the non-BPC V3 lanes.
 concurrency:
   group: eve-v3-fast
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   scan:
@@ -51,31 +51,6 @@ jobs:
 
       - name: Install dependencies
         run: pip install -r requirements.txt
-
-      - name: Run V3 public-contract engine
-        id: v3_public
-        continue-on-error: true
-        env:
-          DEAL_MIN_CONTRACT_PRICE: '1000000'
-          DEAL_MAX_CONTRACT_PRICE: '5000000000'
-          DEAL_MIN_HOURS_TO_EXPIRE: '0.5'
-          DEAL_SKIN_MAJOR_SHARE: '0.50'
-          DEAL_HAUL_BASE_ISK: '2000000'
-          DEAL_HAUL_ISK_PER_M3_JUMP: '200'
-          DEAL_FRIENDLY_CHARACTER_ID: '2124493042'
-          DEAL_FRIENDLY_ALLIANCE_IDS: ''
-          DEAL_FRIENDLY_REGION_IDS: ''
-          V3_PUBLIC_LIVE_LIMIT: '600'
-          V3_PUBLIC_PROFIT_SHARE: '0.25'
-          V3_PUBLIC_ROI_SHARE: '0.15'
-          V3_PUBLIC_LIST_PROFIT_SHARE: '0.10'
-          V3_PUBLIC_LIST_ROI_SHARE: '0.05'
-          V3_PUBLIC_CHANGE_SHARE: '0.15'
-          V3_PUBLIC_NEWEST_SHARE: '0.13'
-          V3_PUBLIC_EXPLORATION_SHARE: '0.12'
-          V3_PUBLIC_DIVERSITY_SHARE: '0.05'
-          V3_LIST_HISTORY_LIMIT: '160'
-        run: python opportunity_engine_v3_scanner.py
 
       - name: Scan Amarr procurement to Jita
         id: amarr
@@ -202,6 +177,41 @@ jobs:
           V3_4H_REVERSE_HAUL_ISK_PER_M3: '500'
         run: python four_h_reverse_scanner_v3.py
 
+      - name: Run V3 public-contract engine
+        id: v3_public
+        continue-on-error: true
+        env:
+          DEAL_MIN_CONTRACT_PRICE: '1000000'
+          DEAL_MAX_CONTRACT_PRICE: '5000000000'
+          DEAL_MIN_HOURS_TO_EXPIRE: '0.5'
+          DEAL_SKIN_MAJOR_SHARE: '0.50'
+          DEAL_HAUL_BASE_ISK: '2000000'
+          DEAL_HAUL_ISK_PER_M3_JUMP: '200'
+          DEAL_FRIENDLY_CHARACTER_ID: '2124493042'
+          DEAL_FRIENDLY_ALLIANCE_IDS: ''
+          DEAL_FRIENDLY_REGION_IDS: ''
+          V3_PUBLIC_LIVE_LIMIT: '600'
+          V3_PUBLIC_PROFIT_SHARE: '0.25'
+          V3_PUBLIC_ROI_SHARE: '0.15'
+          V3_PUBLIC_LIST_PROFIT_SHARE: '0.10'
+          V3_PUBLIC_LIST_ROI_SHARE: '0.05'
+          V3_PUBLIC_CHANGE_SHARE: '0.15'
+          V3_PUBLIC_NEWEST_SHARE: '0.13'
+          V3_PUBLIC_EXPLORATION_SHARE: '0.12'
+          V3_PUBLIC_DIVERSITY_SHARE: '0.05'
+          V3_LIST_HISTORY_LIMIT: '160'
+        run: python opportunity_engine_v3_scanner.py
+
+      - name: Record market lane health and freshness
+        if: always()
+        env:
+          V3_AMARR_OUTCOME: ${{ steps.amarr.outcome }}
+          V3_DODIXIE_OUTCOME: ${{ steps.dodixie.outcome }}
+          V3_FOUR_H_MARKET_OUTCOME: ${{ steps.four_h_market.outcome }}
+          V3_CJ_MARKET_OUTCOME: ${{ steps.cj_market.outcome }}
+          V3_REVERSE_OUTCOME: ${{ steps.v3_reverse.outcome }}
+        run: python v3_scan_health.py
+
       - name: Build V3 fast summary
         if: always()
         run: python v3_cutover_summary.py
@@ -246,6 +256,7 @@ jobs:
           find results/latest -maxdepth 1 -type f -name 'v3_*' ! -name 'v3_bpc_*' -exec cp {} "$SNAPSHOT/latest/" \;
           find results/state -maxdepth 1 -type f -name 'mail_last_v3-*' ! -name 'mail_last_v3-bpc_*' -exec cp {} "$SNAPSHOT/state/" \;
           find results/state -maxdepth 1 -type f -name 'gmail_seen_v3-*' ! -name 'gmail_seen_v3-bpc.csv' -exec cp {} "$SNAPSHOT/state/" \;
+          find results/state -maxdepth 1 -type f -name 'gmail_market_state_v3-*' -exec cp {} "$SNAPSHOT/state/" \\;
           for f in results/state/last_scan_started_epoch.txt; do
             [ -f "$f" ] && cp "$f" "$SNAPSHOT/state/"
           done
@@ -255,9 +266,12 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
             mkdir -p results/latest results/state
+            # Remove obsolete tracked fast results as well as local files.
+            # Without this, a failed lane silently retains its last committed CSV.
+            find results/latest -maxdepth 1 -type f -name 'v3_*' ! -name 'v3_bpc_*' -delete
             cp -a "$SNAPSHOT/latest/." results/latest/ 2>/dev/null || true
             cp -a "$SNAPSHOT/state/." results/state/ 2>/dev/null || true
-            git add results/latest results/state
+            git add -A results/latest results/state
 
             if git diff --cached --quiet; then
               echo "No fast result changes relative to latest main."
