@@ -41,7 +41,7 @@ jobs:
           mkdir -p results/latest results/state
           date -u +%s > results/state/last_scan_started_epoch.txt
           # Keep the last deep-BPC output intact. Only clear fast-lane V3 files.
-          find results/latest -maxdepth 1 -type f -name 'v3_*' ! -name 'v3_bpc_*' -delete
+          find results/latest -maxdepth 1 -type f -name 'v3_*' ! -name 'v3_bpc_*' ! -name 'v3_dc_o4t_*' -delete
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -254,10 +254,10 @@ jobs:
           SNAPSHOT="$(mktemp -d)"
           mkdir -p "$SNAPSHOT/latest" "$SNAPSHOT/state"
 
-          find results/latest -maxdepth 1 -type f -name 'v3_*' ! -name 'v3_bpc_*' -exec cp {} "$SNAPSHOT/latest/" \;
-          find results/state -maxdepth 1 -type f -name 'mail_last_v3-*' ! -name 'mail_last_v3-bpc_*' -exec cp {} "$SNAPSHOT/state/" \;
-          find results/state -maxdepth 1 -type f -name 'gmail_seen_v3-*' ! -name 'gmail_seen_v3-bpc.csv' -exec cp {} "$SNAPSHOT/state/" \;
-          find results/state -maxdepth 1 -type f -name 'gmail_market_state_v3-*' -exec cp {} "$SNAPSHOT/state/" \;
+          find results/latest -maxdepth 1 -type f -name 'v3_*' ! -name 'v3_bpc_*' ! -name 'v3_dc_o4t_*' -exec cp {} "$SNAPSHOT/latest/" \;
+          find results/state -maxdepth 1 -type f -name 'mail_last_v3-*' ! -name 'mail_last_v3-bpc_*' ! -name 'mail_last_v3-dc-o4t*' -exec cp {} "$SNAPSHOT/state/" \;
+          find results/state -maxdepth 1 -type f -name 'gmail_seen_v3-*' ! -name 'gmail_seen_v3-bpc.csv' ! -name 'gmail_seen_v3-dc-o4t*' -exec cp {} "$SNAPSHOT/state/" \;
+          find results/state -maxdepth 1 -type f -name 'gmail_market_state_v3-*' ! -name 'gmail_market_state_v3-dc-o4t*' -exec cp {} "$SNAPSHOT/state/" \;
           for f in results/state/last_scan_started_epoch.txt; do
             [ -f "$f" ] && cp "$f" "$SNAPSHOT/state/"
           done
@@ -269,7 +269,7 @@ jobs:
             mkdir -p results/latest results/state
             # Remove obsolete tracked fast results as well as local files.
             # Without this, a failed lane silently retains its last committed CSV.
-            find results/latest -maxdepth 1 -type f -name 'v3_*' ! -name 'v3_bpc_*' -delete
+            find results/latest -maxdepth 1 -type f -name 'v3_*' ! -name 'v3_bpc_*' ! -name 'v3_dc_o4t_*' -delete
             cp -a "$SNAPSHOT/latest/." results/latest/ 2>/dev/null || true
             cp -a "$SNAPSHOT/state/." results/state/ 2>/dev/null || true
             git add -A results/latest results/state
