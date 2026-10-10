@@ -5,10 +5,10 @@ Amarr and Dodixie are procurement sources only; all exit valuation remains Jita 
 
 | Channel | Rows | MAIL | SAFE | WATCH | RESEARCH | Best net profit |
 |---|---:|---:|---:|---:|---:|---:|
-| Public FULL_CASH | 2 | 2 | 2 | 0 | 0 | 145.6M |
+| Public FULL_CASH | 2 | 2 | 2 | 0 | 0 | 131.5M |
 | Public PARTIAL_CASH_FLOOR | 0 | 0 | 0 | 0 | 0 | - |
 | Public BARTER | 0 | 0 | 0 | 0 | 0 | - |
-| Public LIST-SUPPORTED | 10 | 0 | 0 | 10 | 0 | 268.2M |
+| Public LIST-SUPPORTED | 8 | 0 | 0 | 8 | 0 | 268.2M |
 | Amarr -> Jita | 0 | 0 | 0 | 0 | 0 | - |
 | Dodixie -> Jita | 0 | 0 | 0 | 0 | 0 | - |
 | 4-H market -> Jita | 0 | 0 | 0 | 0 | 0 | - |
