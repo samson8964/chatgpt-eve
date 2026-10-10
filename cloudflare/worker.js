@@ -273,17 +273,16 @@ async function handleStructureSearch(request, env) {
   }
 
   const structures = [];
-  for (const structureId of candidateIds) {
+  for (const structureId of candidateIds.slice(0, 80)) {
     let name = nameMap.get(structureId) || "";
     let solarSystemId = 0;
     let typeId = 0;
+    let metadataStatus = 0;
 
-    // Best effort: current ESI may still return structure metadata with an
-    // authenticated token even though the legacy read_structures scope itself
-    // is no longer accepted by SSO. Failure here is non-fatal.
     const rr = await fetch(`${ESI_BASE}/universe/structures/${structureId}/?datasource=tranquility`, {
       headers: { Authorization: `Bearer ${token.access_token}`, Accept: "application/json" },
     });
+    metadataStatus = rr.status;
     if (rr.status === 200) {
       try {
         const info = await rr.json();
@@ -293,16 +292,30 @@ async function handleStructureSearch(request, env) {
       } catch {}
     }
 
-    if (!name.toUpperCase().includes(upper)) continue;
+    const mr = await fetch(`${ESI_BASE}/markets/structures/${structureId}/?datasource=tranquility&page=1`, {
+      headers: { Authorization: `Bearer ${token.access_token}`, Accept: "application/json" },
+    });
+    if (mr.status !== 200) continue;
+
+    let orders = [];
+    try { orders = await mr.json(); } catch {}
     structures.push({
       structure_id: structureId,
       name,
       solar_system_id: solarSystemId,
       type_id: typeId,
+      metadata_status: metadataStatus,
+      market_pages: Math.max(1, Number(mr.headers.get("X-Pages") || 1)),
+      page1_orders: Array.isArray(orders) ? orders.length : 0,
       contract_mentions: Number(counts.get(structureId) || 0),
     });
   }
 
+  structures.sort((a,b) =>
+    (b.market_pages - a.market_pages) ||
+    (b.page1_orders - a.page1_orders) ||
+    (b.contract_mentions - a.contract_mentions)
+  );
   return json({
     ok: true,
     auth_profile: "dc",
