@@ -68,6 +68,7 @@ jobs:
                   continue
               r.raise_for_status()
               rows=data.get("structures") or []
+              print(f"{k}: discovery search_status={data.get('search_status')} direct_ids={data.get('direct_search_ids')} candidates={data.get('candidate_count')} market_accessible={len(rows)}")
               exact=[x for x in rows if q.lower() in str(x.get("name","")).lower()]
               prime=[x for x in rows if "dracarys" in str(x.get("name","")).lower() and "prime" in str(x.get("name","")).lower()]
               chosen=(exact or prime or rows)
