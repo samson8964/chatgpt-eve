@@ -13,7 +13,7 @@ permissions:
 
 # Fast V3 production lane.
 # Cloudflare Cron dispatches this workflow every 15 minutes.
-# BPC scanning is temporarily paused to measure the runtime of the non-BPC V3 lanes.
+# Deep BPC is dispatched separately via Cloudflare three-hour cron; this is the non-BPC fast lane.
 concurrency:
   group: eve-v3-fast
   cancel-in-progress: false
