@@ -1,0 +1,50 @@
+name: DC public structure discovery
+
+on:
+  push:
+    paths:
+      - '.github/workflows/dc-public-structure-discovery.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Search public ESI structures
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, urllib.request, time
+
+          base='https://esi.evetech.net/latest'
+          req=urllib.request.Request(base+'/universe/structures/?datasource=tranquility',
+                                     headers={'Accept':'application/json','User-Agent':'chatgpt-eve-dc-discovery/1.0'})
+          with urllib.request.urlopen(req, timeout=60) as r:
+              ids=json.load(r)
+          print('PUBLIC_STRUCTURE_IDS', len(ids))
+          targets=('TCAG-3','O4T-Z5')
+          hits=[]
+          for i in range(0,len(ids),1000):
+              batch=ids[i:i+1000]
+              body=json.dumps(batch).encode()
+              req=urllib.request.Request(base+'/universe/names/?datasource=tranquility',
+                                         data=body, method='POST',
+                                         headers={'Content-Type':'application/json','Accept':'application/json','User-Agent':'chatgpt-eve-dc-discovery/1.0'})
+              try:
+                  with urllib.request.urlopen(req, timeout=60) as r:
+                      rows=json.load(r)
+              except Exception as e:
+                  print('batch_error', i, repr(e))
+                  continue
+              for row in rows:
+                  name=str(row.get('name',''))
+                  if any(t.lower() in name.lower() for t in targets):
+                      hits.append(row)
+                      print('HIT', json.dumps(row,ensure_ascii=False))
+              time.sleep(0.05)
+          print('HITS_JSON='+json.dumps(hits,ensure_ascii=False))
+          PY
