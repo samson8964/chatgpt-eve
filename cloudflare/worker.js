@@ -213,6 +213,11 @@ async function handleStructureSearch(request, env) {
     return json({ ok: false, error: "structure_search_requires_dc_profile", auth_profile: authProfile }, 400);
   }
 
+  const characterId = Number(await env.AUTH_STORE.get("dc_character_id") || 0);
+  if (!Number.isSafeInteger(characterId) || characterId <= 0) {
+    return json({ ok: false, error: "not_authorized", auth_profile: "dc", auth_url: "/auth-dc" }, 401);
+  }
+
   const token = await getFreshDcToken(env);
   if (!token.ok) {
     return json({ ok: false, error: "token_refresh_failed", detail: token.detail || token.status, auth_profile: "dc", auth_url: "/auth-dc" }, 401);
@@ -224,57 +229,58 @@ async function handleStructureSearch(request, env) {
     return json({ ok: false, error: "unsupported_dc_structure_query", query }, 400);
   }
 
-  // Discover likely Upwell structure IDs from public contracts in the region.
-  // This avoids the retired SSO search/universe scopes.
-  const counts = new Map();
-  let pages = 1;
-  for (let page = 1; page <= pages; page++) {
-    const cr = await fetch(`${ESI_BASE}/contracts/public/${regionId}/?datasource=tranquility&page=${page}`, {
-      headers: { Accept: "application/json" },
-    });
-    if (cr.status !== 200) {
-      const detail = await cr.text();
-      return json({ ok: false, error: "public_contracts_error", status: cr.status, detail, region_id: regionId }, 502);
+  // First try the authenticated structure-search endpoint with the market token.
+  // Some current ESI deployments allow the endpoint even though requesting the
+  // legacy search scope through SSO is rejected for this application.
+  let searchStatus = 0;
+  let directIds = [];
+  try {
+    const su = new URL(`${ESI_BASE}/characters/${characterId}/search/`);
+    su.searchParams.set("categories", "structure");
+    su.searchParams.set("datasource", "tranquility");
+    su.searchParams.set("language", "en");
+    su.searchParams.set("search", query);
+    su.searchParams.set("strict", "false");
+    const sr = await fetch(su, { headers: { Authorization: `Bearer ${token.access_token}`, Accept: "application/json" } });
+    searchStatus = sr.status;
+    if (sr.status === 200) {
+      const payload = await sr.json();
+      directIds = Array.isArray(payload.structure) ? payload.structure.map(Number).filter(Number.isSafeInteger) : [];
     }
-    pages = Math.max(1, Number(cr.headers.get("X-Pages") || 1));
-    let rows = [];
-    try { rows = await cr.json(); } catch { return text("EVE public contracts returned invalid JSON", 502); }
-    for (const row of Array.isArray(rows) ? rows : []) {
-      for (const raw of [row.start_location_id, row.end_location_id]) {
-        const sid = Number(raw || 0);
-        if (!Number.isSafeInteger(sid) || sid < 1000000000000) continue;
-        counts.set(sid, (counts.get(sid) || 0) + 1);
+  } catch {}
+
+  const counts = new Map();
+  if (!directIds.length) {
+    // Fallback: mine public regional contracts for candidate Upwell location IDs.
+    let pages = 1;
+    for (let page = 1; page <= pages; page++) {
+      const cr = await fetch(`${ESI_BASE}/contracts/public/${regionId}/?datasource=tranquility&page=${page}`, {
+        headers: { Accept: "application/json" },
+      });
+      if (cr.status !== 200) {
+        const detail = await cr.text();
+        return json({ ok: false, error: "public_contracts_error", status: cr.status, detail, region_id: regionId }, 502);
+      }
+      pages = Math.max(1, Number(cr.headers.get("X-Pages") || 1));
+      let rows = [];
+      try { rows = await cr.json(); } catch { return text("EVE public contracts returned invalid JSON", 502); }
+      for (const row of Array.isArray(rows) ? rows : []) {
+        for (const raw of [row.start_location_id, row.end_location_id]) {
+          const sid = Number(raw || 0);
+          if (!Number.isSafeInteger(sid) || sid < 1000000000000) continue;
+          counts.set(sid, (counts.get(sid) || 0) + 1);
+        }
       }
     }
   }
 
-  const candidateIds = [...counts.entries()]
-    .sort((a,b) => b[1] - a[1])
-    .slice(0, 160)
-    .map(([sid]) => sid);
-
-  const nameMap = new Map();
-  for (let i = 0; i < candidateIds.length; i += 1000) {
-    const batch = candidateIds.slice(i, i + 1000);
-    const nr = await fetch(`${ESI_BASE}/universe/names/?datasource=tranquility`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify(batch),
-    });
-    if (nr.status === 200) {
-      try {
-        const rows = await nr.json();
-        for (const row of Array.isArray(rows) ? rows : []) {
-          const id = Number(row.id || 0);
-          if (Number.isSafeInteger(id)) nameMap.set(id, String(row.name || ""));
-        }
-      } catch {}
-    }
-  }
+  const candidateIds = directIds.length
+    ? [...new Set(directIds)]
+    : [...counts.entries()].sort((a,b) => b[1] - a[1]).slice(0, 160).map(([sid]) => sid);
 
   const structures = [];
-  for (const structureId of candidateIds.slice(0, 80)) {
-    let name = nameMap.get(structureId) || "";
+  for (const structureId of candidateIds.slice(0, 100)) {
+    let name = "";
     let solarSystemId = 0;
     let typeId = 0;
     let metadataStatus = 0;
@@ -286,7 +292,7 @@ async function handleStructureSearch(request, env) {
     if (rr.status === 200) {
       try {
         const info = await rr.json();
-        name = String(info.name || name);
+        name = String(info.name || "");
         solarSystemId = Number(info.solar_system_id || 0);
         typeId = Number(info.type_id || 0);
       } catch {}
@@ -316,11 +322,14 @@ async function handleStructureSearch(request, env) {
     (b.page1_orders - a.page1_orders) ||
     (b.contract_mentions - a.contract_mentions)
   );
+
   return json({
     ok: true,
     auth_profile: "dc",
     query,
     region_id: regionId,
+    search_status: searchStatus,
+    direct_search_ids: directIds.length,
     candidate_count: candidateIds.length,
     structures
   });
