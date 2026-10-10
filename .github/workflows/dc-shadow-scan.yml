@@ -3,11 +3,6 @@ name: EVE DC shadow scan
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - '.github/workflows/dc-shadow-scan.yml'
-  schedule:
-    - cron: '37 */2 * * *'
 
 permissions:
   contents: write
