@@ -2,10 +2,10 @@
 
 - Structure: 1049588174021
 - Contract snapshot: 2026-10-11T18:01:45.762Z
-- Jita market snapshot: 2026-10-11T18:18:45.981Z
+- Jita market snapshot: 2026-10-11T18:48:51.265Z
 - Active plain-item contracts: 444
 - Deep-validation contracts: 160
-- Final rows: 20
+- Final rows: 41
 - Formal MAIL: 0
 
 Authenticated structure access is treated as verified.
