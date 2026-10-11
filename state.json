@@ -346645,14 +346645,17 @@
   "region_errors": {},
   "regions_checked": 114,
   "regions_total": 114,
-  "running": true,
+  "round_completed": 1,
+  "running": false,
   "scanned": 24254,
   "snapshot_error": null,
   "snapshot_modified": "2026-10-11T06:01:39.041Z",
   "snapshot_target_contracts": 38,
+  "spread_mail_enabled": false,
+  "spread_opportunities": 1,
   "stage": "等待下一次检查",
   "volume_cap": 0.06
  },
  "unavailable_until": {},
- "updated": "2026-10-11T06:26:18.810953+00:00"
+ "updated": "2026-10-11T06:26:21.046381+00:00"
 }
