@@ -1,10 +1,10 @@
 # V3 BPC opportunities
 
-- Manufacturing rows: 32
+- Manufacturing rows: 31
 - Intrinsic-value rows: 100
-- V3 formal MAIL: 2
-- V3 WATCH: 63
+- V3 formal MAIL: 0
+- V3 WATCH: 84
 
-BPC formal mail uses exactly four gates: Jita manufacturing net profit >=50M, ROI >=10%,
-Jita stress profit >0, and complete material/product order-book depth.
+BPC formal MAIL requires fresh live validation, V2 SAFE, remote net >=100M, remote ROI >=15%,
+remote stress net >=50M, plus Jita manufacturing net >=50M, ROI >=10%, stress >0, and complete depth.
 Comparable BPC ask-price signals remain WATCH-only and never become automatic mail without execution proof.
