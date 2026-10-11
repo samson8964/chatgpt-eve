@@ -5,7 +5,7 @@
 - Jita market snapshot: 2026-10-11T07:18:31.440Z
 - Active plain-item contracts: 145
 - Deep-validation contracts: 145
-- Final rows: 62
+- Final rows: 48
 - Formal MAIL: 0
 
 Authenticated structure access is treated as verified.
