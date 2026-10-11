@@ -5,22 +5,22 @@ Amarr and Dodixie are procurement sources only; all exit valuation remains Jita 
 
 | Channel | Scan health | Rows | MAIL | SAFE | WATCH | RESEARCH | Best net profit |
 |---|---|---:|---:|---:|---:|---:|---:|
-| Public FULL_CASH | - | 3 | 2 | 3 | 0 | 0 | 145.9M |
+| Public FULL_CASH | - | 2 | 1 | 2 | 0 | 0 | 97.0M |
 | Public PARTIAL_CASH_FLOOR | - | 0 | 0 | 0 | 0 | 0 | - |
 | Public BARTER | - | 0 | 0 | 0 | 0 | 0 | - |
-| Public LIST-SUPPORTED | - | 5 | 0 | 0 | 5 | 0 | 72.9M |
-| Amarr -> Jita | ok | 83 | 0 | 0 | 2 | 81 | 0.5M |
-| Dodixie -> Jita | ok | 80 | 0 | 0 | 2 | 78 | 6.2M |
-| 4-H market -> Jita | ok | 88 | 0 | 0 | 5 | 83 | 88.2M |
-| C-J market -> Jita | ok | 120 | 1 | 1 | 43 | 76 | 755.3M |
-| 4-H contracts | - | 80 | 0 | 0 | 5 | 57 | 407.2M |
-| C-J contracts | - | 41 | 0 | 0 | 4 | 33 | 29.6M |
+| Public LIST-SUPPORTED | - | 5 | 0 | 0 | 5 | 0 | 20.6M |
+| Amarr -> Jita | ok | 70 | 0 | 0 | 1 | 69 | 0.3M |
+| Dodixie -> Jita | ok | 66 | 0 | 0 | 1 | 65 | 3.3M |
+| 4-H market -> Jita | ok | 77 | 0 | 0 | 1 | 76 | 1.1M |
+| C-J market -> Jita | ok | 120 | 1 | 2 | 33 | 85 | 753.9M |
+| 4-H contracts | - | 73 | 0 | 0 | 5 | 55 | 407.2M |
+| C-J contracts | - | 10 | 0 | 0 | 1 | 5 | 29.6M |
 | O4T Prime market -> Jita | stale_or_failed | 0 | 0 | 0 | 0 | 0 | - |
 | O4T Prime contracts | stale_or_failed | 0 | 0 | 0 | 0 | 0 | - |
 | Jita -> 4-H | empty | 0 | 0 | 0 | 0 | 0 | - |
 | BPC manufacturing/value | fresh | 31 | 0 | 0 | 31 | 0 | 77.7M |
 
-- Total currently verified formal MAIL decisions across V3 outputs: **3**
+- Total currently verified formal MAIL decisions across V3 outputs: **2**
 - Formal MAIL decisions are eligible for the unified V3 in-game mail sender.
 - Market scan health: ok = fresh nonempty, empty = completed with no rows; failed/missing_output/invalid_output must not trigger mail.
 - Historical/unverified BPC rows excluded from live counts: 53.
