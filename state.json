@@ -343165,14 +343165,17 @@
   "region_errors": {},
   "regions_checked": 114,
   "regions_total": 114,
-  "running": true,
+  "round_completed": 1,
+  "running": false,
   "scanned": 23914,
   "snapshot_error": null,
   "snapshot_modified": "2026-10-11T22:01:36.855Z",
   "snapshot_target_contracts": 38,
+  "spread_mail_enabled": false,
+  "spread_opportunities": 1,
   "stage": "等待下一次检查",
   "volume_cap": 0.06
  },
  "unavailable_until": {},
- "updated": "2026-10-11T22:08:06.882297+00:00"
+ "updated": "2026-10-11T22:08:08.854391+00:00"
 }
