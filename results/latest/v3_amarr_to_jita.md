@@ -1,10 +1,10 @@
 # V3 Amarr VIII (Oris) - Emperor Family Academy -> Jita 4-4 procurement arbitrage
 
 - Source kind: npc
-- Market snapshot: 2026-10-11T07:18:31.440Z
+- Market snapshot: 2026-10-11T07:48:35.259Z
 - Secure jumps to Jita: 45
-- Deep-validation types: 152
-- Final rows: 113
+- Deep-validation types: 165
+- Final rows: 100
 - Formal MAIL: 0
 
 Destination valuation uses Jita 4-4 BUY orders only. Amarr/Dodixie sell prices are never used as an exit valuation.
