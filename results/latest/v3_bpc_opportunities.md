@@ -1,9 +1,9 @@
 # V3 BPC opportunities
 
-- Manufacturing rows: 31
+- Manufacturing rows: 27
 - Intrinsic-value rows: 100
 - V3 formal MAIL: 0
-- V3 WATCH: 84
+- V3 WATCH: 81
 
 BPC formal MAIL requires fresh live validation, V2 SAFE, remote net >=100M, remote ROI >=15%,
 remote stress net >=50M, plus Jita manufacturing net >=50M, ROI >=10%, stress >0, and complete depth.
