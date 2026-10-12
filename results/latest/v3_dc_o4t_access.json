@@ -1,0 +1,11 @@
+{
+  "ok": true,
+  "structure_id": 1040804972352,
+  "name": "O4T-Z5 - Dracarys. Prime (SummerHall)",
+  "system_id": 30004691,
+  "market_pages": 7,
+  "page1_orders": 1000,
+  "validation_method": "user_provided_showinfo_link_plus_live_esi_market",
+  "metadata_status": 401,
+  "market_status": 200
+}
