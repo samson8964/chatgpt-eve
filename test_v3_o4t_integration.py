@@ -45,6 +45,17 @@ class O4TProductionTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             select_prime_structure({"ok": True, "target_system_id": 30004937, "structures": [prime()]})
 
+    def test_exact_structure_link_is_used_in_formal_workflow(self):
+        resolver = Path("v3_o4t_resolve.py").read_text(encoding="utf-8")
+        workflow = Path(".github/workflows/v3-dc-o4t.yml").read_text(encoding="utf-8")
+        worker = Path("cloudflare/worker.js").read_text(encoding="utf-8")
+        self.assertIn("1040804972352", resolver)
+        self.assertIn("O4T_EXACT_STRUCTURE_ID: '1040804972352'", workflow)
+        self.assertIn("trustedO4tStructureId = 1040804972352", worker)
+        self.assertIn('url.searchParams.get("structure_id")', worker)
+        self.assertIn('validation_method:"esi_metadata_and_market"', worker)
+        self.assertIn('discovery_status:"exact_id_access_not_verified"', worker)
+
     def test_o4t_production_channels_registered_as_formal(self):
         self.assertEqual(CHANNELS["v3-dc-o4t-to-jita"]["id_col"], "type_id")
         self.assertEqual(CHANNELS["v3-dc-o4t-contract"]["id_col"], "contract_id")

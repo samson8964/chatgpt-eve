@@ -282,6 +282,68 @@ async function handleStructureSearch(request, env) {
       last_checked_at:new Date().toISOString()
     }),{expirationTtl:7*86400});
   }
+  // Exact Upwell structure link supplied by LadyBaBa in-game:
+  // <url=showinfo:35834//1040804972352>O4T-Z5 - Dracarys. Prime (SummerHall)</url>
+  // It is more authoritative for *identity* than guessing among search hits.
+  // ESI still must validate live access, and any contrary metadata fails closed.
+  const trustedO4tStructureId = 1040804972352;
+  const exactRaw = url.searchParams.get("structure_id");
+  if (exactRaw !== null) {
+    if (!/^[0-9]{12,16}$/.test(exactRaw)) {
+      return json({ok:false,error:"invalid_exact_structure_id"},400);
+    }
+    const id = Number(exactRaw);
+    if (!Number.isSafeInteger(id) || id !== trustedO4tStructureId || targetSystemId !== 30004691) {
+      return json({ok:false,error:"exact_id_not_user_verified_for_system",structure_id:id},400);
+    }
+    try {
+      const verified = await inspect(id,null);
+      if (verified.structure) {
+        state.confirmed_id=id;
+        await saveState();
+        return json({ok:true,auth_profile:"dc",query,target_system_id:targetSystemId,
+          discovery_status:"confirmed_live",validation_method:"esi_metadata_and_market",
+          exact_structure_id:id,metadata_status:200,market_status:200,
+          esi_requests:esiRequests,structures:[verified.structure]});
+      }
+      // Metadata ESI can reject a player structure even when market ESI is
+      // readable. For the exact ID supplied from the in-game showinfo link,
+      // test market permission independently, not a guessed neighborhood ID.
+      let marketStatus=Number(verified.market_status||0);
+      let pageCount=0,orderCount=0;
+      if (verified.metadata_status!==200 && !marketStatus) {
+        const mr=await boundedFetch(marketPath(id),{headers});
+        marketStatus=mr.status;
+        if (mr.status===200) {
+          pageCount=Math.max(1,Number(mr.headers.get("X-Pages")||1));
+          const orders=await mr.json();
+          orderCount=Array.isArray(orders)?orders.length:0;
+        }
+      }
+      if (verified.metadata_status!==200 && marketStatus===200) {
+        // Metadata unavailable; identity is supported by the actual in-game
+        // share, but mark that ESI itself did not verify name/system.
+        state.confirmed_id=id;
+        await saveState();
+        return json({ok:true,auth_profile:"dc",query,target_system_id:targetSystemId,
+          discovery_status:"confirmed_market_by_user_link",
+          validation_method:"user_provided_showinfo_link_plus_live_esi_market",
+          exact_structure_id:id,metadata_status:verified.metadata_status,
+          market_status:200,esi_requests:esiRequests,
+          structures:[{structure_id:id,name:"O4T-Z5 - Dracarys. Prime (SummerHall)",
+            solar_system_id:targetSystemId,type_id:35834,metadata_status:verified.metadata_status,
+            market_pages:pageCount,page1_orders:orderCount,contract_mentions:0}]});
+      }
+      return json({ok:true,auth_profile:"dc",query,target_system_id:targetSystemId,
+        discovery_status:"exact_id_access_not_verified",exact_structure_id:id,
+        metadata_status:verified.metadata_status||0,market_status:marketStatus,
+        esi_requests:esiRequests,structures:[]});
+    } catch(err) {
+      return json({ok:false,error:"exact_structure_check_failed",detail:String(err).slice(0,240),
+        exact_structure_id:id,esi_requests:esiRequests},502);
+    }
+  }
+
   try {
     // A previously authenticated exact identity is a hint, not a permission
     // bypass. Recheck both name/system and live market access on every run.
