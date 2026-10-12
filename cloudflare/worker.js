@@ -204,222 +204,219 @@ async function handleStructureSearch(request, env) {
   if (request.method !== "GET") return text("Method not allowed", 405);
   const denied = requireApiKey(request, env);
   if (denied) return denied;
-
+  if (!env.AUTH_STORE) return json({ok:false,error:"auth_store_missing"},500);
   const url = new URL(request.url);
   const query = String(url.searchParams.get("q") || "").trim();
   const authProfile = String(url.searchParams.get("auth_profile") || "dc").trim().toLowerCase();
-  if (!query) return json({ ok: false, error: "missing_query" }, 400);
-  if (authProfile !== "dc") {
-    return json({ ok: false, error: "structure_search_requires_dc_profile", auth_profile: authProfile }, 400);
-  }
-
-  const characterId = Number(await env.AUTH_STORE.get("dc_character_id") || 0);
-  if (!Number.isSafeInteger(characterId) || characterId <= 0) {
-    return json({ ok: false, error: "not_authorized", auth_profile: "dc", auth_url: "/auth-dc" }, 401);
-  }
-
-  const token = await getFreshDcToken(env);
-  if (!token.ok) {
-    return json({ ok: false, error: "token_refresh_failed", detail: token.detail || token.status, auth_profile: "dc", auth_url: "/auth-dc" }, 401);
-  }
-
+  if (!query) return json({ok:false,error:"missing_query"},400);
+  if (authProfile !== "dc") return json({ok:false,error:"structure_search_requires_dc_profile"},400);
   const upper = query.toUpperCase();
   const regionId = upper.includes("TCAG-3") ? 10000063 : upper.includes("O4T-Z5") ? 10000059 : 0;
   const targetSystemId = upper.includes("TCAG-3") ? 30004937 : upper.includes("O4T-Z5") ? 30004691 : 0;
-  if (!regionId || !targetSystemId) {
-    return json({ ok: false, error: "unsupported_dc_structure_query", query }, 400);
+  if (!regionId) return json({ok:false,error:"unsupported_dc_structure_query",query},400);
+
+  const characterId = Number(await env.AUTH_STORE.get("dc_character_id") || 0);
+  if (!Number.isSafeInteger(characterId) || characterId <= 0) return json({ok:false,error:"not_authorized",auth_url:"/auth-dc"},401);
+  const token = await getFreshDcToken(env);
+  if (!token.ok) return json({ok:false,error:"token_refresh_failed",detail:token.detail||token.status,auth_url:"/auth-dc"},401);
+
+  // Cloudflare Workers Free: 50 outbound fetch subrequests/invocation. Leave
+  // headroom for SSO refresh, redirects, and future middleware. Rotate candidate
+  // discovery across scheduled runs rather than exhausting the Worker in one run.
+  const MAX_ESI_REQUESTS = 32;
+  const MAX_CANDIDATES_PER_RUN = 9;
+  let esiRequests = 0;
+  async function boundedFetch(url, options) {
+    if (esiRequests >= MAX_ESI_REQUESTS) throw new Error("esi_request_budget_exhausted");
+    esiRequests += 1;
+    return fetch(url, options);
   }
+  const headers = {Authorization:`Bearer ${token.access_token}`,Accept:"application/json"};
+  const stateKey = `structure_discovery_v2:${targetSystemId}:${characterId}`;
+  let state = {};
+  try { state = JSON.parse(await env.AUTH_STORE.get(stateKey) || "{}"); } catch {}
+  const publicCounts = new Map(Array.isArray(state.contract_counts) ? state.contract_counts : []);
+  const directIds = new Set(Array.isArray(state.direct_ids) ? state.direct_ids : []);
+  const privateIds = new Set(Array.isArray(state.private_ids) ? state.private_ids : []);
+  const structurePath = id => `${ESI_BASE}/universe/structures/${id}/?datasource=tranquility`;
+  const marketPath = id => `${ESI_BASE}/markets/structures/${id}/?datasource=tranquility&page=1`;
+  const isPrime = row => row.solar_system_id === targetSystemId &&
+    String(row.name || "").toLowerCase().includes("dracarys") &&
+    String(row.name || "").toLowerCase().includes("prime");
 
-  // First try authenticated structure search with several aliases. Exact
-  // system-prefixed names are not always indexed consistently, while alliance
-  // structure names such as "Dracarys Prime" often are.
-  let searchStatus = 0;
-  let directIds = [];
-  const searchTerms = [...new Set([
-    query,
-    "Dracarys Prime",
-    "Dracarys. Prime",
-    "Dracarys",
-  ])];
-  try {
-    const found = new Set();
-    for (const term of searchTerms) {
-      const su = new URL(`${ESI_BASE}/characters/${characterId}/search/`);
-      su.searchParams.set("categories", "structure");
-      su.searchParams.set("datasource", "tranquility");
-      su.searchParams.set("language", "en");
-      su.searchParams.set("search", term);
-      su.searchParams.set("strict", "false");
-      const sr = await fetch(su, { headers: { Authorization: `Bearer ${token.access_token}`, Accept: "application/json" } });
-      searchStatus = sr.status;
-      if (sr.status !== 200) continue;
-      const payload = await sr.json();
-      for (const raw of Array.isArray(payload.structure) ? payload.structure : []) {
-        const id = Number(raw);
-        if (Number.isSafeInteger(id)) found.add(id);
-      }
+  async function inspect(id, optionalPrivateToken) {
+    const metadata = await boundedFetch(structurePath(id), {headers});
+    let mr = metadata;
+    if (metadata.status !== 200 && optionalPrivateToken) {
+      mr = await boundedFetch(structurePath(id), {headers:{Authorization:`Bearer ${optionalPrivateToken}`,Accept:"application/json"}});
     }
-    directIds = [...found];
-  } catch {}
-
-  const counts = new Map();
-  if (!directIds.length) {
-    // Fallback: mine public regional contracts for candidate Upwell location IDs.
-    let pages = 1;
-    for (let page = 1; page <= pages; page++) {
-      const cr = await fetch(`${ESI_BASE}/contracts/public/${regionId}/?datasource=tranquility&page=${page}`, {
-        headers: { Accept: "application/json" },
-      });
-      if (cr.status !== 200) {
-        const detail = await cr.text();
-        return json({ ok: false, error: "public_contracts_error", status: cr.status, detail, region_id: regionId }, 502);
-      }
-      pages = Math.max(1, Number(cr.headers.get("X-Pages") || 1));
-      let rows = [];
-      try { rows = await cr.json(); } catch { return text("EVE public contracts returned invalid JSON", 502); }
-      for (const row of Array.isArray(rows) ? rows : []) {
-        for (const raw of [row.start_location_id, row.end_location_id]) {
-          const sid = Number(raw || 0);
-          if (!Number.isSafeInteger(sid) || sid < 1000000000000) continue;
-          counts.set(sid, (counts.get(sid) || 0) + 1);
-        }
-      }
-    }
-  }
-
-  // LadyBaBa already has a broader, proven C-J profile with read-only
-  // assets/contracts scopes. Reuse it for location-ID discovery when the DC
-  // profile belongs to the same character, so no extra OAuth round-trip is
-  // required just to identify the structure ID.
-  const privateIds = new Set();
-  let privateDiscovery = "unavailable";
-  let privateToken = null;
-  try {
-    const cjCharacterId = Number(await env.AUTH_STORE.get("cj_character_id") || 0);
-    if (cjCharacterId === characterId) {
-      const cjToken = await getFreshCjToken(env);
-      if (cjToken.ok) {
-        privateToken = cjToken.access_token;
-        privateDiscovery = "cj-profile";
-
-        let assetPages = 1;
-        for (let page = 1; page <= assetPages; page++) {
-          const ar = await fetch(`${ESI_BASE}/characters/${characterId}/assets/?datasource=tranquility&page=${page}`, {
-            headers: { Authorization: `Bearer ${privateToken}`, Accept: "application/json" },
-          });
-          if (ar.status !== 200) break;
-          assetPages = Math.max(1, Number(ar.headers.get("X-Pages") || 1));
-          let rows = [];
-          try { rows = await ar.json(); } catch { rows = []; }
-          for (const row of Array.isArray(rows) ? rows : []) {
-            const sid = Number(row.location_id || 0);
-            if (Number.isSafeInteger(sid) && sid >= 1000000000000) privateIds.add(sid);
-          }
-        }
-
-        let contractPages = 1;
-        for (let page = 1; page <= contractPages; page++) {
-          const cr = await fetch(`${ESI_BASE}/characters/${characterId}/contracts/?datasource=tranquility&page=${page}`, {
-            headers: { Authorization: `Bearer ${privateToken}`, Accept: "application/json" },
-          });
-          if (cr.status !== 200) break;
-          contractPages = Math.max(1, Number(cr.headers.get("X-Pages") || 1));
-          let rows = [];
-          try { rows = await cr.json(); } catch { rows = []; }
-          for (const row of Array.isArray(rows) ? rows : []) {
-            for (const raw of [row.start_location_id, row.end_location_id]) {
-              const sid = Number(raw || 0);
-              if (Number.isSafeInteger(sid) && sid >= 1000000000000) privateIds.add(sid);
-            }
-          }
-        }
-
-        const or = await fetch(`${ESI_BASE}/characters/${characterId}/orders/?datasource=tranquility`, {
-          headers: { Authorization: `Bearer ${privateToken}`, Accept: "application/json" },
-        });
-        if (or.status === 200) {
-          let rows = [];
-          try { rows = await or.json(); } catch { rows = []; }
-          for (const row of Array.isArray(rows) ? rows : []) {
-            const sid = Number(row.location_id || 0);
-            if (Number.isSafeInteger(sid) && sid >= 1000000000000) privateIds.add(sid);
-          }
-        }
-      }
-    }
-  } catch {}
-
-  const candidateIds = [...new Set([
-    ...directIds,
-    ...[...counts.entries()].sort((a,b) => b[1] - a[1]).slice(0, 160).map(([sid]) => sid),
-    ...privateIds,
-  ])];
-
-  const structures = [];
-  for (const structureId of candidateIds.slice(0, 100)) {
-    let name = "";
-    let solarSystemId = 0;
-    let typeId = 0;
-    let metadataStatus = 0;
-
-    let rr = await fetch(`${ESI_BASE}/universe/structures/${structureId}/?datasource=tranquility`, {
-      headers: { Authorization: `Bearer ${token.access_token}`, Accept: "application/json" },
-    });
-    if (rr.status !== 200 && privateToken) {
-      rr = await fetch(`${ESI_BASE}/universe/structures/${structureId}/?datasource=tranquility`, {
-        headers: { Authorization: `Bearer ${privateToken}`, Accept: "application/json" },
-      });
-    }
-    metadataStatus = rr.status;
-    if (rr.status === 200) {
-      try {
-        const info = await rr.json();
-        name = String(info.name || "");
-        solarSystemId = Number(info.solar_system_id || 0);
-        typeId = Number(info.type_id || 0);
-      } catch {}
-    }
-
-    if (solarSystemId && solarSystemId !== targetSystemId) continue;
-
-    const mr = await fetch(`${ESI_BASE}/markets/structures/${structureId}/?datasource=tranquility&page=1`, {
-      headers: { Authorization: `Bearer ${token.access_token}`, Accept: "application/json" },
-    });
-    if (mr.status !== 200) continue;
-
+    if (mr.status !== 200) return {structure:null,metadata_status:mr.status};
+    let info = {};
+    try {info = await mr.json();} catch {return {structure:null,metadata_status:200};}
+    const row = {
+      structure_id:id,
+      name:String(info.name||""),
+      solar_system_id:Number(info.solar_system_id||0),
+      type_id:Number(info.type_id||0),
+      metadata_status:200
+    };
+    if (!isPrime(row)) return {structure:null,metadata_status:200};
+    const market = await boundedFetch(marketPath(id),{headers});
+    if (market.status !== 200) return {structure:null,metadata_status:200,market_status:market.status};
     let orders = [];
-    try { orders = await mr.json(); } catch {}
-    structures.push({
-      structure_id: structureId,
-      name,
-      solar_system_id: solarSystemId,
-      type_id: typeId,
-      metadata_status: metadataStatus,
-      market_pages: Math.max(1, Number(mr.headers.get("X-Pages") || 1)),
-      page1_orders: Array.isArray(orders) ? orders.length : 0,
-      contract_mentions: Number(counts.get(structureId) || 0),
-    });
+    try {orders = await market.json();} catch {}
+    return {structure:{
+      ...row,
+      market_pages:Math.max(1,Number(market.headers.get("X-Pages")||1)),
+      page1_orders:Array.isArray(orders)?orders.length:0,
+      contract_mentions:Number(publicCounts.get(id)||0)
+    },metadata_status:200,market_status:200};
   }
+  async function saveState() {
+    const storedCounts=[...publicCounts.entries()].sort((a,b)=>b[1]-a[1]).slice(0,400);
+    await env.AUTH_STORE.put(stateKey,JSON.stringify({
+      ...state,
+      contract_counts:storedCounts,
+      direct_ids:[...directIds].slice(0,200),
+      private_ids:[...privateIds].slice(0,200),
+      last_checked_at:new Date().toISOString()
+    }),{expirationTtl:7*86400});
+  }
+  try {
+    // A previously authenticated exact identity is a hint, not a permission
+    // bypass. Recheck both name/system and live market access on every run.
+    const cachedId = Number(state.confirmed_id||0);
+    if (cachedId >= 1e12) {
+      const cached = await inspect(cachedId,null);
+      if (cached.structure) {
+        return json({ok:true,auth_profile:"dc",query,target_system_id:targetSystemId,
+          discovery_status:"confirmed_live",candidate_count:1,checked_this_run:1,
+          esi_requests:esiRequests,structures:[cached.structure]});
+      }
+      delete state.confirmed_id;
+    }
 
-  structures.sort((a,b) =>
-    (b.market_pages - a.market_pages) ||
-    (b.page1_orders - a.page1_orders) ||
-    (b.contract_mentions - a.contract_mentions)
-  );
+    let searchStatus = 0;
+    for (const term of [...new Set([query,"Dracarys. Prime","SummerHall"])]) {
+      const su = new URL(`${ESI_BASE}/characters/${characterId}/search/`);
+      su.searchParams.set("categories","structure");
+      su.searchParams.set("datasource","tranquility");
+      su.searchParams.set("language","en");
+      su.searchParams.set("search",term);
+      su.searchParams.set("strict","false");
+      try {
+        const sr = await boundedFetch(su,{headers});
+        searchStatus = sr.status;
+        if (sr.status!==200) continue;
+        const payload=await sr.json();
+        for(const raw of Array.isArray(payload.structure)?payload.structure:[]) {
+          const id=Number(raw);
+          if(Number.isSafeInteger(id)&&id>=1e12) directIds.add(id);
+        }
+      } catch(err) { console.warn("DC structure alias search failed",String(err)); }
+    }
 
-  return json({
-    ok: true,
-    auth_profile: "dc",
-    query,
-    region_id: regionId,
-    search_status: searchStatus,
-    direct_search_ids: directIds.length,
-    private_discovery: privateDiscovery,
-    private_candidate_ids: privateIds.size,
-    target_system_id: targetSystemId,
-    candidate_count: candidateIds.length,
-    structures
-  });
+    // One Paragon Soul contract page per call; persist a cursor and the
+    // accumulated location candidates. Do not rescan an entire region in one
+    // Worker request.
+    const publicPage=Math.max(1,Number(state.public_page||1));
+    let publicStatus=0;
+    try {
+      const cr=await boundedFetch(`${ESI_BASE}/contracts/public/${regionId}/?datasource=tranquility&page=${publicPage}`,
+        {headers:{Accept:"application/json"}});
+      publicStatus=cr.status;
+      if(cr.status===200) {
+        const pageCount=Math.max(1,Number(cr.headers.get("X-Pages")||1));
+        const rows=await cr.json();
+        for(const row of Array.isArray(rows)?rows:[]) {
+          for(const raw of [row.start_location_id,row.end_location_id]){
+            const id=Number(raw||0);
+            if(Number.isSafeInteger(id)&&id>=1e12) publicCounts.set(id,Number(publicCounts.get(id)||0)+1);
+          }
+        }
+        state.public_page=publicPage>=pageCount?1:publicPage+1;
+        state.public_pages=pageCount;
+      } else if (publicStatus===404) {
+        state.public_page=1;
+      }
+    } catch(err) {console.warn("DC public region page discovery failed",String(err));}
+
+    // Only one page of each private ESI source per invocation.
+    let privateToken=null,privateDiscovery="unavailable";
+    const cjCharacterId=Number(await env.AUTH_STORE.get("cj_character_id")||0);
+    if(cjCharacterId===characterId) {
+      const cjToken=await getFreshCjToken(env);
+      if(cjToken.ok){
+        privateToken=cjToken.access_token;
+        privateDiscovery="cj-profile";
+        const ph={Authorization:`Bearer ${privateToken}`,Accept:"application/json"};
+        for(const src of [
+          {key:"assets",url:`${ESI_BASE}/characters/${characterId}/assets/?datasource=tranquility`},
+          {key:"contracts",url:`${ESI_BASE}/characters/${characterId}/contracts/?datasource=tranquility`}
+        ]){
+          const page=Math.max(1,Number(state[src.key+"_page"]||1));
+          try {
+            const resp=await boundedFetch(`${src.url}&page=${page}`,{headers:ph});
+            if(resp.status!==200) {state[src.key+"_page"]=1;continue;}
+            const total=Math.max(1,Number(resp.headers.get("X-Pages")||1));
+            const rows=await resp.json();
+            for(const row of Array.isArray(rows)?rows:[]){
+              const ids=src.key==="assets"?[row.location_id]:[row.start_location_id,row.end_location_id];
+              for(const raw of ids) {
+                const id=Number(raw||0);
+                if(Number.isSafeInteger(id)&&id>=1e12) privateIds.add(id);
+              }
+            }
+            state[src.key+"_page"]=page>=total?1:page+1;
+          } catch(err) { console.warn("DC private candidates lookup failed",src.key,String(err)); }
+        }
+        try {
+          const orders=await boundedFetch(`${ESI_BASE}/characters/${characterId}/orders/?datasource=tranquility`,{headers:ph});
+          if(orders.status===200) for(const row of await orders.json()){
+            const id=Number(row.location_id||0);
+            if(Number.isSafeInteger(id)&&id>=1e12) privateIds.add(id);
+          }
+        } catch(err) {console.warn("DC active market order locations lookup failed",String(err));}
+      }
+    }
+
+    const orderedPublic=[...publicCounts.entries()].sort((a,b)=>b[1]-a[1]).map(([id])=>Number(id));
+    const candidateIds=[...new Set([...directIds,...privateIds,...orderedPublic])]
+      .filter(id=>Number.isSafeInteger(id)&&id>=1e12);
+    const offset=candidateIds.length?Math.max(0,Number(state.cursor||0))%candidateIds.length:0;
+    const inspectCount=Math.min(candidateIds.length,MAX_CANDIDATES_PER_RUN);
+    let checked=0,metadataDenied=0,marketDenied=0;
+    const structures=[];
+    for(let k=0;k<inspectCount;k++){
+      const id=candidateIds[(offset+k)%candidateIds.length];
+      const found=await inspect(id,privateToken);
+      checked++;
+      if(found.metadata_status===403) metadataDenied++;
+      if(found.market_status===403) marketDenied++;
+      if(found.structure) {
+        structures.push(found.structure);
+        state.confirmed_id=id;
+        break;
+      }
+    }
+    state.cursor=candidateIds.length?(offset+checked)%candidateIds.length:0;
+    await saveState();
+    return json({
+      ok:true,auth_profile:"dc",query,region_id:regionId,target_system_id:targetSystemId,
+      discovery_status:structures.length?"confirmed_live":"still_searching",
+      search_status:searchStatus,public_contracts_status:publicStatus,
+      public_pages:Number(state.public_pages||0),next_public_page:Number(state.public_page||1),
+      private_discovery:privateDiscovery,direct_search_ids:directIds.size,
+      private_candidate_ids:privateIds.size,candidate_count:candidateIds.length,
+      checked_this_run:checked,candidate_cursor:state.cursor,metadata_denied:metadataDenied,
+      market_denied:marketDenied,esi_requests:esiRequests,structures
+    });
+  } catch(err) {
+    console.error("DC bounded structure search error",String(err));
+    await saveState();
+    return json({ok:false,error:"structure_search_failed",detail:String(err).slice(0,240),
+      candidate_cursor:Number(state.cursor||0),esi_requests:esiRequests,auth_profile:"dc"},502);
+  }
 }
 
 async function handleOpen(env, action) {
