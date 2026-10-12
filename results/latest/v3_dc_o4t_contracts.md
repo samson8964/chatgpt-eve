@@ -1,11 +1,11 @@
 # V3 O4T-Z5 - Dracarys. Prime (SummerHall) contract opportunities
 
 - Structure: 1040804972352
-- Contract snapshot: 2026-10-12T14:01:42.501Z
-- Jita market snapshot: 2026-10-12T14:18:34.980Z
-- Active plain-item contracts: 35
-- Deep-validation contracts: 35
-- Final rows: 17
+- Contract snapshot: 2026-10-12T15:32:24.941Z
+- Jita market snapshot: 2026-10-12T16:18:35.945Z
+- Active plain-item contracts: 36
+- Deep-validation contracts: 36
+- Final rows: 27
 - Formal MAIL: 0
 
 Authenticated structure access is treated as verified.
