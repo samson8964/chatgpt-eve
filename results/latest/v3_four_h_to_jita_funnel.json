@@ -1,17 +1,17 @@
 {
   "stages": {
-    "source_sell_types": 5560,
+    "source_sell_types": 5559,
     "prefilter_candidates": 110,
     "deep_validation_types": 110,
-    "final_rows": 108,
+    "final_rows": 88,
     "formal_mail": 0
   },
   "rejection_reasons": {
-    "STRESS_NEGATIVE": 3,
-    "NON_POSITIVE_ECONOMICS": 100,
+    "STRESS_NEGATIVE": 1,
+    "NON_POSITIVE_ECONOMICS": 81,
+    "MISSING_OR_ZERO_ITEM_VOLUME": 22,
     "BELOW_SAFE_ROI": 1,
-    "BELOW_SAFE_PROFIT": 3,
-    "LOW_PROFIT_DENSITY": 1,
-    "MISSING_OR_ZERO_ITEM_VOLUME": 2
+    "BELOW_SAFE_PROFIT": 4,
+    "LOW_PROFIT_DENSITY": 1
   }
 }
