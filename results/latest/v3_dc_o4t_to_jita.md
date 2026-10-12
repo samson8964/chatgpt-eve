@@ -1,10 +1,10 @@
 # V3 O4T-Z5 - Dracarys. Prime (SummerHall) -> Jita 4-4 procurement arbitrage
 
 - Source kind: structure
-- Market snapshot: 2026-10-12T04:48:33.887Z
+- Market snapshot: 2026-10-12T05:48:32.306Z
 - Secure jumps to Jita: 0
 - Deep-validation types: 89
-- Final rows: 68
+- Final rows: 65
 - Formal MAIL: 0
 
 Destination valuation uses Jita 4-4 BUY orders only. Amarr/Dodixie sell prices are never used as an exit valuation.
