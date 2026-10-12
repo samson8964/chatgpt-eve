@@ -450,7 +450,8 @@ def compose_digest(entries, stamp, *, max_body_chars=MAIL_DIGEST_BODY_LIMIT):
             print(f"::warning::{channel}: deferred from bundled game mail due to body limit")
             continue
         body += section + "<br>"
-        # Only acknowledge what was actually rendered, not omitted TOP rows.\n        included.append((channel, displayed))
+        # Only acknowledge what was actually rendered, not omitted TOP rows.
+        included.append((channel, displayed))
     return included, body
 
 
