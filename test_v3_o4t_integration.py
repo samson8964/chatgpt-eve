@@ -72,6 +72,35 @@ class O4TProductionTests(unittest.TestCase):
                 manifest.write_text(json.dumps(obj), encoding="utf-8")
                 self.assertFalse(channel_healthy("v3-dc-o4t-to-jita", require_manifest=True))
 
+    def test_o4t_search_limits_worker_subrequests_and_rotates_discovery(self):
+        # Cloudflare Workers Free allows 50 external fetches/request.
+        # A recursive scan of all Paragon Soul contracts + structures caused
+        # repeated HTTP 500 responses before O4T could be scanned.
+        worker = Path("cloudflare/worker.js").read_text(encoding="utf-8")
+        block = worker.split("async function handleStructureSearch(", 1)[1].split(
+            "\\nasync function ", 1
+        )[0]
+        self.assertIn("MAX_ESI_REQUESTS = 32", block)
+        self.assertIn("MAX_CANDIDATES_PER_RUN = 9", block)
+        self.assertIn("esi_request_budget_exhausted", block)
+        self.assertIn("structure_discovery_v2:", block)
+        self.assertIn("state.public_page", block)
+        self.assertIn("state.cursor", block)
+        self.assertIn("state.confirmed_id", block)
+        self.assertIn("discovery_status", block)
+        self.assertNotIn("candidateIds.slice(0, 100)", block)
+
+    def test_unresolved_o4t_prints_discovery_progress_not_false_zero_opportunities(self):
+        with self.assertRaisesRegex(RuntimeError, "still_searching.*checked_this_run=9"):
+            select_prime_structure({
+                "ok": True,
+                "target_system_id": 30004691,
+                "discovery_status": "still_searching",
+                "checked_this_run": 9,
+                "candidate_count": 120,
+                "structures": [],
+            })
+
     def test_incomplete_contract_volume_is_never_zero_cost(self):
         self.assertIsNone(total_volume({1: 3, 2: 5}, {1: {"packaged_volume": 2.0}}))
         self.assertIsNone(total_volume({1: 3}, {1: {"volume": 0}}))
