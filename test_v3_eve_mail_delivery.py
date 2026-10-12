@@ -56,6 +56,7 @@ class EveDeliveryTests(unittest.TestCase):
             for char in ("MikeChong", "LadyBaBa"):
                 for channel in ("v3-cj-to-jita", "v3-amarr-to-jita"):
                     self.assertTrue(mail.state_path(channel, char).exists())
+                    self.assertTrue(mail.seen_path(channel, char).exists())
 
     def test_esi_520_preserves_unsent_state_and_avoids_extra_retries(self):
         err_response = requests.Response()
@@ -74,19 +75,69 @@ class EveDeliveryTests(unittest.TestCase):
                 mail.main()
             self.assertEqual(send.call_count, 1)
             self.assertFalse(mail.state_path("v3-cj-to-jita", "LadyBaBa").exists())
+            self.assertEqual(mail._read_seen_ids(mail.seen_path("v3-cj-to-jita", "LadyBaBa")), set())
 
-    def test_same_or_worse_item_not_remailed_after_two_days(self):
+    def test_legacy_migration_and_nonrepeat_even_when_profit_changes(self):
         with tempfile.TemporaryDirectory() as tmp, patch.object(mail, "STATE", Path(tmp)):
             channel, user = "v3-cj-to-jita", "MikeChong"
             mail.save_state(channel, user, [candidate(10)])
-            path = mail.state_path(channel, user)
-            old = pd.read_csv(path)
-            old["sent_at"] = "2026-10-10T00:00:00+00:00"
-            old.to_csv(path, index=False)
+            # New seen-state baseline suppresses old/visible identities.
+            self.assertEqual(mail.pending_candidates(channel, user, [candidate(10), candidate(12)]), [])
             self.assertTrue(mail.should_suppress(channel, user, [candidate(10)]))
             self.assertTrue(mail.should_suppress(channel, user, [candidate(10, 55_000_000)]))
-            self.assertFalse(mail.should_suppress(channel, user, [candidate(10, 95_000_000)]))
+            self.assertTrue(mail.should_suppress(channel, user, [candidate(10, 95_000_000)]))
             self.assertFalse(mail.should_suppress(channel, user, [candidate(11)]))
+
+    def test_top_fluctuation_never_resends_old_identity_and_only_new_is_delivered(self):
+        with tempfile.TemporaryDirectory() as tmp, \\
+             patch.object(mail, "STATE", Path(tmp)), \\
+             patch.object(mail, "recipient_names", return_value=["MikeChong"]), \\
+             patch.object(mail, "resolve_character", return_value=1), \\
+             patch.object(mail, "enabled_channels", return_value=["v3-full-cash"]), \\
+             patch.object(mail, "build_candidates", side_effect=[
+                 [candidate(111), candidate(222)],
+                 [candidate(111)],
+                 [candidate(111), candidate(222)],
+                 [candidate(111), candidate(222), candidate(333)],
+             ]), \\
+             patch.object(mail, "send_mail") as send:
+            for _ in range(4):
+                mail.main()
+            self.assertEqual(send.call_count, 2)
+            self.assertIn("111", send.call_args_list[0].args[2])
+            self.assertIn("222", send.call_args_list[0].args[2])
+            self.assertIn("333", send.call_args_list[1].args[2])
+            self.assertNotIn("111", send.call_args_list[1].args[2])
+            self.assertNotIn("222", send.call_args_list[1].args[2])
+            self.assertEqual(mail._read_seen_ids(mail.seen_path("v3-full-cash", "MikeChong")), {111, 222, 333})
+
+    def test_seen_not_advanced_on_delivery_failure(self):
+        with tempfile.TemporaryDirectory() as tmp, \\
+             patch.object(mail, "STATE", Path(tmp)), \\
+             patch.object(mail, "recipient_names", return_value=["MikeChong"]), \\
+             patch.object(mail, "resolve_character", return_value=1), \\
+             patch.object(mail, "enabled_channels", return_value=["v3-cj-to-jita"]), \\
+             patch.object(mail, "channel_healthy", return_value=True), \\
+             patch.object(mail, "build_candidates", return_value=[candidate(777)]), \\
+             patch.object(mail, "send_mail", side_effect=[RuntimeError("SMTP/ESI failed"), None]) as send:
+            with self.assertRaises(RuntimeError):
+                mail.main()
+            self.assertEqual(mail._read_seen_ids(mail.seen_path("v3-cj-to-jita", "MikeChong")), set())
+            mail.main()
+            self.assertEqual(send.call_count, 2)
+            self.assertEqual(mail._read_seen_ids(mail.seen_path("v3-cj-to-jita", "MikeChong")), {777})
+
+    def test_body_limit_deferred_ids_not_credited_as_sent(self):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(mail, "STATE", Path(tmp)):
+            channel, user = "v3-full-cash", "MikeChong"
+            a, b = candidate(881), candidate(882)
+            _, one_render = mail.render(channel, "10-12 22:00", [a])
+            header = "<b>V3正式捡漏机会汇总</b><br>10-12 22:00<br><br>"
+            included, body = mail.compose_digest([(channel, [a, b])], "10-12 22:00", max_body_chars=len(header) + len(one_render) + 120)
+            self.assertEqual([x["id"] for x in included[0][1]], [881])
+            self.assertIn("881", body)
+            mail.acknowledge_seen(channel, user, included[0][1])
+            self.assertEqual([x["id"] for x in mail.pending_candidates(channel, user, [a, b])], [882])
 
     def test_long_sections_are_deferred_not_marked_as_sent(self):
         a, b = candidate(10), candidate(11)
