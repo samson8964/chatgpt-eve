@@ -218,57 +218,56 @@ def build_candidates(channel: str):
     return out
 
 
-def should_suppress(channel: str, recipient: str, picked):
-    path = state_path(channel, recipient)
+def seen_path(channel: str, recipient: str) -> Path:
+    """Append-only per-recipient, per-channel identity ledger (never TOP-only)."""
+    return STATE / f"mail_seen_{channel}_{safe_key(recipient)}.csv"
+
+
+def _read_seen_ids(path: Path) -> set[int]:
+    df = _read(path)
+    if df.empty or "id" not in df.columns:
+        return set()
+    return {int(x) for x in pd.to_numeric(df["id"], errors="coerce").dropna() if int(x) > 0}
+
+
+def _write_seen_ids(path: Path, ids: set[int]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    pd.DataFrame({"id": sorted(ids)}).to_csv(tmp, index=False)
+    tmp.replace(path)
+
+
+def pending_candidates(channel: str, recipient: str, picked):
+    """Return ONLY not-yet-mailed opportunities. No repeat for a known ID.
+
+    Until we can prove a genuinely new order_id/book fingerprint, a type_id
+    price/ROI change is not proof of a new trade. Contract IDs are immutable.
+    """
+    path = seen_path(channel, recipient)
     if not path.exists():
-        return not picked
-    old = _read(path)
-    if old.empty:
-        return not picked
-    required = {"policy_version", "id", "profit", "roi", "grade", "sent_at"}
-    if not required.issubset(old.columns):
-        return False
-    if any(str(v) != POLICY_VERSION for v in old["policy_version"].fillna("")):
-        return False
+        legacy = state_path(channel, recipient)
+        baseline = _read_seen_ids(legacy)
+        if legacy.exists():
+            # Migration from legacy TOP snapshot: do not re-send its old IDs
+            # or backfill the currently visible list as "new" on rollout.
+            baseline |= {int(c["id"]) for c in picked}
+            print(f"{channel} {recipient}: initialized historical sent baseline ({len(baseline)} ids); no backfill")
+        _write_seen_ids(path, baseline)
+    seen = _read_seen_ids(path)
+    return [c for c in picked if int(c["id"]) not in seen]
 
-    current_ids = [int(x["id"]) for x in picked]
-    old_ids = [int(x) for x in pd.to_numeric(old["id"], errors="coerce").dropna().astype(int).tolist()]
-    if len(current_ids) != len(old_ids) or set(current_ids) != set(old_ids):
-        print(f"{channel} trigger: TOP membership changed")
-        return False
-    if not picked:
-        return True
 
-    old_by_id = {}
-    for _, r in old.iterrows():
-        try:
-            old_by_id[int(float(r["id"]))] = r
-        except Exception:
-            continue
-    for cur in picked:
-        prev = old_by_id.get(cur["id"])
-        if prev is None:
-            return False
-        old_profit = _num(prev.get("profit"))
-        delta = abs(cur["profit"] - old_profit)
-        rel = delta / max(abs(old_profit), 1.0)
-        # Only notify a material improvement; a worsening quote is not a new deal.
-        old_roi = _num(prev.get("roi"))
-        if (cur["profit"] > old_profit and cur["roi"] >= old_roi
-                and (delta >= RESEND_ABS_PROFIT or rel >= RESEND_REL_PROFIT)):
-            return False
-        if (cur["profit"] >= old_profit and cur["roi"] > old_roi
-                and cur["roi"] - old_roi >= RESEND_ROI_DELTA):
-            return False
-        if cur["grade"] != _text(prev.get("grade")):
-            return False
+def acknowledge_seen(channel: str, recipient: str, delivered) -> None:
+    """Advance the lifetime ledger only AFTER successful delivery."""
+    path = seen_path(channel, recipient)
+    old = _read_seen_ids(path)
+    old.update(int(c["id"]) for c in delivered)
+    _write_seen_ids(path, old)
 
-    sent = pd.to_datetime(old["sent_at"], utc=True, errors="coerce").dropna()
-    if sent.empty:
-        return False
-    # Age alone is never a reason to resend an identical opportunity set.
-    # Existing messages have already been delivered; do not spam every 6h.
-    return True
+
+def should_suppress(channel: str, recipient: str, picked):
+    """Compatibility helper; the sender must send only pending IDs."""
+    return not pending_candidates(channel, recipient, picked)
 
 
 def save_state(channel: str, recipient: str, picked):
@@ -451,7 +450,7 @@ def compose_digest(entries, stamp, *, max_body_chars=MAIL_DIGEST_BODY_LIMIT):
             print(f"::warning::{channel}: deferred from bundled game mail due to body limit")
             continue
         body += section + "<br>"
-        included.append((channel, picked))
+        # Only acknowledge what was actually rendered, not omitted TOP rows.\n        included.append((channel, displayed))
     return included, body
 
 
@@ -480,10 +479,12 @@ def main():
     for recipient_index, (name, rid) in enumerate(recipients):
         changed = []
         for channel, picked in eligible:
-            if should_suppress(channel, name, picked):
-                print(f"{channel} skipped for {name}: no material change TOP{len(picked)}")
+            fresh = pending_candidates(channel, name, picked)
+            if not fresh:
+                print(f"{channel} skipped for {name}: all TOP{len(picked)} identities already notified")
                 continue
-            changed.append((channel, picked))
+            print(f"{channel}: fresh opportunity identities for {name}={len(fresh)}/{len(picked)}")
+            changed.append((channel, fresh))
         included, body = compose_digest(changed, stamp)
         if not included:
             print(f"V3 EVE mail: no actionable updates for {name}")
@@ -497,6 +498,8 @@ def main():
         try:
             send_with_retry(rid, subject, body, channel_key, name)
             for channel, picked in included:
+                # Only these IDs were actually displayed in the delivered mail.
+                acknowledge_seen(channel, name, picked)
                 save_state(channel, name, picked)
             print(f"V3 EVE mail: sent {len(included)} channels to {name} in one message")
         except Exception as exc:
