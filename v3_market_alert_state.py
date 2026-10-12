@@ -82,18 +82,26 @@ def plan(
             }
             continue
         row = state[ident]
-        was_active = row.get("active") == "1"
-        if not was_active:
-            row["pending"] = "1"
         old_profit = float(row.get("last_profit") or 0)
         old_roi = float(row.get("last_roi") or 0)
-        changed = (
-            abs(profit - old_profit) >= abs_profit_change
-            or abs(profit - old_profit) >= max(1, abs(old_profit)) * rel_profit_change
-            or abs(roi - old_roi) >= roi_change
+        profit_delta = profit - old_profit
+        roi_delta = roi - old_roi
+        # A re-entry with unchanged or worse economics is not a new market
+        # opportunity. Without order-level identity it must not rearm the mail.
+        improved = (
+            profit_delta >= 0 and roi_delta >= 0
+            and (
+                (profit_delta > 0 and profit_delta >= abs_profit_change)
+                or (profit_delta > 0 and profit_delta >= max(1, abs(old_profit)) * rel_profit_change)
+                or (roi_delta > 0 and roi_delta >= roi_change)
+            )
         )
-        if changed:
+        if improved:
             row["pending"] = "1"
+        elif row.get("last_sent_at"):
+            # Cancel a previously queued update if the improvement vanished;
+            # keep pending for a never-delivered first-seen item (no sent_at).
+            row["pending"] = "0"
         row["active"] = "1"
         row["last_seen_at"] = stamp
 
