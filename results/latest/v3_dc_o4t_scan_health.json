@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-10-12T10:20:21.100579+00:00",
-  "started_epoch": 1791800283,
-  "run_id": "38235430511",
+  "generated_at": "2026-10-12T12:20:26.048432+00:00",
+  "started_epoch": 1791807486,
+  "run_id": "38248154472",
   "channels": {
     "v3-dc-o4t-to-jita": {
       "status": "ok",
@@ -10,7 +10,7 @@
     },
     "v3-dc-o4t-contract": {
       "status": "ok",
-      "rows": 14,
+      "rows": 8,
       "outcome": "success"
     }
   }
