@@ -113,6 +113,35 @@ jobs:
           PY
           fi
 
+      - name: Probe O4T discovery after deployment (non-blocking)
+        shell: bash
+        run: |
+          set -euo pipefail
+          probe="$(mktemp)"
+          status=$(curl -sS -o "$probe" -w '%{http_code}' --max-time 80 \
+            -H "Authorization: Bearer $EVE_MAIL_API_KEY" \
+            "$WORKER_URL/api/structure-search?q=O4T-Z5&auth_profile=dc") || status="curl_failed"
+          echo "o4t_discovery_http_status=$status"
+          if [ "$status" != "200" ]; then
+            echo "::warning::O4T discovery is still failing; this lane is not production-verified."
+          fi
+          python - "$probe" <<'PY'
+          import json, sys
+          try:
+              payload=json.load(open(sys.argv[1], encoding="utf-8"))
+          except Exception as exc:
+              print("::warning::O4T discovery response not valid JSON:", type(exc).__name__)
+          else:
+              for key in ("ok","error","detail","discovery_status","search_status","public_contracts_status",
+                          "candidate_count","checked_this_run","candidate_cursor","next_public_page",
+                          "metadata_denied","market_denied","esi_requests"):
+                  if key in payload:
+                      print(f"o4t_{key}={payload[key]}")
+              for row in payload.get("structures") or []:
+                  print("o4t_verified_structure_id=", row.get("structure_id"))
+                  print("o4t_verified_structure_name=", row.get("name"))
+          PY
+
       - name: Warn if Cloudflare scheduler token is not configured
         if: env.EVE_DISPATCH_TOKEN == ''
         run: |
