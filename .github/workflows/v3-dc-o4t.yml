@@ -144,7 +144,7 @@ jobs:
           SNAP="$(mktemp -d)"
           mkdir -p "$SNAP/latest" "$SNAP/state"
           find results/latest -maxdepth 1 -type f -name 'v3_dc_o4t_*' -exec cp {} "$SNAP/latest/" \;
-          for f in results/state/mail_last_v3-dc-o4t-* results/state/gmail_seen_v3-dc-o4t* results/state/gmail_market_state_v3-dc-o4t* results/state/o4t_scan_started_epoch.txt; do
+          for f in results/state/mail_last_v3-dc-o4t-* results/state/mail_seen_v3-dc-o4t-* results/state/gmail_seen_v3-dc-o4t* results/state/gmail_market_state_v3-dc-o4t* results/state/o4t_scan_started_epoch.txt; do
             [ -f "$f" ] && cp "$f" "$SNAP/state/"
           done
           for attempt in 1 2 3; do

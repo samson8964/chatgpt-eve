@@ -256,6 +256,7 @@ jobs:
 
           find results/latest -maxdepth 1 -type f -name 'v3_*' ! -name 'v3_bpc_*' ! -name 'v3_dc_o4t_*' -exec cp {} "$SNAPSHOT/latest/" \;
           find results/state -maxdepth 1 -type f -name 'mail_last_v3-*' ! -name 'mail_last_v3-bpc_*' ! -name 'mail_last_v3-dc-o4t*' -exec cp {} "$SNAPSHOT/state/" \;
+          find results/state -maxdepth 1 -type f -name 'mail_seen_v3-*' ! -name 'mail_seen_v3-bpc_*' ! -name 'mail_seen_v3-dc-o4t*' -exec cp {} "$SNAPSHOT/state/" \;
           find results/state -maxdepth 1 -type f -name 'gmail_seen_v3-*' ! -name 'gmail_seen_v3-bpc.csv' ! -name 'gmail_seen_v3-dc-o4t*' -exec cp {} "$SNAPSHOT/state/" \;
           find results/state -maxdepth 1 -type f -name 'gmail_market_state_v3-*' ! -name 'gmail_market_state_v3-dc-o4t*' -exec cp {} "$SNAPSHOT/state/" \;
           # Public-contract rotation and fingerprint history must survive the
