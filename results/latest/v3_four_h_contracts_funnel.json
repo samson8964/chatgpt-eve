@@ -4,14 +4,14 @@
     "plain_item_contracts": 134,
     "prefilter_candidates": 134,
     "deep_validation_contracts": 134,
-    "final_rows": 40,
+    "final_rows": 35,
     "formal_mail": 0
   },
   "rejection_reasons": {
     "BPC_DEFER_TO_BPC_ENGINE": 214,
-    "MISSING_CONTRACT_CARGO_VOLUME": 94,
-    "FATAL_OR_ACCESS_UNVERIFIED": 10,
-    "NON_POSITIVE_ECONOMICS": 26,
+    "MISSING_CONTRACT_CARGO_VOLUME": 99,
+    "FATAL_OR_ACCESS_UNVERIFIED": 7,
+    "NON_POSITIVE_ECONOMICS": 24,
     "STRESS_NEGATIVE": 4
   }
 }
