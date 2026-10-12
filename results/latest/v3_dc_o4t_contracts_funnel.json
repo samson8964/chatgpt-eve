@@ -1,15 +1,16 @@
 {
   "stages": {
-    "active_contracts": 40,
-    "plain_item_contracts": 34,
-    "prefilter_candidates": 34,
-    "deep_validation_contracts": 34,
-    "final_rows": 8,
+    "active_contracts": 41,
+    "plain_item_contracts": 35,
+    "prefilter_candidates": 35,
+    "deep_validation_contracts": 35,
+    "final_rows": 17,
     "formal_mail": 0
   },
   "rejection_reasons": {
     "BPC_DEFER_TO_BPC_ENGINE": 6,
-    "MISSING_CONTRACT_CARGO_VOLUME": 26,
-    "NON_POSITIVE_ECONOMICS": 8
+    "MISSING_CONTRACT_CARGO_VOLUME": 18,
+    "NON_POSITIVE_ECONOMICS": 12,
+    "FATAL_OR_ACCESS_UNVERIFIED": 5
   }
 }
