@@ -258,6 +258,11 @@ jobs:
           find results/state -maxdepth 1 -type f -name 'mail_last_v3-*' ! -name 'mail_last_v3-bpc_*' ! -name 'mail_last_v3-dc-o4t*' -exec cp {} "$SNAPSHOT/state/" \;
           find results/state -maxdepth 1 -type f -name 'gmail_seen_v3-*' ! -name 'gmail_seen_v3-bpc.csv' ! -name 'gmail_seen_v3-dc-o4t*' -exec cp {} "$SNAPSHOT/state/" \;
           find results/state -maxdepth 1 -type f -name 'gmail_market_state_v3-*' ! -name 'gmail_market_state_v3-dc-o4t*' -exec cp {} "$SNAPSHOT/state/" \;
+          # Public-contract rotation and fingerprint history must survive the
+          # git reset below; otherwise every fresh run reads obsolete history.
+          for f in results/state/candidate_pool_state.json results/state/v3_contract_fingerprints.json; do
+            [ -f "$f" ] && cp "$f" "$SNAPSHOT/state/"
+          done
           for f in results/state/last_scan_started_epoch.txt; do
             [ -f "$f" ] && cp "$f" "$SNAPSHOT/state/"
           done

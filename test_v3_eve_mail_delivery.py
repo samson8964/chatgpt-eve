@@ -75,6 +75,19 @@ class EveDeliveryTests(unittest.TestCase):
             self.assertEqual(send.call_count, 1)
             self.assertFalse(mail.state_path("v3-cj-to-jita", "LadyBaBa").exists())
 
+    def test_same_or_worse_item_not_remailed_after_two_days(self):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(mail, "STATE", Path(tmp)):
+            channel, user = "v3-cj-to-jita", "MikeChong"
+            mail.save_state(channel, user, [candidate(10)])
+            path = mail.state_path(channel, user)
+            old = pd.read_csv(path)
+            old["sent_at"] = "2026-10-10T00:00:00+00:00"
+            old.to_csv(path, index=False)
+            self.assertTrue(mail.should_suppress(channel, user, [candidate(10)]))
+            self.assertTrue(mail.should_suppress(channel, user, [candidate(10, 55_000_000)]))
+            self.assertFalse(mail.should_suppress(channel, user, [candidate(10, 95_000_000)]))
+            self.assertFalse(mail.should_suppress(channel, user, [candidate(11)]))
+
     def test_long_sections_are_deferred_not_marked_as_sent(self):
         a, b = candidate(10), candidate(11)
         included, body = mail.compose_digest(

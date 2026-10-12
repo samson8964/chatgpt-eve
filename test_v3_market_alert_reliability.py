@@ -25,14 +25,28 @@ class MarketGmailStateTests(unittest.TestCase):
         self.assertEqual(plan(self.path, [self.c()], now=self.t0), [])
         self.assertEqual(plan(self.path, [self.c()], now=self.t0 + timedelta(hours=7)), [])
 
-    def test_reentry_after_cooldown(self):
+    def test_reentry_without_improvement_does_not_remail(self):
         plan(self.path, [self.c()], now=self.t0)
         plan(self.path, [], now=self.t0 + timedelta(hours=1))
-        self.assertEqual(plan(self.path, [self.c()], now=self.t0 + timedelta(hours=2)), [])
-        pending = plan(self.path, [self.c()], now=self.t0 + timedelta(hours=7))
+        self.assertEqual(plan(self.path, [self.c()], now=self.t0 + timedelta(hours=7)), [])
+        improved = self.c(profit=96_000_000)
+        pending = plan(self.path, [improved], now=self.t0 + timedelta(hours=8))
         self.assertEqual([x["id"] for x in pending], [42])
-        acknowledge(self.path, pending[0], now=self.t0 + timedelta(hours=7))
-        self.assertEqual(plan(self.path, [self.c()], now=self.t0 + timedelta(hours=14)), [])
+        acknowledge(self.path, pending[0], now=self.t0 + timedelta(hours=8))
+        self.assertEqual(plan(self.path, [improved], now=self.t0 + timedelta(hours=15)), [])
+
+    def test_deterioration_does_not_generate_or_keep_pending_mail(self):
+        plan(self.path, [self.c()], now=self.t0)
+        self.assertEqual(plan(self.path, [self.c(profit=53_000_000, roi=0.16)], now=self.t0 + timedelta(hours=7)), [])
+        improved = self.c(profit=98_000_000)
+        self.assertEqual(plan(self.path, [improved], now=self.t0 + timedelta(hours=8)), [improved])
+        self.assertEqual(plan(self.path, [self.c(profit=64_000_000, roi=0.19)], now=self.t0 + timedelta(hours=9)), [])
+        self.assertEqual(load(self.path)[42]["pending"], "0")
+
+    def test_public_state_files_are_persisted_by_fast_scan(self):
+        script = (Path(__file__).parent / ".github/workflows/scan.yml").read_text(encoding="utf-8")
+        self.assertIn('cp "$f" "$SNAPSHOT/state/"', script)
+        self.assertIn("results/state/candidate_pool_state.json results/state/v3_contract_fingerprints.json", script)
 
     def test_material_change_and_retry_on_failed_send(self):
         plan(self.path, [self.c()], now=self.t0)

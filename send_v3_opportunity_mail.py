@@ -252,9 +252,13 @@ def should_suppress(channel: str, recipient: str, picked):
         old_profit = _num(prev.get("profit"))
         delta = abs(cur["profit"] - old_profit)
         rel = delta / max(abs(old_profit), 1.0)
-        if delta >= RESEND_ABS_PROFIT or rel >= RESEND_REL_PROFIT:
+        # Only notify a material improvement; a worsening quote is not a new deal.
+        old_roi = _num(prev.get("roi"))
+        if (cur["profit"] > old_profit and cur["roi"] >= old_roi
+                and (delta >= RESEND_ABS_PROFIT or rel >= RESEND_REL_PROFIT)):
             return False
-        if abs(cur["roi"] - _num(prev.get("roi"))) >= RESEND_ROI_DELTA:
+        if (cur["profit"] >= old_profit and cur["roi"] > old_roi
+                and cur["roi"] - old_roi >= RESEND_ROI_DELTA):
             return False
         if cur["grade"] != _text(prev.get("grade")):
             return False
@@ -262,8 +266,9 @@ def should_suppress(channel: str, recipient: str, picked):
     sent = pd.to_datetime(old["sent_at"], utc=True, errors="coerce").dropna()
     if sent.empty:
         return False
-    age_h = (pd.Timestamp.now(tz="UTC") - sent.max()).total_seconds() / 3600.0
-    return age_h < REMIND_AFTER_HOURS
+    # Age alone is never a reason to resend an identical opportunity set.
+    # Existing messages have already been delivered; do not spam every 6h.
+    return True
 
 
 def save_state(channel: str, recipient: str, picked):
