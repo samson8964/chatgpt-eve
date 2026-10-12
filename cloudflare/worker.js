@@ -289,7 +289,7 @@ async function handleStructureSearch(request, env) {
   const trustedO4tStructureId = 1040804972352;
   const exactRaw = url.searchParams.get("structure_id");
   if (exactRaw !== null) {
-    if (!/^\\d{12,16}$/.test(exactRaw)) {
+    if (!/^[0-9]{12,16}$/.test(exactRaw)) {
       return json({ok:false,error:"invalid_exact_structure_id"},400);
     }
     const id = Number(exactRaw);
