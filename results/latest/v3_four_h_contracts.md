@@ -1,12 +1,12 @@
 # V3 4-HWWF contract opportunities
 
 - Structure: 1053970513596
-- Contract snapshot: 2026-10-12T18:31:27.999Z
-- Jita market snapshot: 2026-10-12T18:48:56.478Z
-- Active plain-item contracts: 138
-- Deep-validation contracts: 138
-- Final rows: 113
-- Formal MAIL: 1
+- Contract snapshot: 2026-10-12T19:01:25.655Z
+- Jita market snapshot: 2026-10-12T19:18:40.981Z
+- Active plain-item contracts: 137
+- Deep-validation contracts: 137
+- Final rows: 73
+- Formal MAIL: 0
 
 Authenticated structure access is treated as verified.
 Each contract chooses the better executable exit between local structure BUY depth and Jita 4-4 BUY depth.
