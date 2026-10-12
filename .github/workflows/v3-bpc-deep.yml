@@ -161,6 +161,7 @@ jobs:
             [ -f "$f" ] && cp "$f" "$SNAPSHOT/latest/"
           done
           find results/state -maxdepth 1 -type f -name 'mail_last_v3-bpc_*' -exec cp {} "$SNAPSHOT/state/" \;
+          find results/state -maxdepth 1 -type f -name 'mail_seen_v3-bpc_*' -exec cp {} "$SNAPSHOT/state/" \;
           find results/state -maxdepth 1 -type f -name 'gmail_seen_v3-bpc.csv' -exec cp {} "$SNAPSHOT/state/" \;
 
           for attempt in 1 2 3; do
