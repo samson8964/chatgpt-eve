@@ -133,7 +133,11 @@ class EveDeliveryTests(unittest.TestCase):
             a, b = candidate(881), candidate(882)
             _, one_render = mail.render(channel, "10-12 22:00", [a])
             header = "<b>V3正式捡漏机会汇总</b><br>10-12 22:00<br><br>"
-            included, body = mail.compose_digest([(channel, [a, b])], "10-12 22:00", max_body_chars=len(header) + len(one_render) + 120)
+            _, two_render = mail.render(channel, "10-12 22:00", [a, b])
+            truncation_note = "<br>本频道共2条，只显示前1条；完整数据请查看扫描结果。<br>"
+            limit = len(header) + len(one_render) + len(truncation_note) + 5
+            self.assertLess(limit, len(header) + len(two_render))
+            included, body = mail.compose_digest([(channel, [a, b])], "10-12 22:00", max_body_chars=limit)
             self.assertEqual([x["id"] for x in included[0][1]], [881])
             self.assertIn("881", body)
             mail.acknowledge_seen(channel, user, included[0][1])
