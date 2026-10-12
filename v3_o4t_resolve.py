@@ -30,6 +30,13 @@ def select_prime_structure(payload: dict) -> dict:
     if len(matches) != 1:
         raise RuntimeError(
             f"Expected exactly one market-accessible O4T Dracarys Prime, found {len(matches)}. "
+            f"discovery={payload.get('discovery_status', 'unknown')}, "
+            f"candidates={payload.get('candidate_count', '?')}, "
+            f"checked_this_run={payload.get('checked_this_run', '?')}, "
+            f"cursor={payload.get('candidate_cursor', '?')}, "
+            f"next_public_page={payload.get('next_public_page', '?')}, "
+            f"metadata_denied={payload.get('metadata_denied', '?')}, "
+            f"market_denied={payload.get('market_denied', '?')}. "
             "Refusing to select a different player structure."
         )
     chosen = matches[0]
@@ -54,8 +61,28 @@ def main() -> None:
         timeout=90,
     )
     if resp.status_code != 200:
-        raise RuntimeError(f"DC structure lookup returned HTTP {resp.status_code}; verify /auth-dc and SummerHall ACL")
-    selected = select_prime_structure(resp.json())
+        try:
+            error = resp.json()
+            detail = f"{error.get('error', 'unknown')}: {str(error.get('detail', ''))[:250]}"
+        except Exception:
+            detail = resp.text[:250]
+        raise RuntimeError(
+            f"DC structure lookup returned HTTP {resp.status_code}: {detail}. "
+            "Investigate Worker discovery diagnostics before reauthorizing /auth-dc."
+        )
+    payload = resp.json()
+    print(
+        "O4T discovery progress:",
+        {
+            k: payload.get(k) for k in (
+                "discovery_status", "candidate_count", "checked_this_run",
+                "candidate_cursor", "next_public_page", "public_pages",
+                "search_status", "public_contracts_status",
+                "metadata_denied", "market_denied", "esi_requests",
+            )
+        },
+    )
+    selected = select_prime_structure(payload)
     RESULT.parent.mkdir(parents=True, exist_ok=True)
     RESULT.write_text(json.dumps({"ok": True, **selected}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     output = os.getenv("GITHUB_OUTPUT")
