@@ -1,0 +1,30 @@
+name: One-time cancel stale V3 run 2026-10-12
+on:
+  push:
+    paths:
+      - '.github/workflows/temporary-cancel-stale-v3-20261012.yml'
+permissions:
+  contents: read
+  actions: write
+jobs:
+  cancel-stale-fast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Cancel pre-PR35 fast run 38263502483
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const {owner, repo} = context.repo;
+            const stale = 38263502483;
+            const run = await github.rest.actions.getWorkflowRun({owner, repo, run_id: stale});
+            if (run.data.head_sha !== 'f6238b6e2470e8453bf07bbd7174dcd64e3acd36') {
+              core.setFailed('Unexpected run SHA, refusing to cancel anything else');
+              return;
+            }
+            if (['queued', 'waiting', 'in_progress', 'requested', 'pending'].includes(run.data.status)) {
+              await github.rest.actions.cancelWorkflowRun({owner, repo, run_id: stale});
+              core.info('Requested cancellation of obsolete V3 fast scan ' + stale);
+            } else {
+              core.info('Obsolete run already finished: ' + run.data.status);
+            }
