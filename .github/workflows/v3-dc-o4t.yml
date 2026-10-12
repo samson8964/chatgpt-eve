@@ -26,6 +26,7 @@ jobs:
       EVE_MARKET_WORKER_URL: https://eve-contract-opener.99617224.workers.dev
       MAIL_MIN_VERIFIED_NET_PROFIT: '50000000'
       MIN_PROFIT_PER_M3: '2000'
+      O4T_EXACT_STRUCTURE_ID: '1040804972352'
     steps:
       - name: Checkout fresh main
         uses: actions/checkout@v4
