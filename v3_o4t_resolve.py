@@ -54,9 +54,12 @@ def main() -> None:
     key = os.getenv("EVE_MARKET_API_KEY") or ""
     if not base or not key:
         raise RuntimeError("Missing EVE_MARKET_WORKER_URL / EVE_MARKET_API_KEY")
+    exact_id = int(os.getenv("O4T_EXACT_STRUCTURE_ID", "1040804972352"))
+    if exact_id != 1040804972352:
+        raise RuntimeError("O4T exact structure ID differs from LadyBaBa verified in-game showinfo link")
     resp = requests.get(
         base + "/api/structure-search",
-        params={"q": "O4T-Z5", "auth_profile": "dc"},
+        params={"q": "O4T-Z5", "auth_profile": "dc", "structure_id": exact_id},
         headers={"Authorization": f"Bearer {key}", "Accept": "application/json"},
         timeout=90,
     )
@@ -79,10 +82,16 @@ def main() -> None:
                 "candidate_cursor", "next_public_page", "public_pages",
                 "search_status", "public_contracts_status",
                 "metadata_denied", "market_denied", "esi_requests",
+                "metadata_status", "market_status", "validation_method", "exact_structure_id",
             )
         },
     )
     selected = select_prime_structure(payload)
+    if selected["structure_id"] != exact_id:
+        raise RuntimeError("O4T ESI returned a structure other than the in-game showinfo link ID")
+    selected["validation_method"] = payload.get("validation_method", "unknown")
+    selected["metadata_status"] = payload.get("metadata_status")
+    selected["market_status"] = payload.get("market_status")
     RESULT.parent.mkdir(parents=True, exist_ok=True)
     RESULT.write_text(json.dumps({"ok": True, **selected}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     output = os.getenv("GITHUB_OUTPUT")
