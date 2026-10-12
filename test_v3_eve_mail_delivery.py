@@ -89,17 +89,17 @@ class EveDeliveryTests(unittest.TestCase):
             self.assertFalse(mail.should_suppress(channel, user, [candidate(11)]))
 
     def test_top_fluctuation_never_resends_old_identity_and_only_new_is_delivered(self):
-        with tempfile.TemporaryDirectory() as tmp, \\
-             patch.object(mail, "STATE", Path(tmp)), \\
-             patch.object(mail, "recipient_names", return_value=["MikeChong"]), \\
-             patch.object(mail, "resolve_character", return_value=1), \\
-             patch.object(mail, "enabled_channels", return_value=["v3-full-cash"]), \\
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.object(mail, "STATE", Path(tmp)), \
+             patch.object(mail, "recipient_names", return_value=["MikeChong"]), \
+             patch.object(mail, "resolve_character", return_value=1), \
+             patch.object(mail, "enabled_channels", return_value=["v3-full-cash"]), \
              patch.object(mail, "build_candidates", side_effect=[
                  [candidate(111), candidate(222)],
                  [candidate(111)],
                  [candidate(111), candidate(222)],
                  [candidate(111), candidate(222), candidate(333)],
-             ]), \\
+             ]), \
              patch.object(mail, "send_mail") as send:
             for _ in range(4):
                 mail.main()
@@ -112,13 +112,13 @@ class EveDeliveryTests(unittest.TestCase):
             self.assertEqual(mail._read_seen_ids(mail.seen_path("v3-full-cash", "MikeChong")), {111, 222, 333})
 
     def test_seen_not_advanced_on_delivery_failure(self):
-        with tempfile.TemporaryDirectory() as tmp, \\
-             patch.object(mail, "STATE", Path(tmp)), \\
-             patch.object(mail, "recipient_names", return_value=["MikeChong"]), \\
-             patch.object(mail, "resolve_character", return_value=1), \\
-             patch.object(mail, "enabled_channels", return_value=["v3-cj-to-jita"]), \\
-             patch.object(mail, "channel_healthy", return_value=True), \\
-             patch.object(mail, "build_candidates", return_value=[candidate(777)]), \\
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.object(mail, "STATE", Path(tmp)), \
+             patch.object(mail, "recipient_names", return_value=["MikeChong"]), \
+             patch.object(mail, "resolve_character", return_value=1), \
+             patch.object(mail, "enabled_channels", return_value=["v3-cj-to-jita"]), \
+             patch.object(mail, "channel_healthy", return_value=True), \
+             patch.object(mail, "build_candidates", return_value=[candidate(777)]), \
              patch.object(mail, "send_mail", side_effect=[RuntimeError("SMTP/ESI failed"), None]) as send:
             with self.assertRaises(RuntimeError):
                 mail.main()
