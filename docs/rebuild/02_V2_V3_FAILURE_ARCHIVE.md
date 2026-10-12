@@ -48,6 +48,23 @@
 | V3-18 | 一些工作流（例如 booster-monitor）在 Push 时默认仍会执行可发送真实邮件的脚本，正式 Roadmap 禁止 Push 发信。**CONFIRMED ARCHITECTURE RISK** | 所有 PR/push 必须 dry-run，真实邮件仅专用运行权限 + 已批准部署触发 | booster-monitor.yml / ROADMAP_GOVERNANCE.md |
 | V3-19 | 多次通过「名义修复」解决一个重复来源，但旧机制在不同角色、不同渠道、TOP 变化、失败恢复场景继续出问题。**CONFIRMED GOVERNANCE GAP** | 先写不变式和系统测试矩阵再改代码；修改通知/状态必须覆盖历史事故 fixture | PR #34/#35 和用户实际收到的旧机会 |
 
+
+## B2. 2026-10-13 补充审计：为何 V3 曾经精准、后来越跑越差
+
+下列是经过源码、持久状态和历史 GitHub Actions 日志核实的机制；问题发生时间与现状分开。少推送不一定代表没有真正新机会。
+
+| 编号 | 机制与状态 | 业务影响及回归要求 |
+|---|---|---|
+| V3-20 | **先 TOP 截断，后排除旧机会（CONFIRMED 代码风险）**。send_v3_opportunity_mail.py 中 build_candidates 从合格名单取市场前10/合同最多前10，main 才调用 pending_candidates。 | 若前10长期都是 seen ID，排名11及以后全新机会不被检查。应对所有通过 Gate 的机会先按 instance 判新旧，再从未通知的新机会按分数选 TOP。实际漏报数量尚待历史回放。 |
+| V3-21 | **终生 type_id 去重（CONFIRMED）**。市场渠道的 id_col 是 type_id，mail_seen_v3-cj-to-jita_MikeChong.csv 已包含2969、14114、41058。 | 同商品次日出现不同卖单仍是 seen，真正新订单被屏蔽。MarketFamily/type_id 和 MarketInstance/真实 order_id 指纹要分离。合同的 contract_id 终生去重不同，通常合理。 |
+| V3-22 | **首轮迁移把当前 TOP 视作历史已通知（CONFIRMED 代码风险）**。seen_path 不存在但旧 mail_last 存在时，pending_candidates 将 picked 全部加入 baseline 而不查询是否实际送达；Gmail首轮也以 current_id 初始化。 | 当轮刚出现的新机会可能被永久误记为已发送。应明确 VERIFIED_SENT、MIGRATED_SUPPRESSED、UNKNOWN 三种语义，禁止假装已发信。 |
+| V3-23 | **扫描吞吐下降（CONFIRMED）**。GitHub Actions 10月7日抽样55轮成功26、取消27、失败2；10月8日96轮成功17、取消76、失败3；10月9日96轮成功2、取消82、失败12。10月7日成功示例#37612823001约10分钟；10月8日#37859786667约15分钟；10月9日#37902288039在下一15分钟轮次来时被取消。公开候选快照的 universe 示例从6426增加到约24k，口径可能变动，不能当市场规模直接变化。 | 成功轮次骤减，候选检测、发信与落盘都不可靠。新的排他调度应跳过 busy，记录 stage 耗时、吞吐、最后成功时间并隔离失效源。 |
+| V3-24 | **并非所有状态都会无限积累（CONFIRMED）**。candidate_pool.py 只保存最近8轮，不是无限黑名单；它在10月7日至12日停滞是 Git 状态持久化缺失（PR#34已修）。v3_contract_fingerprints.json 每轮全量替换；相反 mail_seen_*、gmail_seen_* 和市场 Gmail 状态并无明确过期规则。 | 为所有状态定义生命周期与用途，区分有限候选轮换、可覆盖快照、持久发送身份和可能过期的报价状态。 |
+
+10月12日已完成 run #38272627567：公开正式候选1个、C-J市场正式候选3个，游戏内通知对两个角色均为无新提醒；这证明扫描仍找到候选但已按旧ID抑制，不证明所有候选均为新的订单。Issue #33 记录10月9日至12日 Gmail 通知39条里12条是相同渠道身份重复（30.8%），因此早期「多」可能部分是重复，不等于全是独立套利机会。
+
+**后续验收：** 同时展示通过 Gate 数、真正新实例数、已发送实例数、实际订单变化数、漏报数与已实现利润。不得用清空 seen、缩短冷却期或降低正式净利润门槛追求邮件数量。
+
 ## C. 必须保留的正向成果
 - EVE ESI / EVE Ref / Cloudflare Worker 的 SSO、公开与建筑市场和合同读取能力；已确认部分建筑 ACL 在符合条件时可用；鉴权实例保留。
 - 两种真实订单簿方向：来源最低卖单成本，目的地真实买单分层兑现；当订单深度不足或价格压力测试失败则不计虚拟流动性。
