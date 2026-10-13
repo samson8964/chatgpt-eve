@@ -64,7 +64,16 @@ def upload(report_path: str, proof_path: str, api_key: str) -> dict:
         data=r.json()
         if not data.get('ok') or data.get('dispatch_enabled') or data.get('pending_added'):
             raise RuntimeError('Shadow sent to active outbox or store rejected: '+repr(data))
-        count+=int(data['committed']);batches+=1
+        # A raw HTTP 200 or request-length 'committed' count is NOT proof of
+        # durable storage: the actor must report cumulative UNIQUE SQL rows.
+        ack=int(data['committed'])
+        if ack != len(rows):
+            raise RuntimeError('PROOF_BATCH_ACK_MISMATCH: expected %s got %s' % (len(rows),ack))
+        count+=ack;batches+=1
+        persisted=data.get('stored_total')
+        if isinstance(persisted,bool) or not isinstance(persisted,int) or persisted != count:
+            raise RuntimeError('PROOF_SQL_UNIQUE_COUNT_MISMATCH: expected %s got %r' %
+                               (count,persisted))
     batch=[]
     for proof in read_proofs(proof_path):
         batch.append(proof)

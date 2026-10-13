@@ -3,9 +3,12 @@ on:
   schedule:
     - cron: '23 */2 * * *'
   workflow_dispatch:
-  push:
+  # First full shadow scan after successful V4 Store deploy. Scheduled scans
+  # remain independent of code pushes and never trigger legacy workflows.
+  workflow_run:
+    workflows: ['Deploy Cloudflare V4 Store (shadow only)']
+    types: [completed]
     branches: [main]
-    paths: ['.github/workflows/v4-market-heartbeat.yml']
 permissions:
   contents: read
 concurrency:
@@ -13,6 +16,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   census:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 80
     steps:
@@ -20,6 +24,19 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Enforce deployed V4 SQL store v3 protocol and release OFF
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail-with-body -fsS --retry 3 --retry-delay 3 \
+            https://eve-v4-opportunity-store.99617224.workers.dev/health > /tmp/v4-store-health.json
+          python - <<'PY'
+          import json
+          data=json.load(open('/tmp/v4-store-health.json',encoding='utf-8'))
+          assert data.get('ok') and data.get('ledger_version',0)>=3, data
+          assert data.get('dispatch_enabled') is False, data
+          print('V4 store v3 SQL audit available; formal notifications OFF')
+          PY
       - name: Install V4-only snapshot reader dependencies
         run: python -m pip install pandas requests
       - name: Fetch a NEW complete EVE Ref market and contracts snapshot and re-evaluate ALL location/type pairs
@@ -40,6 +57,33 @@ jobs:
         env:
           EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
         run: python -m v4.ingest
+      - name: Independently reconcile durable SQL UNIQUE proof count after all batches
+        env:
+          EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,os,urllib.request
+          from pathlib import Path
+          report=json.loads(Path('v4_output/latest/deep_shadow.json').read_text(encoding='utf-8'))
+          run_id=report['run_id']
+          key=os.environ['EVE_MARKET_API_KEY']
+          req=urllib.request.Request(
+            'https://eve-v4-opportunity-store.99617224.workers.dev/api/v4/audit?run_id='+run_id,
+            headers={'Authorization':'Bearer '+key,'User-Agent':'eve-v4-sql-proof-reconcile/1.0'})
+          with urllib.request.urlopen(req,timeout=60) as r:audit=json.load(r)
+          expected=int(report['proof_count'])
+          actual=audit.get('sql_unique_proofs')
+          statuses=audit.get('status_counts') or {}
+          print('expected_proofs=',expected,'sql_unique_proofs=',actual,
+                'stored_status_counts=',statuses)
+          assert audit.get('ok') and audit.get('dispatch_enabled') is False,audit
+          assert actual==expected, 'SQL_UNIQUE_PROOF_COUNT_MISMATCH'
+          assert sum(statuses.values())==expected, 'SQL_STATUS_COUNT_MISMATCH'
+          Path('v4_output/latest/sql_audit.json').write_text(
+              json.dumps(audit,ensure_ascii=False,indent=2),encoding='utf-8')
+          PY
       - name: Publish coverage summary
         if: always()
         run: |
@@ -55,5 +99,6 @@ jobs:
             v4_output/latest/full_market_report.json
             v4_output/latest/deep_shadow.json
             v4_output/latest/all_proofs.jsonl
+            v4_output/latest/sql_audit.json
           retention-days: 14
           if-no-files-found: warn

@@ -52,6 +52,27 @@ class Order:
         return o
 
 
+def parse_orders_strict(rows, *, source: str) -> list[Order]:
+    """Parse EVERY input row or fail the whole shadow run; never silently drop orders.
+
+    A partial order book can inflate apparent liquidity/return or hide candidates.
+    Errors are counted, with bounded index/type diagnostics, not raw credentials.
+    """
+    parsed: list[Order] = []
+    invalid = 0
+    samples: list[str] = []
+    for idx, row in enumerate(rows):
+        try:
+            parsed.append(Order.parse(row))
+        except (ValueError, KeyError, TypeError, OverflowError) as exc:
+            invalid += 1
+            if len(samples) < 4:
+                samples.append(f"{idx}:{type(exc).__name__}")
+    if invalid:
+        raise ValueError(f"INCOMPLETE_{source}_ORDER_BOOK:{invalid} invalid rows; samples={','.join(samples)}")
+    return parsed
+
+
 def order_index(orders: Sequence[Order]) -> dict[tuple[int, int, bool], list[Order]]:
     """FULL unfiltered index: all locations/types, not just familiar markets."""
     result = defaultdict(list)
