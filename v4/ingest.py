@@ -15,15 +15,16 @@ def read_proofs(proof_path):
     """Yield EVERY evaluated record; reject invalid IDs and nonfinite JSON."""
     def reject_nonfinite(raw):
         raise ValueError('NONFINITE_JSON_TOKEN: '+raw)
-    for line in Path(proof_path).open(encoding='utf-8'):
-        if not line.strip():
-            continue
-        proof=json.loads(line,parse_constant=reject_nonfinite)
-        key=proof.get('instance') or proof.get('family')
-        if not isinstance(key,str) or not re.fullmatch(r'[A-Za-z0-9:_-]{8,160}',key):
-            raise ValueError('PROOF_MISSING_VALID_INSTANCE_OR_FAMILY')
-        proof['instance']=key
-        yield proof
+    with Path(proof_path).open(encoding='utf-8') as stream:
+        for line in stream:
+            if not line.strip():
+                continue
+            proof=json.loads(line,parse_constant=reject_nonfinite)
+            key=proof.get('instance') or proof.get('family')
+            if not isinstance(key,str) or not re.fullmatch(r'[A-Za-z0-9:_-]{8,160}',key):
+                raise ValueError('PROOF_MISSING_VALID_INSTANCE_OR_FAMILY')
+            proof['instance']=key
+            yield proof
 
 
 def upload(report_path: str, proof_path: str, api_key: str) -> dict:
