@@ -27,6 +27,28 @@ class CatalogError(RuntimeError):
     pass
 
 
+def blueprint_instance_kind(copy_flag, runs=None):
+    """BPC/BPO evidence from a *contract item*, not merely its shared type_id.
+
+    If source metadata conflicts or is missing, return UNKNOWN and do not
+    allow cash liquidation. A valid BPC uses is_blueprint_copy=true and runs
+    >=0; a valid BPO uses is_blueprint_copy=false and runs=-1.
+    """
+    text = str(copy_flag).strip().lower()
+    if isinstance(copy_flag, bool):
+        text = "true" if copy_flag else "false"
+    try:
+        v = float(runs)
+        r = int(v) if math.isfinite(v) and v.is_integer() else None
+    except (TypeError, ValueError, OverflowError):
+        r = None
+    if text == "true" and r is not None and r >= 0:
+        return "BPC"
+    if text == "false" and r == -1:
+        return "BPO"
+    return "UNKNOWN_BLUEPRINT"
+
+
 def _positive(value):
     try:
         v = float(value)
