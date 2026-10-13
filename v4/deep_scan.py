@@ -18,7 +18,7 @@ from pathlib import Path
 import pandas as pd
 import requests
 
-from v4.engine import Order, Policy, contract_proof, market_proof, quarantine_snapshot_candidate
+from v4.engine import Order, Policy, contract_proof, market_proof, quarantine_snapshot_candidate, parse_orders_strict
 from v4.catalog import ensure_catalog, blueprint_instance_kind
 from v4.sources import market_dataframe, contract_dataframes
 
@@ -67,14 +67,10 @@ def all_structure_orders(api_key):
     return out,health
 
 
-def to_orders(rows):
-    result=[]
-    for raw in rows:
-        try:
-            result.append(Order.parse(raw))
-        except (ValueError,KeyError,TypeError,OverflowError):
-            pass
-    return result
+def to_orders(rows, *, source):
+    # Previously malformed rows were silently dropped while coverage was
+    # reported complete. Fail closed instead, with bounded diagnostics.
+    return parse_orders_strict(rows, source=source)
 
 
 def known_station_regions():
@@ -121,8 +117,9 @@ def run(market_path,contract_path,output,api_key=''):
     present={c for c in raw_market.columns}
     needed={'order_id','type_id','location_id','price','volume_remain','is_buy_order'}
     if needed-present: raise RuntimeError('order_fields_missing')
-    all_orders=to_orders(raw_market.to_dict('records'))
-    all_orders+=to_orders(structures)
+    public_orders=to_orders(raw_market.to_dict('records'),source='PUBLIC')
+    authorized_orders=to_orders(structures,source='STRUCTURE')
+    all_orders=public_orders+authorized_orders
     markets=defaultdict(list)
     for o in all_orders:
         markets[(o.location_id,o.type_id,o.buy)].append(o)
@@ -206,7 +203,9 @@ def run(market_path,contract_path,output,api_key=''):
         proofs.append(proof)
         reasons[proof['reason']]+=1
     report=dict(status='SHADOW_ONLY_NO_LIVE_ALERTS',run_id='v4-'+uuid.uuid4().hex,
-       market_orders=len(all_orders),source_locations_total=len({o.location_id for o in all_orders}),
+       market_orders=len(all_orders),public_market_orders=len(public_orders),
+       authorized_structure_orders=len(authorized_orders),
+       rejected_input_orders=0,source_locations_total=len({o.location_id for o in all_orders}),
        source_types_total=len({o.type_id for o in all_orders}),contract_rows=len(contracts),
        structure_health=structure_health,metadata_missing=missing,metadata_requested=len(ids),
        catalog_meta=catalog.meta,catalog_coverage=coverage,
