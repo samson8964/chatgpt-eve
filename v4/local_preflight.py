@@ -29,7 +29,7 @@ def assess(version: tuple[int, ...], system: str, free_bytes: int, packages: dic
         "disk_free_gib": round(free_bytes / (1024 ** 3), 2),
         "disk_capacity_not_yet_sized": True,
         "safe_to_activate_mail": False,
-        "ready_to_attempt_shadow": version >= (3, 11) and not missing,
+        "ready_to_attempt_shadow": version >= (3, 11) and system.lower() == "windows" and not missing,
     }
 
 
@@ -47,7 +47,7 @@ def inspect(base: Path) -> dict:
         "sqlite": sqlite3.sqlite_version,
         "git_found": shutil.which("git") is not None,
         "codex_found": shutil.which("codex") is not None,
-        "data_root_candidate": str(base),
+        "data_root_path_redacted": True,
         "storage_device_checked": str(probe.anchor),
         "api_tokens_inspected": False,
         "network_touched": False,
