@@ -5,11 +5,7 @@
   "preview_urls": false,
   "keep_vars": true,
   "triggers": {
-    "crons": [
-      "*/15 * * * *",
-      "0 */3 * * *",
-      "17 */2 * * *"
-    ]
+    "crons": []
   },
   "vars": {
     "EVE_CLIENT_ID": "0608347b837b4d8a9385e70e5f17b5b0",
