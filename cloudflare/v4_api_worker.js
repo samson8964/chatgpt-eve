@@ -12,7 +12,7 @@ export default {
       return new Response("Unauthorized", {status:401});
     }
     const endpoint = u.pathname.slice("/api/v4/".length);
-    if (!["record","run","pending","claim","settle"].includes(endpoint)) {
+    if (!["record","run","pending","claim","settle","audit"].includes(endpoint)) {
       return new Response("Not Found", {status:404});
     }
     const actor = env.V4_LEDGER.get(env.V4_LEDGER.idFromName("production"));
