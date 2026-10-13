@@ -3,15 +3,15 @@
     "source_sell_types": 7245,
     "prefilter_candidates": 229,
     "deep_validation_types": 180,
-    "final_rows": 137,
+    "final_rows": 176,
     "formal_mail": 4
   },
   "rejection_reasons": {
-    "NON_POSITIVE_ECONOMICS": 90,
-    "STRESS_NEGATIVE": 19,
-    "LOW_PROFIT_DENSITY": 10,
-    "MISSING_OR_ZERO_ITEM_VOLUME": 43,
-    "BELOW_SAFE_ROI": 5,
-    "BELOW_SAFE_PROFIT": 9
+    "NON_POSITIVE_ECONOMICS": 116,
+    "STRESS_NEGATIVE": 22,
+    "LOW_PROFIT_DENSITY": 13,
+    "BELOW_SAFE_ROI": 7,
+    "BELOW_SAFE_PROFIT": 14,
+    "MISSING_OR_ZERO_ITEM_VOLUME": 4
   }
 }
