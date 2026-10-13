@@ -1,3 +1,5 @@
+import json
+import math
 import tempfile
 import unittest
 from pathlib import Path
@@ -39,8 +41,42 @@ class V4EngineTests(unittest.TestCase):
     def test_contract_missing_depth(self):
         c = contract_proof({'contract_id':123,'price':100,'type':'item_exchange'},
             {10:100}, {10:[o(1,2,True,qty=5)]}, {10:1},
-            haul_isk=1, allowed=True, fresh=True)
+            haul_isk=1, allowed=True, fresh=True,
+            item_classifications={10:'regular'})
         self.assertEqual(c['status'], 'WATCH')
+
+    def test_blueprint_copy_cannot_be_liquidated_as_bpo(self):
+        # Same type_id as expensive BPO order, but contract item is a copy.
+        # Neither unknown nor identified blueprint is eligible for cash mail.
+        c = {'contract_id':236186629,'price':1_600_000,'type':'item_exchange'}
+        market_bids = {17477:[o(42,1_000_000_000,True,qty=1,tid=17477),
+                              o(43,950_000_000,True,qty=1,tid=17477)]}
+        for classification in (None, {17477:'blueprint_copy'}, {17477:'blueprint_original'}):
+            proof = contract_proof(c,{17477:1},market_bids,{17477:1},
+                haul_isk=0,allowed=True,fresh=True,item_classifications=classification)
+            self.assertEqual(proof['status'],'RESEARCH',proof)
+            self.assertEqual(proof['reason'],'ITEM_CLASSIFICATION_UNVERIFIED_OR_BLUEPRINT')
+            json.dumps(proof,allow_nan=False)
+
+    def test_insufficient_stress_depth_is_null_not_infinity(self):
+        c={'contract_id':1234,'price':100,'type':'item_exchange'}
+        bids={10:[o(1,10000,True,qty=2),o(2,9000,True,qty=1)]}
+        proof=contract_proof(c,{10:2},bids,{10:1},haul_isk=1,
+            allowed=True,fresh=True,item_classifications={10:'regular'},
+            policy=Policy(profit_floor=1,min_roi=.01,min_density=1))
+        self.assertEqual(proof['status'],'WATCH')
+        self.assertIsNone(proof['stress_profit'])
+        json.dumps(proof,allow_nan=False)
+
+    def test_json_rejects_nonfinite_economic_values(self):
+        c={'contract_id':1235,'price':100,'type':'item_exchange'}
+        bids={10:[o(1,10000,True,qty=2),o(2,9000,True,qty=2)]}
+        proof=contract_proof(c,{10:2},bids,{10:1},haul_isk=1,
+            allowed=True,fresh=True,item_classifications={10:'regular'},
+            policy=Policy(profit_floor=1,min_roi=.01,min_density=1))
+        self.assertTrue(all(not isinstance(v,float) or math.isfinite(v)
+            for v in proof.values()))
+        json.dumps(proof,allow_nan=False)
 
     def test_seen_never_blocks_new_beyond_top_ten(self):
         with tempfile.TemporaryDirectory() as d:
