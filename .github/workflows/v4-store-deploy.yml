@@ -54,25 +54,37 @@ jobs:
         run: |
           set -euo pipefail
           python - <<'PY'
-          import json,os,time,urllib.request
+          import json,os,time,subprocess
           base=os.environ['WORKER_URL']
-          h={'User-Agent':'eve-v4-ledger-audit/1.0'}
+          # Curl is the same client previously verified on this GitHub runner.
+          # Capture only status plus bounded non-secret error content.
+          def get_json(path,token=None):
+              args=['curl','-sS','--max-time','25','-w','__HTTP_STATUS__=%{http_code}',
+                    '-H','User-Agent: eve-v4-ledger-audit/1.1']
+              if token:args.extend(['-H','Authorization: Bearer '+token])
+              args.append(base+path)
+              p=subprocess.run(args,text=True,capture_output=True,timeout=35)
+              body,sep,status=p.stdout.rpartition('__HTTP_STATUS__=')
+              if not sep: raise RuntimeError('HTTP_PROBE_NO_STATUS: '+p.stderr[:250])
+              if status!='200' or p.returncode!=0:
+                  print('V4_STORE_PROBE_FAILED',path.split('?')[0],'http',status,
+                        'response',body[:400],'curl_exit',p.returncode)
+                  raise RuntimeError('V4_STORE_HTTP_'+status)
+              return json.loads(body)
           health=None
-          for attempt in range(12):
+          for attempt in range(5):
               try:
-                  with urllib.request.urlopen(urllib.request.Request(base+'/health',headers=h),timeout=25) as r:
-                      health=json.load(r)
-                  if health.get('ledger_version',0)>=3:break
+                  health=get_json('/health')
+                  if health.get('ledger_version',0)>=3: break
+                  print('old_version_retry',health.get('ledger_version'))
               except Exception as e:
-                  print('health_retry',attempt,type(e).__name__)
-              time.sleep(5)
+                  print('health_retry',attempt,type(e).__name__,str(e)[:100])
+              time.sleep(4)
           assert health and health.get('ok') is True,health
           assert health.get('ledger_version',0)>=3,health
           assert health.get('dispatch_enabled') is False,health
           run='v4-ff78ed60600a40e487e78e47ac349836'
-          req=urllib.request.Request(base+'/api/v4/audit?run_id='+run,
-             headers={**h,'Authorization':'Bearer '+os.environ['EVE_MAIL_API_KEY']})
-          with urllib.request.urlopen(req,timeout=40) as res:audit=json.load(res)
+          audit=get_json('/api/v4/audit?run_id='+run,os.environ['EVE_MAIL_API_KEY'])
           assert audit.get('ok') and audit.get('run_id')==run,audit
           assert audit.get('dispatch_enabled') is False,audit
           print('historic_run_id=',run)
@@ -81,7 +93,7 @@ jobs:
           with open('v4_store_audit.json','w',encoding='utf-8') as f:
               json.dump(audit,f,ensure_ascii=False,indent=2)
           with open(os.environ['GITHUB_STEP_SUMMARY'],'a',encoding='utf-8') as f:
-              f.write('V4 SQLite historic SQL UNIQUE proofs: '+str(audit.get('sql_unique_proofs'))+' / expected 32860; release OFF.\n')
+              f.write('V4 SQLite historic SQL UNIQUE proofs: '+str(audit.get('sql_unique_proofs'))+' / expected 32860; release OFF.'+chr(10))
           assert audit.get('sql_unique_proofs') == 32860, 'HISTORIC_SQL_UNIQUE_COUNT_DISCREPANCY'
           PY
       - name: Save independently checked V4 audit
