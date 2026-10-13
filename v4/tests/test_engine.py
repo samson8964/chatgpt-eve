@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from v4.engine import Order, Policy, order_index, market_proof, contract_proof, quarantine_snapshot_candidate
+from v4.engine import Order, Policy, order_index, market_proof, contract_proof, quarantine_snapshot_candidate, parse_orders_strict
 from v4.state import Ledger
 
 
@@ -13,6 +13,22 @@ def o(i, price, buy, qty=100, tid=10, where=1):
 
 
 class V4EngineTests(unittest.TestCase):
+    def test_invalid_public_order_fails_scan_not_silent_skip(self):
+        rows=[{'order_id':11,'type_id':10,'location_id':1,
+               'is_buy_order':False,'price':100,'volume_remain':2},
+              {'order_id':12,'type_id':10,'location_id':1,
+               'is_buy_order':False,'price':float('nan'),'volume_remain':2}]
+        with self.assertRaisesRegex(ValueError,'INCOMPLETE_PUBLIC_ORDER_BOOK:1'):
+            parse_orders_strict(rows,source='PUBLIC')
+
+    def test_valid_order_source_is_fully_preserved(self):
+        rows=[{'order_id':i,'type_id':10,'location_id':1,
+               'is_buy_order':'true','price':100,'volume_remain':2}
+              for i in range(1,52)]
+        got=parse_orders_strict(rows,source='PUBLIC')
+        self.assertEqual(len(got),len(rows))
+        self.assertEqual(len({o.order_id for o in got}),len(rows))
+
     def test_every_order_indexed_no_old_seen_block(self):
         idx = order_index([o(i, i+1, False) for i in range(1, 1001)])
         self.assertEqual(len(idx[(1, 10, False)]), 1000)
