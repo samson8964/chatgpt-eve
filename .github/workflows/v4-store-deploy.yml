@@ -59,16 +59,16 @@ jobs:
           # Curl is the same client previously verified on this GitHub runner.
           # Capture only status plus bounded non-secret error content.
           def get_json(path,token=None):
-              args=['curl','-sS','--max-time','25','-w','\\n__HTTP_STATUS__=%{http_code}',
+              args=['curl','-sS','--max-time','25','-w','__HTTP_STATUS__=%{http_code}',
                     '-H','User-Agent: eve-v4-ledger-audit/1.1']
               if token:args.extend(['-H','Authorization: Bearer '+token])
               args.append(base+path)
               p=subprocess.run(args,text=True,capture_output=True,timeout=35)
-              body,sep,status=p.stdout.rpartition('\\n__HTTP_STATUS__=')
+              body,sep,status=p.stdout.rpartition('__HTTP_STATUS__=')
               if not sep: raise RuntimeError('HTTP_PROBE_NO_STATUS: '+p.stderr[:250])
               if status!='200' or p.returncode!=0:
                   print('V4_STORE_PROBE_FAILED',path.split('?')[0],'http',status,
-                        'response',body[:400].replace('\\n',' '),'curl_exit',p.returncode)
+                        'response',body[:400],'curl_exit',p.returncode)
                   raise RuntimeError('V4_STORE_HTTP_'+status)
               return json.loads(body)
           health=None
@@ -93,7 +93,7 @@ jobs:
           with open('v4_store_audit.json','w',encoding='utf-8') as f:
               json.dump(audit,f,ensure_ascii=False,indent=2)
           with open(os.environ['GITHUB_STEP_SUMMARY'],'a',encoding='utf-8') as f:
-              f.write('V4 SQLite historic SQL UNIQUE proofs: '+str(audit.get('sql_unique_proofs'))+' / expected 32860; release OFF.\\n')
+              f.write('V4 SQLite historic SQL UNIQUE proofs: '+str(audit.get('sql_unique_proofs'))+' / expected 32860; release OFF.'+chr(10))
           assert audit.get('sql_unique_proofs') == 32860, 'HISTORIC_SQL_UNIQUE_COUNT_DISCREPANCY'
           PY
       - name: Save independently checked V4 audit
