@@ -18,7 +18,7 @@ from pathlib import Path
 import pandas as pd
 import requests
 
-from v4.engine import Order, Policy, contract_proof, market_proof, quarantine_snapshot_candidate, parse_orders_strict
+from v4.engine import Order, Policy, contract_proof, market_proof, quarantine_snapshot_candidate, parse_orders_with_quarantine
 from v4.catalog import ensure_catalog, blueprint_instance_kind
 from v4.sources import market_dataframe, contract_dataframes
 
@@ -68,9 +68,8 @@ def all_structure_orders(api_key):
 
 
 def to_orders(rows, *, source):
-    # Previously malformed rows were silently dropped while coverage was
-    # reported complete. Fail closed instead, with bounded diagnostics.
-    return parse_orders_strict(rows, source=source)
+    # Every raw row is accounted for as a valid order or an explicit proof.
+    return parse_orders_with_quarantine(rows, source=source)
 
 
 def known_station_regions():
@@ -117,8 +116,9 @@ def run(market_path,contract_path,output,api_key=''):
     present={c for c in raw_market.columns}
     needed={'order_id','type_id','location_id','price','volume_remain','is_buy_order'}
     if needed-present: raise RuntimeError('order_fields_missing')
-    public_orders=to_orders(raw_market.to_dict('records'),source='PUBLIC')
-    authorized_orders=to_orders(structures,source='STRUCTURE')
+    public_orders,public_rejects=to_orders(raw_market.to_dict('records'),source='PUBLIC')
+    authorized_orders,structure_rejects=to_orders(structures,source='STRUCTURE')
+    quarantined=public_rejects+structure_rejects
     all_orders=public_orders+authorized_orders
     markets=defaultdict(list)
     for o in all_orders:
@@ -156,7 +156,9 @@ def run(market_path,contract_path,output,api_key=''):
     volumes={int(t):catalog.volume(t) for t in ids if catalog.volume(t) is not None}
     missing=coverage['missing_volume']
     stations=known_station_regions()
-    proofs=[];reasons=defaultdict(int)
+    proofs=list(quarantined);reasons=defaultdict(int)
+    for invalid in quarantined:
+        reasons[invalid['reason']]+=1
     for source,dest,typ in potential_pairs:
         unit=volumes.get(int(typ))
         v=unit or 0
@@ -205,7 +207,11 @@ def run(market_path,contract_path,output,api_key=''):
     report=dict(status='SHADOW_ONLY_NO_LIVE_ALERTS',run_id='v4-'+uuid.uuid4().hex,
        market_orders=len(all_orders),public_market_orders=len(public_orders),
        authorized_structure_orders=len(authorized_orders),
-       rejected_input_orders=0,source_locations_total=len({o.location_id for o in all_orders}),
+       rejected_input_orders=len(quarantined),
+       invalid_public_orders=len(public_rejects),
+       invalid_structure_orders=len(structure_rejects),
+       source_input_integrity=('PARTIAL_QUARANTINED' if quarantined else 'ALL_PARSED'),
+       source_locations_total=len({o.location_id for o in all_orders}),
        source_types_total=len({o.type_id for o in all_orders}),contract_rows=len(contracts),
        structure_health=structure_health,metadata_missing=missing,metadata_requested=len(ids),
        catalog_meta=catalog.meta,catalog_coverage=coverage,
@@ -219,7 +225,9 @@ def run(market_path,contract_path,output,api_key=''):
        warnings=['All snapshot-derived model candidates downgraded to WATCH: no live ESI order verification',
                  'Full-universe public contracts/markets census succeeded separately',
                  'Non-verified destination routes and BPC are not production mail-eligible',
-                 'All contract cash liquidations held RESEARCH until verified BPO/BPC and regular-item metadata is integrated'])
+                 'All contract cash liquidations held RESEARCH until verified BPO/BPC and regular-item metadata is integrated'] +
+                 (['Malformed input orders were explicitly quarantined; this is PARTIAL source input coverage']
+                  if quarantined else []))
     path=Path(output);path.parent.mkdir(parents=True,exist_ok=True)
     path.write_text(json.dumps(report,ensure_ascii=False,indent=2,default=str,allow_nan=False),encoding='utf-8')
     proof_path=path.with_name('all_proofs.jsonl')

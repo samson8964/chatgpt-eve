@@ -73,6 +73,31 @@ def parse_orders_strict(rows, *, source: str) -> list[Order]:
     return parsed
 
 
+def parse_orders_with_quarantine(rows, *, source: str) -> tuple[list[Order], list[dict]]:
+    """Examine EVERY raw order; quarantine malformed rows as auditable proofs.
+
+    A few malformed public rows must neither vanish silently nor prevent
+    research into all other valid orders. Partial input integrity permanently
+    forbids claiming this scan fully verified until the source is repaired.
+    No past-seen IDs, top-N cap, or product blacklist are consulted.
+    """
+    valid: list[Order] = []
+    rejected: list[dict] = []
+    for idx, raw in enumerate(rows):
+        try:
+            valid.append(Order.parse(raw))
+        except (ValueError, KeyError, TypeError, OverflowError) as exc:
+            key=f'input:{source}:{idx}'
+            rejected.append(dict(
+                instance=key, family=key, kind='input_integrity',
+                status='RESEARCH', reason='SOURCE_ORDER_INVALID',
+                source_lane=source, row_index=idx,
+                error_type=type(exc).__name__,
+                error_detail=str(exc)[:160],
+                order_id_hint=str(raw.get('order_id',''))[:40] if isinstance(raw,Mapping) else None))
+    return valid,rejected
+
+
 def order_index(orders: Sequence[Order]) -> dict[tuple[int, int, bool], list[Order]]:
     """FULL unfiltered index: all locations/types, not just familiar markets."""
     result = defaultdict(list)
