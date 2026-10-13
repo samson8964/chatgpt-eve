@@ -19,8 +19,8 @@ class V4EngineTests(unittest.TestCase):
         policy = Policy(profit_floor=10, min_roi=0.05, min_density=1)
         kw = dict(source_location=1, destination_location=2, type_id=10,
                   volume_m3=1, haul_isk=10, policy=policy, allowed=True, fresh=True)
-        a = market_proof([o(1, 10, False)], [o(10, 30, True, where=2), o(11, 29, True, where=2)], **kw)
-        b = market_proof([o(2, 10, False)], [o(10, 30, True, where=2), o(11, 29, True, where=2)], **kw)
+        a = market_proof([o(1, 10, False), o(3, 11, False)], [o(10, 30, True, where=2), o(11, 29, True, where=2)], **kw)
+        b = market_proof([o(2, 10, False), o(3, 11, False)], [o(10, 30, True, where=2), o(11, 29, True, where=2)], **kw)
         self.assertEqual(a['status'], 'MAIL')
         self.assertNotEqual(a['instance'], b['instance'])
 
