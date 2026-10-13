@@ -7,7 +7,7 @@ on:
   # explicit quota-paused mode never writes SQL or sends EVE mail.
   push:
     branches: [main]
-    paths: ['.github/workflows/v4-market-heartbeat.yml']
+    paths: ['.github/workflows/v4-market-heartbeat.yml', 'v4/**']
   # First full shadow scan after successful V4 Store deploy. Scheduled scans
   # remain independent of code pushes and never trigger legacy workflows.
   workflow_run:
