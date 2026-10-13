@@ -17,7 +17,6 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-import requests
 
 REF_URL = "https://data.everef.net/reference-data/reference-data-latest.tar.xz"
 DEFAULT_CACHE = Path(".cache/v4/reference/catalog.json.gz")
@@ -119,6 +118,7 @@ def from_archive(path, *, sha256=None, min_types=10000, min_blueprints=500) -> C
 
 def fetch_archive(path, url=REF_URL):
     """Bounded, retryable bulk download; never accept truncated archive."""
+    import requests  # Network dependency is optional for offline catalog tests.
     target = Path(path)
     target.parent.mkdir(parents=True,exist_ok=True)
     tmp = target.with_suffix(target.suffix + ".part")
