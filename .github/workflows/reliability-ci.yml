@@ -1,21 +1,18 @@
-name: Reliability CI
+name: V4 Reliability CI
 
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
+    branches: [main]
     paths:
-      - '*.py'
+      - 'v4/**'
       - 'cloudflare/**'
-      - '.github/workflows/scan.yml'
-      - '.github/workflows/v3-bpc-deep.yml'
-      - '.github/workflows/deploy-cloudflare-worker.yml'
       - '.github/workflows/reliability-ci.yml'
-      - 'requirements.txt'
+      - '.github/workflows/v4-ci.yml'
+      - '.github/workflows/v4-market-heartbeat.yml'
+      - '.github/workflows/retire-v3.yml'
   pull_request:
-    branches:
-      - main
+    branches: [main]
 
 permissions:
   contents: read
@@ -25,48 +22,39 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Checkout branch under test
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-          cache: 'pip'
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Compile Python sources
-        run: python -m compileall -q .
-
-      - name: Run Opportunity Engine and mail policy unit tests
+      - name: Compile independent V4 sources
+        run: python -m compileall -q v4
+      - name: Verify V4 opportunity identity and policy regression tests
+        run: python -m unittest discover -s v4/tests -v
+      - name: Assert legacy V3 jobs are retired and no Worker schedule can dispatch them
         run: |
-          python -m unittest -v \
-            test_opportunity_engine_v2.py \
-            test_opportunity_engine_v3.py \
-            test_v3_engine_architecture.py \
-            test_v3_source_scanners.py \
-            test_v3_o4t_integration.py \
-            test_v3_market_alert_reliability.py \
-            test_v3_eve_mail_delivery.py \
-            test_v3_bpc_adapter.py \
-            test_v3_schedule_delivery.py \
-            test_bpc_opportunity_engine_v2.py \
-            test_mail_reminder_policy.py \
-            test_prepare_mail_candidates_v2.py \
-            test_multi_grade_watch.py \
-            test_global_grade_watch.py \
-            test_global_grade_watch_gmail.py
-
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          worker=Path('cloudflare/worker_mail_sender.js').read_text()
+          wrangler=json.loads(Path('cloudflare/wrangler.jsonc').read_text())
+          assert wrangler.get('triggers',{}).get('crons') == [], 'legacy Cloudflare Cron revived'
+          assert 'dispatchGitHubWorkflow(' not in worker, 'legacy GH dispatcher revived'
+          assert 'scheduler_enabled: false' in worker, 'scheduler health not disabled'
+          for name in ['scan.yml','v3-bpc-deep.yml','v3-dc-o4t.yml','booster-monitor.yml','v3-market-reliability-ci.yml']:
+              content=Path('.github/workflows', name).read_text()
+              assert 'schedule:' not in content and 'push:' not in content, name
+              assert 'if: ${{ false }}' in content, name
+          heartbeat=Path('.github/workflows/v4-market-heartbeat.yml').read_text()
+          assert 'v4.full_scan' in heartbeat and "schedule:" in heartbeat
+          print('Legacy V3 automation retired; V4 full public market heartbeat retained')
+          PY
       - name: Check Worker JavaScript syntax
         run: |
           node --check cloudflare/worker.js
           node --check cloudflare/worker_mail_sender.js
-
-      - name: Validate Cloudflare Worker bundle without deploying
+          node --check cloudflare/v4_store.js
+          node --check cloudflare/v4_api_worker.js
+      - name: Validate both Worker bundles without deploying
         run: |
-          npx --yes wrangler@latest deploy \
-            --config cloudflare/wrangler.jsonc \
-            --strict \
-            --dry-run
+          npx --yes wrangler@latest deploy --config cloudflare/wrangler.jsonc --strict --dry-run
+          npx --yes wrangler@latest deploy --config cloudflare/wrangler.v4-store.jsonc --strict --dry-run

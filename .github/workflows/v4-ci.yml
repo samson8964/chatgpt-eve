@@ -1,7 +1,7 @@
 name: V4 isolated test suite
 on:
   push:
-    branches: ['rebuild/v4-isolated-20261013']
+    branches: ['main', 'rebuild/v4-isolated-20261013']
     paths: ['v4/**', '.github/workflows/v4-ci.yml']
   pull_request:
     paths: ['v4/**', '.github/workflows/v4-ci.yml']
