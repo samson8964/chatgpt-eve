@@ -4,6 +4,7 @@ on:
     branches: ['rebuild/v4-isolated-20261013']
     paths:
       - 'cloudflare/v4_api_worker.js'
+      - 'cloudflare/v4_store.js'
       - 'cloudflare/wrangler.v4-store.jsonc'
       - '.github/workflows/v4-store-deploy.yml'
   workflow_dispatch:
@@ -46,4 +47,13 @@ jobs:
           import json
           assert json.load(open('/tmp/v4-run.json'))['ok'] is True
           print('Verified private authenticated write; no EVE mail sent')
+          PY
+          curl -fsS -H "Authorization: Bearer $EVE_MAIL_API_KEY" -H 'Content-Type: application/json' \
+            -d '{"run_id":"v4-store-smoke","proofs":[{"instance":"contract:999999999","family":"contract:999999999","status":"MAIL","profit":500000000}],"recipients":["MikeChong"]}' \
+            "$URL/api/v4/record" > /tmp/v4-record.json
+          python - <<'PY'
+          import json
+          d=json.load(open('/tmp/v4-record.json'))
+          assert d['ok'] and d['pending_added']==0 and not d['dispatch_enabled'],d
+          print('Shadow first-seen baseline saved with zero sendable alerts')
           PY
