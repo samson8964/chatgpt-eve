@@ -29,3 +29,15 @@ test("authorized health probe can inspect bounded exception only",async()=>{
     assert.match(body.detail.exception_message,/sqlite runtime failed/);
   }finally{console.error=log;}
 });
+
+test("status does not invoke Durable Object while daily SQL quota is blocked",async()=>{
+  const env={V4_RELEASE_ENABLED:"0",V4_API_KEY:"test",
+             V4_LEDGER:{idFromName(){throw Error("DB not allowed");},
+                        get(){throw Error("DB not allowed");}}};
+  const res=await worker.fetch(new Request("https://store.test/status"),env);
+  assert.equal(res.status,200);
+  const body=await res.json();
+  assert.equal(body.dispatch_enabled,false);
+  assert.equal(body.ledger_protocol,4);
+  assert.equal(body.durable_sql_status,"NOT_CHECKED");
+});
