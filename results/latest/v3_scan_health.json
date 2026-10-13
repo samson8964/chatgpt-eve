@@ -1,32 +1,32 @@
 {
-  "generated_at": "2026-10-13T04:01:24.538036+00:00",
-  "started_epoch": 1791862273,
-  "run_id": "38342081343",
+  "generated_at": "2026-10-13T04:46:12.902429+00:00",
+  "started_epoch": 1791864962,
+  "run_id": "38345599942",
   "channels": {
     "v3-amarr-to-jita": {
-      "status": "ok",
-      "rows": 120,
-      "outcome": "success"
+      "status": "failed",
+      "rows": null,
+      "outcome": "failure"
     },
     "v3-dodixie-to-jita": {
-      "status": "ok",
-      "rows": 66,
-      "outcome": "success"
+      "status": "failed",
+      "rows": null,
+      "outcome": "cancelled"
     },
     "v3-four-h-to-jita": {
-      "status": "ok",
-      "rows": 108,
-      "outcome": "success"
+      "status": "failed",
+      "rows": null,
+      "outcome": "skipped"
     },
     "v3-cj-to-jita": {
-      "status": "ok",
-      "rows": 120,
-      "outcome": "success"
+      "status": "failed",
+      "rows": null,
+      "outcome": "skipped"
     },
     "v3-jita-to-4h": {
-      "status": "empty",
-      "rows": 0,
-      "outcome": "success"
+      "status": "failed",
+      "rows": null,
+      "outcome": "skipped"
     }
   }
 }
