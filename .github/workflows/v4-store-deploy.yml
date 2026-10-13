@@ -99,11 +99,18 @@ jobs:
                       quota_block=True;break
                   if attempt==2:raise
                   time.sleep(4)
+          # When shadow explicitly operates in artifact-only mode, do not
+          # access the SQL API at all: it can itself throw after a Free daily
+          # quota limit. This is NOT evidence that historic SQL rows match.
+          workflow=open('.github/workflows/v4-market-heartbeat.yml',encoding='utf-8').read()
+          if "V4_SQL_WRITE_MODE: 'paused_free_tier'" in workflow:
+              print('::warning::SQL audit DEFERRED: current workflow intentionally pauses database ingest')
+              quota_block=True
           if quota_block:
               report={'run_id':historic,'status':'PENDING_SQL_QUOTA',
                       'expected_proofs':32860,'sql_unique_proofs':None,
                       'release_enabled':False,
-                      'reason':'DURABLE_OBJECT_FREE_DAILY_WRITES_EXHAUSTED'}
+                      'reason':'SQL_AUDIT_DEFERRED_DURING_ARTIFACT_ONLY_MODE'}
               print('::warning::V4 SQL quota exhausted; no historical row-count claim. V4 scan allowed in artifact-only mode.')
           else:
               assert health and health.get('ok') and health.get('ledger_version',0)>=4,health
