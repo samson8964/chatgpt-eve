@@ -74,7 +74,7 @@ jobs:
           health=None
           for attempt in range(5):
               try:
-                  health=get_json('/health')
+                  health=get_json('/health',os.environ['EVE_MAIL_API_KEY'])
                   if health.get('ledger_version',0)>=3: break
                   print('old_version_retry',health.get('ledger_version'))
               except Exception as e:
