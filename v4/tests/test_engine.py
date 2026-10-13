@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from v4.engine import Order, Policy, order_index, market_proof, contract_proof
+from v4.engine import Order, Policy, order_index, market_proof, contract_proof, quarantine_snapshot_candidate
 from v4.state import Ledger
 
 
@@ -77,6 +77,15 @@ class V4EngineTests(unittest.TestCase):
         self.assertTrue(all(not isinstance(v,float) or math.isfinite(v)
             for v in proof.values()))
         json.dumps(proof,allow_nan=False)
+
+    def test_shadow_quarantines_market_and_contract_candidates(self):
+        for kind in ("market","contract"):
+            proof={"status":"MAIL","instance":"contract:999" if kind=="contract" else "market:999","kind":kind}
+            quarantine_snapshot_candidate(proof)
+            self.assertEqual(proof["status"],"WATCH")
+            self.assertTrue(proof["model_candidate"])
+            self.assertEqual(proof["reason"],"LIVE_ORDER_AND_CONTRACT_NOT_REVALIDATED")
+            json.dumps(proof,allow_nan=False)
 
     def test_seen_never_blocks_new_beyond_top_ten(self):
         with tempfile.TemporaryDirectory() as d:
