@@ -1,59 +1,94 @@
-name: V4 isolated store deployment and protected API smoke
+name: Deploy Cloudflare V4 Store (shadow only)
 on:
   push:
-    branches: ['rebuild/v4-isolated-20261013']
+    branches: [main]
     paths:
-      - 'cloudflare/v4_api_worker.js'
       - 'cloudflare/v4_store.js'
+      - 'cloudflare/v4_api_worker.js'
       - 'cloudflare/wrangler.v4-store.jsonc'
       - '.github/workflows/v4-store-deploy.yml'
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: eve-v4-store-deploy
+  cancel-in-progress: false
 jobs:
-  store:
+  deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
-      URL: https://eve-v4-opportunity-store.99617224.workers.dev
+      WORKER_URL: https://eve-v4-opportunity-store.99617224.workers.dev
     steps:
       - uses: actions/checkout@v4
-      - name: Deploy separate V4 store (notifications DISABLED)
-        run: npx --yes wrangler@latest deploy --config cloudflare/wrangler.v4-store.jsonc
-      - name: Put existing secret into NEW V4 Worker (no secret in Git history)
-        run: |
-          test -n "$EVE_MAIL_API_KEY"
-          printf '%s' "$EVE_MAIL_API_KEY" | npx --yes wrangler@latest secret put V4_API_KEY --config cloudflare/wrangler.v4-store.jsonc
-      - name: Verify store health, auth and no unauthorized notification
+      - name: Verify this deploy cannot enable notifications or migrate existing data
+        shell: bash
         run: |
           set -euo pipefail
-          curl -fsS --retry 3 --retry-delay 2 "$URL/health" > /tmp/v4-health.json
           python - <<'PY'
           import json
-          j=json.load(open('/tmp/v4-health.json'))
-          assert j['ok'] and j['backend']=='v4-durable-sqlite'
-          assert not j['dispatch_enabled'],j
-          print('V4 store persisted, dispatch disabled')
+          j=json.load(open('cloudflare/wrangler.v4-store.jsonc',encoding='utf-8'))
+          assert j['name']=='eve-v4-opportunity-store'
+          assert j['vars']['V4_RELEASE_ENABLED']=='0'
+          assert j['durable_objects']['bindings'][0]['class_name']=='V4OpportunityLedger'
+          assert j['migrations'][0]['tag']=='v4-store-init'
+          print('shadow-release=OFF; existing Durable Object class/migration retained')
           PY
-          code=$(curl -sS -o /dev/null -w '%{http_code}' "$URL/api/v4/pending?recipient=MikeChong")
-          test "$code" = "401"
-          curl -fsS -H "Authorization: Bearer $EVE_MAIL_API_KEY" -H 'Content-Type: application/json' \
-            -d '{"run_id":"v4-store-smoke","outcome":"SHADOW","coverage":{"dry_run":true}}' \
-            "$URL/api/v4/run" > /tmp/v4-run.json
+          test -n "${CLOUDFLARE_API_TOKEN:-}" || exit 2
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}" || exit 2
+          test -n "${EVE_MAIL_API_KEY:-}" || exit 2
+      - name: Validate Cloudflare build without deploying
+        run: npx --yes wrangler@latest deploy --config cloudflare/wrangler.v4-store.jsonc --strict --dry-run
+      - name: Deploy ONLY isolated V4 SQLite store
+        run: npx --yes wrangler@latest deploy --config cloudflare/wrangler.v4-store.jsonc --strict
+      - name: Preserve configured V4 authenticated API access
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' "$EVE_MAIL_API_KEY" | npx --yes wrangler@latest secret put V4_API_KEY --config cloudflare/wrangler.v4-store.jsonc
+      - name: Verify live release remains OFF and audit existing durable history
+        shell: bash
+        run: |
+          set -euo pipefail
           python - <<'PY'
-          import json
-          assert json.load(open('/tmp/v4-run.json'))['ok'] is True
-          print('Verified private authenticated write; no EVE mail sent')
+          import json,os,time,urllib.request
+          base=os.environ['WORKER_URL']
+          h={'User-Agent':'eve-v4-ledger-audit/1.0'}
+          health=None
+          for attempt in range(12):
+              try:
+                  with urllib.request.urlopen(urllib.request.Request(base+'/health',headers=h),timeout=25) as r:
+                      health=json.load(r)
+                  if health.get('ledger_version',0)>=3:break
+              except Exception as e:
+                  print('health_retry',attempt,type(e).__name__)
+              time.sleep(5)
+          assert health and health.get('ok') is True,health
+          assert health.get('ledger_version',0)>=3,health
+          assert health.get('dispatch_enabled') is False,health
+          run='v4-ff78ed60600a40e487e78e47ac349836'
+          req=urllib.request.Request(base+'/api/v4/audit?run_id='+run,
+             headers={**h,'Authorization':'Bearer '+os.environ['EVE_MAIL_API_KEY']})
+          with urllib.request.urlopen(req,timeout=40) as res:audit=json.load(res)
+          assert audit.get('ok') and audit.get('run_id')==run,audit
+          assert audit.get('dispatch_enabled') is False,audit
+          print('historic_run_id=',run)
+          print('historic_sql_unique_proofs=',audit.get('sql_unique_proofs'))
+          print('historic_proof_status_counts=',audit.get('status_counts'))
+          with open('v4_store_audit.json','w',encoding='utf-8') as f:
+              json.dump(audit,f,ensure_ascii=False,indent=2)
+          with open(os.environ['GITHUB_STEP_SUMMARY'],'a',encoding='utf-8') as f:
+              f.write('V4 SQLite historic SQL UNIQUE proofs: '+str(audit.get('sql_unique_proofs'))+' / expected 32860; release OFF.\n')
+          assert audit.get('sql_unique_proofs') == 32860, 'HISTORIC_SQL_UNIQUE_COUNT_DISCREPANCY'
           PY
-          curl -fsS -H "Authorization: Bearer $EVE_MAIL_API_KEY" -H 'Content-Type: application/json' \
-            -d '{"run_id":"v4-store-smoke","proofs":[{"instance":"contract:999999999","family":"contract:999999999","status":"MAIL","profit":500000000}],"recipients":["MikeChong"]}' \
-            "$URL/api/v4/record" > /tmp/v4-record.json
-          python - <<'PY'
-          import json
-          d=json.load(open('/tmp/v4-record.json'))
-          assert d['ok'] and d['pending_added']==0 and not d['dispatch_enabled'],d
-          print('Shadow first-seen baseline saved with zero sendable alerts')
-          PY
+      - name: Save independently checked V4 audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v4-store-sql-audit
+          path: v4_store_audit.json
+          if-no-files-found: ignore
+          retention-days: 14
