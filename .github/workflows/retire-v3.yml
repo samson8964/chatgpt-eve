@@ -54,9 +54,12 @@ jobs:
                       print("cancel",name,run_id,c)
                       if c not in (202,409):
                           errors.append((name,run_id,c))
-              code,result=api("PUT",wf+"/disable")
-              print("disable",name,code)
-              if code!=204: errors.append((name,"disable",code))
+              if data.get("state") == "disabled_manually":
+                  print("already disabled",name)
+              else:
+                  code,result=api("PUT",wf+"/disable")
+                  print("disable",name,code)
+                  if code!=204: errors.append((name,"disable",code))
           if errors:
               raise SystemExit("V3 retirement verification failed: "+repr(errors))
           print("All V3 and legacy booster scheduled workflows disabled.")
