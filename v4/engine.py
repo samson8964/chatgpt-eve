@@ -182,7 +182,8 @@ def market_proof(asks: Sequence[Order], bids: Sequence[Order], *, source_locatio
 
 def contract_proof(contract: Mapping, included: Mapping[int, int], books: Mapping[int, Sequence[Order]],
                    volumes: Mapping[int, float], *, policy: Policy = Policy(),
-                   haul_isk: float | None, allowed: bool, fresh: bool) -> dict:
+                   haul_isk: float | None, allowed: bool, fresh: bool,
+                   item_classifications: Mapping[int, str] | None = None) -> dict:
     cid = int(contract['contract_id'])
     base = dict(family='contract:' + str(cid), instance='contract:' + str(cid), kind='contract',
                 contract_id=cid, status='RESEARCH', reason='')
@@ -195,7 +196,16 @@ def contract_proof(contract: Mapping, included: Mapping[int, int], books: Mappin
         return dict(base, reason='NON_CASH_EXCHANGE_OR_EMPTY')
     if haul_isk is None or haul_isk < 0 or not math.isfinite(haul_isk):
         return dict(base, reason='HAUL_UNVERIFIED')
-    gross = stress_gross = volume = 0.0
+    # No BPO/BPC inference from type_id or ordinary order books: a blueprint
+    # copy and original share type_id but cannot share the same liquidation value.
+    # Without independently audited per-contract item classification, even a
+    # rich-looking cash contract remains RESEARCH; never issue an alert.
+    if not item_classifications or any(
+        item_classifications.get(int(tid)) != 'regular' for tid in included
+    ):
+        return dict(base, reason='ITEM_CLASSIFICATION_UNVERIFIED_OR_BLUEPRINT')
+    gross = volume = 0.0
+    stress_gross: float | None = 0.0
     all_depth = True
     execution_ids = []
     for item_id, qty in included.items():
@@ -213,21 +223,28 @@ def contract_proof(contract: Mapping, included: Mapping[int, int], books: Mappin
         remain = [o for o in depth if o.order_id != (depth[0].order_id if depth else -1)]
         st = fill_book(remain, qty)
         if st.units != qty:
-            stress_gross = -math.inf
-        elif stress_gross >= 0:
+            stress_gross = None
+        elif stress_gross is not None:
             stress_gross += st.value
     if not all_depth:
         return dict(base, status='WATCH', reason='PARTIAL_CASH_FLOOR_RESEARCH', gross=gross)
     net = gross * (1 - policy.sales_tax) - price - haul_isk
-    stress = stress_gross * (1 - policy.sales_tax) - price - haul_isk
+    stress = (stress_gross * (1 - policy.sales_tax) - price - haul_isk
+              if stress_gross is not None else None)
     investment = price + haul_isk
     roi = net / investment
-    density = net / volume if volume > 0 else -math.inf
+    density = net / volume if volume > 0 else None
+    # Invalid economic inputs are distinct from legitimate losses; never
+    # encode inf/nan as profit or silently turn them into safe signals.
+    if (not math.isfinite(net) or not math.isfinite(roi) or
+            density is None or not math.isfinite(density) or
+            (stress is not None and not math.isfinite(stress))):
+        return dict(base, reason='NONFINITE_ECONOMICS')
     high_value = price > policy.high_value_min_capital
     capital_ok = not high_value or price <= policy.high_value_max_capital
     floor = policy.high_value_floor if high_value else policy.profit_floor
     roi_floor = policy.high_value_min_roi if high_value else policy.min_roi
-    status = 'MAIL' if capital_ok and net >= floor and roi >= roi_floor and density >= policy.min_density and stress > 0 else 'WATCH'
+    status = 'MAIL' if capital_ok and net >= floor and roi >= roi_floor and density >= policy.min_density and stress is not None and stress > 0 else 'WATCH'
     return dict(base, status=status, reason=('FORMAL_GATE_PASSED' if status == 'MAIL' else 'BELOW_GATE_OR_STRESS'),
                 gross=gross, net_profit=net, profit=net, roi=roi, density=density,
                 stress_profit=stress, cost=investment, exit_order_ids=tuple(execution_ids))

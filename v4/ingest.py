@@ -35,8 +35,14 @@ def upload(report_path: str, proof_path: str, api_key: str) -> dict:
     def send(rows):
         nonlocal count,pending_added,batches
         if not rows:return
-        r=requests.post(BASE+'/api/v4/record',headers=h,json={
-            'run_id':run_id, 'proofs':rows,'recipients':['MikeChong','LadyBaBa']},
+        payload={'run_id':run_id,'proofs':rows,'recipients':['MikeChong','LadyBaBa']}
+        # Reject invalid economic values BEFORE any network side effects. This
+        # prevents both malformed JSON and silent NaN->null corruption.
+        try:
+            encoded=json.dumps(payload,allow_nan=False,separators=(',',':'))
+        except (ValueError,TypeError) as exc:
+            raise ValueError('NONFINITE_PROOF_PAYLOAD: '+repr([x.get('instance') for x in rows[:5]])) from exc
+        r=requests.post(BASE+'/api/v4/record',headers=h,data=encoded.encode('utf-8'),
             timeout=100)
         r.raise_for_status()
         data=r.json()
@@ -46,7 +52,9 @@ def upload(report_path: str, proof_path: str, api_key: str) -> dict:
     batch=[]
     for line in Path(proof_path).open(encoding='utf-8'):
         if not line.strip():continue
-        proof=json.loads(line)
+        def reject_nonfinite(raw):
+            raise ValueError('NONFINITE_JSON_TOKEN: '+raw)
+        proof=json.loads(line,parse_constant=reject_nonfinite)
         if proof.get('instance') and proof.get('status') in ('MAIL','WATCH'):
             batch.append(proof)
         if len(batch)>=200:
