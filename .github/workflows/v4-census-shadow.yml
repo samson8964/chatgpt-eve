@@ -5,6 +5,8 @@ on:
     paths:
       - 'v4/sources.py'
       - 'v4/full_scan.py'
+      - 'v4/deep_scan.py'
+      - 'v4/engine.py'
       - '.github/workflows/v4-census-shadow.yml'
   workflow_dispatch:
 permissions:
@@ -25,16 +27,25 @@ jobs:
         run: python -m pip install pandas requests
       - name: Run fresh independent full-market and public-contract census
         run: python -m v4.full_scan
+      - name: Independently verify known accessible market/contract candidates (shadow only)
+        env:
+          EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+        run: python -m v4.deep_scan
       - name: Show coverage
         if: always()
         run: |
           if [ -f v4_output/latest/full_market_report.json ]; then
             cat v4_output/latest/full_market_report.json
+          if [ -f v4_output/latest/deep_shadow.json ]; then
+            python -c 'import json; r=json.load(open("v4_output/latest/deep_shadow.json")); print({k:v for k,v in r.items() if k!="candidate_preview"})'
+          fi
           fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: v4-fresh-full-market-census
-          path: v4_output/latest/full_market_report.json
+          path: |
+            v4_output/latest/full_market_report.json
+            v4_output/latest/deep_shadow.json
           if-no-files-found: warn
           retention-days: 14
