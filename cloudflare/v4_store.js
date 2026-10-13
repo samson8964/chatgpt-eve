@@ -12,6 +12,7 @@ export class V4OpportunityLedger {
     this.db.exec("CREATE TABLE IF NOT EXISTS outbox (instance TEXT NOT NULL, recipient TEXT NOT NULL, channel TEXT NOT NULL, proof TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', mail_id TEXT, updated_at TEXT NOT NULL, PRIMARY KEY(instance,recipient,channel))");
     this.db.exec("CREATE TABLE IF NOT EXISTS scan_runs (run_id TEXT PRIMARY KEY, outcome TEXT NOT NULL, coverage TEXT NOT NULL, started TEXT NOT NULL)");
     this.db.exec("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, val TEXT NOT NULL)");
+    this.db.exec("CREATE TABLE IF NOT EXISTS eligible_history (instance TEXT PRIMARY KEY, first_seen TEXT NOT NULL, shadow_baseline INTEGER NOT NULL)");
   }
 
   result(obj, status=200) {
@@ -21,8 +22,7 @@ export class V4OpportunityLedger {
   async fetch(request) {
     const url = new URL(request.url);
     if (request.method === "GET" && url.pathname === "/health") {
-      const active = [...this.db.exec("SELECT val FROM settings WHERE key='dispatch_enabled' LIMIT 1")];
-      return this.result({ok:true, backend:"v4-durable-sqlite", dispatch_enabled:active.length && active[0].val==="1", ledger_version:1});
+      return this.result({ok:true, backend:"v4-durable-sqlite", dispatch_enabled:this.env.V4_RELEASE_ENABLED==="1", ledger_version:2});
     }
     if (request.method === "GET" && url.pathname === "/pending") {
       const recipient = url.searchParams.get("recipient") || "";
@@ -40,8 +40,7 @@ export class V4OpportunityLedger {
       if (proofs.length>500) return this.result({ok:false,error:"batch_too_large"},413);
       const recipients = Array.isArray(body.recipients) ? body.recipients : [];
       const now = new Date().toISOString();
-      const enable = [...this.db.exec("SELECT val FROM settings WHERE key='dispatch_enabled' LIMIT 1")];
-      const enabled = enable.length && enable[0].val==="1";
+      const enabled = this.env.V4_RELEASE_ENABLED==="1";
       let created=0;
       this.ctx.storage.transactionSync(()=>{
         for (const p of proofs) {
@@ -49,7 +48,11 @@ export class V4OpportunityLedger {
           if (!/^[A-Za-z0-9:_-]{8,160}$/.test(instance)) continue;
           const payload=JSON.stringify(p);
           this.db.exec("INSERT OR REPLACE INTO versions(run_id,instance,proof) VALUES(?,?,?)",runId,instance,payload);
-          if (String(p.status)!=="MAIL" || !enabled) continue;
+          if (String(p.status)!=="MAIL") continue;
+          const prior=[...this.db.exec("SELECT 1 AS x FROM eligible_history WHERE instance=?",instance)];
+          if (prior.length) continue;
+          this.db.exec("INSERT INTO eligible_history(instance,first_seen,shadow_baseline) VALUES(?,?,?)",instance,now,enabled?0:1);
+          if (!enabled) continue;
           for (const recipient of recipients) {
             if (!/^[A-Za-z0-9_-]{2,60}$/.test(String(recipient))) continue;
             const exists=[...this.db.exec("SELECT 1 AS x FROM outbox WHERE instance=? AND recipient=? AND channel='eve'",instance,recipient)];
@@ -86,6 +89,11 @@ export class V4OpportunityLedger {
       this.db.exec("UPDATE outbox SET status=?,mail_id=?,updated_at=? WHERE instance=? AND recipient=? AND status='sending'",
         outcome,String(body.mail_id||""),new Date().toISOString(),instance,recipient);
       return this.result({ok:true,status:outcome});
+    }
+    if (url.pathname === "/cancel") {
+      const instance=String(body.instance||""),recipient=String(body.recipient||"");
+      this.db.exec("UPDATE outbox SET status='obsolete',updated_at=? WHERE instance=? AND recipient=? AND status='pending'",new Date().toISOString(),instance,recipient);
+      return this.result({ok:true});
     }
     if (url.pathname === "/settings") {
       // Settings is intentionally NOT exposed via public HTTP API; deployed
