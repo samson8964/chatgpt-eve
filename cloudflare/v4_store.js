@@ -22,7 +22,25 @@ export class V4OpportunityLedger {
   async fetch(request) {
     const url = new URL(request.url);
     if (request.method === "GET" && url.pathname === "/health") {
-      return this.result({ok:true, backend:"v4-durable-sqlite", dispatch_enabled:this.env.V4_RELEASE_ENABLED==="1", ledger_version:2});
+      return this.result({ok:true, backend:"v4-durable-sqlite", dispatch_enabled:this.env.V4_RELEASE_ENABLED==="1", ledger_version:3});
+    }
+    if (request.method === "GET" && url.pathname === "/audit") {
+      // Read-only authoritative count from durable SQLite, not a client ACK.
+      const runId = url.searchParams.get("run_id") || "";
+      if (!/^[A-Za-z0-9_-]{5,128}$/.test(runId)) {
+        return this.result({ok:false,error:"invalid_run"},400);
+      }
+      const runs=[...this.db.exec("SELECT outcome,coverage,started FROM scan_runs WHERE run_id=?",runId)];
+      if (!runs.length) return this.result({ok:false,error:"run_not_found"},404);
+      const totals=[...this.db.exec(
+        "SELECT COUNT(*) AS total FROM versions WHERE run_id=?",runId)];
+      const statuses=[...this.db.exec(
+        "SELECT json_extract(proof,'$.status') AS status, COUNT(*) AS n FROM versions WHERE run_id=? GROUP BY json_extract(proof,'$.status')",runId)];
+      return this.result({ok:true,run_id:runId,sql_unique_proofs:Number(totals[0].total),
+        outcome:runs[0].outcome,coverage:JSON.parse(runs[0].coverage),
+        started:runs[0].started,
+        status_counts:Object.fromEntries(statuses.map(x=>[x.status,Number(x.n)])),
+        dispatch_enabled:this.env.V4_RELEASE_ENABLED==="1"});
     }
     if (request.method === "GET" && url.pathname === "/pending") {
       const recipient = url.searchParams.get("recipient") || "";
