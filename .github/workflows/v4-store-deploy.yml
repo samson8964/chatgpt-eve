@@ -70,8 +70,19 @@ jobs:
                       raise RuntimeError('SQL_FREE_DAILY_WRITE_QUOTA_EXHAUSTED')
                   raise RuntimeError('V4_STORE_HTTP_'+status)
               return json.loads(body)
-          status=get_json('/status')
-          assert status.get('ok') and status.get('service')=='eve-v4-opportunity-store',status
+          # workers.dev can temporarily serve the previous version after a deploy.
+          # Only accept a verified v4 protocol; bounded propagation retries never
+          # excuse a persistently wrong script or unauthorized deployment.
+          status=None
+          for attempt in range(10):
+              try:
+                  status=get_json('/status')
+                  if status.get('ledger_protocol',0)>=4:break
+              except RuntimeError:
+                  if attempt==9:raise
+              print('V4_STORE_PROPAGATION_RETRY',attempt)
+              time.sleep(5)
+          assert status and status.get('ok') and status.get('service')=='eve-v4-opportunity-store',status
           assert status.get('ledger_protocol',0)>=4,status
           assert status.get('dispatch_enabled') is False,status
           assert status.get('durable_sql_status')=='NOT_CHECKED',status
