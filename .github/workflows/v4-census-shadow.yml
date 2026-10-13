@@ -6,6 +6,7 @@ on:
       - 'v4/sources.py'
       - 'v4/full_scan.py'
       - 'v4/deep_scan.py'
+      - 'v4/ingest.py'
       - 'v4/engine.py'
       - '.github/workflows/v4-census-shadow.yml'
   workflow_dispatch:
@@ -31,6 +32,10 @@ jobs:
         env:
           EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
         run: python -m v4.deep_scan
+      - name: Write shadow proof history to independent durable actor (real emails disabled)
+        env:
+          EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+        run: python -m v4.ingest
       - name: Show coverage
         if: always()
         run: |
@@ -47,5 +52,6 @@ jobs:
           path: |
             v4_output/latest/full_market_report.json
             v4_output/latest/deep_shadow.json
+            v4_output/latest/all_proofs.jsonl
           if-no-files-found: warn
           retention-days: 14
