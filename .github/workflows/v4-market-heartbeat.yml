@@ -16,6 +16,10 @@ concurrency:
   cancel-in-progress: false
 jobs:
   census:
+    # Temporary emergency preservation mode: ALL proofs go to artifact;
+    # SQL writes are paused until sustainable long-term storage is available.
+    env:
+      V4_SQL_WRITE_MODE: 'paused_free_tier'
     if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 80
@@ -33,7 +37,7 @@ jobs:
           python - <<'PY'
           import json
           data=json.load(open('/tmp/v4-store-health.json',encoding='utf-8'))
-          assert data.get('ok') and data.get('ledger_version',0)>=3, data
+          assert data.get('ok') and data.get('ledger_version',0)>=4, data
           assert data.get('dispatch_enabled') is False, data
           print('V4 store v3 SQL audit available; formal notifications OFF')
           PY
@@ -54,10 +58,12 @@ jobs:
           EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
         run: python -m v4.deep_scan
       - name: Persist proof outcomes to Cloudflare V4 actor (release OFF)
+        if: env.V4_SQL_WRITE_MODE == 'enabled'
         env:
           EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
         run: python -m v4.ingest
       - name: Independently reconcile durable SQL UNIQUE proof count after all batches
+        if: env.V4_SQL_WRITE_MODE == 'enabled'
         env:
           EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
         shell: bash
@@ -83,6 +89,29 @@ jobs:
           assert sum(statuses.values())==expected, 'SQL_STATUS_COUNT_MISMATCH'
           Path('v4_output/latest/sql_audit.json').write_text(
               json.dumps(audit,ensure_ascii=False,indent=2),encoding='utf-8')
+          PY
+      - name: Preserve every SHADOW proof as an auditable artifact while SQL quota is exhausted
+        if: env.V4_SQL_WRITE_MODE != 'enabled'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          base=Path('v4_output/latest')
+          report=json.loads((base/'deep_shadow.json').read_text(encoding='utf-8'))
+          proofs=base/'all_proofs.jsonl'
+          assert proofs.is_file() and proofs.stat().st_size>0
+          count=sum(1 for line in proofs.open(encoding='utf-8') if line.strip())
+          assert count==int(report['proof_count']), (count,report['proof_count'])
+          gate={'status':'PENDING_SQL_QUOTA','run_id':report['run_id'],
+                'expected_proofs':count,'sql_unique_proofs':None,
+                'reason':'DURABLE_OBJECT_FREE_ROWS_WRITTEN_QUOTA_EXCEEDED',
+                'release_enabled':False,'all_proofs_artifact':True,
+                'durable_ledger_accepted':False}
+          (base/'sql_audit.json').write_text(json.dumps(gate,indent=2),encoding='utf-8')
+          print('::warning::V4 SQL write temporarily paused; proof_count='+str(count)+
+                ' artifact saved; durable ledger NOT accepted, no mail')
           PY
       - name: Publish coverage summary
         if: always()
