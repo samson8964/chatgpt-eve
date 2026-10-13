@@ -5,6 +5,7 @@ Refuses to operate if release mode is enabled. No mail privileges/side effects.
 from __future__ import annotations
 import json
 import os
+import re
 import requests
 from pathlib import Path
 
@@ -55,11 +56,20 @@ def upload(report_path: str, proof_path: str, api_key: str) -> dict:
         def reject_nonfinite(raw):
             raise ValueError('NONFINITE_JSON_TOKEN: '+raw)
         proof=json.loads(line,parse_constant=reject_nonfinite)
-        if proof.get('instance') and proof.get('status') in ('MAIL','WATCH'):
-            batch.append(proof)
+        # Persist EVERY evaluation outcome, not merely successful/watch rows.
+        # For unexecutable market research without an order fingerprint, the
+        # source-location/type family remains an auditable per-run proof key.
+        key=proof.get('instance') or proof.get('family')
+        if not isinstance(key,str) or not re.fullmatch(r'[A-Za-z0-9:_-]{8,160}',key):
+            raise ValueError('PROOF_MISSING_VALID_INSTANCE_OR_FAMILY')
+        proof['instance']=key
+        batch.append(proof)
         if len(batch)>=200:
             send(batch);batch=[]
     send(batch)
+    if count != int(report.get('proof_count',-1)):
+        raise ValueError('PROOF_LEDGER_ACK_COUNT_MISMATCH: expected %s, got %s' %
+                         (report.get('proof_count'),count))
     return {'ok':True,'run_id':run_id,'stored':count,'batches':batches,'new_emails':0}
 
 
