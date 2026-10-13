@@ -5,7 +5,7 @@ import tarfile
 import unittest
 from pathlib import Path
 
-from v4.catalog import Catalog, CatalogError, from_archive
+from v4.catalog import Catalog, CatalogError, from_archive, blueprint_instance_kind
 
 
 def archive(path, types, blueprints):
@@ -18,6 +18,14 @@ def archive(path, types, blueprints):
 
 
 class CatalogTests(unittest.TestCase):
+    def test_real_contract_copy_and_original_signals(self):
+        self.assertEqual(blueprint_instance_kind(True, 10), "BPC")
+        self.assertEqual(blueprint_instance_kind(False, -1), "BPO")
+        self.assertEqual(blueprint_instance_kind("true", 5.0), "BPC")
+        self.assertEqual(blueprint_instance_kind("true", -1), "UNKNOWN_BLUEPRINT")
+        self.assertEqual(blueprint_instance_kind(False, 10), "UNKNOWN_BLUEPRINT")
+        self.assertEqual(blueprint_instance_kind(None, float("nan")), "UNKNOWN_BLUEPRINT")
+
     def test_bulk_type_volume_and_blueprint_classification(self):
         with tempfile.TemporaryDirectory() as d:
             path=Path(d)/"ref.tar.xz"
