@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from v4.engine import Order, Policy, order_index, market_proof, contract_proof, quarantine_snapshot_candidate, parse_orders_strict
+from v4.engine import Order, Policy, order_index, market_proof, contract_proof, quarantine_snapshot_candidate, parse_orders_strict, parse_orders_with_quarantine
 from v4.state import Ledger
 
 
@@ -20,6 +20,22 @@ class V4EngineTests(unittest.TestCase):
                'is_buy_order':False,'price':float('nan'),'volume_remain':2}]
         with self.assertRaisesRegex(ValueError,'INCOMPLETE_PUBLIC_ORDER_BOOK:1'):
             parse_orders_strict(rows,source='PUBLIC')
+
+    def test_quarantine_preserves_valid_book_and_every_invalid_raw_row(self):
+        rows=[{'order_id':1,'type_id':10,'location_id':1,'is_buy_order':False,
+               'price':100,'volume_remain':3},
+              {'order_id':2,'type_id':10,'location_id':1,'is_buy_order':False,
+               'price':100,'volume_remain':0},
+              {'order_id':3,'type_id':10,'location_id':1,'is_buy_order':False,
+               'price':'nan','volume_remain':5}]
+        good,bad=parse_orders_with_quarantine(rows,source='PUBLIC')
+        self.assertEqual(len(good),1)
+        self.assertEqual(len(bad),2)
+        self.assertEqual(len({r['instance'] for r in bad}),2)
+        self.assertEqual([r['status'] for r in bad],['RESEARCH','RESEARCH'])
+        self.assertTrue(all(r['reason']=='SOURCE_ORDER_INVALID' for r in bad))
+        self.assertEqual([r['row_index'] for r in bad],[1,2])
+        json.dumps(bad,allow_nan=False)
 
     def test_valid_order_source_is_fully_preserved(self):
         rows=[{'order_id':i,'type_id':10,'location_id':1,
