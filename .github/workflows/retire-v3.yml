@@ -24,7 +24,7 @@ jobs:
           import json, os, time, urllib.request, urllib.error
           repo=os.environ["GH_REPO"]
           token=os.environ["GH_TOKEN"]
-          old=["scan.yml","v3-bpc-deep.yml","v3-dc-o4t.yml","booster-monitor.yml"]
+          old=["scan.yml","v3-bpc-deep.yml","v3-dc-o4t.yml","booster-monitor.yml","v3-market-reliability-ci.yml","v3-redesign-ci.yml","v3-validation.yml","v3-shadow-validation.yml","bpc-v2-trial.yml","v2-mail-gate-test.yml","opportunity-engine-v2-test.yml"]
           headers={"Authorization":"Bearer "+token,"Accept":"application/vnd.github+json","User-Agent":"eve-v4-cutover/1.0","X-GitHub-Api-Version":"2022-11-28"}
           def api(method,path):
               req=urllib.request.Request("https://api.github.com/repos/"+repo+path,headers=headers,method=method)
