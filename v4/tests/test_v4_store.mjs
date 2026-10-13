@@ -11,6 +11,19 @@ class InMemorySQL {
     if(sql.startsWith('CREATE TABLE')) return [];
     if(sql.startsWith('INSERT OR REPLACE INTO scan_runs')) { this.runs.add(p[0]); return []; }
     if(sql.startsWith('SELECT 1 AS found FROM scan_runs')) return this.runs.has(p[0])?[{found:1}]:[];
+    if(sql.startsWith('SELECT outcome,coverage,started FROM scan_runs'))
+      return this.runs.has(p[0])?[{outcome:'SHADOW',coverage:'{}',started:'2026-10-13T00:00:00Z'}]:[];
+    if(sql.startsWith('SELECT COUNT(*) AS total FROM versions'))
+      return [{total:[...this.versions.keys()].filter(k=>k.startsWith(p[0]+':')).length}];
+    if(sql.startsWith("SELECT json_extract(proof,'$.status') AS status")) {
+      const counts=new Map();
+      for(const [key,raw] of this.versions)
+        if(key.startsWith(p[0]+':')) {
+          const status=JSON.parse(raw).status;
+          counts.set(status,(counts.get(status)||0)+1);
+        }
+      return [...counts.entries()].map(([status,n])=>({status,n}));
+    }
     if(sql.startsWith('SELECT proof FROM versions')) {
       const old=this.versions.get(p[0]+':'+p[1]);return old===undefined?[]:[{proof:old}];
     }
@@ -85,4 +98,18 @@ test('release switch alone cannot authorize unverified formal MAIL',async()=>{
   assert.equal(result.status,409);
   assert.equal(result.body.error,'live_execution_gate_not_implemented');
   assert.equal(sql.versions.size,0);
+});
+
+test('authenticated audit reports actual SQLite unique proof count and statuses',async()=>{
+  const {actor,sql}=await registered();
+  const written=await post(actor,'record',{run_id:runId,proofs:[proof(10001),{...proof(10002),status:'RESEARCH'}]});
+  assert.equal(written.body.stored_total,2);
+  const response=await actor.fetch(new Request('https://ledger.internal/audit?run_id='+runId));
+  assert.equal(response.status,200);
+  const audit=await response.json();
+  assert.equal(audit.sql_unique_proofs,2);
+  assert.deepEqual(audit.status_counts,{RESEARCH:1,WATCH:1});
+  assert.equal(audit.dispatch_enabled,false);
+  const unknown=await actor.fetch(new Request('https://ledger.internal/audit?run_id=v4-unknown'));
+  assert.equal(unknown.status,404);
 });
