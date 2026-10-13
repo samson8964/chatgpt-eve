@@ -64,6 +64,8 @@ jobs:
         env:
           EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
         run: python -m v4.deep_scan
+      - name: Verify all shadow proof identities, statuses, and rejection counts offline
+        run: python -m v4.audit_artifact
       - name: Persist proof outcomes to Cloudflare V4 actor (release OFF)
         if: env.V4_SQL_WRITE_MODE == 'enabled'
         env:
@@ -135,6 +137,7 @@ jobs:
             v4_output/latest/full_market_report.json
             v4_output/latest/deep_shadow.json
             v4_output/latest/all_proofs.jsonl
+            v4_output/latest/artifact_integrity.json
             v4_output/latest/sql_audit.json
           retention-days: 14
           if-no-files-found: warn
