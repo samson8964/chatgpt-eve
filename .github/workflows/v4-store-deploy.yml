@@ -49,52 +49,66 @@ jobs:
         run: |
           set -euo pipefail
           printf '%s' "$EVE_MAIL_API_KEY" | npx --yes wrangler@latest secret put V4_API_KEY --config cloudflare/wrangler.v4-store.jsonc
-      - name: Verify live release remains OFF and audit existing durable history
+      - name: Verify deployment; distinguish SQL quota-block from true database audit
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
-          import json,os,time,subprocess
+          import json,os,subprocess,time
           base=os.environ['WORKER_URL']
-          # Curl is the same client previously verified on this GitHub runner.
-          # Capture only status plus bounded non-secret error content.
           def get_json(path,token=None):
               args=['curl','-sS','--max-time','25','-w','__HTTP_STATUS__=%{http_code}',
-                    '-H','User-Agent: eve-v4-ledger-audit/1.1']
+                    '-H','User-Agent: eve-v4-ledger-quota-check/1.0']
               if token:args.extend(['-H','Authorization: Bearer '+token])
               args.append(base+path)
               p=subprocess.run(args,text=True,capture_output=True,timeout=35)
               body,sep,status=p.stdout.rpartition('__HTTP_STATUS__=')
-              if not sep: raise RuntimeError('HTTP_PROBE_NO_STATUS: '+p.stderr[:250])
+              if not sep:raise RuntimeError('HTTP_PROBE_NO_STATUS:'+p.stderr[:100])
               if status!='200' or p.returncode!=0:
-                  print('V4_STORE_PROBE_FAILED',path.split('?')[0],'http',status,
-                        'response',body[:400],'curl_exit',p.returncode)
+                  print('probe_error',path.split('?')[0],status,body[:350])
+                  if 'Exceeded allowed rows written in Durable Objects free tier' in body:
+                      raise RuntimeError('SQL_FREE_DAILY_WRITE_QUOTA_EXHAUSTED')
                   raise RuntimeError('V4_STORE_HTTP_'+status)
               return json.loads(body)
+          status=get_json('/status')
+          assert status.get('ok') and status.get('service')=='eve-v4-opportunity-store',status
+          assert status.get('ledger_protocol',0)>=4,status
+          assert status.get('dispatch_enabled') is False,status
+          assert status.get('durable_sql_status')=='NOT_CHECKED',status
+          key=os.environ['EVE_MAIL_API_KEY']
+          historic='v4-ff78ed60600a40e487e78e47ac349836'
+          quota_block=False
           health=None
-          for attempt in range(5):
+          for attempt in range(3):
               try:
-                  health=get_json('/health',os.environ['EVE_MAIL_API_KEY'])
-                  if health.get('ledger_version',0)>=4: break
-                  print('old_version_retry',health.get('ledger_version'))
-              except Exception as e:
-                  print('health_retry',attempt,type(e).__name__,str(e)[:100])
-              time.sleep(4)
-          assert health and health.get('ok') is True,health
-          assert health.get('ledger_version',0)>=4,health
-          assert health.get('dispatch_enabled') is False,health
-          run='v4-ff78ed60600a40e487e78e47ac349836'
-          audit=get_json('/api/v4/audit?run_id='+run,os.environ['EVE_MAIL_API_KEY'])
-          assert audit.get('ok') and audit.get('run_id')==run,audit
-          assert audit.get('dispatch_enabled') is False,audit
-          print('historic_run_id=',run)
-          print('historic_sql_unique_proofs=',audit.get('sql_unique_proofs'))
-          print('historic_proof_status_counts=',audit.get('status_counts'))
+                  health=get_json('/health',key)
+                  break
+              except RuntimeError as e:
+                  if str(e)=='SQL_FREE_DAILY_WRITE_QUOTA_EXHAUSTED':
+                      quota_block=True;break
+                  if attempt==2:raise
+                  time.sleep(4)
+          if quota_block:
+              report={'run_id':historic,'status':'PENDING_SQL_QUOTA',
+                      'expected_proofs':32860,'sql_unique_proofs':None,
+                      'release_enabled':False,
+                      'reason':'DURABLE_OBJECT_FREE_DAILY_WRITES_EXHAUSTED'}
+              print('::warning::V4 SQL quota exhausted; no historical row-count claim. V4 scan allowed in artifact-only mode.')
+          else:
+              assert health and health.get('ok') and health.get('ledger_version',0)>=4,health
+              assert health.get('dispatch_enabled') is False,health
+              report=get_json('/api/v4/audit?run_id='+historic,key)
+              assert report.get('ok') and report.get('run_id')==historic,report
+              assert report.get('dispatch_enabled') is False,report
+              print('historical_sql_unique_proofs=',report.get('sql_unique_proofs'))
+              print('historical_status_counts=',report.get('status_counts'))
+              assert report.get('sql_unique_proofs')==32860,'HISTORIC_SQL_UNIQUE_COUNT_DISCREPANCY'
+              print('historical_sql_independent_audit=VERIFIED')
           with open('v4_store_audit.json','w',encoding='utf-8') as f:
-              json.dump(audit,f,ensure_ascii=False,indent=2)
+              json.dump(report,f,ensure_ascii=False,indent=2)
           with open(os.environ['GITHUB_STEP_SUMMARY'],'a',encoding='utf-8') as f:
-              f.write('V4 SQLite historic SQL UNIQUE proofs: '+str(audit.get('sql_unique_proofs'))+' / expected 32860; release OFF.'+chr(10))
-          assert audit.get('sql_unique_proofs') == 32860, 'HISTORIC_SQL_UNIQUE_COUNT_DISCREPANCY'
+              f.write('V4 Store release OFF; SQL audit status: '+str(report.get('status','VERIFIED'))+
+                      '; unique rows: '+str(report.get('sql_unique_proofs'))+chr(10))
           PY
       - name: Save independently checked V4 audit
         if: always()

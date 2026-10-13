@@ -3,6 +3,16 @@ export { V4OpportunityLedger } from "./v4_store.js";
 export default {
   async fetch(request, env) {
     const u = new URL(request.url);
+    // Static deployment/status check: no Durable Object access. During a
+    // Cloudflare Free daily SQL quota outage, deep shadow data collection can
+    // continue, but this response MUST NOT certify SQL persistence.
+    if (request.method === "GET" && u.pathname === "/status") {
+      return new Response(JSON.stringify({
+        ok:true,service:"eve-v4-opportunity-store",ledger_protocol:4,
+        dispatch_enabled:env.V4_RELEASE_ENABLED==="1",
+        durable_sql_status:"NOT_CHECKED"
+      }),{headers:{"content-type":"application/json"}});
+    }
     if (u.pathname === "/health") {
       try {
         const actor = env.V4_LEDGER.get(env.V4_LEDGER.idFromName("production"));
