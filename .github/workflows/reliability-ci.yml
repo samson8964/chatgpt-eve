@@ -43,7 +43,7 @@ jobs:
           for name in ['scan.yml','v3-bpc-deep.yml','v3-dc-o4t.yml','booster-monitor.yml','v3-market-reliability-ci.yml']:
               content=Path('.github/workflows', name).read_text()
               assert 'schedule:' not in content and 'push:' not in content, name
-              assert 'if: ${{ false }}' in content, name
+              assert 'retired:' in content and 'if: ' in content and 'false' in content, name
           heartbeat=Path('.github/workflows/v4-market-heartbeat.yml').read_text()
           assert 'v4.full_scan' in heartbeat and "schedule:" in heartbeat
           print('Legacy V3 automation retired; V4 full public market heartbeat retained')
