@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
 import test from "node:test";
 const src=await readFile(new URL("../../cloudflare/v4_api_worker.js",import.meta.url),"utf8");
-const {default:worker}=await import("data:text/javascript;base64,"+Buffer.from(src).toString("base64"));
+// Data-URL modules cannot resolve relative exports; the test only needs the default worker.
+const selfContained=src.replace('export { V4OpportunityLedger } from "./v4_store.js";','');
+const {default:worker}=await import("data:text/javascript;base64,"+Buffer.from(selfContained).toString("base64"));
 function envWithFailure(){
   return {V4_API_KEY:"protected-test-key",V4_LEDGER:{idFromName:()=> "production",get:()=>{throw new Error("sqlite runtime failed");}}};
 }
