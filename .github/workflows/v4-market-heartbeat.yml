@@ -1,4 +1,4 @@
-name: V4 complete public-market census (read-only)
+name: V4 complete public-market and contract deep shadow (no emails)
 on:
   schedule:
     - cron: '23 */2 * * *'
@@ -24,6 +24,22 @@ jobs:
         run: python -m pip install pandas requests
       - name: Fetch a NEW complete EVE Ref market and contracts snapshot and re-evaluate ALL location/type pairs
         run: python -m v4.full_scan
+      - name: Resolve weekly bulk static catalog cache key
+        id: catalog
+        run: echo "week=$(date -u +%G%V)" >> "$GITHUB_OUTPUT"
+      - name: Restore condensed static catalog
+        uses: actions/cache@v4
+        with:
+          path: .cache/v4/reference
+          key: v4-refdata-v1-${{ runner.os }}-${{ steps.catalog.outputs.week }}
+      - name: Analyze fresh orders, authorized structures and contracts (SHADOW; no email)
+        env:
+          EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+        run: python -m v4.deep_scan
+      - name: Persist proof outcomes to Cloudflare V4 actor (release OFF)
+        env:
+          EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+        run: python -m v4.ingest
       - name: Publish coverage summary
         if: always()
         run: |
@@ -35,6 +51,9 @@ jobs:
         if: always()
         with:
           name: eve-v4-census
-          path: v4_output/latest/full_market_report.json
+          path: |
+            v4_output/latest/full_market_report.json
+            v4_output/latest/deep_shadow.json
+            v4_output/latest/all_proofs.jsonl
           retention-days: 14
           if-no-files-found: warn

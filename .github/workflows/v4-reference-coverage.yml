@@ -1,0 +1,43 @@
+name: V4 real-data bulk catalog coverage check
+on:
+  push:
+    branches: ['fix/v4-bulk-reference-catalog-20261013']
+    paths: ['.github/workflows/v4-reference-coverage.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python -m pip install pandas requests
+      - name: Load one complete public contract snapshot and EVE Ref catalog
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from v4.catalog import ensure_catalog
+          from v4.sources import advertised, download_fresh, CONTRACT_INDEX, contract_dataframes
+          print('START_REFERENCE_BUILD',flush=True)
+          catalog=ensure_catalog()
+          print('CATALOG_BUILT',json.dumps(catalog.meta),flush=True)
+          assert catalog.classification(17477)=='blueprint_type'
+          assert catalog.classification(17479)=='blueprint_type'
+          assert catalog.volume(34) and catalog.volume(39)
+          path=Path('/tmp/v4-contracts.tar.bz2')
+          src=advertised(CONTRACT_INDEX,max_age_hours=6)
+          download_fresh(src,path)
+          contracts,items=contract_dataframes(path)
+          types={int(x) for x in items['type_id'].dropna().unique()}
+          cover=catalog.coverage(types)
+          print('CONTRACT_ITEM_COVERAGE',json.dumps(cover),flush=True)
+          print('PUBLIC_CONTRACT_ITEM_COLUMNS',sorted(items.columns),flush=True)
+          print('BLUEPRINT_SAMPLE',items[items['type_id'].isin([17477,17479])].head(4).to_json(orient='records'),flush=True)
+          assert len(types)>1000
+          assert cover['known_volume']>0
+          assert cover['missing_volume']/len(types)<0.25, 'Bulk data coverage still unacceptable'
+          PY

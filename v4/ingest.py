@@ -5,13 +5,29 @@ Refuses to operate if release mode is enabled. No mail privileges/side effects.
 from __future__ import annotations
 import json
 import os
-import requests
+import re
 from pathlib import Path
 
 BASE = 'https://eve-v4-opportunity-store.99617224.workers.dev'
 
 
+def read_proofs(proof_path):
+    """Yield EVERY evaluated record; reject invalid IDs and nonfinite JSON."""
+    def reject_nonfinite(raw):
+        raise ValueError('NONFINITE_JSON_TOKEN: '+raw)
+    for line in Path(proof_path).open(encoding='utf-8'):
+        if not line.strip():
+            continue
+        proof=json.loads(line,parse_constant=reject_nonfinite)
+        key=proof.get('instance') or proof.get('family')
+        if not isinstance(key,str) or not re.fullmatch(r'[A-Za-z0-9:_-]{8,160}',key):
+            raise ValueError('PROOF_MISSING_VALID_INSTANCE_OR_FAMILY')
+        proof['instance']=key
+        yield proof
+
+
 def upload(report_path: str, proof_path: str, api_key: str) -> dict:
+    import requests  # network dependency is unnecessary for offline proof validation
     if not api_key:
         raise RuntimeError('V4 store API key missing')
     h={'Authorization':'Bearer '+api_key,'Content-Type':'application/json'}
@@ -50,16 +66,14 @@ def upload(report_path: str, proof_path: str, api_key: str) -> dict:
             raise RuntimeError('Shadow sent to active outbox or store rejected: '+repr(data))
         count+=int(data['committed']);batches+=1
     batch=[]
-    for line in Path(proof_path).open(encoding='utf-8'):
-        if not line.strip():continue
-        def reject_nonfinite(raw):
-            raise ValueError('NONFINITE_JSON_TOKEN: '+raw)
-        proof=json.loads(line,parse_constant=reject_nonfinite)
-        if proof.get('instance') and proof.get('status') in ('MAIL','WATCH'):
-            batch.append(proof)
+    for proof in read_proofs(proof_path):
+        batch.append(proof)
         if len(batch)>=200:
             send(batch);batch=[]
     send(batch)
+    if count != int(report.get('proof_count',-1)):
+        raise ValueError('PROOF_LEDGER_ACK_COUNT_MISMATCH: expected %s, got %s' %
+                         (report.get('proof_count'),count))
     return {'ok':True,'run_id':run_id,'stored':count,'batches':batches,'new_emails':0}
 
 

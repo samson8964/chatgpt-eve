@@ -18,7 +18,8 @@ from pathlib import Path
 import pandas as pd
 import requests
 
-from v4.engine import Order, Policy, contract_proof, market_proof
+from v4.engine import Order, Policy, contract_proof, market_proof, quarantine_snapshot_candidate
+from v4.catalog import ensure_catalog, blueprint_instance_kind
 from v4.sources import market_dataframe, contract_dataframes
 
 JITA = 60003760
@@ -111,23 +112,6 @@ def haul(source,dest,volume,stations):
     return None
 
 
-def metadata(type_ids):
-    volumes={}; missing=0
-    def volume_of(tid):
-        d,_=request('https://ref-data.everef.net/types/%s'%tid,timeout=35)
-        raw=d.get('packaged_volume',d.get('volume'))
-        v=float(raw)
-        return (tid,v) if math.isfinite(v) and v>0 else (tid,None)
-    with ThreadPoolExecutor(max_workers=10) as pool:
-        tasks={pool.submit(volume_of,int(t)):int(t) for t in type_ids}
-        for future in as_completed(tasks):
-            tid=tasks[future]
-            try: _,v=future.result()
-            except Exception: v=None
-            if v:volumes[tid]=v
-            else:missing+=1
-    return volumes,missing
-
 
 def run(market_path,contract_path,output,api_key=''):
     raw_market=market_dataframe(Path(market_path))
@@ -170,7 +154,10 @@ def run(market_path,contract_path,output,api_key=''):
     inc=items[items.get('is_included',pd.Series(True,index=items.index)).astype(str).str.lower().isin(['true','1','t'])]
     inc=inc[inc['contract_id'].isin(set(cash_contracts['contract_id'].tolist()))]
     ids.update(int(t) for t in inc['type_id'].dropna().unique())
-    volumes,missing=metadata(ids)
+    catalog=ensure_catalog()
+    coverage=catalog.coverage(ids)
+    volumes={int(t):catalog.volume(t) for t in ids if catalog.volume(t) is not None}
+    missing=coverage['missing_volume']
     stations=known_station_regions()
     proofs=[];reasons=defaultdict(int)
     for source,dest,typ in potential_pairs:
@@ -183,15 +170,20 @@ def run(market_path,contract_path,output,api_key=''):
         proof.update(volume_m3=unit,haul_isk=cost,source_location=source,destination_location=dest,
                      source_region=stations.get(source,{}).get('region'),
                      destination_region=stations.get(dest,{}).get('region'))
+        quarantine_snapshot_candidate(proof)
         proofs.append(proof)
         reasons[proof['reason']]+=1
     # Contract proof only for validated Jita-location item exchange; other
     # station contracts need separate live contract/access transport proof.
     jita_contracts=cash_contracts[cash_contracts['start_location_id']==JITA]
     by_contract=defaultdict(dict)
+    bp_states=defaultdict(lambda:defaultdict(int))
     for row in inc[inc['contract_id'].isin(set(jita_contracts['contract_id']))].itertuples(index=False):
         key=int(row.contract_id);typ=int(row.type_id);qty=int(row.quantity)
         if qty>0:by_contract[key][typ]=by_contract[key].get(typ,0)+qty
+        if qty>0 and catalog.classification(typ)=='blueprint_type':
+            kind=blueprint_instance_kind(getattr(row,'is_blueprint_copy',None),getattr(row,'runs',None))
+            bp_states[key][kind]+=qty
     jita_bids={t:book for (location,t,buy),book in markets.items() if location==JITA and buy}
     for row in jita_contracts.to_dict('records'):
         cid=int(row['contract_id'])
@@ -201,24 +193,31 @@ def run(market_path,contract_path,output,api_key=''):
         # Fail-closed until the complete verified SDE blueprint/item-class
         # dictionary and raw contract item copy metadata are integrated.
         # V4 deliberately does NOT assume blueprint-looking types are BPO.
+        classes={int(t):catalog.classification(t) for t in by_contract[cid]}
         proof=contract_proof(row,by_contract[cid],jita_bids,volumes,
             policy=POLICY,haul_isk=0,allowed=True,fresh=True,
-            item_classifications=None)
+            item_classifications=classes)
         proof.update(included_items=by_contract[cid],
+                     contract_blueprint_evidence=dict(bp_states[cid]),
                      included_volumes={str(i):volumes.get(i) for i in by_contract[cid]},
                      source_location=JITA,destination_location=JITA,region_id=10000002,
                      expires_at=str(row.get('date_expired','')))
+        quarantine_snapshot_candidate(proof)
         proofs.append(proof)
         reasons[proof['reason']]+=1
     report=dict(status='SHADOW_ONLY_NO_LIVE_ALERTS',run_id='v4-'+uuid.uuid4().hex,
        market_orders=len(all_orders),source_locations_total=len({o.location_id for o in all_orders}),
        source_types_total=len({o.type_id for o in all_orders}),contract_rows=len(contracts),
        structure_health=structure_health,metadata_missing=missing,metadata_requested=len(ids),
+       catalog_meta=catalog.meta,catalog_coverage=coverage,
        verified_approved_locations=len(approved),market_potential_pairs=len(potential_pairs),
        contract_cash_known_location=len(cash_contracts),contract_jita_examined=len(jita_contracts),
-       proof_count=len(proofs),formal_candidates=sum(x.get('status')=='MAIL' for x in proofs),
+       contract_blueprint_states={state:sum(states.get(state,0) for states in bp_states.values())
+                                  for state in ('BPC','BPO','UNKNOWN_BLUEPRINT')},
+       proof_count=len(proofs),model_candidates=sum(x.get('model_candidate') is True for x in proofs),
+       formal_candidates=sum(x.get('status')=='MAIL' for x in proofs),
        reason_counts=dict(reasons),candidate_preview=[p for p in proofs if p.get('status')=='MAIL'][:10],
-       warnings=['Snapshot execution proof is NOT equivalent to latest live ESI validation',
+       warnings=['All snapshot-derived model candidates downgraded to WATCH: no live ESI order verification',
                  'Full-universe public contracts/markets census succeeded separately',
                  'Non-verified destination routes and BPC are not production mail-eligible',
                  'All contract cash liquidations held RESEARCH until verified BPO/BPC and regular-item metadata is integrated'])

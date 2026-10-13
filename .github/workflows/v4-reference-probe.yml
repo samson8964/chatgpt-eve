@@ -1,0 +1,33 @@
+name: V4 bulk reference archive format probe
+on:
+  push:
+    branches: ['fix/v4-bulk-reference-catalog-20261013']
+    paths: ['.github/workflows/v4-reference-probe.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch one EVE Ref bulk reference archive and inspect true structure
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fL --retry 2 --connect-timeout 30 --max-time 480 --output /tmp/v4-ref.tar.xz https://data.everef.net/reference-data/reference-data-latest.tar.xz
+          python - <<'PY'
+          import tarfile, json
+          p='/tmp/v4-ref.tar.xz'
+          with tarfile.open(p,'r:xz') as t:
+              arr=t.getmembers()
+              print('MEMBER_COUNT',len(arr),'FILE_COUNT',sum(x.isfile() for x in arr))
+              for m in arr[:30]: print('FIRST_MEMBER',m.name,m.size)
+              for m in arr:
+                  if ('type' in m.name.lower() or 'blueprint' in m.name.lower()) and m.isfile():
+                      print('TARGET_MEMBER',m.name,m.size)
+                      if m.name.lower().endswith(('.jsonl','.json','.csv','.yaml','.yml','.txt')):
+                          x=t.extractfile(m).read(2800)
+                          print('SAMPLE',m.name,repr(x[:1300]))
+          PY

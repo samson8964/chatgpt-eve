@@ -86,6 +86,19 @@ def fill_book(orders: Sequence[Order], quantity: int) -> Fill:
     return Fill(quantity - todo, value, tuple(seen))
 
 
+def quarantine_snapshot_candidate(proof: dict) -> dict:
+    """No snapshot-derived signal can enter the live-mail outbox.
+
+    Raw EVE Ref snapshots may be useful as a first economic estimate, but
+    eligibility must be established with direct, fresh ESI/order proof.
+    """
+    if proof.get("status") == "MAIL":
+        proof["model_candidate"] = True
+        proof["status"] = "WATCH"
+        proof["reason"] = "LIVE_ORDER_AND_CONTRACT_NOT_REVALIDATED"
+    return proof
+
+
 def stable_id(*values) -> str:
     return hashlib.sha256(json.dumps(values, separators=(',', ':'), ensure_ascii=False).encode()).hexdigest()
 

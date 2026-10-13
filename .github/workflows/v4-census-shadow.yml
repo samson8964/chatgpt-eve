@@ -1,11 +1,12 @@
 name: V4 fresh full-market read-only census
 on:
   push:
-    branches: ['rebuild/v4-isolated-20261013']
+    branches: ['fix/v4-bulk-reference-catalog-20261013']
     paths:
       - 'v4/sources.py'
       - 'v4/full_scan.py'
       - 'v4/deep_scan.py'
+      - 'v4/catalog.py'
       - 'v4/ingest.py'
       - 'v4/engine.py'
       - '.github/workflows/v4-census-shadow.yml'
@@ -28,6 +29,14 @@ jobs:
         run: python -m pip install pandas requests
       - name: Run fresh independent full-market and public-contract census
         run: python -m v4.full_scan
+      - name: Resolve weekly bulk catalog cache key
+        id: catalog
+        run: echo "week=$(date -u +%G%V)" >> "$GITHUB_OUTPUT"
+      - name: Cache condensed catalog so 8k types are not fetched each run
+        uses: actions/cache@v4
+        with:
+          path: .cache/v4/reference
+          key: v4-refdata-v1-${{ runner.os }}-${{ steps.catalog.outputs.week }}
       - name: Independently verify known accessible market/contract candidates (shadow only)
         env:
           EVE_MARKET_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
