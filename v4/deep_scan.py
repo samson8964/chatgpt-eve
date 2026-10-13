@@ -19,7 +19,7 @@ import pandas as pd
 import requests
 
 from v4.engine import Order, Policy, contract_proof, market_proof, quarantine_snapshot_candidate
-from v4.catalog import ensure_catalog
+from v4.catalog import ensure_catalog, blueprint_instance_kind
 from v4.sources import market_dataframe, contract_dataframes
 
 JITA = 60003760
@@ -177,9 +177,13 @@ def run(market_path,contract_path,output,api_key=''):
     # station contracts need separate live contract/access transport proof.
     jita_contracts=cash_contracts[cash_contracts['start_location_id']==JITA]
     by_contract=defaultdict(dict)
+    bp_states=defaultdict(lambda:defaultdict(int))
     for row in inc[inc['contract_id'].isin(set(jita_contracts['contract_id']))].itertuples(index=False):
         key=int(row.contract_id);typ=int(row.type_id);qty=int(row.quantity)
         if qty>0:by_contract[key][typ]=by_contract[key].get(typ,0)+qty
+        if qty>0 and catalog.classification(typ)=='blueprint_type':
+            kind=blueprint_instance_kind(getattr(row,'is_blueprint_copy',None),getattr(row,'runs',None))
+            bp_states[key][kind]+=qty
     jita_bids={t:book for (location,t,buy),book in markets.items() if location==JITA and buy}
     for row in jita_contracts.to_dict('records'):
         cid=int(row['contract_id'])
@@ -194,6 +198,7 @@ def run(market_path,contract_path,output,api_key=''):
             policy=POLICY,haul_isk=0,allowed=True,fresh=True,
             item_classifications=classes)
         proof.update(included_items=by_contract[cid],
+                     contract_blueprint_evidence=dict(bp_states[cid]),
                      included_volumes={str(i):volumes.get(i) for i in by_contract[cid]},
                      source_location=JITA,destination_location=JITA,region_id=10000002,
                      expires_at=str(row.get('date_expired','')))
@@ -207,6 +212,8 @@ def run(market_path,contract_path,output,api_key=''):
        catalog_meta=catalog.meta,catalog_coverage=coverage,
        verified_approved_locations=len(approved),market_potential_pairs=len(potential_pairs),
        contract_cash_known_location=len(cash_contracts),contract_jita_examined=len(jita_contracts),
+       contract_blueprint_states={state:sum(states.get(state,0) for states in bp_states.values())
+                                  for state in ('BPC','BPO','UNKNOWN_BLUEPRINT')},
        proof_count=len(proofs),model_candidates=sum(x.get('model_candidate') is True for x in proofs),
        formal_candidates=sum(x.get('status')=='MAIL' for x in proofs),
        reason_counts=dict(reasons),candidate_preview=[p for p in proofs if p.get('status')=='MAIL'][:10],
