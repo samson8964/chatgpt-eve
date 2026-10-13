@@ -18,7 +18,7 @@ from pathlib import Path
 import pandas as pd
 import requests
 
-from v4.engine import Order, Policy, contract_proof, market_proof
+from v4.engine import Order, Policy, contract_proof, market_proof, quarantine_snapshot_candidate
 from v4.catalog import ensure_catalog
 from v4.sources import market_dataframe, contract_dataframes
 
@@ -112,14 +112,6 @@ def haul(source,dest,volume,stations):
     return None
 
 
-def shadow_guard(proof):
-    """Snapshot model candidates are never executable or email-eligible."""
-    if proof.get('status') == 'MAIL':
-        proof['model_candidate'] = True
-        proof['status'] = 'WATCH'
-        proof['reason'] = 'LIVE_ORDER_AND_CONTRACT_NOT_REVALIDATED'
-    return proof
-
 
 def run(market_path,contract_path,output,api_key=''):
     raw_market=market_dataframe(Path(market_path))
@@ -178,7 +170,7 @@ def run(market_path,contract_path,output,api_key=''):
         proof.update(volume_m3=unit,haul_isk=cost,source_location=source,destination_location=dest,
                      source_region=stations.get(source,{}).get('region'),
                      destination_region=stations.get(dest,{}).get('region'))
-        shadow_guard(proof)
+        quarantine_snapshot_candidate(proof)
         proofs.append(proof)
         reasons[proof['reason']]+=1
     # Contract proof only for validated Jita-location item exchange; other
@@ -205,6 +197,7 @@ def run(market_path,contract_path,output,api_key=''):
                      included_volumes={str(i):volumes.get(i) for i in by_contract[cid]},
                      source_location=JITA,destination_location=JITA,region_id=10000002,
                      expires_at=str(row.get('date_expired','')))
+        quarantine_snapshot_candidate(proof)
         proofs.append(proof)
         reasons[proof['reason']]+=1
     report=dict(status='SHADOW_ONLY_NO_LIVE_ALERTS',run_id='v4-'+uuid.uuid4().hex,
