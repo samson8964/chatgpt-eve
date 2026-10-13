@@ -198,8 +198,12 @@ def run(market_path,contract_path,output,api_key=''):
         if cid not in by_contract:continue
         if 'date_expired' in row and str(row['date_expired'])[:19] < datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'):
             continue
+        # Fail-closed until the complete verified SDE blueprint/item-class
+        # dictionary and raw contract item copy metadata are integrated.
+        # V4 deliberately does NOT assume blueprint-looking types are BPO.
         proof=contract_proof(row,by_contract[cid],jita_bids,volumes,
-            policy=POLICY,haul_isk=0,allowed=True,fresh=True)
+            policy=POLICY,haul_isk=0,allowed=True,fresh=True,
+            item_classifications=None)
         proof.update(included_items=by_contract[cid],
                      included_volumes={str(i):volumes.get(i) for i in by_contract[cid]},
                      source_location=JITA,destination_location=JITA,region_id=10000002,
@@ -216,13 +220,14 @@ def run(market_path,contract_path,output,api_key=''):
        reason_counts=dict(reasons),candidate_preview=[p for p in proofs if p.get('status')=='MAIL'][:10],
        warnings=['Snapshot execution proof is NOT equivalent to latest live ESI validation',
                  'Full-universe public contracts/markets census succeeded separately',
-                 'Non-verified destination routes and BPC are not production mail-eligible'])
+                 'Non-verified destination routes and BPC are not production mail-eligible',
+                 'All contract cash liquidations held RESEARCH until verified BPO/BPC and regular-item metadata is integrated'])
     path=Path(output);path.parent.mkdir(parents=True,exist_ok=True)
-    path.write_text(json.dumps(report,ensure_ascii=False,indent=2,default=str),encoding='utf-8')
+    path.write_text(json.dumps(report,ensure_ascii=False,indent=2,default=str,allow_nan=False),encoding='utf-8')
     proof_path=path.with_name('all_proofs.jsonl')
     with proof_path.open('w',encoding='utf-8') as fh:
         for row in proofs:
-            fh.write(json.dumps(row,ensure_ascii=False,default=str,separators=(',',':'))+'\n')
+            fh.write(json.dumps(row,ensure_ascii=False,default=str,separators=(',',':'),allow_nan=False)+'\n')
     return report
 
 
