@@ -8,11 +8,20 @@ export class V4OpportunityLedger {
     this.ctx = ctx;
     this.env = env;
     this.db = ctx.storage.sql;
+    // IMPORTANT: Health/audit must be READ-ONLY even after the Free tier
+    // has exhausted its daily SQL row-write quota. Re-running CREATE TABLE
+    // in every constructor previously made /health fail HTTP 1101.
+    this.schemaInitialized = false;
+  }
+
+  ensureSchemaForWrite() {
+    if (this.schemaInitialized) return;
     this.db.exec("CREATE TABLE IF NOT EXISTS versions (run_id TEXT NOT NULL, instance TEXT NOT NULL, proof TEXT NOT NULL, PRIMARY KEY(run_id,instance))");
     this.db.exec("CREATE TABLE IF NOT EXISTS outbox (instance TEXT NOT NULL, recipient TEXT NOT NULL, channel TEXT NOT NULL, proof TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', mail_id TEXT, updated_at TEXT NOT NULL, PRIMARY KEY(instance,recipient,channel))");
     this.db.exec("CREATE TABLE IF NOT EXISTS scan_runs (run_id TEXT PRIMARY KEY, outcome TEXT NOT NULL, coverage TEXT NOT NULL, started TEXT NOT NULL)");
     this.db.exec("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, val TEXT NOT NULL)");
     this.db.exec("CREATE TABLE IF NOT EXISTS eligible_history (instance TEXT PRIMARY KEY, first_seen TEXT NOT NULL, shadow_baseline INTEGER NOT NULL)");
+    this.schemaInitialized = true;
   }
 
   result(obj, status=200) {
@@ -22,7 +31,7 @@ export class V4OpportunityLedger {
   async fetch(request) {
     const url = new URL(request.url);
     if (request.method === "GET" && url.pathname === "/health") {
-      return this.result({ok:true, backend:"v4-durable-sqlite", dispatch_enabled:this.env.V4_RELEASE_ENABLED==="1", ledger_version:3});
+      return this.result({ok:true, backend:"v4-durable-sqlite", dispatch_enabled:this.env.V4_RELEASE_ENABLED==="1", ledger_version:4});
     }
     if (request.method === "GET" && url.pathname === "/audit") {
       // Read-only authoritative count from durable SQLite, not a client ACK.
@@ -52,6 +61,7 @@ export class V4OpportunityLedger {
     let body;
     try { body=await request.json(); } catch { return this.result({ok:false,error:"invalid_json"},400); }
     if (url.pathname === "/record") {
+      this.ensureSchemaForWrite();
       const runId = String(body.run_id || "");
       if (!/^[A-Za-z0-9_-]{5,128}$/.test(runId)) return this.result({ok:false,error:"invalid_run"},400);
       const proofs = Array.isArray(body.proofs) ? body.proofs : [];
@@ -116,6 +126,7 @@ export class V4OpportunityLedger {
         pending_added:created,dispatch_enabled:Boolean(enabled)});
     }
     if (url.pathname === "/run") {
+      this.ensureSchemaForWrite();
       if (!/^[A-Za-z0-9_-]{5,128}$/.test(String(body.run_id))) return this.result({ok:false,error:"invalid_run"},400);
       this.db.exec("INSERT OR REPLACE INTO scan_runs VALUES(?,?,?,?)",
         String(body.run_id),String(body.outcome),JSON.stringify(body.coverage||{}),new Date().toISOString());
