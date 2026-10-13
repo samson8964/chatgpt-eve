@@ -113,3 +113,13 @@ test('authenticated audit reports actual SQLite unique proof count and statuses'
   const unknown=await actor.fetch(new Request('https://ledger.internal/audit?run_id=v4-unknown'));
   assert.equal(unknown.status,404);
 });
+
+test('health is read-only when Durable Object free-tier writes are exhausted',async()=>{
+  const sql={exec(){throw new Error('Exceeded allowed rows written in Durable Objects free tier.')}};
+  const actor=new V4OpportunityLedger({storage:{sql,transactionSync(fn){fn();}}},{V4_RELEASE_ENABLED:'0'});
+  const response=await actor.fetch(new Request('https://ledger.internal/health'));
+  assert.equal(response.status,200);
+  const health=await response.json();
+  assert.equal(health.ledger_version,4);
+  assert.equal(health.dispatch_enabled,false);
+});
