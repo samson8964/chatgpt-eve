@@ -180,6 +180,9 @@ def run(market_path,contract_path,output,api_key=''):
         proof=market_proof(markets[(source,typ,False)],markets[(dest,typ,True)],
             source_location=source,destination_location=dest,type_id=int(typ),
             volume_m3=unit,haul_isk=cost,policy=POLICY,allowed=True,fresh=True)
+        proof.update(volume_m3=unit,haul_isk=cost,source_location=source,destination_location=dest,
+                     source_region=stations.get(source,{}).get('region'),
+                     destination_region=stations.get(dest,{}).get('region'))
         proofs.append(proof)
         reasons[proof['reason']]+=1
     # Contract proof only for validated Jita-location item exchange; other
@@ -197,6 +200,10 @@ def run(market_path,contract_path,output,api_key=''):
             continue
         proof=contract_proof(row,by_contract[cid],jita_bids,volumes,
             policy=POLICY,haul_isk=0,allowed=True,fresh=True)
+        proof.update(included_items=by_contract[cid],
+                     included_volumes={str(i):volumes.get(i) for i in by_contract[cid]},
+                     source_location=JITA,destination_location=JITA,region_id=10000002,
+                     expires_at=str(row.get('date_expired','')))
         proofs.append(proof)
         reasons[proof['reason']]+=1
     report=dict(status='SHADOW_ONLY_NO_LIVE_ALERTS',run_id='v4-'+uuid.uuid4().hex,
@@ -212,6 +219,10 @@ def run(market_path,contract_path,output,api_key=''):
                  'Non-verified destination routes and BPC are not production mail-eligible'])
     path=Path(output);path.parent.mkdir(parents=True,exist_ok=True)
     path.write_text(json.dumps(report,ensure_ascii=False,indent=2,default=str),encoding='utf-8')
+    proof_path=path.with_name('all_proofs.jsonl')
+    with proof_path.open('w',encoding='utf-8') as fh:
+        for row in proofs:
+            fh.write(json.dumps(row,ensure_ascii=False,default=str,separators=(',',':'))+'\n')
     return report
 
 
