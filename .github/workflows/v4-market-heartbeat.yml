@@ -1,0 +1,40 @@
+name: V4 complete public-market census (read-only)
+on:
+  schedule:
+    - cron: '23 */2 * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/v4-market-heartbeat.yml']
+permissions:
+  contents: read
+concurrency:
+  group: eve-v4-complete-public-market
+  cancel-in-progress: false
+jobs:
+  census:
+    runs-on: ubuntu-latest
+    timeout-minutes: 80
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install V4-only snapshot reader dependencies
+        run: python -m pip install pandas requests
+      - name: Fetch a NEW complete EVE Ref market and contracts snapshot and re-evaluate ALL location/type pairs
+        run: python -m v4.full_scan
+      - name: Publish coverage summary
+        if: always()
+        run: |
+          if [ -f v4_output/latest/full_market_report.json ]; then
+            cat v4_output/latest/full_market_report.json
+          fi
+      - name: Save this run's fresh census report without touching Git state
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eve-v4-census
+          path: v4_output/latest/full_market_report.json
+          retention-days: 14
+          if-no-files-found: warn

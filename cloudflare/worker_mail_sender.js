@@ -9,9 +9,6 @@ const SKILL_SCOPE = "esi-skills.read_skills.v1 esi-skills.read_skillqueue.v1 esi
 const SKILL_ACCESS_TOKEN_CACHE_KEY = "https://eve-contract-opener.internal/skill-access-token";
 const REQUIRED_SKILL_CHARACTER = "MikeChong";
 const GITHUB_REPO = "samson8964/chatgpt-eve";
-const FAST_SCAN_CRON = "*/15 * * * *";
-const BPC_DEEP_CRON = "0 */3 * * *";
-const O4T_PRIME_CRON = "17 */2 * * *";
 
 let memoryMailAccessToken = "";
 let memoryMailAccessTokenExp = 0;
@@ -47,7 +44,8 @@ export default {
   },
 
   async scheduled(controller, env, ctx) {
-    ctx.waitUntil(handleScheduledDispatch(controller, env));
+    // V3 fully retired: ignore any legacy scheduled event even if an old Cloudflare cron remains briefly registered.
+    console.log("V3 scheduler retired; no GitHub dispatch", String(controller.cron || ""));
   },
 };
 
@@ -59,108 +57,17 @@ async function handleSchedulerHealth(request, env) {
     ok: true,
     configured: Boolean(env.EVE_DISPATCH_TOKEN),
     repository: GITHUB_REPO,
-    fast_scan: { enabled: true, cron: FAST_SCAN_CRON, workflow: "scan.yml" },
-    bpc_deep: { enabled: true, cron: BPC_DEEP_CRON, workflow: "v3-bpc-deep.yml" },
-    o4t_prime: { enabled: true, cron: O4T_PRIME_CRON, workflow: "v3-dc-o4t.yml" },
+    scheduler_enabled: false,
+    retired_version: "V3",
+    retained_mode: "V4 read-only authentication/market/mail API",
+    fast_scan: { enabled: false, cron: null, workflow: "scan.yml" },
+    bpc_deep: { enabled: false, cron: null, workflow: "v3-bpc-deep.yml" },
+    o4t_prime: { enabled: false, cron: null, workflow: "v3-dc-o4t.yml" },
   });
 }
 
-async function dispatchGitHubWorkflow(env, workflow, inputs = null) {
-  if (!env.EVE_DISPATCH_TOKEN) {
-    throw new Error("missing Cloudflare secret EVE_DISPATCH_TOKEN");
-  }
-  const payload = { ref: "main" };
-  if (inputs && Object.keys(inputs).length) payload.inputs = inputs;
-
-  const resp = await fetch(
-    `https://api.github.com/repos/${GITHUB_REPO}/actions/workflows/${workflow}/dispatches`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${env.EVE_DISPATCH_TOKEN}`,
-        Accept: "application/vnd.github+json",
-        "Content-Type": "application/json",
-        "User-Agent": "eve-v3-cloudflare-scheduler/1.0",
-        "X-GitHub-Api-Version": "2022-11-28",
-      },
-      body: JSON.stringify(payload),
-    },
-  );
-  const detail = await resp.text();
-  if (resp.status !== 204) {
-    throw new Error(`GitHub workflow dispatch failed workflow=${workflow} status=${resp.status} detail=${detail.slice(0, 500)}`);
-  }
-}
-
-async function workflowIsActive(env, workflow) {
-  // With a 15-minute cron and ~30-minute full scan, GitHub's single pending
-  // concurrency slot cancels intermediate runs. Dispatch only after idle.
-  const url = `https://api.github.com/repos/${GITHUB_REPO}/actions/workflows/${workflow}/runs?per_page=20`;
-  const resp = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${env.EVE_DISPATCH_TOKEN}`,
-      Accept: "application/vnd.github+json",
-      "User-Agent": "eve-v3-cloudflare-scheduler/1.0",
-      "X-GitHub-Api-Version": "2022-11-28",
-    },
-  });
-  if (!resp.ok) {
-    throw new Error(`GitHub workflow health check failed workflow=${workflow} status=${resp.status}`);
-  }
-  const data = await resp.json();
-  return (data.workflow_runs || []).some(run =>
-    ["in_progress", "queued", "pending", "requested", "waiting"].includes(run.status)
-  );
-}
-
-async function handleScheduledDispatch(controller, env) {
-  const cron = String(controller.cron || "");
-  const scheduledTime = Number(controller.scheduledTime || Date.now());
-
-  let workflow = "";
-  let inputs = null;
-  if (cron === FAST_SCAN_CRON) {
-    workflow = "scan.yml";
-    inputs = { source: "cloudflare-cron" };
-  } else if (cron === BPC_DEEP_CRON) {
-    workflow = "v3-bpc-deep.yml";
-    inputs = { reason: "cloudflare-3h-cron" };
-  } else if (cron === O4T_PRIME_CRON) {
-    workflow = "v3-dc-o4t.yml";
-    inputs = { reason: "cloudflare-2h-cron" };
-  } else {
-    console.warn("Unknown scheduled cron; skip", cron);
-    return;
-  }
-
-  const idemKey = `scheduler_dispatch:${workflow}:${scheduledTime}`;
-  if (env.AUTH_STORE) {
-    try {
-      if (await env.AUTH_STORE.get(idemKey)) {
-        console.log("scheduled dispatch duplicate skipped", workflow, scheduledTime);
-        return;
-      }
-    } catch (err) {
-      console.warn("scheduler idempotency read failed", String(err));
-    }
-  }
-
-  // If GitHub is unreachable, fail closed instead of piling up canceled runs.
-  if (await workflowIsActive(env, workflow)) {
-    console.log("scheduled dispatch skipped: preceding run still active", workflow);
-    return;
-  }
-  await dispatchGitHubWorkflow(env, workflow, inputs);
-
-  if (env.AUTH_STORE) {
-    try {
-      await env.AUTH_STORE.put(idemKey, "1", { expirationTtl: 21600 });
-    } catch (err) {
-      console.warn("scheduler idempotency persistence failed", String(err));
-    }
-  }
-  console.log("scheduled dispatch accepted", { cron, workflow, scheduledTime });
-}
+// All legacy V3 dispatch functions were removed on 2026-10-13.
+// This Worker remains active only for EVE SSO, authorised market-data reads, and the existing email API.
 
 async function startMailAuth(env) {
   if (!env.EVE_CLIENT_ID || !env.EVE_CLIENT_SECRET || !env.EVE_REDIRECT_URI) {
