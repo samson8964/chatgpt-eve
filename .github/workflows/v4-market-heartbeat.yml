@@ -3,6 +3,11 @@ on:
   schedule:
     - cron: '23 */2 * * *'
   workflow_dispatch:
+  # Re-validate a modified shadow workflow immediately on main updates;
+  # explicit quota-paused mode never writes SQL or sends EVE mail.
+  push:
+    branches: [main]
+    paths: ['.github/workflows/v4-market-heartbeat.yml']
   # First full shadow scan after successful V4 Store deploy. Scheduled scans
   # remain independent of code pushes and never trigger legacy workflows.
   workflow_run:
@@ -32,7 +37,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail-with-body -fsS --retry 3 --retry-delay 3 \
+          curl --fail-with-body -sS --retry 3 --retry-delay 3 \
             https://eve-v4-opportunity-store.99617224.workers.dev/status > /tmp/v4-store-status.json
           python - <<'PY'
           import json
