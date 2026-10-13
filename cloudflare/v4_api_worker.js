@@ -4,8 +4,23 @@ export default {
   async fetch(request, env) {
     const u = new URL(request.url);
     if (u.pathname === "/health") {
-      const actor = env.V4_LEDGER.get(env.V4_LEDGER.idFromName("production"));
-      return actor.fetch(new Request("https://ledger.internal/health"));
+      try {
+        const actor = env.V4_LEDGER.get(env.V4_LEDGER.idFromName("production"));
+        // await intentionally: a rejected Durable Object fetch must be caught,
+        // not surface as an opaque Cloudflare 1101.
+        return await actor.fetch(new Request("https://ledger.internal/health"));
+      } catch (err) {
+        console.error("V4_LEDGER_HEALTH_EXCEPTION", err);
+        const privileged=Boolean(env.V4_API_KEY &&
+          request.headers.get("Authorization")==="Bearer "+env.V4_API_KEY);
+        const detail=privileged ? {
+          exception_type:String(err?.name || typeof err).slice(0,80),
+          exception_message:String(err?.message || err).slice(0,280)
+        } : undefined;
+        return new Response(JSON.stringify({ok:false,error:"ledger_backend_exception",...(detail?{detail}:{})}),{
+          status:503,headers:{"content-type":"application/json"}
+        });
+      }
     }
     if (!u.pathname.startsWith("/api/v4/")) return new Response("Not Found", {status:404});
     if (!env.V4_API_KEY || request.headers.get("Authorization") !== "Bearer " + env.V4_API_KEY) {
