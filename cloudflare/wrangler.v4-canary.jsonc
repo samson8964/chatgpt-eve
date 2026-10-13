@@ -1,0 +1,14 @@
+{
+  "name": "eve-v4-ledger-canary",
+  "main": "v4_smoke_worker.js",
+  "compatibility_date": "2026-10-01",
+  "preview_urls": false,
+  "durable_objects": {
+    "bindings": [
+      {"name": "V4_LEDGER", "class_name": "V4OpportunityLedger"}
+    ]
+  },
+  "migrations": [
+    {"tag":"v4-ledger-init", "new_sqlite_classes": ["V4OpportunityLedger"]}
+  ]
+}
