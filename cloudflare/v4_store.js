@@ -37,17 +37,46 @@ export class V4OpportunityLedger {
       const runId = String(body.run_id || "");
       if (!/^[A-Za-z0-9_-]{5,128}$/.test(runId)) return this.result({ok:false,error:"invalid_run"},400);
       const proofs = Array.isArray(body.proofs) ? body.proofs : [];
-      if (proofs.length>500) return this.result({ok:false,error:"batch_too_large"},413);
+      if (!proofs.length || proofs.length>500) return this.result({ok:false,error:"invalid_batch_size"},413);
+      // Fail closed BEFORE the SQL transaction: an invalid identity must never
+      // be silently skipped and then counted as durably committed.
+      const ids = new Set();
+      for (const p of proofs) {
+        if (!p || typeof p !== "object" || Array.isArray(p) ||
+            typeof p.instance !== "string" ||
+            !/^[A-Za-z0-9:_-]{8,160}$/.test(p.instance) ||
+            !["WATCH","RESEARCH","MAIL"].includes(p.status)) {
+          return this.result({ok:false,error:"invalid_proof"},422);
+        }
+        if (ids.has(p.instance)) {
+          return this.result({ok:false,error:"duplicate_instance_in_batch",instance:p.instance},409);
+        }
+        ids.add(p.instance);
+      }
+      const run = [...this.db.exec("SELECT 1 AS found FROM scan_runs WHERE run_id=?",runId)];
+      if (!run.length) return this.result({ok:false,error:"run_not_registered"},409);
       const recipients = Array.isArray(body.recipients) ? body.recipients : [];
       const now = new Date().toISOString();
       const enabled = this.env.V4_RELEASE_ENABLED==="1";
+      // No authenticated direct-ESI proof gate exists yet. Reject ALL formal
+      // MAIL inputs if release is enabled; do not trust a client-supplied flag.
+      if (enabled && proofs.some(p => p.status === "MAIL")) {
+        return this.result({ok:false,error:"live_execution_gate_not_implemented"},409);
+      }
       let created=0;
       this.ctx.storage.transactionSync(()=>{
         for (const p of proofs) {
-          const instance = String(p.instance || "");
-          if (!/^[A-Za-z0-9:_-]{8,160}$/.test(instance)) continue;
+          const instance = p.instance;
           const payload=JSON.stringify(p);
-          this.db.exec("INSERT OR REPLACE INTO versions(run_id,instance,proof) VALUES(?,?,?)",runId,instance,payload);
+          // Refuse conflicting same-run revisions. Retried identical proofs
+          // are idempotent; different payloads cannot overwrite audit evidence.
+          const previous=[...this.db.exec("SELECT proof FROM versions WHERE run_id=? AND instance=?",runId,instance)];
+          if (previous.length && previous[0].proof !== payload) {
+            throw new Error("CONFLICTING_PROOF_INSTANCE:" + instance);
+          }
+          if (!previous.length) {
+            this.db.exec("INSERT INTO versions(run_id,instance,proof) VALUES(?,?,?)",runId,instance,payload);
+          }
           if (String(p.status)!=="MAIL") continue;
           const prior=[...this.db.exec("SELECT 1 AS x FROM eligible_history WHERE instance=?",instance)];
           if (prior.length) continue;
@@ -62,7 +91,11 @@ export class V4OpportunityLedger {
           }
         }
       });
-      return this.result({ok:true,committed:proofs.length,pending_added:created,dispatch_enabled:Boolean(enabled)});
+      // Ack a verifiable cumulative UNIQUE SQL row count, not request length
+      // alone. The client reconciles this after every batch and at end-of-run.
+      const counted=[...this.db.exec("SELECT COUNT(*) AS n FROM versions WHERE run_id=?",runId)];
+      return this.result({ok:true,committed:proofs.length,stored_total:Number(counted[0].n),
+        pending_added:created,dispatch_enabled:Boolean(enabled)});
     }
     if (url.pathname === "/run") {
       if (!/^[A-Za-z0-9_-]{5,128}$/.test(String(body.run_id))) return this.result({ok:false,error:"invalid_run"},400);
