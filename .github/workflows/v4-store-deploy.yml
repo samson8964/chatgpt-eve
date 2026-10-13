@@ -1,0 +1,59 @@
+name: V4 isolated store deployment and protected API smoke
+on:
+  push:
+    branches: ['rebuild/v4-isolated-20261013']
+    paths:
+      - 'cloudflare/v4_api_worker.js'
+      - 'cloudflare/v4_store.js'
+      - 'cloudflare/wrangler.v4-store.jsonc'
+      - '.github/workflows/v4-store-deploy.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  store:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      EVE_MAIL_API_KEY: ${{ secrets.EVE_MAIL_API_KEY }}
+      URL: https://eve-v4-opportunity-store.99617224.workers.dev
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy separate V4 store (notifications DISABLED)
+        run: npx --yes wrangler@latest deploy --config cloudflare/wrangler.v4-store.jsonc
+      - name: Put existing secret into NEW V4 Worker (no secret in Git history)
+        run: |
+          test -n "$EVE_MAIL_API_KEY"
+          printf '%s' "$EVE_MAIL_API_KEY" | npx --yes wrangler@latest secret put V4_API_KEY --config cloudflare/wrangler.v4-store.jsonc
+      - name: Verify store health, auth and no unauthorized notification
+        run: |
+          set -euo pipefail
+          curl -fsS --retry 3 --retry-delay 2 "$URL/health" > /tmp/v4-health.json
+          python - <<'PY'
+          import json
+          j=json.load(open('/tmp/v4-health.json'))
+          assert j['ok'] and j['backend']=='v4-durable-sqlite'
+          assert not j['dispatch_enabled'],j
+          print('V4 store persisted, dispatch disabled')
+          PY
+          code=$(curl -sS -o /dev/null -w '%{http_code}' "$URL/api/v4/pending?recipient=MikeChong")
+          test "$code" = "401"
+          curl -fsS -H "Authorization: Bearer $EVE_MAIL_API_KEY" -H 'Content-Type: application/json' \
+            -d '{"run_id":"v4-store-smoke","outcome":"SHADOW","coverage":{"dry_run":true}}' \
+            "$URL/api/v4/run" > /tmp/v4-run.json
+          python - <<'PY'
+          import json
+          assert json.load(open('/tmp/v4-run.json'))['ok'] is True
+          print('Verified private authenticated write; no EVE mail sent')
+          PY
+          curl -fsS -H "Authorization: Bearer $EVE_MAIL_API_KEY" -H 'Content-Type: application/json' \
+            -d '{"run_id":"v4-store-smoke","proofs":[{"instance":"contract:999999999","family":"contract:999999999","status":"MAIL","profit":500000000}],"recipients":["MikeChong"]}' \
+            "$URL/api/v4/record" > /tmp/v4-record.json
+          python - <<'PY'
+          import json
+          d=json.load(open('/tmp/v4-record.json'))
+          assert d['ok'] and d['pending_added']==0 and not d['dispatch_enabled'],d
+          print('Shadow first-seen baseline saved with zero sendable alerts')
+          PY
