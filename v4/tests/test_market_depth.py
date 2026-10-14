@@ -45,7 +45,7 @@ class MarketDepthTests(unittest.TestCase):
             (h,34,False):[order(lid=h,typ=34,price=2e6,remaining=100)],
             (h,35,False):[order(lid=h,typ=35,price=12e6)],
             (o,36,False):[order(lid=o,typ=36,price=1e6)],
-            (o,37,False):[order(lid=o,typ=37,price=3e6)],
+            (o,37,False):[order(lid=o,typ=37,price=3e6,remaining=49)],
             (o,37,True):[order(lid=o,typ=37,price=1e6,buy=True)],
             (60003760,34,True):[order(lid=60003760,typ=34,price=10e6,buy=True)],
             (60003760,35,True):[order(lid=60003760,typ=35,price=11e6,buy=True)],
