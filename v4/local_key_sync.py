@@ -37,8 +37,9 @@ def sync_github(*, get_key=None, runner=subprocess.run) -> dict:
     if get_key is None:
         from v4.local_bridge_auth import get_bridge_key
         get_key = get_bridge_key
+    from v4.local_bridge_auth import valid_bridge_key
     key = get_key()
-    if not isinstance(key, str) or len(key) < 32 or len(key) > 256 or key != key.strip():
+    if not valid_bridge_key(key):
         raise RuntimeError("VAULT_KEY_MISSING_OR_WEAK; save a Bitwarden generated 48-char key first")
     if shutil.which("gh") is None and runner is subprocess.run:
         raise RuntimeError("GH_CLI_NOT_INSTALLED")
