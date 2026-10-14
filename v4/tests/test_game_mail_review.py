@@ -102,10 +102,11 @@ class GameMailReviewTests(unittest.TestCase):
             self.assertEqual(health[0:2],("GET",WORKER_URL+"/api/mail-health"))
             self.assertEqual(send[0:2],("POST",WORKER_URL+"/api/send-mail"))
             self.assertEqual(send[2]["json"]["recipient_id"],2124493042)
-            self.assertIn("不可直接买入",send[2]["json"]["subject"])
+            self.assertIn("V4捡漏待核",send[2]["json"]["subject"])
             self.assertIn("Jita",send[2]["json"]["body"])
             self.assertIn("236977688",send[2]["json"]["body"])
-            self.assertIn("非正式机会",send[2]["json"]["body"])
+            self.assertIn("不可直接购买",send[2]["json"]["body"])
+            self.assertIn("<url=contract:0//236977688>",send[2]["json"]["body"])
             self.assertEqual(len(send[2]["json"]["idempotency_key"]), len("v4-contract-research:")+38)
             receipt=root/"mail-review"/"eve-receipts"/"20261014T082300Z-sample.json"
             self.assertTrue(receipt.is_file())
