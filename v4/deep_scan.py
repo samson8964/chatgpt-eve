@@ -21,6 +21,7 @@ import requests
 
 from v4.engine import Order, Policy, contract_proof, market_proof, profitable_trade, quarantine_snapshot_candidate, parse_orders_with_quarantine
 from v4.catalog import ensure_catalog, blueprint_instance_kind
+from v4.market_depth import top_price_levels, station_sell_census
 from v4.sources import market_dataframe, contract_dataframes
 
 JITA = 60003760
@@ -123,6 +124,13 @@ def run(market_path,contract_path,output,api_key=''):
         book.sort(key=lambda r: (-r.price if buy else r.price, r.order_id))
     approved=set(KNOWN_STATIONS.values())
     approved.update(row['location'] for row in structure_health.values() if row['status']=='COMPLETE')
+    # All approved private-station sell types are counted and benchmarked.
+    # This census includes even products excluded by the profit prefilter.
+    station_census = station_sell_census(
+        markets, locations={'4-H': STRUCTURES['four_h'][0],
+                            'C-J': STRUCTURES['cj'][0],
+                            'O4T': STRUCTURES['o4t'][0]},
+        jita=JITA, floor=POLICY.profit_floor)
     # Market cash exit is ALWAYS the Jita 4-4 station's BUY depth, just
     # like contracts; do not value any item at remote stations' local bids.
     # Full raw market inputs remain audited in this run.
@@ -177,6 +185,8 @@ def run(market_path,contract_path,output,api_key=''):
             source_location=source,destination_location=JITA,type_id=int(typ),
             volume_m3=unit,haul_isk=cost,policy=POLICY,allowed=True,fresh=True)
         proof.update(volume_m3=unit,cargo_volume_m3=cargo_m3,haul_isk=cost,
+                     source_top5_sell=top_price_levels(asks,buy=False),
+                     jita_top5_buy=top_price_levels(jita_bids,buy=True),
                      valuation_location_id=JITA,
                      valuation_basis='JITA_4_4_BUY_DEPTH_SNAPSHOT_NOT_LIVE',
                      source_location=source,destination_location=JITA,
@@ -259,6 +269,8 @@ def run(market_path,contract_path,output,api_key=''):
        catalog_meta=catalog.meta,catalog_coverage=coverage,
        verified_approved_locations=len(approved),market_potential_pairs=len(potential_pairs),
        market_pricing_basis='JITA_4_4_BUY_DEPTH_SNAPSHOT',
+       market_station_sell_census=station_census,
+       market_top5_price_definition='UNWEIGHTED_MEAN_OF_DISTINCT_PRICE_LEVELS',
        market_proofs_examined=sum(p.get('kind')=='market' for p in proofs),
        contract_cash_known_location=len(cash_contracts),
        contract_requested_items_excluded=requested_contracts_excluded,
