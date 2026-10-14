@@ -31,7 +31,9 @@ class LocalServiceTests(unittest.TestCase):
                 calls.append("scan")
                 return {"status":"SHADOW_RECORDED","mail_enabled":False,
                         "run_folder":str(r/"runs"/"now"),"sqlite_unique_proofs":31931,
-                        "coverage_gate":"PARTIAL_UNVERIFIED"}
+                        "coverage_gate":"INPUT_LANES_REPORTED_COMPLETE_NOT_LIVE_VERIFIED",
+                        "structure_health":{name:{"status":"COMPLETE","pages":1,"pages_fetched":1}
+                                            for name in ("four_h","cj","o4t")}}
             def save(r):
                 calls.append("backup")
                 return {"sqlite_integrity":"ok","proof_versions":31931}
@@ -39,8 +41,45 @@ class LocalServiceTests(unittest.TestCase):
                        return_value={"free_gib":300,"enough_space":True}):
                 result=execute(root,scanner=scan,backup_fn=save)
             self.assertEqual(calls,["scan","backup"])
+            self.assertEqual(result["status"],"SHADOW_RECORDED")
             self.assertEqual(result["backup_proofs"],31931)
             self.assertFalse(result["mail_enabled"])
+
+
+    def test_partial_scan_is_not_reported_successful(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td)
+            recorded=[]
+            def scan(r):
+                return {"status":"SHADOW_RECORDED","mail_enabled":False,
+                        "run_folder":str(r/"runs"/"now"),"sqlite_unique_proofs":100,
+                        "coverage_gate":"PARTIAL_UNVERIFIED",
+                        "structure_health":{"four_h":{"status":"FAILED"},
+                                            "cj":{"status":"COMPLETE","pages":54,"pages_fetched":54},
+                                            "o4t":{"status":"COMPLETE","pages":8,"pages_fetched":8}}}
+            def save(r):
+                recorded.append("backup")
+                return {"sqlite_integrity":"ok","proof_versions":100}
+            with patch("v4.local_service.storage_check",
+                       return_value={"free_gib":300,"enough_space":True}):
+                result=execute(root,scanner=scan,backup_fn=save)
+            self.assertEqual(result["status"],"DEGRADED_PARTIAL_COVERAGE")
+            self.assertEqual(result["structure_status"]["four_h"],"FAILED")
+            self.assertEqual(recorded,["backup"])
+            self.assertFalse(result["mail_enabled"])
+
+    def test_missing_structure_health_is_degraded(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td)
+            with patch("v4.local_service.storage_check",
+                       return_value={"free_gib":300,"enough_space":True}):
+                result=execute(root,scanner=lambda r:{
+                    "status":"SHADOW_RECORDED","mail_enabled":False,
+                    "run_folder":str(r/"runs"/"now"),
+                    "coverage_gate":"INPUT_LANES_REPORTED_COMPLETE_NOT_LIVE_VERIFIED",
+                    "structure_health":{}},
+                    backup_fn=lambda r:{"sqlite_integrity":"ok","proof_versions":0})
+            self.assertEqual(result["status"],"DEGRADED_PARTIAL_COVERAGE")
 
     def test_never_accepts_scan_claiming_mail(self):
         with tempfile.TemporaryDirectory() as td:
