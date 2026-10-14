@@ -117,7 +117,7 @@ class DesktopWidget:
         shell.pack(fill="both", expand=True, padx=1, pady=1)
         title = tk.Frame(shell, bg=COLORS["bg"], height=34)
         title.pack(fill="x", padx=12, pady=(9, 3))
-        self._label(title, "EVE V4  |  市场扫描监控", 10, "white", bold=True).pack(side="left")
+        self._label(title, "EVE V4  |  市场+合同监控", 10, "white", bold=True).pack(side="left")
         self._button(title, "×", self.close, width=2).pack(side="right")
         self.pin_button = self._button(title, "置顶", self.toggle_pin, width=4)
         self.pin_button.pack(side="right", padx=(0, 6))
@@ -144,7 +144,7 @@ class DesktopWidget:
 
         footer = tk.Frame(shell, bg=COLORS["panel"], height=26)
         footer.pack(side="bottom", fill="x")
-        self.refresh_label = self._label(footer, "只读 · 邮件关闭 · 3秒刷新", 8, "muted",
+        self.refresh_label = self._label(footer, "只读 · 双通道审核 · 3秒刷新", 8, "muted",
                                          bg="panel")
         self.refresh_label.pack(side="left", padx=(10, 0), pady=5)
         self._button(footer, "查看日志", self.open_log, width=7, bg="panel").pack(
@@ -215,7 +215,9 @@ class DesktopWidget:
                 elapsed = elapsed_clock(info["elapsed_start"])
                 phase = f"当前阶段：{stage}   ·   运行 {elapsed}"
             else:
-                phase = f"任务状态：{info['task_state']}   ·   邮件发送关闭"
+                gmail = "开" if info["research_gmail_enabled"] else "关"
+                game = "开" if info["research_game_enabled"] else "关"
+                phase = f"任务状态：{info['task_state']}  ·  Gmail {gmail} / 游戏 {game}"
             self.phase_label.configure(text=phase)
             last_name, last_color = _status_style(str(info["latest_result_status"]))
             self.previous_label.configure(
@@ -226,9 +228,14 @@ class DesktopWidget:
                 for name, label in (("four_h","4-H"),("cj","C-J"),("o4t","O4T"))))
             evidence = _format_int(info["proofs"])
             models = _format_int(info["model_candidates"])
-            self.metrics_label.configure(text=f"审核记录 {evidence}    ·    模型候选 {models}")
+            market = _format_int(info["market_examined"])
+            contracts = _format_int(info["contract_examined"])
+            self.metrics_label.configure(
+                text=f"市场审核 {market} · 合同审核 {contracts} · 候选 {models}")
             self.next_label.configure(text="下次自动：" + human_clock(info["next_run"]))
-            self.refresh_label.configure(text="只读 · MAIL OFF · 更新 " +
+            channels = ("G" if info["research_gmail_enabled"] else "g") + (
+                "E" if info["research_game_enabled"] else "e")
+            self.refresh_label.configure(text="只读 · "+channels+" · 更新 " +
                                          time.strftime("%H:%M:%S"))
         except Exception:
             self.state_label.configure(text="●  监控数据读取异常", fg=COLORS["red"])
