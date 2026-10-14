@@ -5,11 +5,16 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-import pandas as pd
+try:
+    import pandas as pd
+    from v4.deep_scan import run as deep_run
+except ImportError:
+    pd = None
+    deep_run = None
 
-from v4.deep_scan import run as deep_run
 
-
+@unittest.skipUnless(pd is not None and deep_run is not None,
+                     "optional pandas runtime is not installed in lightweight reliability job")
 class NonActionableOrderAuditTests(unittest.TestCase):
     def _run(self, volume, price):
         with tempfile.TemporaryDirectory() as td:
