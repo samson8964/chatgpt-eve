@@ -96,6 +96,27 @@ class V4ContractBarterExclusionTests(unittest.TestCase):
             self.assertEqual(amarr["haul_cost_estimate_isk"],3000000)
             self.assertEqual(amarr["gross"],100000000)
             self.assertFalse(amarr["contract_access_verified"])
+            # Integration: a real deep_scan output must be accepted by the
+            # combined digest reader, not just by isolated mocked fixtures.
+            completed=root/"runs"/"20261014T122301Z-integration"
+            completed.mkdir(parents=True)
+            (completed/"deep_shadow.json").write_bytes(output.read_bytes())
+            (completed/"all_proofs.jsonl").write_bytes(
+                output.with_name("all_proofs.jsonl").read_bytes())
+            (completed/"manifest.json").write_text(json.dumps({
+                "status":"SHADOW_RECORDED",
+                "mail_enabled":False,"ready_for_production":False,
+                "coverage_gate":"INPUT_LANES_REPORTED_COMPLETE_NOT_LIVE_VERIFIED",
+                "source_input_integrity":"ALL_PARSED",
+                "sqlite_unique_proofs":len(proofs)}),encoding="utf-8")
+            from v4.unified_review import make_review, render
+            unified=make_review(root)
+            self.assertEqual(unified["market_proofs_examined"],1)
+            self.assertEqual(unified["contract_proofs_audited"],2)
+            subject,body=render(unified,game=True)
+            self.assertIn("待核",subject)
+            self.assertIn("快照待核",body)
+
 
 
 if __name__ == "__main__":
