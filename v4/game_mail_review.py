@@ -110,8 +110,11 @@ def send_review_to_game(root: Path, *, expected_run: str | None = None,
         return {"status": "V4_GAME_RESEARCH_MAIL_ALREADY_SENT",
                 "sent": False, "run_folder_name": run_name}
 
-    from requests import Session
-    client = session if session is not None else Session()
+    if session is None:
+        from requests import Session
+        client = Session()
+    else:
+        client = session
     key = _get_bridge_credential(get_key)
     headers = {"Authorization": "Bearer " + key,
                "User-Agent": "EVE V4 research-review local service"}
