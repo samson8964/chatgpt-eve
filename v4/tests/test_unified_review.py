@@ -51,6 +51,10 @@ class UnifiedReviewTests(unittest.TestCase):
                  "valuation_basis":"JITA_4_4_BUY_DEPTH_SNAPSHOT_NOT_LIVE",
                  "type_id":34,"quantity":100,"profit":62000000,"roi":.21,
                  "stress_profit":33000000,"cost":300000000,
+                 "source_top5_sell":{"group_count":3,
+                                    "simple_mean_isk_per_unit":2000000},
+                 "jita_top5_buy":{"group_count":5,
+                                   "simple_mean_isk_per_unit":8000000},
                  "reason":"LIVE_ORDER_AND_CONTRACT_NOT_REVALIDATED"},
                 {"kind":"market","model_candidate":True,"status":"WATCH",
                  "source_location":1053970513596,"destination_location":60008494,
@@ -88,6 +92,8 @@ class UnifiedReviewTests(unittest.TestCase):
             self.assertIn("<url=showinfo:34><b>查看商品 34</b></url>",game)
             self.assertIn("0.62亿",game)
             self.assertIn("0.59亿",game)
+            self.assertIn("卖3档均0.02亿",game)
+            self.assertIn("吉买5档均0.08亿",game)
             self.assertIn("待核",title)
             self.assertNotIn("Type 35",game)
             self.assertNotIn("Type 37",game)
@@ -101,6 +107,8 @@ class UnifiedReviewTests(unittest.TestCase):
             self.assertIn('<a href=',rich)
             self.assertIn('打开合同 236977688</a>',rich)
             self.assertIn('查看商品 34</a>',rich)
+            self.assertIn("卖3档均0.02亿",rich)
+            self.assertIn("吉买5档均0.08亿",rich)
             self.assertLess(len(game),680)
             self.assertLess(len(rich),1600)
             self.assertNotIn('审核记录',game)
