@@ -18,7 +18,7 @@ $desktop = [Environment]::GetFolderPath('Desktop')
 if (-not $desktop -or -not (Test-Path $desktop)) {
     throw 'Windows desktop folder could not be resolved.'
 }
-$name = 'EVE V4 市场监控.lnk'
+$name = 'EVE V4 Monitor.lnk'
 $args = '-m v4.desktop_widget --data-root "' + $DataRoot + '"'
 $shell = New-Object -ComObject WScript.Shell
 $shortcutPath = Join-Path $desktop $name
@@ -28,7 +28,7 @@ function Write-EveWidgetShortcut([string]$Destination) {
     $link.TargetPath = $pythonw
     $link.Arguments = $args
     $link.WorkingDirectory = $repo
-    $link.Description = 'EVE V4 只读影子扫描状态监控 (不启动扫描，不发送邮件)'
+    $link.Description = 'EVE V4 read-only local shadow monitor (no scans or mail)'
     $link.IconLocation = (Join-Path $env:WINDIR 'System32\shell32.dll') + ',21'
     $link.Save()
 }
