@@ -38,13 +38,17 @@ def mock_review(**extra):
         "finished_at":"2026-10-14T08:43:00+00:00",
         "coverage_gate":"INPUT_LANES_REPORTED_COMPLETE_NOT_LIVE_VERIFIED",
         "source_input_integrity":"ALL_PARSED",
+        "contract_pricing_basis":"JITA_4_4_BUY_DEPTH_SNAPSHOT",
         "contract_proofs_audited":2,
         "sqlite_unique_proofs":32880,
         "contract_rejection_reasons":{"LIVE_ORDER_AND_CONTRACT_NOT_REVALIDATED":1},
         "research_leads_total":1,
         "research_leads":[{
             "contract_id":123456789,"review_tier":"MODEL_CANDIDATE",
-            "contract_price":100000000.0,"investment":100000000.0,
+            "contract_price":100000000.0,"investment":102000000.0,
+            "haul_estimate_isk":2000000.0,
+            "valuation_location_id":60003760,
+            "valuation_basis":"JITA_4_4_BUY_DEPTH_SNAPSHOT_NOT_LIVE",
             "net_profit_snapshot":65000000.0,"roi_snapshot":0.65,
             "stress_profit_snapshot":53000000.0,
             "included_items":{"34":100},
@@ -71,16 +75,21 @@ class V4ContractReviewTests(unittest.TestCase):
             }),encoding="utf-8")
             (folder/"deep_shadow.json").write_text(json.dumps({
                 "status":"SHADOW_ONLY_NO_LIVE_ALERTS","contract_jita_examined":4,
+                "contract_pricing_basis":"JITA_4_4_BUY_DEPTH_SNAPSHOT",
             }),encoding="utf-8")
             rows=[
                 {"kind":"contract","contract_id":101,"reason":"LIVE_ORDER_AND_CONTRACT_NOT_REVALIDATED",
                  "status":"WATCH","model_candidate":True,"net_profit":65000000,
                  "roi":.65,"stress_profit":50000000,"cost":100000000,
-                 "contract_price":100000000,"included_items":{"34":100}},
+                 "contract_price":100000000,"included_items":{"34":100},
+                 "valuation_basis":"JITA_4_4_BUY_DEPTH_SNAPSHOT_NOT_LIVE",
+                 "valuation_location_id":60003760,"destination_location":60003760},
                 {"kind":"contract","contract_id":102,"reason":"BELOW_GATE_OR_STRESS",
                  "status":"WATCH","net_profit":22000000,"roi":.11,
                  "stress_profit":8000000,"cost":200000000,
-                 "contract_price":200000000,"included_items":{"36":10}},
+                 "contract_price":200000000,"included_items":{"36":10},
+                 "valuation_basis":"JITA_4_4_BUY_DEPTH_SNAPSHOT_NOT_LIVE",
+                 "valuation_location_id":60003760,"destination_location":60003760},
                 {"kind":"contract","contract_id":103,"reason":"ITEM_CLASSIFICATION_UNVERIFIED_OR_BLUEPRINT",
                  "status":"RESEARCH","net_profit":900000000,"roi":.9,
                  "stress_profit":800000000,"cost":100000000,
@@ -101,6 +110,21 @@ class V4ContractReviewTests(unittest.TestCase):
             self.assertEqual(review["contract_rejection_reasons"]
                 ["ITEM_CLASSIFICATION_UNVERIFIED_OR_BLUEPRINT"],1)
 
+    def test_preexisting_local_market_valuation_requires_new_run(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td)
+            folder=root/"runs"/"20261014T060000Z-old"
+            folder.mkdir(parents=True)
+            (folder/"manifest.json").write_text(json.dumps({
+                "status":"SHADOW_RECORDED","mail_enabled":False,
+                "ready_for_production":False}),encoding="utf-8")
+            (folder/"deep_shadow.json").write_text(json.dumps({
+                "status":"SHADOW_ONLY_NO_LIVE_ALERTS",
+                "contract_pricing_basis":"SAME_LOCATION_SNAPSHOT_BUY_DEPTH"
+            }),encoding="utf-8")
+            with self.assertRaisesRegex(RuntimeError,"NEW_JITA_4_4_VALUATION_SCAN"):
+                make_review(root)
+
     def test_incomplete_source_does_not_email_candidates(self):
         subject,body=render_review(mock_review(
             coverage_gate="PARTIAL_UNVERIFIED"))
@@ -112,6 +136,8 @@ class V4ContractReviewTests(unittest.TestCase):
         subject,body=render_review(mock_review())
         self.assertIn("非交易提醒",subject)
         self.assertIn("合同ID：123456789",body)
+        self.assertIn("Jita 4-4",body)
+        self.assertIn("运输预估",body)
         self.assertIn("快照估计净利",body)
         self.assertIn("未实时核实",body)
 
