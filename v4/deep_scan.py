@@ -19,7 +19,7 @@ from pathlib import Path
 import pandas as pd
 import requests
 
-from v4.engine import Order, Policy, contract_proof, market_proof, quarantine_snapshot_candidate, parse_orders_with_quarantine
+from v4.engine import Order, Policy, contract_proof, market_proof, profitable_trade, quarantine_snapshot_candidate, parse_orders_with_quarantine
 from v4.catalog import ensure_catalog, blueprint_instance_kind
 from v4.sources import market_dataframe, contract_dataframes
 
@@ -123,21 +123,20 @@ def run(market_path,contract_path,output,api_key=''):
         book.sort(key=lambda r: (-r.price if buy else r.price, r.order_id))
     approved=set(KNOWN_STATIONS.values())
     approved.update(row['location'] for row in structure_health.values() if row['status']=='COMPLETE')
-    # Every executable pair over ALL verified source/destination locations is
-    # considered; all other locations were already represented in full census.
-    sources=[key for key in markets if not key[2] and key[0] in approved]
-    destinations=defaultdict(list)
-    for (lid,typ,buy),book in markets.items():
-        if buy and lid in approved: destinations[typ].append((lid,book))
+    # Market cash exit is ALWAYS the Jita 4-4 station's BUY depth, just
+    # like contracts; do not value any item at remote stations' local bids.
+    # Full raw market inputs remain audited in this run.
+    sources=[key for key in markets if not key[2] and key[0] in approved
+             and key[0] != JITA]
     potential_pairs=[]
     for (source,typ,buy) in sources:
         asks=markets[(source,typ,False)]
-        for destination,bids in destinations.get(typ,[]):
-            if not asks or not bids or source==destination:continue
-            if asks[0].price>=bids[0].price:continue
-            optimistic=(bids[0].price-asks[0].price)*sum(x.remaining for x in asks)
-            if optimistic>=POLICY.profit_floor:
-                potential_pairs.append((source,destination,typ))
+        bids=markets.get((JITA,typ,True),[])
+        if not asks or not bids:continue
+        if asks[0].price>=bids[0].price:continue
+        optimistic=(bids[0].price-asks[0].price)*sum(x.remaining for x in asks)
+        if optimistic>=POLICY.profit_floor:
+            potential_pairs.append((source,JITA,typ))
     # Jita-to-Jita public contracts (least ambiguous, no transport) and
     # approved other station contracts. BPC/manufacturing is NOT implemented.
     cash_contracts=contracts[(contracts['type'].astype(str).str.lower()=='item_exchange')
@@ -166,14 +165,23 @@ def run(market_path,contract_path,output,api_key=''):
         reasons[invalid['reason']]+=1
     for source,dest,typ in potential_pairs:
         unit=volumes.get(int(typ))
-        v=unit or 0
-        cost=haul(source,dest,v,stations) if unit else None
-        proof=market_proof(markets[(source,typ,False)],markets[(dest,typ,True)],
-            source_location=source,destination_location=dest,type_id=int(typ),
+        asks=markets[(source,typ,False)]
+        jita_bids=markets[(JITA,typ,True)]
+        trade=profitable_trade(asks,jita_bids,POLICY)
+        # Shipping all matched units, not just 1 unit, is essential: using
+        # one item's volume badly overstates the profit of bulk arbitrage.
+        cargo_m3=(float(unit)*trade['units']
+                  if unit and trade is not None else None)
+        cost=haul(source,JITA,cargo_m3,stations) if cargo_m3 else None
+        proof=market_proof(asks,jita_bids,
+            source_location=source,destination_location=JITA,type_id=int(typ),
             volume_m3=unit,haul_isk=cost,policy=POLICY,allowed=True,fresh=True)
-        proof.update(volume_m3=unit,haul_isk=cost,source_location=source,destination_location=dest,
+        proof.update(volume_m3=unit,cargo_volume_m3=cargo_m3,haul_isk=cost,
+                     valuation_location_id=JITA,
+                     valuation_basis='JITA_4_4_BUY_DEPTH_SNAPSHOT_NOT_LIVE',
+                     source_location=source,destination_location=JITA,
                      source_region=stations.get(source,{}).get('region'),
-                     destination_region=stations.get(dest,{}).get('region'))
+                     destination_region=stations.get(JITA,{}).get('region'))
         quarantine_snapshot_candidate(proof)
         proofs.append(proof)
         reasons[proof['reason']]+=1
@@ -250,6 +258,8 @@ def run(market_path,contract_path,output,api_key=''):
        structure_health=structure_health,metadata_missing=missing,metadata_requested=len(ids),
        catalog_meta=catalog.meta,catalog_coverage=coverage,
        verified_approved_locations=len(approved),market_potential_pairs=len(potential_pairs),
+       market_pricing_basis='JITA_4_4_BUY_DEPTH_SNAPSHOT',
+       market_proofs_examined=sum(p.get('kind')=='market' for p in proofs),
        contract_cash_known_location=len(cash_contracts),
        contract_requested_items_excluded=requested_contracts_excluded,
        contract_jita_examined=jita_contract_count,
