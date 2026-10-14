@@ -8,11 +8,21 @@ param(
 $ErrorActionPreference = 'Stop'
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $pythonw = Join-Path $repo '.venv\Scripts\pythonw.exe'
-if (-not (Test-Path $pythonw -PathType Leaf)) {
-    throw "Missing virtual Python windowless binary: $pythonw"
+$python = Join-Path $repo '.venv\Scripts\python.exe'
+if (-not (Test-Path $pythonw -PathType Leaf) -or
+    -not (Test-Path $python -PathType Leaf)) {
+    throw 'Python virtual environment missing windowed or console interpreter.'
 }
 if (-not (Test-Path (Join-Path $repo 'v4\desktop_widget.py') -PathType Leaf)) {
     throw 'V4 widget program is missing.'
+}
+# Quick local import preflight. Never connect to cloud or Windows vault.
+Push-Location $repo
+try {
+    & $python -c "import tkinter; import v4.desktop_widget; print('WIDGET_IMPORT_OK')"
+    if ($LASTEXITCODE -ne 0) { throw 'Tkinter or widget import failed.' }
+} finally {
+    Pop-Location
 }
 $desktop = [Environment]::GetFolderPath('Desktop')
 if (-not $desktop -or -not (Test-Path $desktop)) {
