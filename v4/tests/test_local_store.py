@@ -1,5 +1,6 @@
 import json
 import sqlite3
+from contextlib import closing
 import tempfile
 import unittest
 from pathlib import Path
@@ -42,7 +43,7 @@ class LocalStoreTests(unittest.TestCase):
         self.assertEqual(a["sqlite_unique_proofs"],2)
         self.assertEqual(a["proofs_sha256"],b["proofs_sha256"])
         self.assertFalse(a["mail_enabled"])
-        with sqlite3.connect(self.db) as conn:
+        with closing(sqlite3.connect(self.db)) as conn:
             self.assertEqual(conn.execute("SELECT COUNT(*) FROM proof_versions").fetchone()[0],2)
             self.assertEqual(conn.execute("SELECT status FROM scan_runs").fetchone()[0],
                              "SHADOW_VERIFIED_OFFLINE")
@@ -52,7 +53,7 @@ class LocalStoreTests(unittest.TestCase):
         self.write()
         with self.assertRaisesRegex(ValueError,"DUPLICATE_OR_CONFLICTING_PROOF"):
             self.audit()
-        with sqlite3.connect(self.db) as conn:
+        with closing(sqlite3.connect(self.db)) as conn:
             self.assertEqual(conn.execute("SELECT COUNT(*) FROM proof_versions").fetchone()[0],0)
 
     def test_wrong_expected_count_rolls_back(self):
@@ -83,7 +84,7 @@ class LocalStoreTests(unittest.TestCase):
         self.audit()
         self.write(run_id="v4-test-002")
         self.audit()
-        with sqlite3.connect(self.db) as conn:
+        with closing(sqlite3.connect(self.db)) as conn:
             self.assertEqual(conn.execute("SELECT COUNT(*) FROM scan_runs").fetchone()[0],2)
             self.assertEqual(conn.execute("SELECT COUNT(*) FROM proof_versions").fetchone()[0],4)
 
