@@ -82,8 +82,12 @@ def make_review(root: Path, *, limit: int = MAX_CANDIDATES) -> dict:
             included = proof.get("included_items")
             if not isinstance(included, dict) or not included:
                 continue
-            if any(not str(k).isdigit() or int(v) <= 0
-                   for k, v in included.items()):
+            try:
+                safe_items=all(str(k).isdigit() and int(v)>0
+                               for k,v in included.items())
+            except (ValueError,TypeError,OverflowError):
+                safe_items=False
+            if not safe_items:
                 continue
             leads.append({
                 "contract_id": cid,
@@ -101,7 +105,8 @@ def make_review(root: Path, *, limit: int = MAX_CANDIDATES) -> dict:
                 "live_verified": False,
                 "actionable": False,
             })
-    expected = int(deep.get("contract_jita_examined") or 0)
+    expected = int(deep.get("contract_approved_locations_examined",
+                            deep.get("contract_jita_examined")) or 0)
     if observed > expected:
         raise RuntimeError("CONTRACT_PROOF_COUNT_EXCEEDS_JITA_CONTRACTS")
     leads.sort(key=lambda row: (
@@ -116,7 +121,8 @@ def make_review(root: Path, *, limit: int = MAX_CANDIDATES) -> dict:
         "structure_health": {k:(v or {}).get("status") for k,v in
                              (manifest.get("structure_health") or {}).items()},
         "sqlite_unique_proofs": manifest.get("sqlite_unique_proofs"),
-        "contract_jita_examined": expected,
+        "contract_approved_locations_examined": expected,
+        "contract_jita_examined": int(deep.get("contract_jita_examined") or 0),
         "contract_proofs_audited": observed,
         "contract_rejection_reasons": dict(count.most_common(12)),
         "research_leads_total": len(leads),
