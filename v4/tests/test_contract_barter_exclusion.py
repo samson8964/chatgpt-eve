@@ -69,6 +69,10 @@ class V4ContractBarterExclusionTests(unittest.TestCase):
             self.assertEqual(report["market_pricing_basis"],"JITA_4_4_BUY_DEPTH_SNAPSHOT")
             self.assertEqual(report["market_proofs_examined"],1)
             self.assertEqual(report["market_potential_pairs"],1)
+            self.assertEqual(report["market_top5_price_definition"],
+                "UNWEIGHTED_MEAN_OF_DISTINCT_PRICE_LEVELS")
+            self.assertEqual(report["market_station_sell_census"]["4-H"]["active_sell_type_ids"],0)
+            self.assertEqual(report["market_station_sell_census"]["O4T"]["active_sell_type_ids"],0)
             self.assertTrue(any(args.args[0]==60008494 and args.args[1]==60003760
                                 and args.args[2]==100.0 for args in haul_mock.call_args_list))
             self.assertEqual(report["contract_requested_items_excluded"],1)
@@ -81,6 +85,10 @@ class V4ContractBarterExclusionTests(unittest.TestCase):
             self.assertEqual(market_proofs[0]["destination_location"],60003760)
             self.assertEqual(market_proofs[0]["cargo_volume_m3"],100.0)
             self.assertEqual(market_proofs[0]["valuation_location_id"],60003760)
+            self.assertEqual(market_proofs[0]["source_top5_sell"]["group_count"],1)
+            self.assertEqual(market_proofs[0]["jita_top5_buy"]["group_count"],1)
+            self.assertEqual(market_proofs[0]["source_top5_sell"]["simple_mean_isk_per_unit"],1000000)
+            self.assertEqual(market_proofs[0]["jita_top5_buy"]["simple_mean_isk_per_unit"],10000000)
             contract_ids=[p["contract_id"] for p in proofs if p.get("kind")=="contract"]
             self.assertEqual(contract_ids,[102,103])
             contract=next(p for p in proofs if p.get("kind")=="contract")
