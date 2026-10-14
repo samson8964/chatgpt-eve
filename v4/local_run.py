@@ -126,6 +126,9 @@ def run(data_root: Path) -> dict:
                 "invalid_public_orders":detail.get("invalid_public_orders"),
                 "invalid_structure_orders":detail.get("invalid_structure_orders"),
                 "rejected_input_orders":detail.get("rejected_input_orders"),
+                "zero_remaining_public_orders":detail.get("zero_remaining_public_orders"),
+                "zero_remaining_structure_orders":detail.get("zero_remaining_structure_orders"),
+                "non_actionable_zero_remaining_orders":detail.get("non_actionable_zero_remaining_orders"),
                 "proof_reasons_top":dict(sorted(
                     (detail.get("reason_counts") or {}).items(),
                     key=lambda item:-item[1])[:5]),
