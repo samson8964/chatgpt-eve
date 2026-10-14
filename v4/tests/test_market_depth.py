@@ -95,6 +95,10 @@ class MarketDepthTests(unittest.TestCase):
             (folder/"manifest.json").write_text(
                 '{"status":"SHADOW_RECORDED"}',encoding="utf-8")
             (folder/"deep_shadow.json").write_text(json.dumps({
+                "structure_health":{
+                    "four_h":{"status":"COMPLETE","orders":456},
+                    "o4t":{"status":"COMPLETE","orders":190},
+                    "cj":{"status":"COMPLETE","orders":0}},
                 "market_station_sell_census":{
                     "4-H":{"active_sell_type_ids":234,"active_sell_orders":456,
                            "sell_types_with_jita_buy":201,
