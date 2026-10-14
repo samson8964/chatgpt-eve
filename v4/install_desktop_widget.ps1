@@ -29,21 +29,21 @@ if (-not $desktop -or -not (Test-Path $desktop)) {
     throw 'Windows desktop folder could not be resolved.'
 }
 $name = 'EVE V4 Monitor.lnk'
-$args = '-m v4.desktop_widget --data-root "' + $DataRoot + '"'
+[string]$shortcutArguments = '-m v4.desktop_widget --data-root "' + $DataRoot + '"'
 $shell = New-Object -ComObject WScript.Shell
 $shortcutPath = Join-Path $desktop $name
 
-function Write-EveWidgetShortcut([string]$Destination) {
+function Write-EveWidgetShortcut([string]$Destination, [string]$ArgumentLine) {
     $link = $shell.CreateShortcut($Destination)
     $link.TargetPath = $pythonw
-    $link.Arguments = $args
+    $link.Arguments = [string]$ArgumentLine
     $link.WorkingDirectory = $repo
     $link.Description = 'EVE V4 read-only local shadow monitor (no scans or mail)'
     $link.IconLocation = (Join-Path $env:WINDIR 'System32\shell32.dll') + ',21'
     $link.Save()
 }
 
-Write-EveWidgetShortcut -Destination $shortcutPath
+Write-EveWidgetShortcut -Destination $shortcutPath -ArgumentLine $shortcutArguments
 Write-Host ('Desktop shortcut created: ' + $shortcutPath)
 Write-Host 'Read-only UI: local Task Scheduler + log + scan manifest; no secrets or mail.'
 
@@ -51,7 +51,7 @@ if ($AutoStart) {
     $startup = [Environment]::GetFolderPath('Startup')
     if (-not $startup) { throw 'Windows Startup folder could not be resolved.' }
     $startupPath = Join-Path $startup $name
-    Write-EveWidgetShortcut -Destination $startupPath
+    Write-EveWidgetShortcut -Destination $startupPath -ArgumentLine $shortcutArguments
     Write-Host ('Starts at next Windows login: ' + $startupPath)
 }
 if (-not $NoLaunch) {
