@@ -45,6 +45,10 @@ def make_review(root: Path, *, limit: int = MAX_CANDIDATES) -> dict:
     deep = _load_json(folder / "deep_shadow.json")
     if deep.get("status") != "SHADOW_ONLY_NO_LIVE_ALERTS":
         raise RuntimeError("NOT_A_SHADOW_AUDIT")
+    # Previous runs used the prohibited same-location valuation model.
+    # Never re-mail old estimates after switching to Jita 4-4.
+    if deep.get("contract_pricing_basis") != "JITA_4_4_BUY_DEPTH_SNAPSHOT":
+        raise RuntimeError("REVIEW_REQUIRES_NEW_JITA_4_4_VALUATION_SCAN")
     if manifest.get("mail_enabled") is not False or manifest.get("ready_for_production") is not False:
         raise RuntimeError("UNSAFE_SCAN_MAIL_STATUS")
     count = Counter()
@@ -66,6 +70,10 @@ def make_review(root: Path, *, limit: int = MAX_CANDIDATES) -> dict:
             stress = _safe_float(proof.get("stress_profit"))
             cost = _safe_float(proof.get("cost"))
             if not isinstance(cid, int) or cid <= 0:
+                continue
+            if (proof.get("valuation_basis") != "JITA_4_4_BUY_DEPTH_SNAPSHOT_NOT_LIVE"
+                    or proof.get("valuation_location_id") != 60003760
+                    or proof.get("destination_location") != 60003760):
                 continue
             # Only candidates whose ordinary items have already passed the
             # complete snapshot buy-depth/value calculation may be listed.
@@ -93,6 +101,10 @@ def make_review(root: Path, *, limit: int = MAX_CANDIDATES) -> dict:
                 "contract_id": cid,
                 "contract_price": _safe_float(proof.get("contract_price")),
                 "investment": cost,
+                "haul_estimate_isk": _safe_float(proof.get("haul_cost_estimate_isk")),
+                "valuation_location_id": 60003760,
+                "valuation_basis": "JITA_4_4_BUY_DEPTH_SNAPSHOT_NOT_LIVE",
+                "haul_route_verified": False,
                 "net_profit_snapshot": profit,
                 "roi_snapshot": roi,
                 "stress_profit_snapshot": stress,
@@ -123,6 +135,7 @@ def make_review(root: Path, *, limit: int = MAX_CANDIDATES) -> dict:
         "sqlite_unique_proofs": manifest.get("sqlite_unique_proofs"),
         "contract_approved_locations_examined": expected,
         "contract_jita_examined": int(deep.get("contract_jita_examined") or 0),
+        "contract_pricing_basis": deep["contract_pricing_basis"],
         "contract_proofs_audited": observed,
         "contract_rejection_reasons": dict(count.most_common(12)),
         "research_leads_total": len(leads),
