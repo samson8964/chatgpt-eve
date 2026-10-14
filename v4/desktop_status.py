@@ -128,7 +128,10 @@ def read_snapshot(data_root: Path, task: dict | None = None) -> dict:
     sources = {name: str((health.get(name) or {}).get("status") or "UNKNOWN")
                for name in ("four_h", "cj", "o4t")}
     result_folder = latest_result.get("run_folder_name")
-    if result_folder and result_folder != completed_folder:
+    if not running and event["last_section_has_failure"]:
+        # Never show the previous success as the latest outcome after failure.
+        last_result_status = "FAILED"
+    elif result_folder and result_folder != completed_folder:
         last_result_status = latest_result.get("status")
     else:
         last_result_status = latest_result.get("status") or (
@@ -153,8 +156,7 @@ def read_snapshot(data_root: Path, task: dict | None = None) -> dict:
         "zero_remaining_public_orders": completed.get("zero_remaining_public_orders"),
         "coverage_gate": completed.get("coverage_gate"),
         "source_input_integrity": completed.get("source_input_integrity"),
-        "elapsed_start": (current.get("started_at") if running
-                          else event["start_line"] if running else None),
+        "elapsed_start": current.get("started_at") if running else None,
         "mail_enabled": False,
         "read_only": True,
         "poll_source": "LOCAL_FILES_AND_WINDOWS_TASK_SCHEDULER",
