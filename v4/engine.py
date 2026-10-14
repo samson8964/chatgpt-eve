@@ -73,12 +73,33 @@ def parse_orders_strict(rows, *, source: str) -> list[Order]:
     return parsed
 
 
-def parse_orders_with_quarantine(rows, *, source: str) -> tuple[list[Order], list[dict]]:
-    """Examine EVERY raw order; quarantine malformed rows as auditable proofs.
+def _well_formed_zero_remaining(raw: Mapping) -> bool:
+    """Zero remaining is non-tradable, not corrupt, only if other fields validate.
 
-    A few malformed public rows must neither vanish silently nor prevent
-    research into all other valid orders. Partial input integrity permanently
-    forbids claiming this scan fully verified until the source is repaired.
+    Do not turn zero into a tradable order; temporary 1 is used solely to
+    validate all the other Order.parse fields. Negative, fractional, missing
+    volume or malformed economic fields remain quarantined.
+    """
+    if not isinstance(raw, Mapping):
+        return False
+    try:
+        remaining = raw["volume_remain"]
+        if isinstance(remaining, bool) or float(remaining) != 0.0:
+            return False
+        checked = dict(raw)
+        checked["volume_remain"] = 1
+        Order.parse(checked)
+        return True
+    except (ValueError, KeyError, TypeError, OverflowError):
+        return False
+
+
+def parse_orders_with_quarantine(rows, *, source: str) -> tuple[list[Order], list[dict]]:
+    """Account for EVERY raw row: active orders or auditable non-active proofs.
+
+    Well-formed zero-remaining rows produce SOURCE_ORDER_ZERO_REMAINING
+    research proofs and are never tradable. All other malformed rows produce
+    SOURCE_ORDER_INVALID and keep integrity PARTIAL until investigated.
     No past-seen IDs, top-N cap, or product blacklist are consulted.
     """
     valid: list[Order] = []
@@ -88,12 +109,15 @@ def parse_orders_with_quarantine(rows, *, source: str) -> tuple[list[Order], lis
             valid.append(Order.parse(raw))
         except (ValueError, KeyError, TypeError, OverflowError) as exc:
             key=f'input:{source}:{idx}'
+            zero_remaining = _well_formed_zero_remaining(raw)
             rejected.append(dict(
-                instance=key, family=key, kind='input_integrity',
-                status='RESEARCH', reason='SOURCE_ORDER_INVALID',
+                instance=key, family=key,
+                kind='input_non_actionable' if zero_remaining else 'input_integrity',
+                status='RESEARCH',
+                reason='SOURCE_ORDER_ZERO_REMAINING' if zero_remaining else 'SOURCE_ORDER_INVALID',
                 source_lane=source, row_index=idx,
-                error_type=type(exc).__name__,
-                error_detail=str(exc)[:160],
+                error_type=type(exc).__name__ if not zero_remaining else None,
+                error_detail=str(exc)[:160] if not zero_remaining else None,
                 order_id_hint=str(raw.get('order_id',''))[:40] if isinstance(raw,Mapping) else None))
     return valid,rejected
 
