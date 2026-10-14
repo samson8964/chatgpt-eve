@@ -36,17 +36,28 @@ def valid_bridge_key(value) -> bool:
             and value == value.strip())
 
 
+def save_bridge_key(value: str) -> None:
+    """Validate before replacing the current user's saved credential."""
+    if not valid_bridge_key(value):
+        raise ValueError("INVALID_KEY_INPUT_REQUIRE_32_TO_256_PRINTABLE_ASCII_CHARS")
+    _keyring().set_password(SERVICE, getpass.getuser(), value)
+
+
 def main():
     p = argparse.ArgumentParser(description="Store an existing bridge key privately")
     opt = p.add_mutually_exclusive_group(required=True)
     opt.add_argument("--set", action="store_true")
+    opt.add_argument("--gui", action="store_true", help="Show a masked local input window")
     opt.add_argument("--status", action="store_true")
     args = p.parse_args()
     if args.set:
         value = getpass.getpass("Bridge API key (hidden input; use Bitwarden-generated 48 chars): ")
-        if not valid_bridge_key(value):
-            raise ValueError("INVALID_KEY_INPUT_REQUIRE_32_TO_256_PRINTABLE_ASCII_CHARS")
-        _keyring().set_password(SERVICE, getpass.getuser(), value)
+        save_bridge_key(value)
+    elif args.gui:
+        from v4.local_key_dialog import launch_dialog
+        if not launch_dialog():
+            print(json.dumps({"dialog_cancelled": True, "no_changes_requested": True}))
+            return
     stored = get_bridge_key()
     print(json.dumps({"credential_present": bool(stored),
                       "ready_for_sync": valid_bridge_key(stored),
