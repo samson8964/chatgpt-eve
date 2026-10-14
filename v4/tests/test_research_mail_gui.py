@@ -51,10 +51,12 @@ class GmailGuiSettingsTests(unittest.TestCase):
 
     def test_gui_flag_routes_to_dialog_no_console_password_prompt_or_send(self):
         with tempfile.TemporaryDirectory() as directory:
-            with patch("sys.argv", ["v4.research_mail", "--gui", "--data-root", directory]), \\
-                 patch("v4.research_mail_gui.launch_dialog", return_value=True) as open_gui, \\
-                 patch("v4.research_mail.send_review") as send, \\
-                 patch("v4.research_mail.getpass.getpass") as hidden:
+            with (
+                patch("sys.argv", ["v4.research_mail", "--gui", "--data-root", directory]),
+                patch("v4.research_mail_gui.launch_dialog", return_value=True) as open_gui,
+                patch("v4.research_mail.send_review") as send,
+                patch("v4.research_mail.getpass.getpass") as hidden,
+            ):
                 output = io.StringIO()
                 with redirect_stdout(output):
                     research_mail.main()
