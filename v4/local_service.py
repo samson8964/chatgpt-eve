@@ -1,0 +1,93 @@
+"""Windowless 2-hour shadow job. No mail or token management is performed.
+
+Use with Windows Task Scheduler and pythonw.exe. All stdout/stderr goes into the
+private local data root; exceptions are caught so pythonw never opens an error box.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import shutil
+import sys
+import traceback
+from contextlib import redirect_stdout, redirect_stderr
+from datetime import datetime, timezone
+from pathlib import Path
+
+from v4.local_backup import backup
+from v4.local_run import run
+
+MIN_FREE_GIB = 20
+BACKUP_AFTER_HOURS = 24
+
+
+def storage_check(data_root: Path, *, free_bytes: int | None = None) -> dict:
+    """Block before fetching a new snapshot if local free space is too low."""
+    if free_bytes is None:
+        root = data_root
+        while not root.exists() and root != root.parent:
+            root = root.parent
+        free_bytes = shutil.disk_usage(root).free
+    return {"free_gib": round(free_bytes / 1024**3, 2),
+            "enough_space": free_bytes >= MIN_FREE_GIB * 1024**3}
+
+
+def backup_due(root: Path, now: datetime) -> bool:
+    backups = root / "backups"
+    latest = max(backups.glob("v4-shadow-*.sqlite3"), key=lambda p:p.stat().st_mtime,
+                 default=None) if backups.exists() else None
+    if latest is None:
+        return True
+    age = now.timestamp() - latest.stat().st_mtime
+    return age >= BACKUP_AFTER_HOURS * 3600
+
+
+def execute(root: Path, *, scanner=run, backup_fn=backup,
+            now_fn=lambda: datetime.now(timezone.utc)) -> dict:
+    """Run in foreground for testability; scheduler redirects all output."""
+    disk = storage_check(root)
+    if not disk["enough_space"]:
+        return {"status": "SKIPPED_LOW_DISK", "disk": disk, "mail_enabled": False}
+    scan = scanner(root)
+    if scan.get("status") != "SHADOW_RECORDED" or scan.get("mail_enabled") is not False:
+        raise RuntimeError("SHADOW_SCAN_NOT_RECORDED_OR_MAIL_NOT_DISABLED")
+    result = {"status":"SHADOW_RECORDED","run_folder_name":Path(scan["run_folder"]).name,
+              "coverage_gate":scan.get("coverage_gate"),
+              "sqlite_unique_proofs":scan.get("sqlite_unique_proofs"),
+              "backup": "NOT_DUE","mail_enabled": False,"disk":disk}
+    if backup_due(root,now_fn()):
+        backed = backup_fn(root)
+        if backed.get("sqlite_integrity") != "ok":
+            raise RuntimeError("BACKUP_INTEGRITY_NOT_OK")
+        result["backup"] = "COMPLETE"
+        result["backup_proofs"] = backed["proof_versions"]
+    return result
+
+
+def main() -> int:
+    p=argparse.ArgumentParser(description="Silent Windows V4 shadow task (no email)")
+    p.add_argument("--data-root", type=Path, default=Path.home()/"EVE-V4-Data")
+    args=p.parse_args()
+    root=args.data_root.resolve()
+    logs=root/"logs"
+    try:
+        logs.mkdir(parents=True,exist_ok=True)
+        with (logs/"shadow-task.log").open("a",encoding="utf-8") as log:
+            with redirect_stdout(log), redirect_stderr(log):
+                print("START",datetime.now(timezone.utc).isoformat(),flush=True)
+                try:
+                    result=execute(root)
+                    print("RESULT",json.dumps(result,ensure_ascii=False),flush=True)
+                    return 0 if result.get("status") == "SHADOW_RECORDED" else 2
+                except Exception as exc:
+                    print("FAILED",type(exc).__name__,str(exc),flush=True)
+                    traceback.print_exc(file=log)
+                    return 1
+    except Exception:
+        # pythonw.exe must never surface a GUI exception. In the very rare case
+        # logs cannot be written, the Windows task exit code is nonzero.
+        return 1
+
+
+if __name__=="__main__":
+    sys.exit(main())
