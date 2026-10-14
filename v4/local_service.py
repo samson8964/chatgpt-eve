@@ -72,6 +72,8 @@ def execute(root: Path, *, scanner=run, backup_fn=backup,
               "invalid_public_orders":scan.get("invalid_public_orders"),
               "invalid_structure_orders":scan.get("invalid_structure_orders"),
               "rejected_input_orders":scan.get("rejected_input_orders"),
+              "zero_remaining_public_orders":scan.get("zero_remaining_public_orders"),
+              "zero_remaining_structure_orders":scan.get("zero_remaining_structure_orders"),
               "structure_status":{lane:(lanes.get(lane) or {}).get("status", "MISSING")
                                   for lane in ("four_h", "cj", "o4t")},
               "sqlite_unique_proofs":scan.get("sqlite_unique_proofs"),
