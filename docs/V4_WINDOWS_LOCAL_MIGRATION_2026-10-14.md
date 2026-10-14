@@ -162,3 +162,33 @@ if ($LASTEXITCODE -ne 0) { throw "诊断失败" }
 `local_status` **只读**、不展示机器个人目录，不访问授权 Token 或联网：回报三个建筑来源健康和失败原因、数据完整性/隔离数量、报告proof与SQL唯一行是否一致、snapshot年龄/状态、模型候选/正式候选、拒绝原因前12项；`local_backup` 使用 SQLite 原生 online backup 并校验完整性，不能替代异盘副本。提供脱敏的 `local_status` JSON 即可决定是密钥缺失/HTTP403/源行异常等下一修复优先级。
 
 本轮只能认为**本机单次 shadow 通过**，不能说长期定时运行、72h影子或正式MAIL已完成。安全门禁沿用既有用户批准的全市场每次重新扫描+两小时汇总，不恢复 V3。
+
+
+## 2026-10-14 本地 SQLite 31,931 记录验收与影子调度准备
+
+用户回传 `sqlite_integrity=ok`、`sqlite_run_row=SHADOW_VERIFIED_OFFLINE`、`sqlite_unique_proofs=31931`、`sqlite_count_matches_report=true`、`sqlite_status_counts={RESEARCH:20715,WATCH:11216}`。数据库结构与内容数量对账已经通过。其他拒绝原因包括 `PARTIAL_CASH_FLOOR_RESEARCH=10310`、`BELOW_GATE_OR_STRESS=900`、`INVALID_PRICE=230`、`NO_PROFITABLE_MATCHED_DEPTH=135`、`LIVE_ORDER_AND_CONTRACT_NOT_REVALIDATED=6`、`SOURCE_ORDER_INVALID=1`、`UNKNOWN_VOLUME_OR_ITEM=1`，这些类别属于策略/行情/验证结果，不是 SQLite 写入失败。
+
+**重要：** 用户目前只提供了 `local_status` 的末尾片段，缺 `structure_health`、`invalid_public_orders` 和 `source_input_integrity`。因此不能推定 4-H/C-J/O4T 哪条访问失败，或把某个可能的 missing_api_key 当作已知事实。先用以下只读命令回报安全诊断，不重新采集或暴露 token：
+
+```powershell
+Set-Location (Join-Path $HOME 'EVE-V4-Code')
+$python = Join-Path (Get-Location) '.venv\Scripts\python.exe'
+$root = Join-Path $HOME 'EVE-V4-Data'
+$diag = & $python -m v4.local_status --data-root $root | ConvertFrom-Json
+$diag | Select-Object run_status,coverage_gate,source_input_integrity,rejected_input_orders,invalid_public_orders,invalid_structure_orders,model_candidates,formal_candidates,sqlite_count_matches_report | Format-List
+$diag.structure_health | ConvertTo-Json -Depth 4
+```
+
+**本地两小时计划任务仍需主机端登记，尚未实际安装**。准备了 `v4/local_service.py`（`pythonw.exe` 无黑窗，私有 `logs/shadow-task.log`、磁盘可用空间低于20GiB拒绝扫描，每轮重新拉取完整快照，成功后每24小时在线备份一次，邮件OFF）和 `v4/install_windows_task.ps1`（12个每天固定时段触发点，00:23、02:23、…22:23，北京本地时间；两小时调度、IgnoreNew、85分钟上限，当前登录用户 Interactive、最小权限、不覆盖已存在同名任务）。
+
+只有用户确认剩余覆盖缺口和最新CI后，才由用户在主机 PowerShell 执行下列登记。**默认不登记**，未提供 `-Install` 仅检查计划；用户没运行就不可宣称定时部署：
+
+```powershell
+Set-Location (Join-Path $HOME 'EVE-V4-Code')
+git pull --ff-only
+& .\v4\install_windows_task.ps1
+# 确认审核后才运行：
+# & .\v4\install_windows_task.ps1 -Install
+```
+
+本任务仅在当前 Windows 用户保持已登录（可锁屏）时运行；注销用户或机器休眠将导致错过轮次。V3仍停，V4正式MAIL仍禁，Cloudflare/GitHub现有影子未切换。
