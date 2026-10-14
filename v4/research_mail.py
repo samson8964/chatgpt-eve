@@ -75,6 +75,8 @@ def _config(root: Path) -> dict | None:
     if not path.is_file():
         return None
     config = json.loads(path.read_text("utf-8"))
+    if isinstance(config, dict) and config.get("enabled") is False:
+        return None
     if (not isinstance(config, dict) or config.get("schema") != 1
             or config.get("enabled") is not True
             or config.get("mode") != "V4_CONTRACT_RESEARCH_ONLY"):
