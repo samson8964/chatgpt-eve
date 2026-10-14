@@ -221,12 +221,18 @@ def main():
     parser=argparse.ArgumentParser(description="Enable or send V4 research-only Gmail summary")
     opt=parser.add_mutually_exclusive_group(required=True)
     opt.add_argument("--configure",action="store_true")
+    opt.add_argument("--gui",action="store_true",help="Show masked Windows Gmail password window")
     opt.add_argument("--send-now",action="store_true")
     opt.add_argument("--disable",action="store_true")
     parser.add_argument("--data-root",type=Path,
                         default=Path.home()/"EVE-V4-Data")
     args=parser.parse_args()
-    if args.configure:
+    if args.gui:
+        from v4.research_mail_gui import launch_dialog
+        saved = launch_dialog(args.data_root)
+        result = {"gui_saved":saved, "secret_printed":False,
+                  "formal_mail_enabled":False, "sent":False}
+    elif args.configure:
         print("Configure Gmail application password for research-only V4 email.")
         user=input("Gmail sender address: ").strip()
         dest=input("Recipient (press Enter for sender): ").strip() or user
