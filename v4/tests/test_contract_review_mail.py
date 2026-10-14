@@ -159,9 +159,13 @@ class V4ContractReviewTests(unittest.TestCase):
             self.assertTrue(sent["sent"])
             self.assertFalse(skipped["sent"])
             self.assertEqual(len(_SMTP.sent),1)
-            self.assertIn("合同123456789",_SMTP.sent[0].get_content())
-            self.assertIn("https://eve-contract-opener.99617224.workers.dev/c/123456789",
-                          _SMTP.sent[0].get_content())
+            self.assertTrue(_SMTP.sent[0].is_multipart())
+            plain = _SMTP.sent[0].get_body(preferencelist=("plain",)).get_content()
+            rich = _SMTP.sent[0].get_body(preferencelist=("html",)).get_content()
+            self.assertIn("合同 123456789", plain)
+            self.assertIn("/c/123456789", rich)
+            self.assertIn("href=", rich)
+            self.assertLess(len(rich), 1600)
             receipt=(root/"mail-review"/"receipts"/
                      "20261014T082300Z-613afb20.json").read_text("utf-8")
             self.assertNotIn("abcdefghijklmnop",receipt)
