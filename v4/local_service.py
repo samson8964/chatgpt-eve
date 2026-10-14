@@ -110,7 +110,10 @@ def main() -> int:
                         mail = send_review(root, expected_run=result.get("run_folder_name"))
                         print("REVIEW_MAIL",json.dumps(mail,ensure_ascii=False),flush=True)
                     except Exception as mail_exc:
-                        print("REVIEW_MAIL_FAILED",type(mail_exc).__name__,flush=True)
+                        from v4.mail_diagnostics import ALLOWED_ERROR_CODES
+                        reason = str(mail_exc)
+                        code = reason if reason in ALLOWED_ERROR_CODES else "UNCLASSIFIED"
+                        print("REVIEW_MAIL_FAILED",type(mail_exc).__name__,code,flush=True)
                         delivery_failure = True
                     try:
                         from v4.game_mail_review import send_review_to_game
@@ -118,7 +121,15 @@ def main() -> int:
                             root, expected_run=result.get("run_folder_name"))
                         print("GAME_REVIEW_MAIL",json.dumps(game_mail,ensure_ascii=False),flush=True)
                     except Exception as game_exc:
-                        print("GAME_REVIEW_MAIL_FAILED",type(game_exc).__name__,flush=True)
+                        from v4.mail_diagnostics import ALLOWED_ERROR_CODES
+                        reason = str(game_exc)
+                        code = (reason if reason in ALLOWED_ERROR_CODES
+                                or reason in ("GAME_MAIL_LATEST_RUN_MISMATCH",
+                                              "GAME_MAIL_NON_JITA_PRICING_FORBIDDEN",
+                                              "GAME_MAIL_SENDER_NOT_VERIFIED",
+                                              "GAME_MAIL_RECEIPT_INCONSISTENT")
+                                else "UNCLASSIFIED")
+                        print("GAME_REVIEW_MAIL_FAILED",type(game_exc).__name__,code,flush=True)
                         delivery_failure = True
                     if delivery_failure:
                         return 3
