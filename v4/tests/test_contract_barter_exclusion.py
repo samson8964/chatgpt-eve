@@ -60,7 +60,8 @@ class V4ContractBarterExclusionTests(unittest.TestCase):
                           "cj":{"status":"COMPLETE","location":1049588174021},
                           "o4t":{"status":"COMPLETE","location":1040804972352}})),
                   patch("v4.deep_scan.ensure_catalog",return_value=catalog),
-                  patch("v4.deep_scan.known_station_regions",return_value={})):
+                  patch("v4.deep_scan.known_station_regions",return_value={}),
+                  patch("v4.deep_scan.haul",side_effect=lambda source,dest,vol,stations: 0 if source==dest else 3000000)):
                 report=deep_run(root/"orders",root/"contracts",output,api_key="")
             self.assertEqual(report["contract_requested_items_excluded"],1)
             self.assertEqual(report["contract_jita_examined"],1)
@@ -74,10 +75,13 @@ class V4ContractBarterExclusionTests(unittest.TestCase):
             self.assertEqual(contract["included_items"],{"34":10})
             self.assertFalse(contract["requested_items_present"])
             self.assertEqual(contract["valuation_basis"],
-                "SAME_LOCATION_SNAPSHOT_BUY_DEPTH_NOT_LIVE")
+                "JITA_4_4_BUY_DEPTH_SNAPSHOT_NOT_LIVE")
             amarr=next(p for p in proofs if p.get("contract_id")==103)
             self.assertEqual(amarr["source_location"],60008494)
-            self.assertEqual(amarr["destination_location"],60008494)
+            self.assertEqual(amarr["destination_location"],60003760)
+            self.assertEqual(amarr["valuation_location_id"],60003760)
+            self.assertEqual(amarr["haul_cost_estimate_isk"],3000000)
+            self.assertEqual(amarr["gross"],100000000)
             self.assertFalse(amarr["contract_access_verified"])
 
 
