@@ -1,3 +1,53 @@
+## 2026-10-14 addition: LadyBaBa receives all future V4 EVE game-mail digests
+
+**User explicitly requested** EVE game-mail alerts also go to LadyBaBa.
+From the same Windows user profile as the existing `EVE-V4-Shadow` task:
+
+```powershell
+Set-Location (Join-Path $HOME 'EVE-V4-Code')
+git pull --ff-only
+if ($LASTEXITCODE -ne 0) { throw 'Git update failed' }
+& .\.venv\Scripts\python.exe -m v4.game_mail_review --add-recipient --recipient LadyBaBa
+if ($LASTEXITCODE -ne 0) { throw 'Cannot enable LadyBaBa' }
+& .\.venv\Scripts\python.exe -m v4.game_mail_review --status
+```
+
+This is additive: the existing MikeChong recipient remains. The tool
+resolves LadyBaBa's character ID through CCP's **public ESI exact-name**
+lookup (not by guessing an ID or requesting extra OAuth scopes), then
+persists only the recipient name and numeric ID; no credentials are saved
+in the JSON configuration. The default Gmail recipient is unchanged.
+Enabling is NOT a send.
+
+To send the latest *already-completed* run to the newly-added LadyBaBa
+immediately, without re-running a market scan or duplicating MikeChong's
+previous mail, explicitly run:
+
+```powershell
+& .\.venv\Scripts\python.exe -m v4.game_mail_review --send-now
+```
+
+Future scheduled completed scans automatically deliver to both.
+Every recipient has its own durable receipt and identical per-recipient
+Worker idempotency key. Existing legacy `<run>.json` receipts remain
+MikeChong's and are respected during upgrades; LadyBaBa uses
+`<run>-<character-id>.json`. A failure for one character cannot block
+the other, but scheduler exit code is nonzero to flag partial delivery.
+The in-game `<url=contract:0//...>` and `<url=showinfo:...>` native
+clickable links and compact market + contract summaries are unchanged.
+
+### Windows SQLite test warning
+
+If manually running old V4 unit tests shows `WinError 32` on temporary
+`ledger.db` files, this indicates temporary SQLite handles or a transient
+Windows file-locking race during **test cleanup**, not proof of lost
+production scanning data. `v4/tests/test_local_store.py` now retries
+this specific Windows sharing violation for a short bounded period,
+while all other errors remain visible. Tests still fail if locks persist.
+The unrelated `v4/ingest.py` generator already uses a `with` block
+to close proof-file handles on termination; do not disable production
+validation or remove SQLite WAL to work around test cleanup.
+
 # EVE V4 two-hour contract research summaries to in-game Mail
 
 **Status:** V4 shadow scanner retains formal production alert protection:
