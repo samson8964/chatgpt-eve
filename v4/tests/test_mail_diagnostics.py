@@ -18,6 +18,7 @@ class MailDiagnosticsTests(unittest.TestCase):
                 "status":"SHADOW_RECORDED",
                 "coverage_gate":"INPUT_LANES_REPORTED_COMPLETE_NOT_LIVE_VERIFIED",
                 "source_input_integrity":"ALL_PARSED",
+                "mail_enabled":False,"ready_for_production":False,
             }),encoding="utf-8")
             (folder/"deep_shadow.json").write_text(json.dumps({
                 "status":"SHADOW_ONLY_NO_LIVE_ALERTS",
