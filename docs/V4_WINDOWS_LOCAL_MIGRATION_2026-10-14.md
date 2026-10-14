@@ -117,3 +117,22 @@ $python = Join-Path (Get-Location) '.venv\Scripts\python.exe'
 - 不恢复 V3、不开正式邮件；不将 Draft PR #53 当作主线。
 - 不要求向公有仓库泄露 ESI 授权；不在 GitHub Actions/Cloudflare 恢复付费 SQL 操作。
 - 不在未验证真实订单成交条件时宣称盈利或已完成正式 V4 上线。
+
+## 2026-10-14 本机第一次反馈：Python 3.11 NumPy 依赖阻塞的实际修正
+
+主机预检 Python 3.11.9、SQLite 3.45.1、Git+Codex 就绪、C盘剩余374.11 GiB，但 `numpy`/`pandas`/`requests` 全部缺失，`unittest` 反馈三处导入错误。根因之一已核实为旧版 `requirements.txt` 硬编码 `numpy==2.5.3`，而 PyPI 官方元数据该版要求 Python >=3.12；3.11安装因此失败。修复后依赖规格：Python<3.12 时 numpy==2.4.3，Python>=3.12 时 numpy==2.5.3；pandas==2.3.3、requests==2.34.2。CI进一步在3.11与3.12分别执行 `pip install -r requirements.txt` 防止再出现同类差错。
+
+**已经 clone 的本机 PowerShell 修复命令（仅修改独立 .venv）：**
+
+```powershell
+$repo = Join-Path $HOME 'EVE-V4-Code'
+Set-Location $repo
+git pull --ff-only
+$python = Join-Path $repo '.venv\Scripts\python.exe'
+& $python -m pip install -r requirements.txt
+if ($LASTEXITCODE -ne 0) { throw "安装失败，请保留 pip 错误输出（脱敏后反馈）" }
+& $python -m v4.local_preflight
+& $python -m unittest discover -s v4/tests -v
+```
+
+必须以 `ready_to_attempt_shadow: true` 且测试 OK 为准，不因原来测试抛的错误而直接开始全量市场采集。若 pip 依旧失败，请先根据完整错误判断是代理、证书、镜像源还是解释器路径，**不要**全局关闭 TLS 校验或安装无来源包；不必升级 Python。
