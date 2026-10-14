@@ -133,8 +133,17 @@ def run(market_path,contract_path,output,api_key=''):
     cash_contracts=contracts[(contracts['type'].astype(str).str.lower()=='item_exchange')
                              & contracts['start_location_id'].isin(approved)].copy()
     ids=set(t for _,_,t in potential_pairs)
-    # Only include included items, not requested barter terms.
-    inc=items[items.get('is_included',pd.Series(True,index=items.index)).astype(str).str.lower().isin(['true','1','t'])]
+    # EVE item-exchange contracts can also REQUEST additional items. Treating
+    # only the included side as a cash-only purchase would invent profit.
+    # Any requested, ambiguous, or missing inclusion flag fails closed.
+    if 'is_included' not in items.columns:
+        raise RuntimeError('CONTRACT_ITEM_INCLUSION_FLAG_MISSING')
+    included_flags=items['is_included'].astype(str).str.lower().isin(['true','1','t'])
+    requested_ids=set(items.loc[~included_flags, 'contract_id'].dropna().tolist())
+    requested_contracts_excluded=int(cash_contracts['contract_id'].isin(requested_ids).sum())
+    cash_contracts=cash_contracts[~cash_contracts['contract_id'].isin(requested_ids)].copy()
+    # Additional term-sensitive cost models belong in a separate barter engine.
+    inc=items.loc[included_flags].copy()
     inc=inc[inc['contract_id'].isin(set(cash_contracts['contract_id'].tolist()))]
     ids.update(int(t) for t in inc['type_id'].dropna().unique())
     catalog=ensure_catalog()
@@ -183,6 +192,10 @@ def run(market_path,contract_path,output,api_key=''):
             policy=POLICY,haul_isk=0,allowed=True,fresh=True,
             item_classifications=classes)
         proof.update(included_items=by_contract[cid],
+                     contract_price=float(row.get('price') or 0),
+                     contract_title=str(row.get('title') or '')[:180],
+                     valuation_basis='JITA_SNAPSHOT_BUY_ORDER_DEPTH_NOT_LIVE',
+                     requested_items_present=False,
                      contract_blueprint_evidence=dict(bp_states[cid]),
                      included_volumes={str(i):volumes.get(i) for i in by_contract[cid]},
                      source_location=JITA,destination_location=JITA,region_id=10000002,
@@ -207,7 +220,9 @@ def run(market_path,contract_path,output,api_key=''):
        structure_health=structure_health,metadata_missing=missing,metadata_requested=len(ids),
        catalog_meta=catalog.meta,catalog_coverage=coverage,
        verified_approved_locations=len(approved),market_potential_pairs=len(potential_pairs),
-       contract_cash_known_location=len(cash_contracts),contract_jita_examined=len(jita_contracts),
+       contract_cash_known_location=len(cash_contracts),
+       contract_requested_items_excluded=requested_contracts_excluded,
+       contract_jita_examined=len(jita_contracts),
        contract_blueprint_states={state:sum(states.get(state,0) for states in bp_states.values())
                                   for state in ('BPC','BPO','UNKNOWN_BLUEPRINT')},
        proof_count=len(proofs),model_candidates=sum(x.get('model_candidate') is True for x in proofs),
