@@ -13,6 +13,11 @@ def _keyring():
     if sys.platform != "win32":
         raise RuntimeError("WINDOWS_ONLY")
     import keyring
+    # Refuse any third-party or plaintext fallback backend: the credential
+    # must remain inside the current Windows user's Credential Manager vault.
+    active_backend = keyring.get_keyring()
+    if not type(active_backend).__module__.startswith("keyring.backends.Windows"):
+        raise RuntimeError("WINDOWS_CREDENTIAL_VAULT_BACKEND_REQUIRED")
     return keyring
 
 
