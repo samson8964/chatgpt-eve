@@ -13,6 +13,7 @@ import uuid
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
+from functools import lru_cache
 from pathlib import Path
 
 import pandas as pd
@@ -63,6 +64,21 @@ def known_station_regions():
     return output
 
 
+@lru_cache(maxsize=32)
+def _secure_route_jumps(source_system, dest_system):
+    """Cache ESI secure-route hop count once per station pair per process.
+
+    A failed route lookup stays unverified for this scan, not free transport.
+    """
+    try:
+        route,_=request(ESI+'/route/%s/%s/'%(source_system,dest_system),
+            params={'flag':'secure','datasource':'tranquility'})
+        jumps=max(0,len(route)-1)
+        return jumps if jumps>0 else None
+    except Exception:
+        return None
+
+
 def haul(source,dest,volume,stations):
     if source==dest:
         return 0
@@ -70,14 +86,8 @@ def haul(source,dest,volume,stations):
         a,b=stations.get(source,{}),stations.get(dest,{})
         if not a.get('system') or not b.get('system'):
             return None
-        try:
-            route,_=request(ESI+'/route/%s/%s/'%(a['system'],b['system']),
-                params={'flag':'secure','datasource':'tranquility'})
-            jumps=max(0,len(route)-1)
-            if jumps==0:return None
-            return 2_000_000+200*volume*jumps
-        except Exception:
-            return None
+        jumps=_secure_route_jumps(int(a['system']),int(b['system']))
+        return 2_000_000+200*volume*jumps if jumps is not None else None
     if source in (x[0] for x in STRUCTURES.values()) or dest in (x[0] for x in STRUCTURES.values()):
         return 10_000_000+500*volume
     return None
@@ -167,10 +177,11 @@ def run(market_path,contract_path,output,api_key=''):
         quarantine_snapshot_candidate(proof)
         proofs.append(proof)
         reasons[proof['reason']]+=1
-    # Snapshot research only: value all public item-exchange contracts at the
-    # SAME approved location's actual bid book. No haul or assumed remote
-    # liquidation. Verified structure market access is NOT proof of contract
-    # access. Formal buy-now mail stays blocked pending separate validation.
+    # User-approved fixed valuation benchmark: Jita IV - Moon 4 - Caldari
+    # Navy Assembly Plant (60003760), its real BUY ORDER DEPTH only.
+    # Contract location is a source/pickup point; haul must be charged for
+    # non-Jita contracts, never silently treated as zero or as Jita inventory.
+    # This is snapshot RESEARCH, never a live executable contract assertion.
     local_contracts=cash_contracts
     jita_contract_count=int((local_contracts['start_location_id']==JITA).sum())
     by_contract=defaultdict(dict)
@@ -191,22 +202,33 @@ def run(market_path,contract_path,output,api_key=''):
         # V4 deliberately does NOT assume blueprint-looking types are BPO.
         classes={int(t):catalog.classification(t) for t in by_contract[cid]}
         contract_location=int(row['start_location_id'])
-        local_bids={t:markets.get((contract_location,int(t),True),[])
-                    for t in by_contract[cid]}
-        proof=contract_proof(row,by_contract[cid],local_bids,volumes,
-            policy=POLICY,haul_isk=0,allowed=True,fresh=True,
+        jita_bids={t:markets.get((JITA,int(t),True),[])
+                   for t in by_contract[cid]}
+        item_volumes=[volumes.get(int(t)) for t in by_contract[cid]]
+        volume_m3=(sum(float(volumes[int(t)])*int(qty)
+                       for t,qty in by_contract[cid].items())
+                   if all(v is not None and math.isfinite(v) and v>0
+                          for v in item_volumes) else None)
+        haul_estimate=(haul(contract_location,JITA,volume_m3,stations)
+                       if volume_m3 is not None else None)
+        proof=contract_proof(row,by_contract[cid],jita_bids,volumes,
+            policy=POLICY,haul_isk=haul_estimate,allowed=True,fresh=True,
             item_classifications=classes)
         proof.update(included_items=by_contract[cid],
                      contract_price=float(row.get('price') or 0),
                      contract_title=str(row.get('title') or '')[:180],
-                     valuation_basis='SAME_LOCATION_SNAPSHOT_BUY_DEPTH_NOT_LIVE',
+                     valuation_basis='JITA_4_4_BUY_DEPTH_SNAPSHOT_NOT_LIVE',
+                     valuation_location_id=JITA,
                      contract_access_verified=False,
+                     haul_cost_estimate_isk=haul_estimate,
+                     haul_route_verified=False,
+                     volume_m3=volume_m3,
                      requested_items_present=False,
                      contract_blueprint_evidence=dict(bp_states[cid]),
                      included_volumes={str(i):volumes.get(i) for i in by_contract[cid]},
                      source_location=contract_location,
-                     destination_location=contract_location,
-                     local_exit_buy_orders_only=True,
+                     destination_location=JITA,
+                     jita_exit_buy_orders_only=True,
                      expires_at=str(row.get('date_expired','')))
         quarantine_snapshot_candidate(proof)
         proofs.append(proof)
@@ -232,6 +254,7 @@ def run(market_path,contract_path,output,api_key=''):
        contract_requested_items_excluded=requested_contracts_excluded,
        contract_jita_examined=jita_contract_count,
        contract_approved_locations_examined=len(local_contracts),
+       contract_pricing_basis='JITA_4_4_BUY_DEPTH_SNAPSHOT',
        contract_blueprint_states={state:sum(states.get(state,0) for states in bp_states.values())
                                   for state in ('BPC','BPO','UNKNOWN_BLUEPRINT')},
        proof_count=len(proofs),model_candidates=sum(x.get('model_candidate') is True for x in proofs),
@@ -240,7 +263,8 @@ def run(market_path,contract_path,output,api_key=''):
        warnings=['All snapshot-derived model candidates downgraded to WATCH: no live ESI order verification',
                  'Full-universe public contracts/markets census succeeded separately',
                  'Non-verified destination routes and BPC are not production mail-eligible',
-                 'All contract valuations are same-location market snapshots, not validated purchase access, contract existence or live bid books'] +
+                 'ALL contract item valuations use Jita 4-4 BUY order-depth snapshots regardless of pickup location',
+                 'Non-Jita estimated haul is deducted when calculable, otherwise HAUL_UNVERIFIED; no live delivery/access verification'] +
                  (['Malformed input orders were explicitly quarantined; this is PARTIAL source input coverage']
                   if quarantined else []))
     path=Path(output);path.parent.mkdir(parents=True,exist_ok=True)
