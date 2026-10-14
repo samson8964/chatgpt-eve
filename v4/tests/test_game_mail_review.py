@@ -103,7 +103,7 @@ class GameMailReviewTests(unittest.TestCase):
             self.assertEqual(send[0:2],("POST",WORKER_URL+"/api/send-mail"))
             self.assertEqual(send[2]["json"]["recipient_id"],2124493042)
             self.assertIn("V4捡漏待核",send[2]["json"]["subject"])
-            self.assertIn("Jita",send[2]["json"]["body"])
+            self.assertIn("吉他海4",send[2]["json"]["body"])
             self.assertIn("236977688",send[2]["json"]["body"])
             self.assertIn("不可直接购买",send[2]["json"]["body"])
             self.assertIn("<url=contract:0//236977688>",send[2]["json"]["body"])
