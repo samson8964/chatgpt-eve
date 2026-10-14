@@ -185,7 +185,7 @@ class GameMailReviewTests(unittest.TestCase):
         subject,body=compact_digest(oversized)
         self.assertLessEqual(len(body),9000)
         self.assertLessEqual(len(subject),180)
-        self.assertIn("快照",subject)
+        self.assertIn("待核",subject)
 
 
 if __name__=="__main__":
