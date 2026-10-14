@@ -152,8 +152,10 @@ class GameMailReviewTests(unittest.TestCase):
             enable(root)
             session=Transport(code=502)
             with patch("v4.game_mail_review.make_review",return_value=review()):
-                with self.assertRaisesRegex(GameMailTestError,"WORKER_REJECTED_HTTP_502"):
-                    send_review_to_game(root,session=session,get_key=lambda:self.KEY)
+                failed=send_review_to_game(root,session=session,get_key=lambda:self.KEY)
+            self.assertEqual(failed["status"],"V4_GAME_RESEARCH_MAIL_RECIPIENT_FAILED")
+            self.assertEqual(failed["error_code"],"GAME_MAIL_WORKER_REJECTED_HTTP_502")
+            self.assertFalse(failed["sent"])
             self.assertFalse((root/"mail-review"/"eve-receipts").exists())
 
     def test_duplicate_worker_ack_saved_without_claiming_new_send(self):
