@@ -15,9 +15,34 @@ if (-not (Test-Path $pythonw)) { throw "Missing windowless Python: $pythonw" }
 if (-not (Test-Path (Join-Path $DataRoot 'sqlite\v4-shadow.sqlite3'))) {
     throw 'No verified local SQLite shadow ledger; run one foreground scan first.'
 }
-# Independent SQL check, no mail and no secret reads.
-& $python -m v4.local_status --data-root $DataRoot | Out-Null
+# Fail closed: install is permitted only after a complete, SQL-audited,
+# non-email shadow run. Never mistake SHADOW_RECORDED partial coverage for
+# permission to register an unattended schedule.
+$statusJson = & $python -m v4.local_status --data-root $DataRoot
 if ($LASTEXITCODE -ne 0) { throw 'Local SQLite diagnostics failed.' }
+try {
+    $status = $statusJson | ConvertFrom-Json -ErrorAction Stop
+} catch {
+    throw 'Local SQLite diagnostics returned invalid JSON.'
+}
+if ($status.run_status -ne 'SHADOW_RECORDED' -or
+    $status.coverage_gate -ne 'INPUT_LANES_REPORTED_COMPLETE_NOT_LIVE_VERIFIED' -or
+    $status.source_input_integrity -ne 'ALL_PARSED' -or
+    $status.sqlite_integrity -ne 'ok' -or
+    $status.sqlite_count_matches_report -ne $true -or
+    $status.mail_enabled -ne $false -or
+    $status.ready_for_production -ne $false) {
+    throw 'LATEST_SHADOW_RUN_NOT_FULLY_VERIFIED_FOR_UNATTENDED_MODE'
+}
+foreach ($lane in @('four_h','cj','o4t')) {
+    $info = $status.structure_health.$lane
+    if ($null -eq $info -or $info.status -ne 'COMPLETE' -or
+        $null -eq $info.pages -or $info.pages -lt 1 -or
+        $info.pages_fetched -ne $info.pages -or $info.orders -lt 0) {
+        throw ('STRUCTURE_LANE_NOT_COMPLETE: ' + $lane)
+    }
+}
+Write-Host 'Verified last run: public + 3 structure markets COMPLETE; SQLite audit OK; MAIL OFF.'
 if (Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue) {
     throw "Task already exists: $TaskName. Refusing to overwrite."
 }
