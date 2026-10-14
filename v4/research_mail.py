@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 from email.message import EmailMessage
 from pathlib import Path
 
-from v4.unified_review import make_review, render as render_unified
+from v4.unified_review import make_review, render as render_unified, render_html
 
 SERVICE = "eve-v4-contract-review-gmail"
 CONFIG = Path("config/research_gmail.json")
@@ -228,6 +228,10 @@ def send_review(root: Path, *, expected_run: str | None = None,
     unique = hashlib.sha256((run_name + "|"+config["recipient"]).encode()).hexdigest()
     msg["Message-ID"] = "<eve-v4-review-"+unique[:32]+"@gmail.com>"
     msg.set_content(body)
+    html_subject, html_body = render_html(review)
+    if html_subject != subject:
+        raise RuntimeError("GMAIL_REVIEW_SUBJECT_MISMATCH")
+    msg.add_alternative(html_body, subtype="html")
     smtp_factory = smtp_factory or smtplib.SMTP_SSL
     with smtp_factory("smtp.gmail.com",465,timeout=35) as client:
         client.login(config["sender"], password)
