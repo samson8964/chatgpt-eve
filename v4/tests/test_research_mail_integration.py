@@ -10,8 +10,10 @@ from v4.local_service import main
 class ResearchEmailIntegrationTests(unittest.TestCase):
     def invoke(self, root, scan, sender):
         args=["v4.local_service","--data-root",str(root)]
+        sending = ({"side_effect": sender} if isinstance(sender, BaseException)
+                   else {"return_value": sender})
         with patch("sys.argv",args),patch("v4.local_service.execute",return_value=scan),\
-             patch("v4.research_mail.send_review",side_effect=sender) as send:
+             patch("v4.research_mail.send_review",**sending) as send:
             exit_code=main()
         log=(root/"logs"/"shadow-task.log").read_text(encoding="utf-8")
         return exit_code,log,send
@@ -34,7 +36,7 @@ class ResearchEmailIntegrationTests(unittest.TestCase):
             self.assertEqual(code,3)
             self.assertIn("REVIEW_MAIL_FAILED RuntimeError",log)
             self.assertIn("RESULT",log)
-            self.assertNotIn("FAILED RuntimeError",log)
+            self.assertNotIn("\nFAILED RuntimeError",log)
             self.assertNotIn("SMTP_NOT_AVAILABLE",log)
 
     def test_scan_degradation_still_returns_two_if_mail_success(self):
