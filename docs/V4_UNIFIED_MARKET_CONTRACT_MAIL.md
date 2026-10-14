@@ -1,3 +1,34 @@
+## 2026-10-14 shorter clickable messages
+
+The user confirmed prior deliveries were too verbose and links were not
+usable. V4 now treats the **target itself as the clickable title**, with
+no separate long instruction paragraphs.
+
+- Game mail: native EVE HTML
+  `<url=contract:0//ID><b>打开合同 ID</b></url>` and
+  `<url=showinfo:TYPEID><b>查看商品 TYPEID</b></url>`.
+  The latter opens item Show Info; it is **not** a promise to open or
+  purchase a particular market order. The link should be tested in
+  the recipient's running EVE client. The Worker passes body markup
+  unchanged to ESI.
+- Gmail: **multipart plain + HTML**, with clickable anchor text
+  `打开合同 ID` pointing to Worker `/c/ID` and
+  `查看商品 TYPEID` pointing to Worker `/m/TYPEID`. Clicking a
+  Worker link may require the game's authorized character to be online
+  to display the target window.
+- Per result: clickable target + pickup location + quantity (market) or
+  contract price + estimated net profit + ROI. At most five of each
+  lane, one short risk warning, nothing about SQLite proof counts,
+  catalog metadata, research process or lengthy disclaimers.
+- Prices remain at 0.01 亿 ISK precision.
+- The prior successful contract emails and dedupe receipts are not
+  retroactively edited or replayed. A *new* successful scan after
+  Windows `git pull --ff-only` is required to receive the new format.
+- Automated tests confirm exact EVE markup and true Gmail HTML
+  anchors; rendering inside the customer's EVE client cannot be
+  verified by GitHub Actions, so require one human click test after
+  mail arrival.
+
 # V4: Combined market and contract reports (2026-10-14)
 
 **Accepted requirement:** one existing two-hour Windows shadow scan covers both
