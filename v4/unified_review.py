@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import math
 from collections import Counter
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from v4.contract_review import make_review as contract_review
@@ -16,6 +17,28 @@ from v4.contract_review import make_review as contract_review
 JITA = 60003760
 WORKER = "https://eve-contract-opener.99617224.workers.dev"
 MAX_EACH = 5
+LOCATION_NAMES = {
+    60003760:"吉他4-4", 60008494:"Amarr", 60011866:"Dodixie",
+    1053970513596:"4-H", 1049588174021:"C-J",
+    1040804972352:"O4T",
+}
+
+
+def place(value) -> str:
+    try:
+        n = int(value)
+    except (ValueError, TypeError, OverflowError):
+        return "位置未知"
+    return LOCATION_NAMES.get(n, str(n))
+
+
+def beijing_scan_time(run_name) -> str:
+    try:
+        value = datetime.strptime(str(run_name)[:16], "%Y%m%dT%H%M%SZ")
+        value = value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone(timedelta(hours=8))).strftime("%m-%d %H:%M")
+    except (ValueError, TypeError):
+        return str(run_name or "")[:13]
 
 
 def _amount(value):
@@ -110,7 +133,7 @@ def render(review: dict, *, game: bool = False) -> tuple[str, str]:
     contracts=review.get("contract_research_leads",review.get("research_leads")) or []
     if not good:
         pairs,contracts=[],[]
-    stamp=str(review.get("run_folder") or "")[:13]
+    stamp=beijing_scan_time(review.get("run_folder"))
     subject=f"【V4捡漏待核】{stamp} 市场{len(pairs)} 合同{len(contracts)}"
     linebreak="<br>" if game else "\n"
     lines=[
@@ -129,7 +152,7 @@ def render(review: dict, *, game: bool = False) -> tuple[str, str]:
             opener=(f"<url=showinfo:{tid}><b>查看物品</b></url>" if game
                     else p.get("market_url",f"{WORKER}/m/{tid}"))
             lines.append(
-                f"{n}. Type {tid} ×{p['quantity']}｜{p['source_location']}→吉他4-4"
+                f"{n}. 物品{tid} ×{p['quantity']}｜{place(p['source_location'])}→吉他4-4"
                 f"｜净{yi(p['net_profit_snapshot'])} ROI{p['roi_snapshot']*100:.1f}%"
                 f"｜压{yi(p['stress_profit_snapshot'])} {opener}")
         lines.append("【合同】")
@@ -140,7 +163,7 @@ def render(review: dict, *, game: bool = False) -> tuple[str, str]:
             opener=(f"<url=contract:0//{cid}><b>打开合同</b></url>" if game
                     else f"{WORKER}/c/{cid}")
             lines.append(
-                f"{n}. 合同{cid}｜{p.get('source_location','?')}"
+                f"{n}. 合同{cid}｜{place(p.get('source_location'))}"
                 f"｜价{yi(p.get('contract_price'))}"
                 f"｜净{yi(p['net_profit_snapshot'])} ROI{p['roi_snapshot']*100:.1f}%"
                 f"｜压{yi(p['stress_profit_snapshot'])} {opener}")
