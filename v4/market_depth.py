@@ -10,6 +10,8 @@ import math
 from collections import defaultdict
 from collections.abc import Iterable
 
+from v4.market_execution import gross_depth_upper_bound
+
 STATIONS = {
     "4-H": 1053970513596,
     "C-J": 1049588174021,
@@ -47,8 +49,8 @@ def station_sell_census(markets: dict, *, locations: dict = STATIONS,
     """Cover ALL *active* source sell types, not only profitable survivors.
 
     This is a type/price census against Jita bids. Not a live trade check.
-    Full order-depth/haul evaluation stays downstream behind the safe
-    optimistic upper-bound gate, preventing high-cost O(types * orders)
+    Fee/haul/ROI and stress evaluation stays downstream behind the safe
+    matched-bid/ask gross upper-bound gate, preventing high-cost O(types * orders)
     work for economically impossible products.
     """
     output = {}
@@ -78,7 +80,7 @@ def station_sell_census(markets: dict, *, locations: dict = STATIONS,
             best_bid = max(o.price for o in bids)
             if best_ask < best_bid:
                 crossed += 1
-                optimistic = (best_bid - best_ask) * sum(o.remaining for o in asks)
+                optimistic = gross_depth_upper_bound(asks, bids)
                 if optimistic >= floor:
                     eligible += 1
         output[name] = {
@@ -93,6 +95,7 @@ def station_sell_census(markets: dict, *, locations: dict = STATIONS,
             "sell_types_without_jita_buy": no_jita,
             "sell_types_best_price_crossed": crossed,
             "sell_types_optimistic_gate_passed": eligible,
+            "optimistic_gate_definition": "TWO_SIDED_MATCHED_DEPTH_GROSS_MARGIN_BEFORE_FEES",
             "coverage": "ALL_VALID_ACTIVE_SOURCE_SELL_TYPES_TESTED_AGAINST_JITA_BUY_EXISTENCE_AND_BEST_PRICE",
             "full_order_depth_evaluated_only_after_optimistic_profit_gate": True,
         }
