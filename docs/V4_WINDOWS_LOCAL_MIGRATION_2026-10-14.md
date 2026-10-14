@@ -224,3 +224,24 @@ if ($LASTEXITCODE -ne 0) { throw "依赖安装失败" }
 如果 `probe` 为`MISSING_KEY`：尚无存储；若 `ACCESS_DENIED` / `HTTP_FAILURE`，按各 profile 的具体状态定位。**不要仅凭密钥存在就把 coverage_gate 从 PARTIAL_UNVERIFIED 改为 COMPLETE。**
 
 保留公开市场异常订单隔离审计，即使三处第一屏访问修复也不代表此前 `PARTIAL_QUARANTINED` 可忽略。正式 V4 邮件仍关闭；本地定时任务只有实际 `-Install` 才注册。
+
+
+## 2026-10-14 本地主机真实全量扫描：三座建筑分页网络断线（WinError 10054）
+
+用户本机完成在线 SQLite 备份 `backups/v4-shadow-20261014T060131Z.sqlite3`，`sqlite_integrity=ok`、`scan_runs=1`、`proof_versions=31931`；备份仍需异机副本。
+
+随后第二次 `python -m v4.local_run --execute-shadow` 实际运行了完整公开市场和 deep_scan，`run_folder=20261014T060131Z-2922a48e`。本轮 `SHADOW_RECORDED`，`source_market_orders=1584527`，`deep_public_orders=1584522`，`sqlite_unique_proofs=31942`，`sqlite_integrity=ok`，`sqlite_count_matches_report=True`，`model_candidates=6`，`formal_candidates=0`，邮件关闭。**不是市场覆盖完全成功**：4-H/C-J/O4T 三者均 FAILED，错误是 `ConnectionError` / Windows `ConnectionResetError(10054)`（远端强制断开现有连接），`authorized_structure_orders_parsed=0`，`source_input_integrity=PARTIAL_QUARANTINED`，`coverage_gate=PARTIAL_UNVERIFIED`。先前本机 key 以及 Cloudflare Worker 部署与3个第一页访问验证均成功（34+54+8=96页作为当时页数），所以这次不能擅自归因为API凭据失效，也不能谎称完成结构市场采集。公开 market raw 与 deep parsed 差5条，请使用最新 diag `invalid_public_orders` 进一步核实，不自动忽略 quarantines。
+
+**实际代码修复**（isolated PR#54，V3和正式V4 MAIL始终不动）：
+- `v4/structure_transport.py`：每页结构市场请求最多5次尝试；网络中断/超时及HTTP408/425/429/5xx按上限退避和随机抖动重试；分页之间轻微间隔以降低短时间突发请求；401/403等非暂时性失败不盲目重试。每页校验结构ID、页号和报告总页数，失败后标记具体`reason`/`failed_page`/`pages_fetched`/`transient_retries`，永远不把未完成分页的结构市场订单当作成功纳入。
+- `v4/deep_scan.py` 改为统一调用重试传输层；`v4/local_status.py` 展示安全的分页失败诊断（不输出密钥）。
+- `v4/local_structure_pages.py` 增加只读全结构分页探测（先不需要再下载158万公开订单，不写SQL、没有发邮件）；若某条lane仍失败，exit code 2但输出其他lane诊断。安全回归 `v4/tests/test_structure_transport.py` 覆盖WinError10054单页恢复、429限流恢复、单页重试耗尽后整lane失败不混用部分订单、403不重试、分页漂移、完整顺序及没有API key拒绝请求。
+- 本机复测建议：
+```powershell
+Set-Location (Join-Path $HOME 'EVE-V4-Code')
+git pull --ff-only
+if ($LASTEXITCODE -ne 0) { throw '更新失败' }
+$python=Join-Path (Get-Location) '.venv\Scripts\python.exe'
+& $python -m v4.local_structure_pages
+```
+优先获得三条 `status=COMPLETE` 与 `ALL_STRUCTURE_PAGES_COMPLETE`；如仍发生重试耗尽或分页变化，依据最新`failed_page`判断网络出口/VPN代理与数据滚动变化，不开启计划任务正式运行。只有结构页诊断通过后才重新运行完整fresh `v4.local_run --execute-shadow` 并审计 SQLite。注意首次三个第一页成功与后续完整分页成功是两种独立验证。生产实时买卖挂单/合同重新校验仍未实现。
