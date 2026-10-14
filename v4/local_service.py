@@ -51,8 +51,21 @@ def execute(root: Path, *, scanner=run, backup_fn=backup,
     scan = scanner(root)
     if scan.get("status") != "SHADOW_RECORDED" or scan.get("mail_enabled") is not False:
         raise RuntimeError("SHADOW_SCAN_NOT_RECORDED_OR_MAIL_NOT_DISABLED")
-    result = {"status":"SHADOW_RECORDED","run_folder_name":Path(scan["run_folder"]).name,
+    lanes = scan.get("structure_health") or {}
+    complete = (
+        scan.get("coverage_gate") == "INPUT_LANES_REPORTED_COMPLETE_NOT_LIVE_VERIFIED"
+        and all(isinstance(lanes.get(lane), dict)
+                and lanes[lane].get("status") == "COMPLETE"
+                and isinstance(lanes[lane].get("pages"), int)
+                and lanes[lane]["pages"] > 0
+                and lanes[lane].get("pages_fetched") == lanes[lane]["pages"]
+                for lane in ("four_h", "cj", "o4t"))
+    )
+    result = {"status":"SHADOW_RECORDED" if complete else "DEGRADED_PARTIAL_COVERAGE",
+              "run_folder_name":Path(scan["run_folder"]).name,
               "coverage_gate":scan.get("coverage_gate"),
+              "structure_status":{lane:(lanes.get(lane) or {}).get("status", "MISSING")
+                                  for lane in ("four_h", "cj", "o4t")},
               "sqlite_unique_proofs":scan.get("sqlite_unique_proofs"),
               "backup": "NOT_DUE","mail_enabled": False,"disk":disk}
     if backup_due(root,now_fn()):
