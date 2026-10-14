@@ -1,0 +1,51 @@
+# Create a Windows Desktop shortcut for the EVE V4 shadow read-only monitor.
+# Does not register/change the scanner schedule, access credentials, or enable mail.
+param(
+    [string]$DataRoot = (Join-Path $HOME 'EVE-V4-Data'),
+    [switch]$AutoStart,
+    [switch]$NoLaunch
+)
+$ErrorActionPreference = 'Stop'
+$repo = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+$pythonw = Join-Path $repo '.venv\Scripts\pythonw.exe'
+if (-not (Test-Path $pythonw -PathType Leaf)) {
+    throw "Missing virtual Python windowless binary: $pythonw"
+}
+if (-not (Test-Path (Join-Path $repo 'v4\desktop_widget.py') -PathType Leaf)) {
+    throw 'V4 widget program is missing.'
+}
+$desktop = [Environment]::GetFolderPath('Desktop')
+if (-not $desktop -or -not (Test-Path $desktop)) {
+    throw 'Windows desktop folder could not be resolved.'
+}
+$name = 'EVE V4 市场监控.lnk'
+$args = '-m v4.desktop_widget --data-root "' + $DataRoot + '"'
+$shell = New-Object -ComObject WScript.Shell
+$shortcutPath = Join-Path $desktop $name
+
+function Write-EveWidgetShortcut([string]$Destination) {
+    $link = $shell.CreateShortcut($Destination)
+    $link.TargetPath = $pythonw
+    $link.Arguments = $args
+    $link.WorkingDirectory = $repo
+    $link.Description = 'EVE V4 只读影子扫描状态监控 (不启动扫描，不发送邮件)'
+    $link.IconLocation = (Join-Path $env:WINDIR 'System32\shell32.dll') + ',21'
+    $link.Save()
+}
+
+Write-EveWidgetShortcut -Destination $shortcutPath
+Write-Host ('Desktop shortcut created: ' + $shortcutPath)
+Write-Host 'Read-only UI: local Task Scheduler + log + scan manifest; no secrets or mail.'
+
+if ($AutoStart) {
+    $startup = [Environment]::GetFolderPath('Startup')
+    if (-not $startup) { throw 'Windows Startup folder could not be resolved.' }
+    $startupPath = Join-Path $startup $name
+    Write-EveWidgetShortcut -Destination $startupPath
+    Write-Host ('Starts at next Windows login: ' + $startupPath)
+}
+if (-not $NoLaunch) {
+    # Clicking the installed shortcut starts only the UI via pythonw (no CMD).
+    Start-Process -FilePath $shortcutPath
+    Write-Host 'Widget launch requested.'
+}
