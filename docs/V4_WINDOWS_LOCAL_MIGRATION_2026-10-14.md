@@ -245,3 +245,32 @@ $python=Join-Path (Get-Location) '.venv\Scripts\python.exe'
 & $python -m v4.local_structure_pages
 ```
 优先获得三条 `status=COMPLETE` 与 `ALL_STRUCTURE_PAGES_COMPLETE`；如仍发生重试耗尽或分页变化，依据最新`failed_page`判断网络出口/VPN代理与数据滚动变化，不开启计划任务正式运行。只有结构页诊断通过后才重新运行完整fresh `v4.local_run --execute-shadow` 并审计 SQLite。注意首次三个第一页成功与后续完整分页成功是两种独立验证。生产实时买卖挂单/合同重新校验仍未实现。
+
+
+## 2026-10-14 本地全市场+结构市场联合影子扫描成功，允许启动两小时无人值守验收
+
+用户实测最新版联合扫描 `v4.local_run --execute-shadow` 输出：
+- `run_status=SHADOW_RECORDED`；`coverage_gate=INPUT_LANES_REPORTED_COMPLETE_NOT_LIVE_VERIFIED`，`raw_market_orders=1583690`。
+- 私人建筑订单 `authorized_structure_orders_parsed=94240`。4-H `33639/34页`、C-J `53280/54页`、O4T `7321/8页`，三lane全部COMPLETE、96/96页、各lane `transient_retries=0`。
+- `invalid_public_orders=0`，`invalid_structure_orders=0`；`sqlite_unique_proofs=32900`，`sqlite_integrity=ok`，`sqlite_count_matches_report=True`。`model_candidates=15` 但 `formal_candidates=0`，说明候选仍缺正式实时成交可行性校验，不代表可以发信。
+- 新配置仍然 `mail_enabled=false`，`ready_for_production=false`。通过的只是**快照输入与本地数据库**完整性，不是逐笔实时可交易验证。
+
+已加固无人值守切换：
+1. `v4/install_windows_task.ps1` 在试运行和实际安装前读取本地只读诊断；仅当最新 `SHADOW_RECORDED`、完整三建筑、`ALL_PARSED`、SQLite `ok` 与独立证明数量一致、且MAIL OFF时才继续。已存在计划任务则拒绝覆盖，默认只做 dry run。
+2. `v4/local_service.py` 实际调度时检查三个建筑 `COMPLETE` 并确认页数匹配与 `coverage_gate` 完整；遇到部分覆盖即 `DEGRADED_PARTIAL_COVERAGE`，日志记录状态、退出码2，但仍安全保存已抓的数据并按原日备份策略执行；不再把 `SHADOW_RECORDED` 的部分覆盖当作健康成功。
+3. Windows计划仍按每天0:23、2:23……22:23用户本地时间执行，`pythonw.exe` 无窗口，只有当前Windows账户保持登录时触发；失败不会弹黑框，需检查本地 `logs/shadow-task.log` 和 Task Scheduler LastTaskResult。若磁盘剩余不足20GiB则跳过。单任务最长85分钟，不重叠。
+4. 先运行无 `-Install` 的模拟校验，随后才明确执行 `-Install`，然后查询 `Get-ScheduledTask -TaskName EVE-V4-Shadow` 与下一次调度。代码测试通过**不代表用户已在本机注册任务**；需要用户回传真实注册输出与首次定时轮运行证明。
+
+建议本地命令：
+```powershell
+Set-Location (Join-Path $HOME 'EVE-V4-Code')
+git pull --ff-only
+if ($LASTEXITCODE -ne 0) { throw 'git pull失败' }
+$taskScript=Join-Path (Get-Location) 'v4\install_windows_task.ps1'
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File $taskScript
+if ($LASTEXITCODE -ne 0) { throw 'dry-run失败' }
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File $taskScript -Install
+if ($LASTEXITCODE -ne 0) { throw '注册失败' }
+Get-ScheduledTask -TaskName 'EVE-V4-Shadow'
+Get-ScheduledTaskInfo -TaskName 'EVE-V4-Shadow' | Select-Object NextRunTime,LastRunTime,LastTaskResult
+```
