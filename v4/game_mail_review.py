@@ -17,12 +17,12 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 
-from v4.contract_review import make_review
+from v4.unified_review import make_review, render as render_unified
 from v4.eve_mail_test import (
     WORKER_URL, EXPECTED_SENDER, GameMailTestError,
     _get_bridge_credential, _request_json,
 )
-from v4.research_mail import render_review
+# Both mail channels share the same compact, link-aware formatter.
 
 SETTINGS_FILE = Path("config/eve_game_mail_review.json")
 RECEIPTS = Path("mail-review/eve-receipts")
@@ -81,15 +81,11 @@ def read_settings(root: Path) -> dict | None:
 
 
 def compact_digest(review: dict) -> tuple[str, str]:
-    """Bounded text without altering review evidence or claiming live offers."""
-    # EVE Worker enforces max 10,000 characters. Reserve room for truncation.
-    limited = dict(review)
-    limited["research_leads"] = list(review.get("research_leads") or [])[:5]
-    subject, body = render_review(limited)
-    subject = subject.replace("非交易提醒", "快照研究·不可直接买入")
+    """Short EVE in-game rich text with native clickable contract links."""
+    subject, body = render_unified(review, game=True)
+    # Worker accepts <=10k characters; avoid clipping a <url> markup element.
     if len(body) > 9000:
-        head = body[:8600].rsplit("\n", 1)[0]
-        body = head + "\n[本轮信息过长，已截断；完整证明保存在本机 SQLite 和扫描文件。]"
+        raise GameMailTestError("GAME_MAIL_DIGEST_TOO_LONG")
     return subject[:180], body
 
 
