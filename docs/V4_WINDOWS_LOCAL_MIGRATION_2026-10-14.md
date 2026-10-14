@@ -288,3 +288,15 @@ $python=Join-Path (Get-Location) '.venv\Scripts\python.exe'
 & $python -m v4.local_invalid_order_audit --data-root (Join-Path $HOME 'EVE-V4-Data') --run-folder 20261014T071050Z-cdc71ff3
 ```
 工具应报告 `invalid_public_proofs_found=4` 且 `proof_count_matches_report=true` 和4条 `error_type/error_detail/source_fields`，用户回传后再修复具体parser或标记上游原始异常。目前尚未获得真实4条字段明细，不能猜测是NaN或负价。此项离线诊断已有CI：Windows Python3.11 #38529391933 69/69单元测试通过；Ubuntu3.11和3.12通过。
+
+
+## 2026-10-14 四条“异常”订单已离线溯源为剩余数量0，V4分类修正
+
+用户运行 `v4.local_invalid_order_audit --run-folder 20261014T071050Z-cdc71ff3`，`invalid_public_proofs_found=4`、`proof_count_matches_report=true`。原始字段一致：四个公开卖单（Jita/Amarr，均`range=region`）`volume_remain=0`，其他已展示字段为正常正值；订单ID分别为7444436938、7436840858、7444608479、7444607654；相应order_id/type_id/price也都有审计证据。此前 `Order.parse` 一律拒绝`remaining<=0`，并把它们归为`SOURCE_ORDER_INVALID`，造成 `PARTIAL_QUARANTINED` 及Windows后台任务exit2，尽管市场建筑全部COMPLETE与SQLite对账ok。技术结论：零剩余不具备可交易数量，**不应作为可执行买卖量、也不应被误判为损坏输入**；不能改数量为1或关闭其余数据校验。
+
+已实际修复并提交独立 Draft PR#54 分支 `prep/v4-windows-local-migration-20261013`：
+- `v4/engine.py`：`parse_orders_with_quarantine` 对严格等于0且其余字段通过`Order.parse`其他验证的快照订单产生状态RESEARCH的审计proof：`kind=input_non_actionable`、`reason=SOURCE_ORDER_ZERO_REMAINING`。它们不会进入Order/买卖深度簿。负数、分数数量、坏价格、空字段仍保留`SOURCE_ORDER_INVALID`及源完整性告警。严格`Order.parse`入口保持不变。
+- `v4/deep_scan.py`：将源行分类成可执行订单、零剩余非可执行证明、真正异常证明，三类均计入原始快照行数守恒。新报告包括`zero_remaining_public_orders`、`zero_remaining_structure_orders`、`non_actionable_zero_remaining_orders`及原始行数。零剩余证明写入同一all_proofs.jsonl和本地SQLite，不改变原扫描的SHA审计；只有**真正异常行**触发`PARTIAL_QUARANTINED`。audit `reason_counts`与证明记录数一致。
+- `v4/local_run.py`, `v4/local_status.py`, `v4/local_service.py`：将新两类“非可交易零剩余订单”计数显示在长期manifest、只读diag及无人值守日志，保持邮件关闭。
+- 回归：`v4/tests/test_engine.py`新增一个可用0量订单及非法零量/负数/小数数量案例；`v4/tests/test_non_actionable_orders.py`用伪造离线DataFrame贯穿`deep_scan.run`，验证无误报、其余错误仍隔离及报告证明数量匹配。CI验证见PR流水线。
+- 下一阶段：用户本机 `git pull --ff-only` 后，无需重注册Windows EVE-V4-Shadow计划任务；下个时刻（用户此前设置16:23）自动按新代码运行。如果当次仍出现数据异常，根据新`invalid_public_orders`、`zero_remaining_public_orders`及`coverage_gate`区分；不保证源数据永不新增其他异常。过去历史`PARTIAL_QUARANTINED`记录保持原样，不会自动重写过去的SQLite proof。
