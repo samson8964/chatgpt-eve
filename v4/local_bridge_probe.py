@@ -8,7 +8,6 @@ from __future__ import annotations
 import json
 from typing import Callable
 
-from v4.deep_scan import STRUCTURES, WORKER
 from v4.local_run import deep_scan_environment
 
 
@@ -22,7 +21,10 @@ def probe(*, fetch: Callable | None = None, env: dict[str, str] | None = None) -
     if not key:
         return {"credential_present": False, "probe_result": "MISSING_KEY",
                 "mail_enabled": False,
-                "structures": {name: {"status": "NOT_TESTED_MISSING_KEY"} for name in STRUCTURES}}
+                "structures": {name: {"status": "NOT_TESTED_MISSING_KEY"}
+                               for name in ("four_h", "cj", "o4t")}}
+    # Only a real authenticated request needs pandas-heavy deep-scan imports.
+    from v4.deep_scan import STRUCTURES, WORKER
     results = {}
     for name, (structure_id, profile) in STRUCTURES.items():
         try:
