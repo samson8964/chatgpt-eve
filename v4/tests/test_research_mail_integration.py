@@ -68,6 +68,29 @@ class ResearchEmailIntegrationTests(unittest.TestCase):
             self.assertEqual(game.call_args.kwargs["expected_run"],"run-ok")
             self.assertNotIn("SMTP_FAILURE",log)
 
+    def test_safe_shared_review_error_code_is_visible_for_both_channels(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            scan = {"status":"SHADOW_RECORDED","run_folder_name":"run-failed-mail"}
+            known = RuntimeError("UNIFIED_REVIEW_REQUIRES_FRESH_JITA_MARKET_SCAN")
+            with (
+                patch("sys.argv", ["v4.local_service", "--data-root", str(root)]),
+                patch("v4.local_service.execute", return_value=scan),
+                patch("v4.research_mail.send_review", side_effect=known),
+                patch("v4.game_mail_review.send_review_to_game",
+                      side_effect=known),
+            ):
+                code = main()
+            log = (root/"logs"/"shadow-task.log").read_text(encoding="utf-8")
+            self.assertEqual(code, 3)
+            self.assertIn(
+                "REVIEW_MAIL_FAILED RuntimeError UNIFIED_REVIEW_REQUIRES_FRESH_JITA_MARKET_SCAN",
+                log)
+            self.assertIn(
+                "GAME_REVIEW_MAIL_FAILED RuntimeError UNIFIED_REVIEW_REQUIRES_FRESH_JITA_MARKET_SCAN",
+                log)
+            self.assertIn("RESULT", log)
+
     def test_game_mail_failure_does_not_suppress_gmail(self):
         with tempfile.TemporaryDirectory() as td:
             root=Path(td)
