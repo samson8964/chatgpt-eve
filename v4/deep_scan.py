@@ -167,19 +167,21 @@ def run(market_path,contract_path,output,api_key=''):
         quarantine_snapshot_candidate(proof)
         proofs.append(proof)
         reasons[proof['reason']]+=1
-    # Contract proof only for validated Jita-location item exchange; other
-    # station contracts need separate live contract/access transport proof.
-    jita_contracts=cash_contracts[cash_contracts['start_location_id']==JITA]
+    # Snapshot research only: value all public item-exchange contracts at the
+    # SAME approved location's actual bid book. No haul or assumed remote
+    # liquidation. Verified structure market access is NOT proof of contract
+    # access. Formal buy-now mail stays blocked pending separate validation.
+    local_contracts=cash_contracts
+    jita_contract_count=int((local_contracts['start_location_id']==JITA).sum())
     by_contract=defaultdict(dict)
     bp_states=defaultdict(lambda:defaultdict(int))
-    for row in inc[inc['contract_id'].isin(set(jita_contracts['contract_id']))].itertuples(index=False):
+    for row in inc[inc['contract_id'].isin(set(local_contracts['contract_id']))].itertuples(index=False):
         key=int(row.contract_id);typ=int(row.type_id);qty=int(row.quantity)
         if qty>0:by_contract[key][typ]=by_contract[key].get(typ,0)+qty
         if qty>0 and catalog.classification(typ)=='blueprint_type':
             kind=blueprint_instance_kind(getattr(row,'is_blueprint_copy',None),getattr(row,'runs',None))
             bp_states[key][kind]+=qty
-    jita_bids={t:book for (location,t,buy),book in markets.items() if location==JITA and buy}
-    for row in jita_contracts.to_dict('records'):
+    for row in local_contracts.to_dict('records'):
         cid=int(row['contract_id'])
         if cid not in by_contract:continue
         if 'date_expired' in row and str(row['date_expired'])[:19] < datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'):
@@ -188,17 +190,23 @@ def run(market_path,contract_path,output,api_key=''):
         # dictionary and raw contract item copy metadata are integrated.
         # V4 deliberately does NOT assume blueprint-looking types are BPO.
         classes={int(t):catalog.classification(t) for t in by_contract[cid]}
-        proof=contract_proof(row,by_contract[cid],jita_bids,volumes,
+        contract_location=int(row['start_location_id'])
+        local_bids={t:markets.get((contract_location,int(t),True),[])
+                    for t in by_contract[cid]}
+        proof=contract_proof(row,by_contract[cid],local_bids,volumes,
             policy=POLICY,haul_isk=0,allowed=True,fresh=True,
             item_classifications=classes)
         proof.update(included_items=by_contract[cid],
                      contract_price=float(row.get('price') or 0),
                      contract_title=str(row.get('title') or '')[:180],
-                     valuation_basis='JITA_SNAPSHOT_BUY_ORDER_DEPTH_NOT_LIVE',
+                     valuation_basis='SAME_LOCATION_SNAPSHOT_BUY_DEPTH_NOT_LIVE',
+                     contract_access_verified=False,
                      requested_items_present=False,
                      contract_blueprint_evidence=dict(bp_states[cid]),
                      included_volumes={str(i):volumes.get(i) for i in by_contract[cid]},
-                     source_location=JITA,destination_location=JITA,region_id=10000002,
+                     source_location=contract_location,
+                     destination_location=contract_location,
+                     local_exit_buy_orders_only=True,
                      expires_at=str(row.get('date_expired','')))
         quarantine_snapshot_candidate(proof)
         proofs.append(proof)
@@ -222,7 +230,8 @@ def run(market_path,contract_path,output,api_key=''):
        verified_approved_locations=len(approved),market_potential_pairs=len(potential_pairs),
        contract_cash_known_location=len(cash_contracts),
        contract_requested_items_excluded=requested_contracts_excluded,
-       contract_jita_examined=len(jita_contracts),
+       contract_jita_examined=jita_contract_count,
+       contract_approved_locations_examined=len(local_contracts),
        contract_blueprint_states={state:sum(states.get(state,0) for states in bp_states.values())
                                   for state in ('BPC','BPO','UNKNOWN_BLUEPRINT')},
        proof_count=len(proofs),model_candidates=sum(x.get('model_candidate') is True for x in proofs),
@@ -231,7 +240,7 @@ def run(market_path,contract_path,output,api_key=''):
        warnings=['All snapshot-derived model candidates downgraded to WATCH: no live ESI order verification',
                  'Full-universe public contracts/markets census succeeded separately',
                  'Non-verified destination routes and BPC are not production mail-eligible',
-                 'All contract cash liquidations held RESEARCH until verified BPO/BPC and regular-item metadata is integrated'] +
+                 'All contract valuations are same-location market snapshots, not validated purchase access, contract existence or live bid books'] +
                  (['Malformed input orders were explicitly quarantined; this is PARTIAL source input coverage']
                   if quarantined else []))
     path=Path(output);path.parent.mkdir(parents=True,exist_ok=True)
