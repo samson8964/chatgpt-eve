@@ -120,6 +120,9 @@ def main() -> int:
                         game_mail = send_review_to_game(
                             root, expected_run=result.get("run_folder_name"))
                         print("GAME_REVIEW_MAIL",json.dumps(game_mail,ensure_ascii=False),flush=True)
+                        if game_mail.get("recipient_failure_count", 0) > 0 or (
+                            game_mail.get("status") == "V4_GAME_RESEARCH_MAIL_RECIPIENT_FAILED"):
+                            delivery_failure = True
                     except Exception as game_exc:
                         from v4.mail_diagnostics import ALLOWED_ERROR_CODES
                         reason = str(game_exc)
