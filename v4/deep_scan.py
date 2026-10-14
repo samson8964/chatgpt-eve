@@ -39,33 +39,9 @@ def request(url, params=None, headers=None, timeout=50):
 
 
 def all_structure_orders(api_key):
-    """Fresh all-page reads, no top-N; unsuccessful lane is explicitly FAILED."""
-    out,health=[],{}
-    for key,(location,profile) in STRUCTURES.items():
-        if not api_key:
-            health[key]={'status':'FAILED','reason':'missing_api_key'}
-            continue
-        try:
-            first,h=request(WORKER+'/api/structure-market',
-                params={'structure_id':location,'auth_profile':profile,'page':1},
-                headers={'Authorization':'Bearer '+api_key})
-            if not first.get('ok') or int(first.get('structure_id',0)) != location:
-                raise ValueError('unverified_structure_response')
-            pages=int(first.get('pages') or 1)
-            results=list(first.get('orders') or [])
-            for page in range(2,pages+1):
-                extra,_=request(WORKER+'/api/structure-market',
-                    params={'structure_id':location,'auth_profile':profile,'page':page},
-                    headers={'Authorization':'Bearer '+api_key})
-                if not extra.get('ok') or int(extra.get('page') or 0) != page:
-                    raise ValueError('structure_pagination_incomplete')
-                results.extend(extra.get('orders') or [])
-            out.extend(results)
-            health[key]={'status':'COMPLETE','orders':len(results),'pages':pages,'location':location}
-        except Exception as exc:
-            health[key]={'status':'FAILED','reason':type(exc).__name__+':'+str(exc)[:150]}
-    return out,health
-
+    """Fresh complete private-market pagination with bounded page-level retries."""
+    from v4.structure_transport import all_structure_orders as fetch_all
+    return fetch_all(api_key, structures=STRUCTURES, worker=WORKER, fetch=request)
 
 def to_orders(rows, *, source):
     # Every raw row is accounted for as a valid order or an explicit proof.
