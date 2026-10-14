@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import sqlite3
+from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -17,8 +18,8 @@ def backup(data_root: Path) -> dict:
     destination=folder/("v4-shadow-"+datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")+".sqlite3")
     if destination.exists():
         raise FileExistsError("BACKUP_TARGET_EXISTS")
-    with sqlite3.connect(f"file:{source.as_posix()}?mode=ro",uri=True) as original:
-        with sqlite3.connect(destination) as target:
+    with closing(sqlite3.connect(f"file:{source.as_posix()}?mode=ro",uri=True)) as original:
+        with closing(sqlite3.connect(destination)) as target:
             original.backup(target)
             result=target.execute("PRAGMA integrity_check").fetchone()[0]
             if result!="ok":
