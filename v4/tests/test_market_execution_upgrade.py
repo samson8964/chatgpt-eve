@@ -84,8 +84,12 @@ class ApprovedDepthAlgorithmTests(unittest.TestCase):
             asks,bids,source_location=SOURCE,destination_location=JITA,
             type_id=41058,volume_m3=1,haul_isk=0,policy=policy,
             allowed=True,fresh=True)
-        # 10 units cannot be replaced by the remaining 4-unit stress book.
-        self.assertNotEqual(proof["status"],"MAIL")
+        # The 10-unit plan is NOT stress-safe, but the smaller 4-unit lot
+        # is independently executable AND stress-safe: choose it directly.
+        self.assertEqual(proof["status"],"MAIL")
+        self.assertEqual(proof["quantity"],4)
+        self.assertEqual(proof["matched_depth_units"],4)
+        self.assertGreater(proof["stress_profit"],0)
 
     def test_unverified_freight_never_creates_optimistic_mail(self):
         asks=[order(1,10,10),order(2,11,10)]
