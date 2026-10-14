@@ -62,7 +62,7 @@ class GameMailManualTests(unittest.TestCase):
         self.assertEqual(sent[2]["json"]["recipient_id"],67890)
         self.assertEqual(sent[2]["json"]["idempotency_key"],
                          "v4-one-shot-test:test987")
-        self.assertIn("非",sent[2]["json"]["body"])
+        self.assertIn("不包含合同机会",sent[2]["json"]["body"])
         self.assertNotIn(self.KEY, str(sent[2]["json"]))
         self.assertEqual(health[2]["headers"]["Authorization"],"Bearer "+self.KEY)
         self.assertNotIn(self.KEY,json.dumps(response,ensure_ascii=False))
