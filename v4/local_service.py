@@ -61,9 +61,17 @@ def execute(root: Path, *, scanner=run, backup_fn=backup,
                 and lanes[lane].get("pages_fetched") == lanes[lane]["pages"]
                 for lane in ("four_h", "cj", "o4t"))
     )
-    result = {"status":"SHADOW_RECORDED" if complete else "DEGRADED_PARTIAL_COVERAGE",
+    issue = "DEGRADED_PARTIAL_COVERAGE"
+    if all((lanes.get(name) or {}).get("status") == "COMPLETE" for name in ("four_h", "cj", "o4t")):
+        if scan.get("source_input_integrity") == "PARTIAL_QUARANTINED":
+            issue = "DEGRADED_INPUT_QUARANTINE"
+    result = {"status":"SHADOW_RECORDED" if complete else issue,
               "run_folder_name":Path(scan["run_folder"]).name,
               "coverage_gate":scan.get("coverage_gate"),
+              "source_input_integrity":scan.get("source_input_integrity"),
+              "invalid_public_orders":scan.get("invalid_public_orders"),
+              "invalid_structure_orders":scan.get("invalid_structure_orders"),
+              "rejected_input_orders":scan.get("rejected_input_orders"),
               "structure_status":{lane:(lanes.get(lane) or {}).get("status", "MISSING")
                                   for lane in ("four_h", "cj", "o4t")},
               "sqlite_unique_proofs":scan.get("sqlite_unique_proofs"),
