@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from v4.unified_review import yi, make_review, render
+from v4.unified_review import yi, make_review, render, render_html
 
 
 def mocked_contract():
@@ -84,8 +84,8 @@ class UnifiedReviewTests(unittest.TestCase):
             self.assertFalse(output["market_research_leads"][0]["live_verified"])
             title,game=render(output,game=True)
             self.assertIn("市场1 合同1",title)
-            self.assertIn("<url=contract:0//236977688>",game)
-            self.assertIn("<url=showinfo:34>",game)
+            self.assertIn("<url=contract:0//236977688><b>打开合同 236977688</b></url>",game)
+            self.assertIn("<url=showinfo:34><b>查看商品 34</b></url>",game)
             self.assertIn("0.62亿",game)
             self.assertIn("0.59亿",game)
             self.assertIn("待核",title)
@@ -95,7 +95,15 @@ class UnifiedReviewTests(unittest.TestCase):
             self.assertIn("/c/236977688",gmail)
             self.assertIn("/m/34",gmail)
             self.assertNotIn("<url=",gmail)
-            self.assertLess(len(game),1200)
+            _,rich = render_html(output)
+            self.assertIn('/c/236977688',rich)
+            self.assertIn('/m/34',rich)
+            self.assertIn('<a href=',rich)
+            self.assertIn('打开合同 236977688</a>',rich)
+            self.assertIn('查看商品 34</a>',rich)
+            self.assertLess(len(game),680)
+            self.assertLess(len(rich),1600)
+            self.assertNotIn('审核记录',game)
 
     def test_partial_scan_hides_all_candidates(self):
         incomplete=mocked_contract()
