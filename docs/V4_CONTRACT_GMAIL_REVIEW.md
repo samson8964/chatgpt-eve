@@ -15,6 +15,35 @@ zero-remaining excluded orders. The user has not supplied that run's individual
 contract proof file to ChatGPT, so no candidate ID, live status, or profit was
 fabricated. This **does not establish Windows automatic mail delivery**.
 
+## Recommended: GUI password entry (Windows; no hidden console input)
+
+The previous --configure command uses getpass in PowerShell. If that fails
+to capture clipboard input, use the new Tkinter window instead. The password
+is **only entered in the Windows GUI on the user's own computer**:
+
+```powershell
+Set-Location (Join-Path $HOME 'EVE-V4-Code')
+git pull --ff-only
+if ($LASTEXITCODE -ne 0) { throw 'Git update failed' }
+$python = Join-Path (Get-Location) '.venv\Scripts\python.exe'
+& $python -m v4.research_mail --gui
+```
+
+The window has sender Gmail, recipient Gmail (defaults to sender),
+password entry masked by default, a show/hide checkbox, Ctrl+V paste,
+and save/cancel buttons. It strips Google's display spacing when saving
+the 16-character application password. Successful save calls the existing
+`configure` function and writes the password only to **Windows Credential
+Manager**. No SMTP mail is sent by saving. No secret appears in stdout,
+the plain-text config or logs. Tkinter uses the Python standard library.
+To launch without a console after basic verification, use
+`.venv\Scripts\pythonw.exe -m v4.research_mail --gui` from the repo.
+
+A new scan under the approved Jita 4-4 valuation is required before
+`--send-now` can send a substantive review digest; old snapshots with the
+incorrect station pricing deliberately fail closed. The existing scheduled
+scanner continues every two hours; the GUI does not restart it.
+
 ## One-time Windows Gmail setup (required before unattended sends)
 
 Gmail SMTP requires a valid Gmail address plus a Gmail App Password for an
