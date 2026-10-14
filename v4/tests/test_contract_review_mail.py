@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from v4.contract_review import make_review
-from v4.research_mail import configure, render_review, send_review, disable
+from v4.research_mail import configure, render_review, send_review, disable, send_transport_test
 
 
 class _Vault:
@@ -168,6 +168,35 @@ class V4ContractReviewTests(unittest.TestCase):
             disabled=disable(root)
             self.assertFalse(disabled["research_mail_enabled"])
             self.assertEqual(send_review(root)["status"],"REVIEW_GMAIL_DISABLED")
+
+    def test_explicit_test_smtp_sends_to_configured_recipient_only(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td)
+            vault=_Vault()
+            _SMTP.sent=[]
+            configure(root,"example@gmail.com","example@gmail.com",
+                      "abcdefghijklmnop",vault=vault)
+            with patch("v4.research_mail.make_review") as scan:
+                result=send_transport_test(root,vault=vault,smtp_factory=_SMTP)
+            self.assertEqual(result["status"],"REVIEW_GMAIL_TEST_SENT")
+            self.assertTrue(result["sent"])
+            self.assertFalse(result["formal_mail"])
+            self.assertEqual(len(_SMTP.sent),1)
+            self.assertEqual(_SMTP.sent[0]["To"],"example@gmail.com")
+            self.assertIn("SMTP",_SMTP.sent[0]["Subject"])
+            self.assertIn("非捡漏机会",_SMTP.sent[0]["Subject"])
+            self.assertNotIn("abcdefghijklmnop",_SMTP.sent[0].get_content())
+            self.assertFalse((root/"mail-review"/"receipts").exists())
+            scan.assert_not_called()
+
+    def test_transport_test_does_not_send_without_configuration(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td)
+            vault=_Vault()
+            _SMTP.sent=[]
+            self.assertEqual(send_transport_test(root,vault=vault,
+                             smtp_factory=_SMTP)["status"],"REVIEW_GMAIL_DISABLED")
+            self.assertEqual(len(_SMTP.sent),0)
 
     def test_rejects_unrelated_scan_or_unset_vault(self):
         with tempfile.TemporaryDirectory() as td:
