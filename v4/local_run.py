@@ -122,6 +122,13 @@ def run(data_root: Path) -> dict:
                 "full_census":full.get("overall"),
                 "source_market_orders":full.get("market",{}).get("market_raw_rows"),
                 "deep_public_orders":detail.get("public_market_orders"),
+                "source_input_integrity":detail.get("source_input_integrity"),
+                "invalid_public_orders":detail.get("invalid_public_orders"),
+                "invalid_structure_orders":detail.get("invalid_structure_orders"),
+                "rejected_input_orders":detail.get("rejected_input_orders"),
+                "proof_reasons_top":dict(sorted(
+                    (detail.get("reason_counts") or {}).items(),
+                    key=lambda item:-item[1])[:5]),
                 "structure_health":coverage,
                 "coverage_gate":"PARTIAL_UNVERIFIED" if lanes_failed or detail.get("source_input_integrity") != "ALL_PARSED"
                                 else "INPUT_LANES_REPORTED_COMPLETE_NOT_LIVE_VERIFIED",
