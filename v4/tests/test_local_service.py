@@ -81,6 +81,33 @@ class LocalServiceTests(unittest.TestCase):
                     backup_fn=lambda r:{"sqlite_integrity":"ok","proof_versions":0})
             self.assertEqual(result["status"],"DEGRADED_PARTIAL_COVERAGE")
 
+
+    def test_all_structures_complete_but_single_public_order_quarantined(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            def scan(r):
+                return {"status":"SHADOW_RECORDED","mail_enabled":False,
+                        "run_folder":str(r/"runs"/"now"),
+                        "coverage_gate":"PARTIAL_UNVERIFIED",
+                        "source_input_integrity":"PARTIAL_QUARANTINED",
+                        "invalid_public_orders":1,"invalid_structure_orders":0,
+                        "rejected_input_orders":1,
+                        "structure_health":{
+                            name:{"status":"COMPLETE","pages":2,"pages_fetched":2}
+                            for name in ("four_h","cj","o4t")}}
+            with patch("v4.local_service.storage_check",
+                       return_value={"free_gib":300,"enough_space":True}):
+                result=execute(root,scanner=scan,
+                               backup_fn=lambda r:{"sqlite_integrity":"ok",
+                                                   "proof_versions":1})
+            self.assertEqual(result["status"],"DEGRADED_INPUT_QUARANTINE")
+            self.assertEqual(result["invalid_public_orders"],1)
+            self.assertEqual(result["invalid_structure_orders"],0)
+            self.assertEqual(result["rejected_input_orders"],1)
+            self.assertTrue(all(v=="COMPLETE"
+                                for v in result["structure_status"].values()))
+            self.assertFalse(result["mail_enabled"])
+
     def test_never_accepts_scan_claiming_mail(self):
         with tempfile.TemporaryDirectory() as td:
             with patch("v4.local_service.storage_check",
