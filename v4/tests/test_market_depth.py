@@ -47,6 +47,7 @@ class MarketDepthTests(unittest.TestCase):
             (o,36,False):[order(lid=o,typ=36,price=1e6)],
             (o,37,False):[order(lid=o,typ=37,price=3e6,remaining=49)],
             (o,37,True):[order(lid=o,typ=37,price=1e6,buy=True)],
+            (o,38,True):[order(lid=o,typ=38,price=100,buy=True)],
             (60003760,34,True):[order(lid=60003760,typ=34,price=10e6,buy=True)],
             (60003760,35,True):[order(lid=60003760,typ=35,price=11e6,buy=True)],
             (60003760,37,True):[order(lid=60003760,typ=37,price=4e6,buy=True)],
@@ -57,6 +58,8 @@ class MarketDepthTests(unittest.TestCase):
         self.assertEqual(result["4-H"]["sell_types_best_price_crossed"],1)
         self.assertEqual(result["4-H"]["sell_types_optimistic_gate_passed"],1)
         self.assertEqual(result["O4T"]["active_sell_type_ids"],2)
+        self.assertEqual(result["O4T"]["all_active_type_ids"],3)
+        self.assertEqual(result["O4T"]["active_buy_type_ids"],2)
         self.assertEqual(result["O4T"]["sell_types_with_jita_buy"],1)
         self.assertEqual(result["O4T"]["sell_types_without_jita_buy"],1)
         self.assertEqual(result["O4T"]["sell_types_best_price_crossed"],1)
