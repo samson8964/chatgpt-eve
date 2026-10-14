@@ -58,6 +58,54 @@
 - **切换/回退**：本地扫描和备份连续达标后，保留云端代码但停用冗余扫描；若本地失败，恢复只读云端 shadow 而非恢复 V3 邮件。单独审计对比最终邮件放行。
 - **验收报告**：每轮给出命令/commit/run_id/源快照时间、耗时、row counts（真实 SQL count）、状态直方图、failed lane、是否发送邮件、是否需要用户操作。未现场测得的项目填 `NOT_VERIFIED`。
 
+## 已落实的迁移代码与本机第一次操作（2026-10-14）
+
+准备分支 `prep/v4-windows-local-migration-20261013` 新增：
+- `v4/local_preflight.py`：只读检查环境，不联网、不写文件、不读取令牌。
+- `v4/local_store.py`：独立单机 SQLite 影子账本，事务插入全部 proof，按 (run_id, instance) 唯一，重复 run 只接受相同源文件，原始 proof 计数、每个状态/拒绝原因、SQLite SQL COUNT 对账；只允许 WATCH/RESEARCH，**没有邮件发送代码**。
+- `v4/local_run.py`：明确 `--execute-shadow` 才采集，每次都新拉 EVE Ref 快照并生成独立运行文件夹，数据库于 Git 工作树外，进程锁阻止重复扫描；若建筑授权不可读则标记 PARTIAL_UNVERIFIED，禁止误报完整覆盖。
+- `v4/local_backup.py`：SQLite backup() 原生在线备份并检查 PRAGMA integrity_check；另需异盘备份。
+- `v4/tests/test_local_store.py`、`test_local_runner.py`：验证正确入库、失败回滚、幂等、非法 MAIL 拒绝与重叠执行阻断。
+
+**Windows PowerShell 初次执行（建议管理员无需提权）**，独立于现有商采工作区，使用浅克隆+稀疏检出减小仓库体积：
+
+```powershell
+$repo = Join-Path $HOME 'EVE-V4-Code'
+if (Test-Path $repo) { throw "路径已存在，为避免覆盖，请人工确认：$repo" }
+git clone --depth 1 --filter=blob:none --sparse --single-branch --branch prep/v4-windows-local-migration-20261013 https://github.com/samson8964/chatgpt-eve.git "$repo"
+Set-Location $repo
+git sparse-checkout set v4 docs
+py -3.11 -m v4.local_preflight
+```
+
+预检输出的 `python_311_or_newer`、`windows`、`git_found` 和磁盘剩余量应正常。`missing_dependencies` 此时可为非空（venv 未安装），这不是安装失败。确认磁盘充足后：
+
+```powershell
+py -3.11 -m venv .venv
+$python = Join-Path (Get-Location) '.venv\Scripts\python.exe'
+& $python -m pip install --upgrade pip
+& $python -m pip install -r requirements.txt
+& $python -m unittest discover -s v4/tests -v
+& $python -m v4.local_preflight
+```
+
+**第一次完整影子采集和 SQLite 入库**（建议先确保目录所在盘空间足够；默认 Windows 用户目录 `EVE-V4-Data`）：
+
+```powershell
+& $python -m v4.local_run --execute-shadow --data-root "$HOME\EVE-V4-Data"
+```
+
+首次扫描需要读取网络数据与现有授权桥。没有 `EVE_MARKET_API_KEY` 时建筑来源将会 FAILED、被标为 PARTIAL_UNVERIFIED，但**仍可先验证公开市场影子采集**。不要将密钥发送到聊天/公共仓库。扫描完成输出每轮目录、SQLite COUNT、coverage_gate；若失败读取对应 run 目录下 `full_scan.log` 或 `deep_scan.log`。**不要立即安装 Windows 计划任务**，须先实测首次完整影子扫描。
+
+首次影子成功后的在线备份：
+
+```powershell
+& $python -m v4.local_backup --data-root "$HOME\EVE-V4-Data"
+```
+
+没有本地远程终端/屏幕授权时，聊天端不能直接安装到用户 Windows：以上操作必须在主机 PowerShell 执行并回传无敏感信息的预检与扫描状态。PR 不合并主线、不部署 V3/V4 邮件；正式邮件放行另需用户批准。
+
+
 ## 今日无需用户操作；明日仅需配合
 
 1. 电脑开机并确保网络/代理可正常访问 EVE Ref、Cloudflare 的现有授权桥；不要发送 API 密钥到聊天。
