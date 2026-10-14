@@ -85,6 +85,8 @@ def make_review(root: Path, *, limit_each: int = MAX_EACH) -> dict:
         raise RuntimeError("UNIFIED_REVIEW_REQUIRES_SHADOW_REPORT")
     if report.get("market_pricing_basis") != "JITA_4_4_BUY_DEPTH_SNAPSHOT":
         raise RuntimeError("UNIFIED_REVIEW_REQUIRES_FRESH_JITA_MARKET_SCAN")
+    if report.get("market_execution_basis") != "OPTIMIZED_MATCHED_QUANTITY_AND_VWAP":
+        raise RuntimeError("UNIFIED_REVIEW_REQUIRES_DEPTH_VWAP_MARKET_SCAN")
     if review.get("contract_pricing_basis") != "JITA_4_4_BUY_DEPTH_SNAPSHOT":
         raise RuntimeError("UNIFIED_REVIEW_REQUIRES_FRESH_JITA_CONTRACT_SCAN")
     rejected = Counter()
@@ -115,8 +117,19 @@ def make_review(root: Path, *, limit_each: int = MAX_EACH) -> dict:
                 continue
             profit,roi,stress,capital = (_amount(row.get(k)) for k in
                                           ("profit","roi","stress_profit","cost"))
+            source_vwap = _amount(row.get("source_vwap_isk_per_unit"))
+            jita_vwap = _amount(row.get("jita_vwap_isk_per_unit"))
             if (profit is None or roi is None or stress is None or capital is None or
-                    profit <= 0 or roi <= 0 or stress <= 0 or capital <= 0):
+                    source_vwap is None or jita_vwap is None or
+                    profit <= 0 or roi <= 0 or stress <= 0 or capital <= 0 or
+                    source_vwap <= 0 or jita_vwap <= 0 or
+                    row.get("quantity_optimized") is not True):
+                continue
+            # Cross-check the quoted VWAP against the actual proof cash flows.
+            if (not math.isclose(source_vwap*quantity,
+                                 float(row.get("executed_sell_cost") or 0),rel_tol=1e-9) or
+                not math.isclose(jita_vwap*quantity,
+                                 float(row.get("executed_jita_buy_gross") or 0),rel_tol=1e-9)):
                 continue
             market.append({
                 "type_id":typ,"quantity":quantity,
@@ -124,6 +137,8 @@ def make_review(root: Path, *, limit_each: int = MAX_EACH) -> dict:
                 "net_profit_snapshot":profit,"roi_snapshot":roi,
                 "stress_profit_snapshot":stress,
                 "capital":capital,"haul_estimate":_amount(row.get("haul_isk")),
+                "source_vwap_isk_per_unit":source_vwap,
+                "jita_vwap_isk_per_unit":jita_vwap,
                 "source_top5_sell":row.get("source_top5_sell"),
                 "jita_top5_buy":row.get("jita_top5_buy"),
                 "market_url":f"{WORKER}/m/{typ}",
@@ -137,6 +152,7 @@ def make_review(root: Path, *, limit_each: int = MAX_EACH) -> dict:
     review.update({
         "report_type":"V4_UNIFIED_MARKET_AND_CONTRACT_REVIEW_ONLY",
         "market_pricing_basis":report["market_pricing_basis"],
+        "market_execution_basis":report["market_execution_basis"],
         "market_potential_pairs":int(report.get("market_potential_pairs") or 0),
         "market_proofs_examined":examined,
         "market_rejection_reasons":dict(rejected.most_common(8)),
@@ -187,7 +203,9 @@ def render(review: dict, *, game: bool = False) -> tuple[str, str]:
             lines.append(
                 f"{n}. {name} ×{p['quantity']} {place(p['source_location'])}"
                 f" 净{yi(p['net_profit_snapshot'])} ROI{p['roi_snapshot']*100:.0f}%"
-                f"｜{five_level_label(p, 'source_top5_sell', '卖')}"
+                f"｜成交均 本地卖{unit_price(p['source_vwap_isk_per_unit'])}"
+                f"→吉买{unit_price(p['jita_vwap_isk_per_unit'])}"
+                f"｜参考{five_level_label(p, 'source_top5_sell', '卖')}"
                 f" / {five_level_label(p, 'jita_top5_buy', '吉买')}")
     if contracts:
         lines.append("【合同】")
@@ -230,7 +248,9 @@ def render_html(review: dict) -> tuple[str, str]:
                     f' ×{int(p["quantity"])} {place_name}'
                     f' ｜净{yi(p["net_profit_snapshot"])}'
                     f' ｜ROI {float(p["roi_snapshot"])*100:.0f}%'
-                    f' ｜{html.escape(five_level_label(p, "source_top5_sell", "卖"))}'
+                    f' ｜成交均 本地卖{unit_price(p["source_vwap_isk_per_unit"])}'
+                    f'→吉买{unit_price(p["jita_vwap_isk_per_unit"])}'
+                    f' ｜参考{html.escape(five_level_label(p, "source_top5_sell", "卖"))}'
                     f' / {html.escape(five_level_label(p, "jita_top5_buy", "吉买"))}</p>')
         if contracts:
             blocks.append("<p><strong>合同</strong></p>")
