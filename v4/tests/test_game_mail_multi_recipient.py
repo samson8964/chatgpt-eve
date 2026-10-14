@@ -75,6 +75,10 @@ class TwoRecipientTests(unittest.TestCase):
                                  resolver=lambda _:1)
             self.assertEqual(again["status"],"V4_GAME_RECIPIENT_ALREADY_ENABLED")
             self.assertEqual(read_settings(root)["recipients"],config["recipients"])
+            old_command=enable(root,recipient="MikeChong")
+            self.assertEqual(old_command["status"],
+                             "V4_GAME_RESEARCH_MAIL_ALREADY_ENABLED")
+            self.assertEqual(read_settings(root)["recipients"],config["recipients"])
 
     def test_real_exact_name_esi_lookup_not_user_guessed(self):
         class FakeESI:
