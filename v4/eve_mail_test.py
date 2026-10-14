@@ -80,8 +80,12 @@ def run_test(recipient: str = "MikeChong", *, session=None, get_key=None,
              now=None, idempotency=None, health_only=False) -> dict:
     if recipient not in RECIPIENTS:
         raise GameMailTestError("RECIPIENT_NOT_ON_OWN_CHARACTER_ALLOWLIST")
-    from requests import Session
-    client = session if session is not None else Session()
+    if session is None:
+        # Reliability CI can inject a fake transport without requests installed.
+        from requests import Session
+        client = Session()
+    else:
+        client = session
     secret = _get_bridge_credential(get_key)
     auth = {"Authorization": "Bearer " + secret,
             "User-Agent": "EVE V4 manual mail test"}
