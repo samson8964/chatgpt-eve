@@ -111,6 +111,29 @@ class ResearchEmailIntegrationTests(unittest.TestCase):
             self.assertEqual(gmail.call_count,1)
             self.assertNotIn("WORKER_FAILURE",log)
 
+    def test_one_failed_character_sets_task_result_three_but_keeps_success(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td)
+            scan={"status":"SHADOW_RECORDED","run_folder_name":"run-ok"}
+            results={"status":"V4_GAME_RESEARCH_MAIL_PARTIAL_FAILURE","sent":True,
+                     "recipient_success_count":1,"recipient_failure_count":1,
+                     "recipients":{"MikeChong":{"sent":True},
+                                   "LadyBaBa":{"sent":False}}}
+            with (
+                patch("sys.argv",["v4.local_service","--data-root",str(root)]),
+                patch("v4.local_service.execute",return_value=scan),
+                patch("v4.research_mail.send_review",
+                      return_value={"status":"REVIEW_GMAIL_SENT","sent":True}),
+                patch("v4.game_mail_review.send_review_to_game",return_value=results),
+            ):
+                exit_code=main()
+            log=(root/"logs"/"shadow-task.log").read_text(encoding="utf-8")
+            self.assertEqual(exit_code,3)
+            self.assertIn("V4_GAME_RESEARCH_MAIL_PARTIAL_FAILURE",log)
+            self.assertIn('"LadyBaBa": {"sent": false}',log)
+            self.assertIn('"MikeChong": {"sent": true}',log)
+            self.assertIn('"status": "REVIEW_GMAIL_SENT"',log)
+
     def test_both_mail_channels_can_report_success(self):
         with tempfile.TemporaryDirectory() as td:
             root=Path(td)
