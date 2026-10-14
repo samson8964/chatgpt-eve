@@ -65,6 +65,7 @@ def summarize(root: Path) -> dict:
             "structure_id":ident,
             "structure_scan_status":lane.get("status","UNKNOWN"),
             "total_structure_orders":lane.get("orders"),
+            "all_active_type_ids":(fresh.get("all_active_type_ids") if fresh else None),
             "active_sell_type_ids":(fresh.get("active_sell_type_ids") if fresh else None),
             "active_sell_orders":(fresh.get("active_sell_orders") if fresh else None),
             "sell_types_with_jita_buy":(fresh.get("sell_types_with_jita_buy") if fresh else None),
