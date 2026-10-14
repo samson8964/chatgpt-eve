@@ -45,6 +45,15 @@ def _write_atomic(path: Path, obj: dict) -> None:
 def enable(root: Path, *, recipient: str = "MikeChong") -> dict:
     if recipient not in ALLOWED_RECIPIENTS:
         raise ValueError("EVE_MAIL_RECIPIENT_NOT_VERIFIED")
+    existing = read_settings(root)
+    if existing is not None:
+        # Repeating old --enable must NEVER silently drop LadyBaBa.
+        names = [row["name"] for row in existing["recipients"]]
+        if recipient in names:
+            return {"status":"V4_GAME_RESEARCH_MAIL_ALREADY_ENABLED",
+                    "recipient":recipient, "recipients":names,
+                    "automatic_trade_alerts":False, "sent":False}
+        raise GameMailTestError("V4_GAME_MAIL_USE_ADD_RECIPIENT")
     _write_atomic(Path(root) / SETTINGS_FILE, {
         "schema": 1, "enabled": True, "mode": "V4_RESEARCH_ONLY",
         "sender": EXPECTED_SENDER, "recipient": recipient,
