@@ -101,6 +101,16 @@ def main() -> int:
                 try:
                     result=execute(root)
                     print("RESULT",json.dumps(result,ensure_ascii=False),flush=True)
+                    # Optional research Gmail channel is strictly separated from
+                    # V4 formal opportunity mail and defaults to disabled. SMTP
+                    # errors are reported, never mislabelled as scan failures.
+                    try:
+                        from v4.research_mail import send_review
+                        mail = send_review(root, expected_run=result.get("run_folder_name"))
+                        print("REVIEW_MAIL",json.dumps(mail,ensure_ascii=False),flush=True)
+                    except Exception as mail_exc:
+                        print("REVIEW_MAIL_FAILED",type(mail_exc).__name__,flush=True)
+                        return 3
                     return 0 if result.get("status") == "SHADOW_RECORDED" else 2
                 except Exception as exc:
                     print("FAILED",type(exc).__name__,str(exc),flush=True)
