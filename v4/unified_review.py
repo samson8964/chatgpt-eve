@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import math
+import html
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -125,47 +126,100 @@ def make_review(root: Path, *, limit_each: int = MAX_EACH) -> dict:
     return review
 
 
-def render(review: dict, *, game: bool = False) -> tuple[str, str]:
+def _selected(review: dict):
     good = (review.get("coverage_gate") ==
             "INPUT_LANES_REPORTED_COMPLETE_NOT_LIVE_VERIFIED" and
             review.get("source_input_integrity") == "ALL_PARSED")
-    pairs=review.get("market_research_leads") or []
-    contracts=review.get("contract_research_leads",review.get("research_leads")) or []
     if not good:
-        pairs,contracts=[],[]
-    stamp=beijing_scan_time(review.get("run_folder"))
-    subject=f"【V4捡漏待核】{stamp} 市场{len(pairs)} 合同{len(contracts)}"
-    linebreak="<br>" if game else "\n"
-    lines=[
-        "V4市场+合同合并简报｜全部按吉他海4买单",
-        f"市场审核 {review.get('market_proofs_examined','?')} ｜候选 {review.get('market_research_leads_total',0)}",
-        f"合同审核 {review.get('contract_proofs_audited','?')} ｜候选 {review.get('contract_research_leads_total',review.get('research_leads_total',0))}",
-    ]
+        return [], [], False
+    pairs = (review.get("market_research_leads") or [])[:MAX_EACH]
+    contracts = (review.get("contract_research_leads",
+                            review.get("research_leads")) or [])[:MAX_EACH]
+    return pairs, contracts, True
+
+
+def _subject(review: dict, pairs: list, contracts: list) -> str:
+    time = beijing_scan_time(review.get("run_folder"))
+    return f"V4捡漏待核 {time} 市场{len(pairs)} 合同{len(contracts)}"
+
+
+def render(review: dict, *, game: bool = False) -> tuple[str, str]:
+    """Short human-readable body. Game version contains native EVE click targets.
+
+    Important: showinfo opens the item's information, not a particular sell
+    order. Contract links open the exact contract identifier in-game.
+    """
+    pairs, contracts, good = _selected(review)
+    subject = _subject(review, pairs, contracts)
+    lines = []
     if not good:
-        lines.append("数据不完整：本轮不展示候选。")
-    else:
+        return subject, "本轮数据不完整，未推送机会。"
+    if pairs:
         lines.append("【市场】")
-        if not pairs:
-            lines.append("本轮无符合门槛的市场候选")
-        for n,p in enumerate(pairs[:MAX_EACH],1):
-            tid=p["type_id"]
-            opener=(f"<url=showinfo:{tid}><b>查看物品</b></url>" if game
-                    else p.get("market_url",f"{WORKER}/m/{tid}"))
+        for n, p in enumerate(pairs, 1):
+            tid = int(p["type_id"])
+            if game:
+                name = f"<url=showinfo:{tid}><b>查看商品 {tid}</b></url>"
+            else:
+                name = f"商品 {tid} {WORKER}/m/{tid}"
             lines.append(
-                f"{n}. 物品{tid} ×{p['quantity']}｜{place(p['source_location'])}→吉他4-4"
-                f"｜净{yi(p['net_profit_snapshot'])} ROI{p['roi_snapshot']*100:.1f}%"
-                f"｜压{yi(p['stress_profit_snapshot'])} {opener}")
+                f"{n}. {name} ×{p['quantity']} {place(p['source_location'])}"
+                f" 净{yi(p['net_profit_snapshot'])} ROI{p['roi_snapshot']*100:.0f}%")
+    if contracts:
         lines.append("【合同】")
-        if not contracts:
-            lines.append("本轮无符合审核条件的合同候选")
-        for n,p in enumerate(contracts[:MAX_EACH],1):
-            cid=int(p["contract_id"])
-            opener=(f"<url=contract:0//{cid}><b>打开合同</b></url>" if game
-                    else f"{WORKER}/c/{cid}")
+        for n, p in enumerate(contracts, 1):
+            cid = int(p["contract_id"])
+            if game:
+                name = f"<url=contract:0//{cid}><b>打开合同 {cid}</b></url>"
+            else:
+                name = f"合同 {cid} {WORKER}/c/{cid}"
             lines.append(
-                f"{n}. 合同{cid}｜{place(p.get('source_location'))}"
-                f"｜价{yi(p.get('contract_price'))}"
-                f"｜净{yi(p['net_profit_snapshot'])} ROI{p['roi_snapshot']*100:.1f}%"
-                f"｜压{yi(p['stress_profit_snapshot'])} {opener}")
-    lines.append("以上均为快照候选，尚未实时验证合同/订单/运输；不可直接购买。")
-    return subject, linebreak.join(lines)
+                f"{n}. {name} {place(p.get('source_location'))}"
+                f" 价{yi(p.get('contract_price'))}"
+                f" 净{yi(p['net_profit_snapshot'])} ROI{p['roi_snapshot']*100:.0f}%")
+    if not pairs and not contracts:
+        lines.append("本轮暂无候选。")
+    lines.append("快照待核，不代表可立即成交。")
+    # EVE ESI supports <br>, and actual native in-client <url=...> syntax.
+    return subject, ("<br>" if game else "\n").join(lines)
+
+
+def render_html(review: dict) -> tuple[str, str]:
+    """HTML Gmail alternative with real anchors, not plain URL text.
+
+    No remote images, scripts, or unsanitized data from contracts; hrefs
+    are created only from validated numeric IDs on our own opener domain.
+    """
+    pairs, contracts, good = _selected(review)
+    subject = _subject(review, pairs, contracts)
+    blocks = []
+    if not good:
+        blocks.append("<p>本轮数据不完整，未推送机会。</p>")
+    else:
+        if pairs:
+            blocks.append("<p><strong>市场</strong></p>")
+            for n, p in enumerate(pairs, 1):
+                tid = int(p["type_id"])
+                place_name = html.escape(place(p.get("source_location")))
+                blocks.append(
+                    f'<p>{n}. <a href="{WORKER}/m/{tid}">查看商品 {tid}</a>'
+                    f' ×{int(p["quantity"])} {place_name}'
+                    f' ｜净{yi(p["net_profit_snapshot"])}'
+                    f' ｜ROI {float(p["roi_snapshot"])*100:.0f}%</p>')
+        if contracts:
+            blocks.append("<p><strong>合同</strong></p>")
+            for n, p in enumerate(contracts, 1):
+                cid = int(p["contract_id"])
+                place_name = html.escape(place(p.get("source_location")))
+                blocks.append(
+                    f'<p>{n}. <a href="{WORKER}/c/{cid}">打开合同 {cid}</a>'
+                    f' {place_name} ｜价{yi(p.get("contract_price"))}'
+                    f' ｜净{yi(p["net_profit_snapshot"])}'
+                    f' ｜ROI {float(p["roi_snapshot"])*100:.0f}%</p>')
+        if not pairs and not contracts:
+            blocks.append("<p>本轮暂无候选。</p>")
+    blocks.append('<p style="color:#777;font-size:12px">快照待核，不代表可立即成交。</p>')
+    body = ('<!doctype html><html><head><meta charset="utf-8"></head>'
+            '<body style="font-family:Arial,sans-serif;font-size:14px;'
+            'line-height:1.4">' + "".join(blocks) + '</body></html>')
+    return subject, body
