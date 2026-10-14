@@ -1,4 +1,4 @@
-"""Windowless 2-hour shadow job. No mail or token management is performed.
+"""Windowless 2-hour shadow job with opt-in research-only mail digests.
 
 Use with Windows Task Scheduler and pythonw.exe. All stdout/stderr goes into the
 private local data root; exceptions are caught so pythonw never opens an error box.
@@ -88,7 +88,7 @@ def execute(root: Path, *, scanner=run, backup_fn=backup,
 
 
 def main() -> int:
-    p=argparse.ArgumentParser(description="Silent Windows V4 shadow task (no email)")
+    p=argparse.ArgumentParser(description="Silent Windows V4 scan and opt-in research email digests")
     p.add_argument("--data-root", type=Path, default=Path.home()/"EVE-V4-Data")
     args=p.parse_args()
     root=args.data_root.resolve()
@@ -101,15 +101,26 @@ def main() -> int:
                 try:
                     result=execute(root)
                     print("RESULT",json.dumps(result,ensure_ascii=False),flush=True)
-                    # Optional research Gmail channel is strictly separated from
-                    # V4 formal opportunity mail and defaults to disabled. SMTP
-                    # errors are reported, never mislabelled as scan failures.
+                    # Independent opt-in research mail channels. Failure of
+                    # either sender must NOT suppress the other sender. Both
+                    # channels are separate from formal production alerts.
+                    delivery_failure = False
                     try:
                         from v4.research_mail import send_review
                         mail = send_review(root, expected_run=result.get("run_folder_name"))
                         print("REVIEW_MAIL",json.dumps(mail,ensure_ascii=False),flush=True)
                     except Exception as mail_exc:
                         print("REVIEW_MAIL_FAILED",type(mail_exc).__name__,flush=True)
+                        delivery_failure = True
+                    try:
+                        from v4.game_mail_review import send_review_to_game
+                        game_mail = send_review_to_game(
+                            root, expected_run=result.get("run_folder_name"))
+                        print("GAME_REVIEW_MAIL",json.dumps(game_mail,ensure_ascii=False),flush=True)
+                    except Exception as game_exc:
+                        print("GAME_REVIEW_MAIL_FAILED",type(game_exc).__name__,flush=True)
+                        delivery_failure = True
+                    if delivery_failure:
                         return 3
                     return 0 if result.get("status") == "SHADOW_RECORDED" else 2
                 except Exception as exc:
