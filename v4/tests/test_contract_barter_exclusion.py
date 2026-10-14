@@ -25,6 +25,9 @@ class V4ContractBarterExclusionTests(unittest.TestCase):
             },{
                 "order_id":1002,"type_id":34,"location_id":60008494,
                 "is_buy_order":True,"price":11000000,"volume_remain":1000
+            },{
+                "order_id":1003,"type_id":34,"location_id":60008494,
+                "is_buy_order":False,"price":1000000,"volume_remain":100
             }])
             contracts = pd.DataFrame([
                 {"contract_id":101,"type":"item_exchange",
@@ -61,13 +64,23 @@ class V4ContractBarterExclusionTests(unittest.TestCase):
                           "o4t":{"status":"COMPLETE","location":1040804972352}})),
                   patch("v4.deep_scan.ensure_catalog",return_value=catalog),
                   patch("v4.deep_scan.known_station_regions",return_value={}),
-                  patch("v4.deep_scan.haul",side_effect=lambda source,dest,vol,stations: 0 if source==dest else 3000000)):
+                  patch("v4.deep_scan.haul",side_effect=lambda source,dest,vol,stations: 0 if source==dest else 3000000) as haul_mock):
                 report=deep_run(root/"orders",root/"contracts",output,api_key="")
+            self.assertEqual(report["market_pricing_basis"],"JITA_4_4_BUY_DEPTH_SNAPSHOT")
+            self.assertEqual(report["market_proofs_examined"],1)
+            self.assertEqual(report["market_potential_pairs"],1)
+            self.assertTrue(any(args.args[0]==60008494 and args.args[1]==60003760
+                                and args.args[2]==100.0 for args in haul_mock.call_args_list))
             self.assertEqual(report["contract_requested_items_excluded"],1)
             self.assertEqual(report["contract_jita_examined"],1)
             self.assertEqual(report["contract_approved_locations_examined"],2)
             proofs=[json.loads(line) for line in
                     output.with_name("all_proofs.jsonl").read_text("utf-8").splitlines()]
+            market_proofs=[p for p in proofs if p.get("kind")=="market"]
+            self.assertEqual(len(market_proofs),1)
+            self.assertEqual(market_proofs[0]["destination_location"],60003760)
+            self.assertEqual(market_proofs[0]["cargo_volume_m3"],100.0)
+            self.assertEqual(market_proofs[0]["valuation_location_id"],60003760)
             contract_ids=[p["contract_id"] for p in proofs if p.get("kind")=="contract"]
             self.assertEqual(contract_ids,[102,103])
             contract=next(p for p in proofs if p.get("kind")=="contract")
