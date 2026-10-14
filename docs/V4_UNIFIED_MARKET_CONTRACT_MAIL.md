@@ -1,3 +1,72 @@
+## 2026-10-14: 4-H and O4T market coverage + five quote-level averages
+
+**User question:** how many item types were scanned at 4-H and O4T in
+the previous scan, were all compared with Jita bids, and show the
+source first-five sell group average and Jita first-five buy group average
+for each market opportunity in future emails.
+
+### Precise historical limitations
+
+Previous deep reports include `structure_health.four_h.orders` and
+`structure_health.o4t.orders`. These are **numbers of orders**, not
+unique item types and not necessarily just sell orders. The old program
+did not persist each structure's full type universe or distinct source
+sell-type count. Existing `all_proofs.jsonl` only contains
+optimistic-profit-qualified market pairs; do NOT infer the count of all
+scanned item types from it or from how many entries appeared in an email.
+
+Use a read-only, no-network local command against the most recently
+completed V4 scan:
+
+```powershell
+Set-Location (Join-Path $HOME 'EVE-V4-Code')
+git pull --ff-only
+& .\.venv\Scripts\python.exe -m v4.market_station_audit
+```
+
+It reports **4-H, C-J and O4T** source order totals,
+eligible full-depth-pair counts and model-candidate counts, with unknown
+historical distinct item counts as `null`; it will not fake missing data.
+After a **new** scan produced by the updated engine it also reports:
+- `active_sell_type_ids` (distinct commodity type IDs among valid
+  active structure SELL orders); `active_sell_orders`
+- `sell_types_with_jita_buy`, `sell_types_without_jita_buy`
+- `sell_types_best_price_crossed` (source lowest ask < Jita highest bid)
+- `sell_types_optimistic_gate_passed` (gross theoretical spread upper
+  bound >= 50m ISK) and actual `full_depth_market_pairs_evaluated`.
+Every valid source sell type is checked for **existence of Jita buy
+orders and its best buy price**, whether or not it survives the optimistic
+profit filter. Only potentially profitable types undergo full matched
+bid/ask depth + shipping/tax/ROI/stress calculations, for efficiency.
+A missing Jita buy order is not silently counted as a zero-value trade.
+
+### Future market emails: exact price semantics
+
+For a market lead, `v4/deep_scan.py` now records on the opportunity proof:
+- `source_top5_sell`: **five lowest distinct sell PRICE LEVELS** at
+  the source station, each price in ISK per unit; orders at identical
+  prices share one level, no volume weighting.
+- `jita_top5_buy`: **five highest distinct buy PRICE LEVELS** at
+  Jita station ID `60003760`, also unweighted.
+- `simple_mean_isk_per_unit` = arithmetic average of the **actual
+  available up to five levels**, with `group_count` explicit.
+If a book has only 1-4 levels, the email says `卖3档均` for 3, for
+example; never invents unavailable quotes. This is **descriptive quote
+context**, not a substitute for full depth, execution volume or net
+profit. Very cheap per-unit items use 万/ISK to avoid displaying
+meaningless 0.00亿.
+
+Short per-market entry now contains
+`[clickable item] ×quantity location 净X.XX亿 ROI… | 卖N档均… / 吉买N档均…`.
+Gmail and EVE game mail share the same figures but use their own
+clickable link formats. Each email still shows a maximum of five
+market items and five contract leads, does not turn shadow research
+into actionable live-trade alerts and does not add a scheduled task.
+
+After the update, complete **one fresh full scan**. Older saved market
+proofs cannot backfill these quote-level means because the underlying
+private order books were not persisted.
+
 ## 2026-10-14 shorter clickable messages
 
 The user confirmed prior deliveries were too verbose and links were not
