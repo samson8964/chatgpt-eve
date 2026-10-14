@@ -7,7 +7,7 @@ class BridgeProbeTests(unittest.TestCase):
     def test_credential_validator_matches_safe_vault_input(self):
         self.assertTrue(valid_bridge_key("A1" * 24))
         for value in (None, "", "x" * 31, "x" * 257,
-                      " " + "A1" * 24, "A1" * 24 + "\\n", "密钥" * 24):
+                      " " + "A1" * 24, "A1" * 24 + "\n", "密钥" * 24):
             with self.subTest(kind=type(value).__name__):
                 self.assertFalse(valid_bridge_key(value))
 
