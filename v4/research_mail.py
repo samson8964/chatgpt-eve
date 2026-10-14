@@ -169,6 +169,39 @@ def render_review(review: dict) -> tuple[str,str]:
     return subject, "\n".join(lines)
 
 
+def send_transport_test(root: Path, *, vault=None, smtp_factory=None) -> dict:
+    """Explicit, one-off SMTP proof independent of scan age or pricing.
+
+    This message cannot be confused with a contract opportunity. No secrets
+    leave the Windows vault except the SMTP authentication exchange with Gmail.
+    It does not write scan receipts, change the mail schedule, or inspect ESI.
+    """
+    config = _config(Path(root))
+    if config is None:
+        return {"status": "REVIEW_GMAIL_DISABLED", "sent": False}
+    vault = vault or _windows_keyring()
+    password = vault.get_password(SERVICE, config["sender"])
+    if not password:
+        raise RuntimeError("REVIEW_GMAIL_VAULT_SECRET_MISSING")
+    msg = EmailMessage()
+    msg["From"] = config["sender"]
+    msg["To"] = config["recipient"]
+    msg["Subject"] = "EVE V4 Gmail SMTP 通道测试（非捡漏机会）"
+    msg.set_content(
+        "EVE V4 Gmail SMTP 测试邮件已成功提交给 Gmail 发信服务器。\\n"
+        "这封邮件不包含合同、利润或自动扫描结果。\\n"
+        "后续合同审核简报仍以新一轮 Jita 4-4 买盘估值扫描为准。\\n"
+        "本邮件由本机 --test-smtp 显式发送，不代表正式机会提醒已启用。\\n"
+    )
+    smtp_factory = smtp_factory or smtplib.SMTP_SSL
+    with smtp_factory("smtp.gmail.com", 465, timeout=35) as client:
+        client.login(config["sender"], password)
+        client.send_message(msg)
+    return {"status": "REVIEW_GMAIL_TEST_SENT",
+            "sent": True, "research_only": True, "formal_mail": False,
+            "secret_printed": False}
+
+
 def send_review(root: Path, *, expected_run: str | None = None,
                 vault=None, smtp_factory=None) -> dict:
     root = Path(root)
@@ -223,6 +256,7 @@ def main():
     opt.add_argument("--configure",action="store_true")
     opt.add_argument("--gui",action="store_true",help="Show masked Windows Gmail password window")
     opt.add_argument("--send-now",action="store_true")
+    opt.add_argument("--test-smtp",action="store_true",help="Send one non-opportunity Gmail SMTP test")
     opt.add_argument("--disable",action="store_true")
     parser.add_argument("--data-root",type=Path,
                         default=Path.home()/"EVE-V4-Data")
@@ -240,6 +274,15 @@ def main():
         result=configure(args.data_root,user,dest,password)
     elif args.disable:
         result=disable(args.data_root)
+    elif args.test_smtp:
+        try:
+            result=send_transport_test(args.data_root)
+        except (OSError, RuntimeError, smtplib.SMTPException) as exc:
+            # Never print SMTP server details, exception arguments or secrets.
+            result={"status":"REVIEW_GMAIL_TEST_FAILED","sent":False,
+                    "error_type":type(exc).__name__,"secret_printed":False}
+            print(json.dumps(result,ensure_ascii=False,indent=2))
+            raise SystemExit(4) from None
     else:
         result=send_review(args.data_root)
     print(json.dumps(result,ensure_ascii=False,indent=2))
