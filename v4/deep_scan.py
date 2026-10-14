@@ -22,6 +22,7 @@ import requests
 from v4.engine import Order, Policy, contract_proof, market_proof, profitable_trade, quarantine_snapshot_candidate, parse_orders_with_quarantine
 from v4.catalog import ensure_catalog, blueprint_instance_kind
 from v4.market_depth import top_price_levels, station_sell_census
+from v4.market_execution import gross_depth_upper_bound
 from v4.sources import market_dataframe, contract_dataframes
 
 JITA = 60003760
@@ -140,10 +141,11 @@ def run(market_path,contract_path,output,api_key=''):
     for (source,typ,buy) in sources:
         asks=markets[(source,typ,False)]
         bids=markets.get((JITA,typ,True),[])
-        if not asks or not bids:continue
-        if asks[0].price>=bids[0].price:continue
-        optimistic=(bids[0].price-asks[0].price)*sum(x.remaining for x in asks)
-        if optimistic>=POLICY.profit_floor:
+        if not asks or not bids or asks[0].price>=bids[0].price:
+            continue
+        # Use matched Jita BUY liquidity on the other side, never local bids.
+        # This is a safe ceiling: fees, haul and min-volume can only LOWER it.
+        if gross_depth_upper_bound(asks,bids)>=POLICY.profit_floor:
             potential_pairs.append((source,JITA,typ))
     # Jita-to-Jita public contracts (least ambiguous, no transport) and
     # approved other station contracts. BPC/manufacturing is NOT implemented.
@@ -175,16 +177,18 @@ def run(market_path,contract_path,output,api_key=''):
         unit=volumes.get(int(typ))
         asks=markets[(source,typ,False)]
         jita_bids=markets[(JITA,typ,True)]
-        trade=profitable_trade(asks,jita_bids,POLICY)
-        # Shipping all matched units, not just 1 unit, is essential: using
-        # one item's volume badly overstates the profit of bulk arbitrage.
-        cargo_m3=(float(unit)*trade['units']
-                  if unit and trade is not None else None)
-        cost=haul(source,JITA,cargo_m3,stations) if cargo_m3 else None
+        # Price every candidate lot with its OWN total cargo volume.
+        # Avoid optimizing on a fixed transport charge for the full book.
+        haul_for_units=(lambda n,src=source,v=unit:
+                        haul(src,JITA,float(v)*n,stations) if v else None)
         proof=market_proof(asks,jita_bids,
             source_location=source,destination_location=JITA,type_id=int(typ),
-            volume_m3=unit,haul_isk=cost,policy=POLICY,allowed=True,fresh=True)
-        proof.update(volume_m3=unit,cargo_volume_m3=cargo_m3,haul_isk=cost,
+            volume_m3=unit,haul_isk=None,haul_for_units=haul_for_units,
+            policy=POLICY,allowed=True,fresh=True)
+        selected=proof.get('quantity') or 0
+        cargo_m3=(float(unit)*selected if unit and selected else None)
+        proof.update(volume_m3=unit,cargo_volume_m3=cargo_m3,
+                     haul_isk=proof.get('haul'),
                      source_top5_sell=top_price_levels(asks,buy=False),
                      jita_top5_buy=top_price_levels(jita_bids,buy=True),
                      valuation_location_id=JITA,
@@ -269,6 +273,8 @@ def run(market_path,contract_path,output,api_key=''):
        catalog_meta=catalog.meta,catalog_coverage=coverage,
        verified_approved_locations=len(approved),market_potential_pairs=len(potential_pairs),
        market_pricing_basis='JITA_4_4_BUY_DEPTH_SNAPSHOT',
+       market_prefilter_basis='TWO_SIDED_MATCHED_DEPTH_GROSS_MARGIN_BEFORE_FEES',
+       market_execution_basis='OPTIMIZED_MATCHED_QUANTITY_AND_VWAP',
        market_station_sell_census=station_census,
        market_top5_price_definition='UNWEIGHTED_MEAN_OF_DISTINCT_PRICE_LEVELS',
        market_proofs_examined=sum(p.get('kind')=='market' for p in proofs),
