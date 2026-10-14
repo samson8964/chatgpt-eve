@@ -201,3 +201,46 @@ auditing was known to exist in code but market push was missing. Market
 candidate counts will only be verifiable from a new post-update scan.
 GitHub CI only tests code; it cannot prove a Windows task has fetched
 the new branch or successfully pushed actual opportunities.
+
+## 2026-10-14: approved direct replacement — matched depth, lot optimization and VWAP
+
+User explicitly approved replacing the old screening/display rules **without a
+parallel A/B experiment**. This does not waive normal CI or local acceptance.
+No official LIVE trading alerts are enabled by this change.
+
+1. **Coverage remains full.** Every active sell `type_id` in each authorized
+   structure is compared with the existence and best station-specific BUY order
+   at Jita IV-4, ID `60003760`. No TOP-N truncation and no historical
+   seen-key filter before screening.
+2. **Optimistic prefilter now considers BOTH sides' depth.** For each
+   positively crossed station/type pair, align local asks low-to-high with
+   Jita station bids high-to-low and accumulate
+   `matched_units * (Jita_bid - source_ask)` until no positive spread.
+   This fee-free gross bound is safe for excluding pairs below 50,000,000 ISK:
+   tax, freight, order limits and access can only reduce realized profit.
+   Existing census key `sell_types_optimistic_gate_passed` now counts
+   THIS depth-aware ceiling, not best-price * all local sell volume.
+   Full fee/ROI/haul/stress calculation remains downstream.
+3. **Quantity/lot selection.** The deep engine checks profitable order
+   boundaries, loss-of-best-order boundaries, minimum fills, and integer
+   neighbours near economic gate crossings. It separately prices transport
+   on the selected total lot's physical volume and requires an alternate
+   stress fill for the SAME lot quantity. Among lots passing unchanged
+   `50m ISK / ROI >=10% / density >=2000 ISK/m3 / stressed net >0` gates,
+   it chooses highest net profit, not maximum mechanically crossed volume.
+   Unevaluated or unsupported minimum-volume cases fail closed.
+4. **Matched VWAPs.** Each market proof stores
+   `source_vwap_isk_per_unit = executed_sell_cost / selected_quantity`
+   and `jita_vwap_isk_per_unit = executed_jita_buy_gross / selected_quantity`.
+   These are *hypothetical snapshot depth execution prices*, not completed
+   trades. Both prices use exactly the same selected quantity. The combined
+   email displays these primarily and preserves source/Jita distinct-price
+   first-five simple averages only as clearly-labelled contextual quotes.
+   Old snapshots without explicit depth/VWAP proofs are not remailed.
+5. **No A/B rollout.** On the Windows host, update the existing
+   `prep/v4-windows-local-migration-20261013` branch, use the existing
+   scheduled `EVE-V4-Shadow` job for ONE new scan, then confirm the new
+   report contains `market_execution_basis=OPTIMIZED_MATCHED_QUANTITY_AND_VWAP`.
+   The local machine must independently pull this commit; a passing GitHub
+   Action does not update or start a Windows scheduled task.
+   The only outbound mail remains clearly marked `V4捡漏待核`.
