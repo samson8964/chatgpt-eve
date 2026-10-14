@@ -56,12 +56,28 @@ def _hash(path: Path):
     return {"bytes": path.stat().st_size, "sha256": h.hexdigest()}
 
 
-def _step(name: str, commands: list[str], run_dir: Path, cwd: Path):
+def deep_scan_environment(*, platform_name: str | None = None,
+                          fetch_key=None) -> dict[str, str]:
+    """Pass a bridge key only to the deep-scan child, never to logs or CLI."""
+    env = os.environ.copy()
+    platform_name = platform_name or sys.platform
+    if platform_name == "win32" and not env.get("EVE_MARKET_API_KEY"):
+        if fetch_key is None:
+            from v4.local_bridge_auth import get_bridge_key
+            fetch_key = get_bridge_key
+        saved = fetch_key()
+        if saved:
+            env["EVE_MARKET_API_KEY"] = saved
+    return env
+
+
+def _step(name: str, commands: list[str], run_dir: Path, cwd: Path,
+          *, env: dict[str, str] | None = None):
     output = run_dir / (name + ".log")
     print(name + ": starting; log=" + str(output), flush=True)
     with output.open("w", encoding="utf-8") as log:
         proc = subprocess.run(commands, cwd=cwd, stdout=log, stderr=subprocess.STDOUT,
-                              timeout=80*60, check=False)
+                              timeout=80*60, check=False, env=env)
     if proc.returncode:
         raise RuntimeError(name + "_FAILED:" + str(proc.returncode) + "; see " + str(output))
     print(name + ": completed", flush=True)
@@ -93,7 +109,8 @@ def run(data_root: Path) -> dict:
             _step("deep_scan", common+["v4.deep_scan",
                                      "--market",str(raw / "market_orders.csv.bz2"),
                                      "--contracts",str(raw / "public_contracts.tar.bz2"),
-                                     "--output",str(deep)],run_dir,repo)
+                                     "--output",str(deep)],run_dir,repo,
+                  env=deep_scan_environment())
             audit = persist(database, deep, proofs)
             full = json.loads(report.read_text(encoding="utf-8"))
             detail = json.loads(deep.read_text(encoding="utf-8"))
