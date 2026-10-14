@@ -56,6 +56,26 @@ class V4DesktopMonitorTests(unittest.TestCase):
         self.assertFalse(got["mail_enabled"])
         self.assertEqual(human_clock("2026-10-14T16:23:00")[-5:],"16:23")
 
+    def test_dual_lane_counts_and_mail_opt_in_are_read_only(self):
+        root=self.make_root()
+        run=root/"runs"/"20261014T060000Z-abc"
+        (run/"deep_shadow.json").write_text(json.dumps({
+            "model_candidates":15,"market_proofs_examined":27,
+            "contract_approved_locations_examined":1435}),encoding="utf-8")
+        config=root/"config"
+        config.mkdir()
+        (config/"research_gmail.json").write_text(
+            '{"enabled":true}',encoding="utf-8")
+        (config/"eve_game_mail_review.json").write_text(
+            '{"enabled":true}',encoding="utf-8")
+        snapshot=read_snapshot(root,{"state":"Ready"})
+        self.assertEqual(snapshot["market_examined"],27)
+        self.assertEqual(snapshot["contract_examined"],1435)
+        self.assertTrue(snapshot["research_gmail_enabled"])
+        self.assertTrue(snapshot["research_game_enabled"])
+        self.assertFalse(snapshot["mail_enabled"])
+        self.assertTrue(snapshot["read_only"])
+
     def test_running_shows_actual_log_phase_not_fabricated_percent(self):
         root=self.make_root()
         running=root/"runs"/"20261014T070000Z-current"
