@@ -136,3 +136,29 @@ if ($LASTEXITCODE -ne 0) { throw "安装失败，请保留 pip 错误输出（�
 ```
 
 必须以 `ready_to_attempt_shadow: true` 且测试 OK 为准，不因原来测试抛的错误而直接开始全量市场采集。若 pip 依旧失败，请先根据完整错误判断是代理、证书、镜像源还是解释器路径，**不要**全局关闭 TLS 校验或安装无来源包；不必升级 Python。
+
+## 2026-10-14 本地主机首次真实扫描已成功：接下来先保全+定位部分缺口
+
+用户已实测本地主机状态：
+- `SHADOW_RECORDED`：本机完成 V4 影子采集、分析与本地 SQLite 提交。
+- `CENSUS_COMPLETE_PROOFS_NOT_READY`：全量市场普查完成但逐单 ESI 兑现门禁未就绪。
+- `source_market_orders=1584996`、`sqlite_unique_proofs=31931`；这是订单数与深验凭证/审核记录数，口径不同，**不能**推断剩余订单被跳过。
+- `coverage_gate=PARTIAL_UNVERIFIED`：结构市场某来源 FAILED，或原始订单隔离 `source_input_integrity != ALL_PARSED`；需看实际 `structure_health` 和无效单数才能分辨。
+- `mail_enabled=False`：无邮件、无正式放行。
+
+在已有机器 PowerShell 上，不需要重新扫描：
+```powershell
+Set-Location (Join-Path $HOME 'EVE-V4-Code')
+git pull --ff-only
+if ($LASTEXITCODE -ne 0) { throw "Git更新失败" }
+$python = Join-Path (Get-Location) '.venv\Scripts\python.exe'
+$dataRoot = Join-Path $HOME 'EVE-V4-Data'
+& $python -m v4.local_backup --data-root $dataRoot
+if ($LASTEXITCODE -ne 0) { throw "备份校验失败" }
+& $python -m v4.local_status --data-root $dataRoot
+if ($LASTEXITCODE -ne 0) { throw "诊断失败" }
+```
+
+`local_status` **只读**、不展示机器个人目录，不访问授权 Token 或联网：回报三个建筑来源健康和失败原因、数据完整性/隔离数量、报告proof与SQL唯一行是否一致、snapshot年龄/状态、模型候选/正式候选、拒绝原因前12项；`local_backup` 使用 SQLite 原生 online backup 并校验完整性，不能替代异盘副本。提供脱敏的 `local_status` JSON 即可决定是密钥缺失/HTTP403/源行异常等下一修复优先级。
+
+本轮只能认为**本机单次 shadow 通过**，不能说长期定时运行、72h影子或正式MAIL已完成。安全门禁沿用既有用户批准的全市场每次重新扫描+两小时汇总，不恢复 V3。
