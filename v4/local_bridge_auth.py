@@ -25,6 +25,17 @@ def get_bridge_key() -> str | None:
     return _keyring().get_password(SERVICE, getpass.getuser())
 
 
+def valid_bridge_key(value) -> bool:
+    """Only accept printable ASCII keys, 32-256 chars, without outer whitespace.
+
+    Never expose the secret or its precise length in diagnostics.
+    """
+    return (isinstance(value, str)
+            and 32 <= len(value) <= 256
+            and value.isascii() and value.isprintable()
+            and value == value.strip())
+
+
 def main():
     p = argparse.ArgumentParser(description="Store an existing bridge key privately")
     opt = p.add_mutually_exclusive_group(required=True)
@@ -32,12 +43,14 @@ def main():
     opt.add_argument("--status", action="store_true")
     args = p.parse_args()
     if args.set:
-        value = getpass.getpass("Existing bridge API key (hidden input): ")
-        if not value or value != value.strip():
-            raise ValueError("INVALID_KEY_INPUT")
+        value = getpass.getpass("Bridge API key (hidden input; use Bitwarden-generated 48 chars): ")
+        if not valid_bridge_key(value):
+            raise ValueError("INVALID_KEY_INPUT_REQUIRE_32_TO_256_PRINTABLE_ASCII_CHARS")
         _keyring().set_password(SERVICE, getpass.getuser(), value)
-    print(json.dumps({"credential_present":bool(get_bridge_key()),
-                      "secret_displayed":False,"mail_enabled":False}))
+    stored = get_bridge_key()
+    print(json.dumps({"credential_present": bool(stored),
+                      "ready_for_sync": valid_bridge_key(stored),
+                      "secret_displayed": False, "mail_enabled": False}))
 
 
 if __name__ == "__main__":
