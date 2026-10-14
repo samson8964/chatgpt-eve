@@ -192,3 +192,35 @@ git pull --ff-only
 ```
 
 本任务仅在当前 Windows 用户保持已登录（可锁屏）时运行；注销用户或机器休眠将导致错过轮次。V3仍停，V4正式MAIL仍禁，Cloudflare/GitHub现有影子未切换。
+
+
+## 2026-10-14 玩家建筑缺口已诊断：三条线路均未取得本地 bridge key
+
+用户本机 `local_status` 已证实：
+
+- `four_h` / `cj` / `o4t` 全部 `FAILED: missing_api_key`，**不是**HTTP403（尚未向这些线路发起带密钥请求），不可称鉴权失败或站点ACL不开放。
+- 原始公开输入 `PARTIAL_QUARANTINED`，仅 `rejected_input_orders=1` / `invalid_public_orders=1` / `invalid_structure_orders=0`；那条异常记录有专门 `SOURCE_ORDER_INVALID` proof，审计没有静默跳过。
+- `model_candidates=6`、`formal_candidates=0`；模型候选仍非 ESI 实时可成交机会。
+- SQLite唯一proof数31931、RESEARCH20715/WATCH11216、`integrity=ok` / `count_matches_report=true`；数据持久化不是本轮阻塞。
+
+### 在 Windows 凭据库中保存**原有** Cloudflare bridge API key
+
+用户需取得先前自己配置的现有 `EVE_MAIL_API_KEY` 原值（GitHub Actions Secrets 不能直接回显原值）。**不要发给任何聊天、命令行参数或 GitHub**；这不是 ESI refresh token、GitHub Personal Access Token 或 OAuth 授权码。如原值已遗失，后续须单独协调安全轮换 Worker 与 GitHub Secret，不要擅自生成随机值后声称可访问。
+
+```powershell
+Set-Location (Join-Path $HOME 'EVE-V4-Code')
+git pull --ff-only
+if ($LASTEXITCODE -ne 0) { throw "代码更新失败" }
+$python = Join-Path (Get-Location) '.venv\Scripts\python.exe'
+& $python -m pip install -r requirements.txt
+if ($LASTEXITCODE -ne 0) { throw "依赖安装失败" }
+& $python -m v4.local_bridge_auth --set
+& $python -m v4.local_bridge_auth --status
+& $python -m v4.local_bridge_probe
+```
+
+`--set` 使用隐藏输入（`getpass`）并调用 Windows 当前用户的 Credential Manager 存储；其他进程不会从命令行/仓库/PowerShell历史看到这个密钥。无需机器管理员权限。凭据不进入 SQLite、日志和提交。之后 `local_run` 只在`v4.deep_scan`子进程的临时环境内注入此凭据；本机`pythonw`影子计划任务以同一已登录用户身份执行时也可读取。命令 `local_bridge_probe` 仅对 three structures 每条请求**第一页**；`PAGE1_OK`只代表第一页可读，真实完整扫描仍需校验全部页数。
+
+如果 `probe` 为`MISSING_KEY`：尚无存储；若 `ACCESS_DENIED` / `HTTP_FAILURE`，按各 profile 的具体状态定位。**不要仅凭密钥存在就把 coverage_gate 从 PARTIAL_UNVERIFIED 改为 COMPLETE。**
+
+保留公开市场异常订单隔离审计，即使三处第一屏访问修复也不代表此前 `PARTIAL_QUARANTINED` 可忽略。正式 V4 邮件仍关闭；本地定时任务只有实际 `-Install` 才注册。
