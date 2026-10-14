@@ -92,9 +92,19 @@ def run(market_path,contract_path,output,api_key=''):
     present={c for c in raw_market.columns}
     needed={'order_id','type_id','location_id','price','volume_remain','is_buy_order'}
     if needed-present: raise RuntimeError('order_fields_missing')
-    public_orders,public_rejects=to_orders(raw_market.to_dict('records'),source='PUBLIC')
-    authorized_orders,structure_rejects=to_orders(structures,source='STRUCTURE')
+    public_orders,public_inactive=to_orders(raw_market.to_dict('records'),source='PUBLIC')
+    authorized_orders,structure_inactive=to_orders(structures,source='STRUCTURE')
+    # Every snapshot row is either an actionable order, an audited non-actionable
+    # zero-remaining order, or an invalid quarantined input.
+    zero_public=[row for row in public_inactive if row['reason']=='SOURCE_ORDER_ZERO_REMAINING']
+    zero_structure=[row for row in structure_inactive if row['reason']=='SOURCE_ORDER_ZERO_REMAINING']
+    public_rejects=[row for row in public_inactive if row['reason']=='SOURCE_ORDER_INVALID']
+    structure_rejects=[row for row in structure_inactive if row['reason']=='SOURCE_ORDER_INVALID']
     quarantined=public_rejects+structure_rejects
+    non_actionable=zero_public+zero_structure
+    if len(public_orders)+len(public_inactive)!=len(raw_market) or (
+            len(authorized_orders)+len(structure_inactive)!=len(structures)):
+        raise RuntimeError('SOURCE_ORDER_ACCOUNTING_MISMATCH')
     all_orders=public_orders+authorized_orders
     markets=defaultdict(list)
     for o in all_orders:
@@ -132,8 +142,8 @@ def run(market_path,contract_path,output,api_key=''):
     volumes={int(t):catalog.volume(t) for t in ids if catalog.volume(t) is not None}
     missing=coverage['missing_volume']
     stations=known_station_regions()
-    proofs=list(quarantined);reasons=defaultdict(int)
-    for invalid in quarantined:
+    proofs=list(quarantined)+list(non_actionable);reasons=defaultdict(int)
+    for invalid in proofs:
         reasons[invalid['reason']]+=1
     for source,dest,typ in potential_pairs:
         unit=volumes.get(int(typ))
@@ -186,6 +196,11 @@ def run(market_path,contract_path,output,api_key=''):
        rejected_input_orders=len(quarantined),
        invalid_public_orders=len(public_rejects),
        invalid_structure_orders=len(structure_rejects),
+       zero_remaining_public_orders=len(zero_public),
+       zero_remaining_structure_orders=len(zero_structure),
+       non_actionable_zero_remaining_orders=len(non_actionable),
+       public_market_rows_raw=len(raw_market),
+       structure_market_rows_raw=len(structures),
        source_input_integrity=('PARTIAL_QUARANTINED' if quarantined else 'ALL_PARSED'),
        source_locations_total=len({o.location_id for o in all_orders}),
        source_types_total=len({o.type_id for o in all_orders}),contract_rows=len(contracts),
