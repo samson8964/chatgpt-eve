@@ -22,6 +22,9 @@ class V4ContractBarterExclusionTests(unittest.TestCase):
             orders = pd.DataFrame([{
                 "order_id":1001,"type_id":34,"location_id":60003760,
                 "is_buy_order":True,"price":10000000,"volume_remain":1000
+            },{
+                "order_id":1002,"type_id":34,"location_id":60008494,
+                "is_buy_order":True,"price":11000000,"volume_remain":1000
             }])
             contracts = pd.DataFrame([
                 {"contract_id":101,"type":"item_exchange",
@@ -30,6 +33,9 @@ class V4ContractBarterExclusionTests(unittest.TestCase):
                 {"contract_id":102,"type":"item_exchange",
                  "start_location_id":60003760,"price":10000000,
                  "date_expired":"2030-01-01T00:00:00"},
+                {"contract_id":103,"type":"item_exchange",
+                 "start_location_id":60008494,"price":10000000,
+                 "date_expired":"2030-01-01T00:00:00"},
             ])
             items=pd.DataFrame([
                 {"contract_id":101,"is_included":True,"type_id":34,
@@ -37,6 +43,8 @@ class V4ContractBarterExclusionTests(unittest.TestCase):
                 {"contract_id":101,"is_included":False,"type_id":36,
                  "quantity":10,"is_blueprint_copy":False,"runs":-1},
                 {"contract_id":102,"is_included":True,"type_id":34,
+                 "quantity":10,"is_blueprint_copy":False,"runs":-1},
+                {"contract_id":103,"is_included":True,"type_id":34,
                  "quantity":10,"is_blueprint_copy":False,"runs":-1},
             ])
             catalog=Mock()
@@ -56,16 +64,21 @@ class V4ContractBarterExclusionTests(unittest.TestCase):
                 report=deep_run(root/"orders",root/"contracts",output,api_key="")
             self.assertEqual(report["contract_requested_items_excluded"],1)
             self.assertEqual(report["contract_jita_examined"],1)
+            self.assertEqual(report["contract_approved_locations_examined"],2)
             proofs=[json.loads(line) for line in
                     output.with_name("all_proofs.jsonl").read_text("utf-8").splitlines()]
             contract_ids=[p["contract_id"] for p in proofs if p.get("kind")=="contract"]
-            self.assertEqual(contract_ids,[102])
+            self.assertEqual(contract_ids,[102,103])
             contract=next(p for p in proofs if p.get("kind")=="contract")
             self.assertEqual(contract["contract_price"],10000000)
             self.assertEqual(contract["included_items"],{"34":10})
             self.assertFalse(contract["requested_items_present"])
             self.assertEqual(contract["valuation_basis"],
-                "JITA_SNAPSHOT_BUY_ORDER_DEPTH_NOT_LIVE")
+                "SAME_LOCATION_SNAPSHOT_BUY_DEPTH_NOT_LIVE")
+            amarr=next(p for p in proofs if p.get("contract_id")==103)
+            self.assertEqual(amarr["source_location"],60008494)
+            self.assertEqual(amarr["destination_location"],60008494)
+            self.assertFalse(amarr["contract_access_verified"])
 
 
 if __name__ == "__main__":
