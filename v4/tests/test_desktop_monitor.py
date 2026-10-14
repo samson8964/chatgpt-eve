@@ -105,6 +105,7 @@ class V4DesktopMonitorTests(unittest.TestCase):
             'FAILED ConnectionError no access\n',encoding="utf-8")
         got=read_snapshot(root,{"state":"Ready","last_result":1})
         self.assertEqual(got["status"],"FAILED")
+        self.assertEqual(got["latest_result_status"],"FAILED")
         self.assertTrue(got["last_log_error"].startswith("ConnectionError"))
 
     def test_windows_task_query_has_hidden_console_and_no_api_access(self):
