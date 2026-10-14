@@ -42,6 +42,7 @@ class UnifiedReviewTests(unittest.TestCase):
             (folder/"deep_shadow.json").write_text(json.dumps({
                 "status":"SHADOW_ONLY_NO_LIVE_ALERTS",
                 "market_pricing_basis":"JITA_4_4_BUY_DEPTH_SNAPSHOT",
+                "market_execution_basis":"OPTIMIZED_MATCHED_QUANTITY_AND_VWAP",
                 "market_proofs_examined":4,
                 "market_potential_pairs":4}),encoding="utf-8")
             rows=[
@@ -50,6 +51,11 @@ class UnifiedReviewTests(unittest.TestCase):
                  "valuation_location_id":60003760,
                  "valuation_basis":"JITA_4_4_BUY_DEPTH_SNAPSHOT_NOT_LIVE",
                  "type_id":34,"quantity":100,"profit":62000000,"roi":.21,
+                 "quantity_optimized":True,
+                 "source_vwap_isk_per_unit":2000000,
+                 "jita_vwap_isk_per_unit":3000000,
+                 "executed_sell_cost":200000000,
+                 "executed_jita_buy_gross":300000000,
                  "stress_profit":33000000,"cost":300000000,
                  "source_top5_sell":{"group_count":3,
                                     "simple_mean_isk_per_unit":2000000},
@@ -92,6 +98,7 @@ class UnifiedReviewTests(unittest.TestCase):
             self.assertIn("<url=showinfo:34><b>查看商品 34</b></url>",game)
             self.assertIn("0.62亿",game)
             self.assertIn("0.59亿",game)
+            self.assertIn("成交均 本地卖0.02亿→吉买0.03亿",game)
             self.assertIn("卖3档均0.02亿",game)
             self.assertIn("吉买5档均0.08亿",game)
             self.assertIn("待核",title)
@@ -107,6 +114,7 @@ class UnifiedReviewTests(unittest.TestCase):
             self.assertIn('<a href=',rich)
             self.assertIn('打开合同 236977688</a>',rich)
             self.assertIn('查看商品 34</a>',rich)
+            self.assertIn("成交均 本地卖0.02亿→吉买0.03亿",rich)
             self.assertIn("卖3档均0.02亿",rich)
             self.assertIn("吉买5档均0.08亿",rich)
             self.assertLess(len(game),680)
@@ -133,6 +141,7 @@ class UnifiedReviewTests(unittest.TestCase):
             (folder/"deep_shadow.json").write_text(json.dumps({
                 "status":"SHADOW_ONLY_NO_LIVE_ALERTS",
                 "market_pricing_basis":"JITA_4_4_BUY_DEPTH_SNAPSHOT",
+                "market_execution_basis":"OPTIMIZED_MATCHED_QUANTITY_AND_VWAP",
                 "market_proofs_examined":3}),encoding="utf-8")
             (folder/"all_proofs.jsonl").write_text("",encoding="utf-8")
             with patch("v4.unified_review.contract_review",return_value=mocked_contract()):
