@@ -79,6 +79,8 @@ class StationDepthIntegration(unittest.TestCase):
             self.assertEqual(a["O4T"]["sell_types_without_jita_buy"],1)
             self.assertEqual(a["O4T"]["sell_types_optimistic_gate_passed"],0)
             self.assertEqual(report["market_proofs_examined"],1)
+            self.assertEqual(report["market_prefilter_basis"],
+                             "TWO_SIDED_MATCHED_DEPTH_GROSS_MARGIN_BEFORE_FEES")
             proofs=[json.loads(line) for line in
                     (deep.parent/"all_proofs.jsonl").read_text("utf-8").splitlines()]
             market=[p for p in proofs if p.get("kind")=="market"]
@@ -88,6 +90,11 @@ class StationDepthIntegration(unittest.TestCase):
             self.assertEqual(market[0]["source_top5_sell"]["simple_mean_isk_per_unit"],3e6)
             self.assertEqual(market[0]["jita_top5_buy"]["group_count"],5)
             self.assertEqual(market[0]["jita_top5_buy"]["simple_mean_isk_per_unit"],8e6)
+            self.assertTrue(market[0]["quantity_optimized"])
+            self.assertEqual(market[0]["source_vwap_isk_per_unit"],
+                             market[0]["executed_sell_cost"]/market[0]["quantity"])
+            self.assertEqual(market[0]["jita_vwap_isk_per_unit"],
+                             market[0]["executed_jita_buy_gross"]/market[0]["quantity"])
             manifest={"status":"SHADOW_RECORDED","mail_enabled":False,
                       "ready_for_production":False,"coverage_gate":
                       "INPUT_LANES_REPORTED_COMPLETE_NOT_LIVE_VERIFIED",
@@ -97,6 +104,7 @@ class StationDepthIntegration(unittest.TestCase):
             unified=make_review(root)
             self.assertEqual(unified["market_research_leads_total"],1)
             _,mail=render(unified,game=True)
+            self.assertIn("成交均 本地卖",mail)
             self.assertIn("卖5档均0.03亿",mail)
             self.assertIn("吉买5档均0.08亿",mail)
             from v4.market_station_audit import summarize
