@@ -138,9 +138,11 @@ class GameMailManualTests(unittest.TestCase):
         import io
         from contextlib import redirect_stdout
         sink=io.StringIO()
-        with patch("sys.argv",["v4.eve_mail_test","--recipient","MikeChong"]), \\
-             patch("v4.eve_mail_test.run_test",
-                   return_value={"status":"EVE_GAME_MAIL_TEST_SENT","sent":True}) as fn:
+        with (
+            patch("sys.argv", ["v4.eve_mail_test", "--recipient", "MikeChong"]),
+            patch("v4.eve_mail_test.run_test",
+                  return_value={"status": "EVE_GAME_MAIL_TEST_SENT", "sent": True}) as fn,
+        ):
             with redirect_stdout(sink):
                 main()
         self.assertEqual(fn.call_count,1)
