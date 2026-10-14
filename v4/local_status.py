@@ -63,6 +63,10 @@ def inspect(root: Path) -> dict:
                 "reason": val.get("reason"),
                 "orders": val.get("orders"),
                 "pages": val.get("pages"),
+                "pages_fetched": val.get("pages_fetched"),
+                "failed_page": val.get("failed_page"),
+                "attempts_on_failed_page": val.get("attempts_on_failed_page"),
+                "transient_retries": val.get("transient_retries"),
             }
             for key, val in health.items()
         },
