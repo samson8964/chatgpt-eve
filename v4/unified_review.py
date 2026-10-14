@@ -56,6 +56,26 @@ def yi(value) -> str:
     return f"{n / 100_000_000:.2f}亿" if n is not None else "未知"
 
 
+
+def unit_price(value) -> str:
+    """Avoid displaying low per-item prices misleadingly as 0.00亿."""
+    amount = _amount(value)
+    if amount is None:
+        return "无报价"
+    if amount >= 1_000_000:
+        return f"{amount/100_000_000:.2f}亿"
+    if amount >= 10_000:
+        return f"{amount/10_000:.2f}万"
+    return f"{amount:,.2f}ISK"
+
+
+def five_level_label(proof: dict, key: str, name: str) -> str:
+    depth = proof.get(key)
+    if not isinstance(depth, dict) or not (1 <= int(depth.get("group_count") or 0) <= 5):
+        return name + "无数据"
+    return (name + str(depth["group_count"]) + "档均" +
+            unit_price(depth.get("simple_mean_isk_per_unit")))
+
 def make_review(root: Path, *, limit_each: int = MAX_EACH) -> dict:
     root = Path(root)
     review = contract_review(root, limit=max(MAX_EACH,limit_each))
@@ -104,6 +124,8 @@ def make_review(root: Path, *, limit_each: int = MAX_EACH) -> dict:
                 "net_profit_snapshot":profit,"roi_snapshot":roi,
                 "stress_profit_snapshot":stress,
                 "capital":capital,"haul_estimate":_amount(row.get("haul_isk")),
+                "source_top5_sell":row.get("source_top5_sell"),
+                "jita_top5_buy":row.get("jita_top5_buy"),
                 "market_url":f"{WORKER}/m/{typ}",
                 "live_verified":False,"actionable":False,
             })
@@ -164,7 +186,9 @@ def render(review: dict, *, game: bool = False) -> tuple[str, str]:
                 name = f"商品 {tid} {WORKER}/m/{tid}"
             lines.append(
                 f"{n}. {name} ×{p['quantity']} {place(p['source_location'])}"
-                f" 净{yi(p['net_profit_snapshot'])} ROI{p['roi_snapshot']*100:.0f}%")
+                f" 净{yi(p['net_profit_snapshot'])} ROI{p['roi_snapshot']*100:.0f}%"
+                f"｜{five_level_label(p, 'source_top5_sell', '卖')}"
+                f" / {five_level_label(p, 'jita_top5_buy', '吉买')}")
     if contracts:
         lines.append("【合同】")
         for n, p in enumerate(contracts, 1):
@@ -205,7 +229,9 @@ def render_html(review: dict) -> tuple[str, str]:
                     f'<p>{n}. <a href="{WORKER}/m/{tid}">查看商品 {tid}</a>'
                     f' ×{int(p["quantity"])} {place_name}'
                     f' ｜净{yi(p["net_profit_snapshot"])}'
-                    f' ｜ROI {float(p["roi_snapshot"])*100:.0f}%</p>')
+                    f' ｜ROI {float(p["roi_snapshot"])*100:.0f}%'
+                    f' ｜{html.escape(five_level_label(p, "source_top5_sell", "卖"))}'
+                    f' / {html.escape(five_level_label(p, "jita_top5_buy", "吉买"))}</p>')
         if contracts:
             blocks.append("<p><strong>合同</strong></p>")
             for n, p in enumerate(contracts, 1):
