@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 from email.message import EmailMessage
 from pathlib import Path
 
-from v4.contract_review import make_review
+from v4.unified_review import make_review, render as render_unified
 
 SERVICE = "eve-v4-contract-review-gmail"
 CONFIG = Path("config/research_gmail.json")
@@ -220,7 +220,7 @@ def send_review(root: Path, *, expected_run: str | None = None,
     password = vault.get_password(SERVICE, config["sender"])
     if not password:
         raise RuntimeError("REVIEW_GMAIL_VAULT_SECRET_MISSING")
-    subject, body = render_review(review)
+    subject, body = render_unified(review,game=False)
     msg = EmailMessage()
     msg["From"] = config["sender"]
     msg["To"] = config["recipient"]
