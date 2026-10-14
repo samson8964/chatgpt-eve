@@ -1,5 +1,6 @@
 import json
 import sqlite3
+import time
 from contextlib import closing
 import tempfile
 import unittest
@@ -21,7 +22,17 @@ class LocalStoreTests(unittest.TestCase):
         self.write()
 
     def tearDown(self):
-        self.dir.cleanup()
+        # SQLite WAL/SHM handles can stay briefly open on Windows while
+        # antivirus/indexing inspects files after a connection closes.
+        # Retry only WinError 32, with a strict bound; don't hide leaks.
+        for attempt in range(12):
+            try:
+                self.dir.cleanup()
+                return
+            except PermissionError as exc:
+                if getattr(exc, "winerror", None) != 32 or attempt == 11:
+                    raise
+                time.sleep(0.15)
 
     def write(self, *, run_id="v4-test-001", expected=None, formal=0):
         self.report.write_text(json.dumps({
