@@ -274,3 +274,17 @@ if ($LASTEXITCODE -ne 0) { throw '注册失败' }
 Get-ScheduledTask -TaskName 'EVE-V4-Shadow'
 Get-ScheduledTaskInfo -TaskName 'EVE-V4-Shadow' | Select-Object NextRunTime,LastRunTime,LastTaskResult
 ```
+
+
+## 2026-10-14 V4后台首次定时任务真实运行：四条公开市场订单隔离
+
+用户 `EVE-V4-Shadow` 手动触发后台运行后，任务从Running回到Ready，`LastTaskResult=2`，下次按计划16:23。独立`full_scan`和`deep_scan`均完成，三结构`four_h/cj/o4t=COMPLETE`，`sqlite_unique_proofs=32877`，空闲磁盘360.62GiB、备份不应重复（NOT_DUE）、MAIL OFF。用户随后读取同一个本机存档的`v4.local_status`，确证`authorized_structure_orders_parsed=94310`、`invalid_public_orders=4`、`invalid_structure_orders=0`、`rejected_input_orders=4`、`source_input_integrity=PARTIAL_QUARANTINED`，SQLite integrity OK、计数一致。故此轮降级告警不是建筑缺页/网络/凭据，而是只有**四条公开市场订单被原始字段验证器隔离**。在查明原因之前不得静默忽略4个证明或将coverage_gate改成完全成功。此前已经在后台`v4.local_service`将这些与建筑真正不完整独立分类`DEGRADED_INPUT_QUARANTINE`，仍保留非零退出码。模型候选信号15条仍无实时验证；`ITEM_CLASSIFICATION_UNVERIFIED_OR_BLUEPRINT=20336`体现合同标的类型判别仍是正式提醒大障碍，不能以修复4条公开订单代替完善出清验证。
+
+现在新增`v4/local_invalid_order_audit.py`：离线只读检查指定runs文件夹的`all_proofs.jsonl`中SOURCE_ORDER_INVALID，并用原`source/market_orders.csv.bz2`按存档行号读取**有限个**原始公开订单列来判断字段和解析失败原因（不读Windows密钥、不打网络、不写SQLite、不发信）。本例固定诊断 `--run-folder 20261014T071050Z-cdc71ff3`，但后续可缺省用最近一轮。命令：
+```powershell
+Set-Location (Join-Path $HOME 'EVE-V4-Code')
+git pull --ff-only
+$python=Join-Path (Get-Location) '.venv\Scripts\python.exe'
+& $python -m v4.local_invalid_order_audit --data-root (Join-Path $HOME 'EVE-V4-Data') --run-folder 20261014T071050Z-cdc71ff3
+```
+工具应报告 `invalid_public_proofs_found=4` 且 `proof_count_matches_report=true` 和4条 `error_type/error_detail/source_fields`，用户回传后再修复具体parser或标记上游原始异常。目前尚未获得真实4条字段明细，不能猜测是NaN或负价。此项离线诊断已有CI：Windows Python3.11 #38529391933 69/69单元测试通过；Ubuntu3.11和3.12通过。
