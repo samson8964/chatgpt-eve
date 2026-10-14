@@ -59,7 +59,9 @@ def summarize(root: Path) -> dict:
     for name,ident in STATIONS.items():
         lane=health.get(health_names[name]) or {}
         fresh=census.get(name)
-        if not isinstance(fresh,dict):
+        if not isinstance(fresh,dict) or lane.get("status")!="COMPLETE":
+            # Failed/partial private-market access must not appear as
+            # zero scanned item types or as a complete Jita comparison.
             fresh=None
         rows[name]={
             "structure_id":ident,
