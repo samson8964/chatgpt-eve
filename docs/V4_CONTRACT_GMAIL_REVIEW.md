@@ -44,6 +44,36 @@ A new scan under the approved Jita 4-4 valuation is required before
 incorrect station pricing deliberately fail closed. The existing scheduled
 scanner continues every two hours; the GUI does not restart it.
 
+## Immediate SMTP test after GUI save
+
+A GUI response such as `{"gui_saved":true,"secret_printed":false,"sent":false}`
+only proves the Gmail App Password was saved in Windows Credential Manager.
+It does not prove the stored password can log into Gmail SMTP.
+
+An explicit network test is now available and does not use any old contract
+snapshot, profitability estimate or live ESI:
+
+```powershell
+Set-Location (Join-Path $HOME 'EVE-V4-Code')
+git pull --ff-only
+if ($LASTEXITCODE -ne 0) { throw 'Git update failed' }
+& .\.venv\Scripts\python.exe -m v4.research_mail --test-smtp
+```
+
+If Gmail SMTP accepts the message, prints
+`status=REVIEW_GMAIL_TEST_SENT`, `sent=true`, and sends a test-only
+email to the previously configured recipient. The message title is
+"EVE V4 Gmail SMTP 通道测试（非捡漏机会）". The test does not start a scan,
+change auto-delivery cadence, access game accounts, or write a scan receipt.
+It only runs when the user explicitly enters `--test-smtp`.
+A failed credential or blocked SMTP connection gives a sanitized
+`REVIEW_GMAIL_TEST_FAILED` with an exception class, never raw secrets.
+
+To send a real contract review, run `--send-now` only when the newest
+completed run carries `contract_pricing_basis=JITA_4_4_BUY_DEPTH_SNAPSHOT`.
+Old same-location valuation snapshots must be rejected until a corrected new
+scan completes.
+
 ## One-time Windows Gmail setup (required before unattended sends)
 
 Gmail SMTP requires a valid Gmail address plus a Gmail App Password for an
