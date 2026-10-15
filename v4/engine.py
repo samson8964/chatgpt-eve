@@ -305,6 +305,11 @@ def market_proof(asks: Sequence[Order], bids: Sequence[Order], *, source_locatio
         evaluated[units] = result
         return result
 
+    # Evaluate every candidate quantity, including a singleton set. The old
+    # interval-only traversal silently dropped one-unit/one-breakpoint deals.
+    for units in quantities:
+        evaluate(units)
+
     # Within each price-order segment, price*quantity, total haul, ROI and
     # stress gate margins are affine in quantity. Check adjacent integer
     # quantities around all constraint crossings, not only entire orders.
