@@ -232,6 +232,8 @@ def market_proof(asks: Sequence[Order], bids: Sequence[Order], *, source_locatio
                  fresh: bool = False, haul_for_units=None) -> dict:
     """Select best gate-passing executable lot, using the same quantity both sides.
 
+    Source asks remain fixed in stress; the best Jita buy order is removed.
+    Stressed net must exceed the normal profit floor, not merely be positive.
     Route costs are re-evaluated for each lot through haul_for_units. Tested
     quantities cover crossed order boundaries, stressed-book boundaries and
     integer neighbours of economic-gate intersections. No top-N is applied.
@@ -274,9 +276,11 @@ def market_proof(asks: Sequence[Order], bids: Sequence[Order], *, source_locatio
             evaluated[units] = None
             return None
         haul = float(haul)
-        reduced_asks = [o for o in asks if o.order_id != matched['ask_ids'][0]]
-        reduced_bids = [o for o in bids if o.order_id != matched['bid_ids'][0]]
-        stressed = profitable_trade(reduced_asks, reduced_bids, policy, max_units=units)
+        # The discounted source ask is the opportunity itself. If it vanishes,
+        # abort before purchasing; it is not an inventory-risk stress scenario.
+        # Stress ONLY Jita exit liquidity by removing the best BUY order.
+        reduced_bids = [o for o in bids if o.order_id != bids[0].order_id]
+        stressed = profitable_trade(asks, reduced_bids, policy, max_units=units)
         # An alternative trading fewer units is NOT a fallback for this lot.
         stress = (stressed['gross'] * (1 - policy.sales_tax)
                   - stressed['paid'] - haul
@@ -291,8 +295,9 @@ def market_proof(asks: Sequence[Order], bids: Sequence[Order], *, source_locatio
         margins = (net - policy.profit_floor,
                    net - policy.min_roi * cost,
                    net - policy.min_density * units * volume_m3,
-                   stress)
-        passed = all(x >= 0 for x in margins[:3]) and stress > 0
+                   stress - policy.profit_floor)
+        # Exit-side stress must still clear the FULL profit floor, strictly.
+        passed = all(x >= 0 for x in margins[:3]) and stress > policy.profit_floor
         result = dict(matched, cost=cost, profit=net, roi=roi, density=density,
                       stress_profit=stress, haul=haul, margins=margins,
                       passed=passed, source_vwap_isk_per_unit=matched['paid']/units,
