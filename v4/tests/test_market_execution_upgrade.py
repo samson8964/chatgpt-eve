@@ -91,6 +91,57 @@ class ApprovedDepthAlgorithmTests(unittest.TestCase):
         self.assertEqual(proof["matched_depth_units"],4)
         self.assertGreater(proof["stress_profit"],0)
 
+    def test_single_discount_ask_survives_buy_only_stress(self):
+        # Removing the only cheap source ask would reject a genuine purchase
+        # opportunity even though replacement Jita BUY depth is sufficient.
+        asks=[order(1, 10_000_000, 1)]
+        bids=[order(2, 100_000_000, 1, buy=True),
+              order(3, 85_000_000, 1, buy=True)]
+        policy=Policy(sales_tax=0)
+        proof=market_proof(
+            asks,bids,source_location=SOURCE,destination_location=JITA,
+            type_id=41058,volume_m3=1,haul_isk=0,policy=policy,
+            allowed=True,fresh=True)
+        self.assertEqual(proof["status"],"MAIL")
+        self.assertEqual(proof["quantity"],1)
+        self.assertEqual(proof["profit"],90_000_000)
+        self.assertEqual(proof["stress_profit"],75_000_000)
+
+    def test_buy_stress_must_strictly_exceed_fifty_million(self):
+        asks=[order(1,10_000_000,1)]
+        bids=[order(2,100_000_000,1,buy=True),
+              order(3,60_000_000,1,buy=True)]
+        policy=Policy(sales_tax=0)
+        proof=market_proof(
+            asks,bids,source_location=SOURCE,destination_location=JITA,
+            type_id=41058,volume_m3=1,haul_isk=0,policy=policy,
+            allowed=True,fresh=True)
+        self.assertEqual(proof["profit"],90_000_000)
+        self.assertEqual(proof["stress_profit"],50_000_000)
+        self.assertEqual(proof["status"],"WATCH")
+        self.assertEqual(proof["reason"],"BELOW_GATE_OR_STRESS")
+        bids[1]=order(3,60_000_001,1,buy=True)
+        passed=market_proof(
+            asks,bids,source_location=SOURCE,destination_location=JITA,
+            type_id=41058,volume_m3=1,haul_isk=0,policy=policy,
+            allowed=True,fresh=True)
+        self.assertEqual(passed["status"],"MAIL")
+        self.assertEqual(passed["stress_profit"],50_000_001)
+
+    def test_limited_fallback_buy_depth_selects_smaller_lot(self):
+        asks=[order(1,10_000_000,10)]
+        bids=[order(2,110_000_000,10,buy=True),
+              order(3,80_000_000,3,buy=True)]
+        policy=Policy(sales_tax=0)
+        self.assertIn(3,candidate_quantities(asks,bids,0))
+        proof=market_proof(
+            asks,bids,source_location=SOURCE,destination_location=JITA,
+            type_id=41058,volume_m3=1,haul_isk=0,policy=policy,
+            allowed=True,fresh=True)
+        self.assertEqual(proof["status"],"MAIL")
+        self.assertEqual(proof["quantity"],3)
+        self.assertEqual(proof["stress_profit"],210_000_000)
+
     def test_unverified_freight_never_creates_optimistic_mail(self):
         asks=[order(1,10,10),order(2,11,10)]
         bids=[order(3,100,10,buy=True),order(4,99,10,buy=True)]
