@@ -10,6 +10,7 @@ import math
 import os
 from datetime import datetime, timezone
 from pathlib import Path
+from v4.engine import Policy
 
 SCHEMA = 1
 JITA = 60003760
@@ -67,7 +68,10 @@ def _discovered_key(proof: dict) -> str | None:
                                             "BELOW_GATE_OR_STRESS")):
             return None
         if not all((_number(proof.get(field)) or 0) > 0
-                   for field in ("net_profit", "roi", "stress_profit", "cost")):
+                   for field in ("net_profit", "stress_profit", "cost")):
+            return None
+        if (_number(proof.get("roi")) is None or
+                _number(proof.get("roi")) < Policy().min_roi):
             return None
         included = proof.get("included_items")
         if not isinstance(included, dict) or not included:
