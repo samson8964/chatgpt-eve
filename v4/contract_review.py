@@ -111,6 +111,9 @@ def make_review(root: Path, *, limit: int = MAX_CANDIDATES) -> dict:
                 "stress_profit_snapshot": stress,
                 "included_items": included,
                 "source_location": proof.get("source_location"),
+                "source_security_band": proof.get("source_security_band"),
+                "source_station_name": proof.get("source_station_name"),
+                "haul_model": proof.get("haul_model"),
                 "expires_at": str(proof.get("expires_at") or ""),
                 "reason": reason,
                 "review_tier": ("MODEL_CANDIDATE" if proof.get("model_candidate") is True
