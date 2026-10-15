@@ -25,6 +25,7 @@ from v4.catalog import ensure_catalog, blueprint_instance_kind
 from v4.market_depth import top_price_levels, station_sell_census
 from v4.market_execution import gross_depth_upper_bound
 from v4.sources import market_dataframe, contract_dataframes
+from v4.npc_station_catalog import load_catalog
 
 JITA = 60003760
 KNOWN_STATIONS = {'jita': JITA, 'amarr': 60008494, 'dodixie':60011866}
@@ -82,7 +83,8 @@ def _secure_route_jumps(source_system, dest_system):
         return None
 
 
-def haul(source,dest,volume,stations):
+def haul(source,dest,volume,stations,npc_stations=None):
+    """Research-only transport estimate, never a verified route quotation."""
     if source==dest:
         return 0
     if source in KNOWN_STATIONS.values() and dest in KNOWN_STATIONS.values():
@@ -91,6 +93,14 @@ def haul(source,dest,volume,stations):
             return None
         jumps=_secure_route_jumps(int(a['system']),int(b['system']))
         return 2_000_000+200*volume*jumps if jumps is not None else None
+    if dest==JITA and npc_stations and source in npc_stations:
+        band=npc_stations[source].get('band')
+        if band=='HIGH':
+            return 15_000_000+750*volume
+        if band=='LOW':
+            # Lowsec hauling risk buffer: safe route/transport not verified.
+            return 50_000_000+2500*volume
+        return None
     if source in (x[0] for x in STRUCTURES.values()) or dest in (x[0] for x in STRUCTURES.values()):
         return 10_000_000+500*volume
     return None
@@ -98,6 +108,13 @@ def haul(source,dest,volume,stations):
 
 
 def run(market_path,contract_path,output,api_key=''):
+    # CCP SDE installed once in EVE-V4-Data/reference. Never fetched hourly.
+    target=Path(output).resolve()
+    data_root=(target.parent.parent.parent if target.parent.parent.name=='runs'
+               else target.parent)
+    npc_reference=load_catalog(data_root)
+    npc_stations=({int(k):v for k,v in npc_reference['stations'].items()}
+                  if npc_reference else {})
     raw_market=market_dataframe(Path(market_path))
     contracts,items=contract_dataframes(Path(contract_path))
     structures,structure_health=all_structure_orders(api_key)
@@ -163,10 +180,11 @@ def run(market_path,contract_path,output,api_key=''):
         # This is a safe ceiling: fees, haul and min-volume can only LOWER it.
         if gross_depth_upper_bound(asks,bids)>=POLICY.profit_floor:
             potential_pairs.append((source,JITA,typ))
-    # Jita-to-Jita public contracts (least ambiguous, no transport) and
-    # approved other station contracts. BPC/manufacturing is NOT implemented.
+    # Expand CONTRACT source scope only. Keep MARKET approval unchanged.
+    # NPC high/low security verified by CCP SDE, never ID-range guesses.
+    approved_contracts=approved | set(npc_stations)
     cash_contracts=contracts[(contracts['type'].astype(str).str.lower()=='item_exchange')
-                             & contracts['start_location_id'].isin(approved)].copy()
+                             & contracts['start_location_id'].isin(approved_contracts)].copy()
     ids=set(t for _,_,t in potential_pairs)
     # EVE item-exchange contracts can also REQUEST additional items. Treating
     # only the included side as a cash-only purchase would invent profit.
@@ -247,7 +265,7 @@ def run(market_path,contract_path,output,api_key=''):
                        for t,qty in by_contract[cid].items())
                    if all(v is not None and math.isfinite(v) and v>0
                           for v in item_volumes) else None)
-        haul_estimate=(haul(contract_location,JITA,volume_m3,stations)
+        haul_estimate=(haul(contract_location,JITA,volume_m3,stations,npc_stations)
                        if volume_m3 is not None else None)
         proof=contract_proof(row,by_contract[cid],jita_bids,volumes,
             policy=POLICY,haul_isk=haul_estimate,allowed=True,fresh=True,
@@ -265,6 +283,15 @@ def run(market_path,contract_path,output,api_key=''):
                      contract_blueprint_evidence=dict(bp_states[cid]),
                      included_volumes={str(i):volumes.get(i) for i in by_contract[cid]},
                      source_location=contract_location,
+                     source_security=(npc_stations.get(contract_location) or {}).get('security'),
+                     source_security_band=(npc_stations.get(contract_location) or {}).get('band'),
+                     source_station_name=(npc_stations.get(contract_location) or {}).get('name'),
+                     haul_model=('NPC_HIGHSEC_CONSERVATIVE_UNVERIFIED'
+                                 if (npc_stations.get(contract_location) or {}).get('band')=='HIGH'
+                                 and contract_location not in KNOWN_STATIONS.values() else
+                                 'NPC_LOWSEC_RISK_BUFFER_UNVERIFIED'
+                                 if (npc_stations.get(contract_location) or {}).get('band')=='LOW'
+                                 else 'LEGACY_STATION_OR_STRUCTURE_ESTIMATE'),
                      destination_location=JITA,
                      jita_exit_buy_orders_only=True,
                      expires_at=str(row.get('date_expired','')))
@@ -300,13 +327,23 @@ def run(market_path,contract_path,output,api_key=''):
        contract_requested_items_excluded=requested_contracts_excluded,
        contract_jita_examined=jita_contract_count,
        contract_approved_locations_examined=len(local_contracts),
+       npc_catalog_status=('INSTALLED_SDE_FULL_NPC_HIGH_LOW'
+                           if npc_reference else 'NOT_INSTALLED_LEGACY_CONTRACT_SCOPE'),
+       npc_catalog_sde_version=(npc_reference or {}).get('sde_version'),
+       npc_catalog_highsec_stations=(npc_reference or {}).get('highsec_stations'),
+       npc_catalog_lowsec_stations=(npc_reference or {}).get('lowsec_stations'),
+       npc_contracts_approved_for_deep_analysis=int(
+           local_contracts['start_location_id'].isin(set(npc_stations)).sum()),
+       npc_contract_scope_definition='CCP_SDE_NPC_STATIONS_WITH_POSITIVE_SYSTEM_SECURITY',
        contract_pricing_basis='JITA_4_4_BUY_DEPTH_SNAPSHOT',
        contract_blueprint_states={state:sum(states.get(state,0) for states in bp_states.values())
                                   for state in ('BPC','BPO','UNKNOWN_BLUEPRINT')},
        proof_count=len(proofs),model_candidates=sum(x.get('model_candidate') is True for x in proofs),
        formal_candidates=sum(x.get('status')=='MAIL' for x in proofs),
        reason_counts=dict(reasons),candidate_preview=[p for p in proofs if p.get('status')=='MAIL'][:10],
-       warnings=['All snapshot-derived model candidates downgraded to WATCH: no live ESI order verification',
+       warnings=([] if npc_reference else
+                 ['NPC SDE catalog not installed; contract coverage is LEGACY ONLY'])
+                + ['All snapshot-derived model candidates downgraded to WATCH: no live ESI order verification',
                  'Full-universe public contracts/markets census succeeded separately',
                  'Non-verified destination routes and BPC are not production mail-eligible',
                  'ALL contract item valuations use Jita 4-4 BUY order-depth snapshots regardless of pickup location',
