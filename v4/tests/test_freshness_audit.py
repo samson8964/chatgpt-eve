@@ -58,7 +58,8 @@ class FreshnessAuditTests(unittest.TestCase):
             self.assertTrue(last["market"]["source_timestamp_changed"])
             self.assertEqual(last["candidate_diff"]["retained_profit_unchanged"],2)
             self.assertEqual(last["structures"]["cj"]["order_rows"],85)
-            self.assertIsNone(last["structures"]["cj"]["esi_order_book_sha256"])
+            self.assertFalse(last["structures"]["cj"]["book_fingerprint_recorded"])
+            self.assertIsNone(last["structures"]["cj"]["book_changed_from_previous_run"])
             self.assertNotIn("abc",str(output))
             self.assertNotIn("ghi",str(output))
 
@@ -78,6 +79,36 @@ class FreshnessAuditTests(unittest.TestCase):
             self.assertEqual(last["candidate_diff"]["new"],1)
             self.assertEqual(last["candidate_diff"]["retained_profit_changed"],1)
             self.assertEqual(last["candidate_diff"]["retained_profit_unchanged"],1)
+
+    def test_two_new_private_snapshots_distinguish_frozen_and_changed_books(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            names = ["20261015T012300Z-a","20261015T032300Z-b",
+                     "20261015T052300Z-c"]
+            for name in names:
+                self.write_run(root,name,market_sha="abc",
+                               contract_sha="def",market_ts="2026-10-15T01:20:00Z",
+                               contract_ts="2026-10-15T01:15:00Z",
+                               profit=60000000)
+            hashes=[{"four_h":"aaa","cj":"ccc","o4t":"zzz"},
+                    {"four_h":"bbb","cj":"ccc","o4t":"zzz"},
+                    {"four_h":"bbb","cj":"ccc","o4t":"yyy"}]
+            for name,book in zip(names,hashes):
+                folder=root/"runs"/name
+                deep=folder/"deep_shadow.json"
+                obj=json.loads(deep.read_text("utf-8"))
+                obj["private_market_order_book_sha256"]=book
+                deep.write_text(json.dumps(obj),encoding="utf-8")
+            output=inspect(root,last=3)
+            second,third=output["history"][1:]
+            self.assertTrue(second["structures"]["four_h"]["book_changed_from_previous_run"])
+            self.assertFalse(second["structures"]["cj"]["book_changed_from_previous_run"])
+            self.assertFalse(second["structures"]["o4t"]["book_changed_from_previous_run"])
+            self.assertFalse(third["structures"]["four_h"]["book_changed_from_previous_run"])
+            self.assertTrue(third["structures"]["o4t"]["book_changed_from_previous_run"])
+            self.assertNotIn("aaa",str(output))
+            self.assertNotIn("bbb",str(output))
+            self.assertNotIn("yyy",str(output))
 
     def test_invalid_limits_and_absent_scans(self):
         with tempfile.TemporaryDirectory() as temp:
