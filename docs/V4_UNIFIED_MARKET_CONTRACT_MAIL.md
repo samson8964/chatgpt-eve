@@ -271,3 +271,32 @@ Update both `v4/engine.py` and `v4/market_execution.py`, plus
 with stressed profit <=50m ISK. This is still SHADOW research, never a claim of
 a live executable deal. Local Windows activation requires branch pull and a
 fresh observed scan; GitHub CI alone cannot deploy Windows code.
+
+
+## 2026-10-15: approved ten newest-first opportunities per mail lane
+
+Gmail and BOTH EVE in-game recipients must use the SAME combined digest:
+up to **10 market** and **10 contract** research opportunities in each run.
+Sort each category by the **first completed SHADOW scan in which that
+station/type (market) or contract ID (contract) became an eligible research
+opportunity**, newest first. Within a common first-seen timestamp, sort by
+current estimated net profit (descending). The mail body labels each row
+`首见MM-DD HH:MM` in Beijing time. Do NOT use the latest scan timestamp
+as the discovery time, because otherwise recurring old opportunities would
+continuously float to the top.
+
+The read-only saved `runs/*/all_proofs.jsonl` history bootstraps a durable,
+atomic `EVE-V4-Data/mail-review/opportunity-first-seen.json` index on
+the first review after installation. Subsequent reviews incrementally index
+newly completed runs only. No historical dedup is applied to candidate
+selection, and no existing alert is suppressed due to having appeared in
+a prior mail. The history index is presentation metadata only; it cannot
+alter the full market scan or its profit/ROI/stress policy.
+
+Do not truncate the contract candidates by profit before this ordering:
+the unified review obtains all eligible contract research leads first.
+Preserve existing Gmail/game idempotency receipts, 2-hour schedule, review-only
+status, and per-recipient fan-out. A first-seen family key does not imply an
+individual market ORDER exists or is executable now; always show snapshot
+warning. Local Windows must pull this branch before its next scheduled scan
+can use the new formatter.
