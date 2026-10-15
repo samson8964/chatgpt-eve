@@ -222,11 +222,12 @@ No official LIVE trading alerts are enabled by this change.
    THIS depth-aware ceiling, not best-price * all local sell volume.
    Full fee/ROI/haul/stress calculation remains downstream.
 3. **Quantity/lot selection.** The deep engine checks profitable order
-   boundaries, loss-of-best-order boundaries, minimum fills, and integer
+   boundaries, loss-of-best-Jita-BUY boundaries, minimum fills, and integer
    neighbours near economic gate crossings. It separately prices transport
    on the selected total lot's physical volume and requires an alternate
-   stress fill for the SAME lot quantity. Among lots passing unchanged
-   `50m ISK / ROI >=10% / density >=2000 ISK/m3 / stressed net >0` gates,
+   buy-side-only stress fill for the SAME lot quantity. Normal lots must pass
+   `50m ISK / ROI >=10% / density >=2000 ISK/m3`, and stressed net
+   must strictly exceed `50m ISK` after the best Jita BUY order disappears.
    it chooses highest net profit, not maximum mechanically crossed volume.
    Unevaluated or unsupported minimum-volume cases fail closed.
 4. **Matched VWAPs.** Each market proof stores
@@ -244,3 +245,29 @@ No official LIVE trading alerts are enabled by this change.
    The local machine must independently pull this commit; a passing GitHub
    Action does not update or start a Windows scheduled task.
    The only outbound mail remains clearly marked `V4捡漏待核`.
+
+## 2026-10-15: approved asymmetric market stress and stricter exit floor
+
+The source's cheapest sell order is the opportunity being purchased, NOT an
+inventory-risk stress input. Preserve ALL actual source asks, including a single
+discounted order, during quantity generation and the stress calculation.
+Before any future LIVE purchase, recheck source ask ID, price, available
+quantity/minimum fill and station access; if the target ask vanished, do not buy.
+
+For the stress scenario, drop **only the highest-priced Jita IV-4 BUY order**
+and require the remaining buy order book to execute **the same selected lot**
+after tax and full-lot estimated hauling with net profit **strictly greater than
+50,000,000 ISK**. Normal profit floor, ROI>=10%, and density>=2,000 ISK/m3
+stay unchanged. A 50,000,000 ISK stressed net is NOT sufficient.
+No substitution of fewer units for the same-lot stress test.
+
+Fix companion latent omission: when there is only ONE valid candidate-quantity
+breakpoint, always evaluate it; the old adjacent-pairs-only loop silently
+discarded that candidate. Retain the prior actual-book-depth optimistic
+prefilter and no TOP-N or historical-seen truncation.
+
+Update both `v4/engine.py` and `v4/market_execution.py`, plus
+`v4/unified_review.py` to fail closed on any legacy/replayed model candidate
+with stressed profit <=50m ISK. This is still SHADOW research, never a claim of
+a live executable deal. Local Windows activation requires branch pull and a
+fresh observed scan; GitHub CI alone cannot deploy Windows code.
