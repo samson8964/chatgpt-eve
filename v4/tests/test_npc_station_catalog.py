@@ -10,7 +10,12 @@ from pathlib import Path
 from v4.npc_station_catalog import (
     compile_sde_zip, install, load_catalog, security_band, INDEX
 )
-from v4.deep_scan import haul, JITA
+# The lightweight Reliability CI omits pandas/requests; only the isolated
+# full-dependency suite can import v4.deep_scan for route-cost tests.
+try:
+    from v4.deep_scan import haul, JITA
+except ImportError:
+    haul, JITA = None, 60003760
 from v4.contract_review import make_review
 
 
@@ -54,6 +59,7 @@ class NPCSecurityCatalogTests(unittest.TestCase):
             self.assertTrue((root/INDEX).is_file())
             self.assertTrue(archive.is_file())  # user's pre-downloaded ZIP is preserved
 
+    @unittest.skipIf(haul is None, "full market dependencies not available")
     def test_remote_npc_haul_has_security_cost_not_free_shipping(self):
         stations={JITA:{"system":30000142,"region":10000002}}
         sources={
