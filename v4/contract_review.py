@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import math
 from collections import Counter
+from v4.engine import Policy
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -79,7 +80,7 @@ def make_review(root: Path, *, limit: int = MAX_CANDIDATES) -> dict:
             # complete snapshot buy-depth/value calculation may be listed.
             if not (profit is not None and roi is not None and
                     stress is not None and cost is not None and
-                    profit > 0 and roi > 0 and stress > 0 and cost > 0):
+                    profit > 0 and roi >= Policy().min_roi and stress > 0 and cost > 0):
                 continue
             reason = str(proof.get("reason") or "")
             if reason not in ("LIVE_ORDER_AND_CONTRACT_NOT_REVALIDATED",
