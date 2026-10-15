@@ -15,10 +15,11 @@ from pathlib import Path
 
 from v4.contract_review import make_review as contract_review
 from v4.engine import Policy
+from v4.discovery_history import first_seen, order_by_discovery
 
 JITA = 60003760
 WORKER = "https://eve-contract-opener.99617224.workers.dev"
-MAX_EACH = 5
+MAX_EACH = 10
 LOCATION_NAMES = {
     60003760:"吉他4-4", 60008494:"Amarr", 60011866:"Dodixie",
     1053970513596:"4-H", 1049588174021:"C-J",
@@ -79,7 +80,8 @@ def five_level_label(proof: dict, key: str, name: str) -> str:
 
 def make_review(root: Path, *, limit_each: int = MAX_EACH) -> dict:
     root = Path(root)
-    review = contract_review(root, limit=max(MAX_EACH,limit_each))
+    # Collect all eligible contracts; truncate only AFTER first-seen ordering.
+    review = contract_review(root, limit=None)
     folder = root / "runs" / review["run_folder"]
     report = json.loads((folder / "deep_shadow.json").read_text(encoding="utf-8"))
     if report.get("status") != "SHADOW_ONLY_NO_LIVE_ALERTS":
@@ -148,8 +150,15 @@ def make_review(root: Path, *, limit_each: int = MAX_EACH) -> dict:
     expected=int(report.get("market_proofs_examined",-1))
     if examined != expected:
         raise RuntimeError("MARKET_PROOF_COUNT_MISMATCH")
-    market.sort(key=lambda row:(-row["net_profit_snapshot"],-row["roi_snapshot"],
-                                row["source_location"],row["type_id"]))
+    # First discovery is NOT reset on repeat scans or changing quantities.
+    # Shared by Gmail and both in-game recipients, with one durable local index.
+    seen = first_seen(root, folder.name)
+    market = order_by_discovery(market, kind="market", seen=seen,
+                                fallback_run=folder.name)
+    contracts = order_by_discovery(review.get("research_leads") or [],
+                                   kind="contract", seen=seen,
+                                   fallback_run=folder.name)
+    cap = max(0, min(int(limit_each), MAX_EACH))
     review.update({
         "report_type":"V4_UNIFIED_MARKET_AND_CONTRACT_REVIEW_ONLY",
         "market_pricing_basis":report["market_pricing_basis"],
@@ -158,11 +167,26 @@ def make_review(root: Path, *, limit_each: int = MAX_EACH) -> dict:
         "market_proofs_examined":examined,
         "market_rejection_reasons":dict(rejected.most_common(8)),
         "market_research_leads_total":len(market),
-        "market_research_leads":market[:max(0,min(limit_each,12))],
+        "market_research_leads":market[:cap],
         "contract_research_leads_total":review.get("research_leads_total",0),
-        "contract_research_leads":review.get("research_leads",[])[:max(0,min(limit_each,12))],
+        "contract_research_leads":contracts[:cap],
     })
     return review
+
+
+def discovered_label(lead: dict) -> str:
+    """Discovery timestamp for both Gmail and EVE, in Beijing local time."""
+    stamp = lead.get("first_seen_at")
+    if not stamp:
+        return ""
+    try:
+        instant = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
+        if instant.tzinfo is None:
+            return ""
+        local = instant.astimezone(timezone(timedelta(hours=8)))
+        return " 首见" + local.strftime("%m-%d %H:%M")
+    except (ValueError, TypeError, OverflowError):
+        return ""
 
 
 def _selected(review: dict):
@@ -203,6 +227,7 @@ def render(review: dict, *, game: bool = False) -> tuple[str, str]:
                 name = f"商品 {tid} {WORKER}/m/{tid}"
             lines.append(
                 f"{n}. {name} ×{p['quantity']} {place(p['source_location'])}"
+                f"{discovered_label(p)}"
                 f" 净{yi(p['net_profit_snapshot'])} ROI{p['roi_snapshot']*100:.0f}%"
                 f"｜成交均 本地卖{unit_price(p['source_vwap_isk_per_unit'])}"
                 f"→吉买{unit_price(p['jita_vwap_isk_per_unit'])}"
@@ -218,6 +243,7 @@ def render(review: dict, *, game: bool = False) -> tuple[str, str]:
                 name = f"合同 {cid} {WORKER}/c/{cid}"
             lines.append(
                 f"{n}. {name} {place(p.get('source_location'))}"
+                f"{discovered_label(p)}"
                 f" 价{yi(p.get('contract_price'))}"
                 f" 净{yi(p['net_profit_snapshot'])} ROI{p['roi_snapshot']*100:.0f}%")
     if not pairs and not contracts:
@@ -247,6 +273,7 @@ def render_html(review: dict) -> tuple[str, str]:
                 blocks.append(
                     f'<p>{n}. <a href="{WORKER}/m/{tid}">查看商品 {tid}</a>'
                     f' ×{int(p["quantity"])} {place_name}'
+                    f'{html.escape(discovered_label(p))}'
                     f' ｜净{yi(p["net_profit_snapshot"])}'
                     f' ｜ROI {float(p["roi_snapshot"])*100:.0f}%'
                     f' ｜成交均 本地卖{unit_price(p["source_vwap_isk_per_unit"])}'
@@ -260,7 +287,8 @@ def render_html(review: dict) -> tuple[str, str]:
                 place_name = html.escape(place(p.get("source_location")))
                 blocks.append(
                     f'<p>{n}. <a href="{WORKER}/c/{cid}">打开合同 {cid}</a>'
-                    f' {place_name} ｜价{yi(p.get("contract_price"))}'
+                    f' {place_name}{html.escape(discovered_label(p))}'
+                    f' ｜价{yi(p.get("contract_price"))}'
                     f' ｜净{yi(p["net_profit_snapshot"])}'
                     f' ｜ROI {float(p["roi_snapshot"])*100:.0f}%</p>')
         if not pairs and not contracts:
