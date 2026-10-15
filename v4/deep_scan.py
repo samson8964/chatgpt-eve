@@ -8,6 +8,7 @@ No mail is sent; output is intended for regression and live-permission auditing.
 from __future__ import annotations
 import json
 import math
+import hashlib
 import os
 import uuid
 from collections import defaultdict
@@ -118,6 +119,21 @@ def run(market_path,contract_path,output,api_key=''):
             len(authorized_orders)+len(structure_inactive)!=len(structures)):
         raise RuntimeError('SOURCE_ORDER_ACCOUNTING_MISMATCH')
     all_orders=public_orders+authorized_orders
+    # Hash each complete private ESI structure book without persisting
+    # individual order details. Stable ordering makes cross-run equality
+    # meaningful. A SHA match means the tracked active book did not change.
+    # This telemetry is informational, not a trade/live freshness gate.
+    private_market_hashes={}
+    for name,(station_id,_) in STRUCTURES.items():
+        if (structure_health.get(name) or {}).get('status') != 'COMPLETE':
+            private_market_hashes[name]=None
+            continue
+        rows=sorted((o for o in authorized_orders if o.location_id==station_id),
+                    key=lambda o:o.order_id)
+        fields=[(o.order_id,o.type_id,o.buy,o.price,o.remaining,
+                 o.minimum,o.range) for o in rows]
+        private_market_hashes[name]=hashlib.sha256(
+            json.dumps(fields,separators=(',',':')).encode('utf-8')).hexdigest()
     markets=defaultdict(list)
     for o in all_orders:
         markets[(o.location_id,o.type_id,o.buy)].append(o)
@@ -269,7 +285,9 @@ def run(market_path,contract_path,output,api_key=''):
        source_input_integrity=('PARTIAL_QUARANTINED' if quarantined else 'ALL_PARSED'),
        source_locations_total=len({o.location_id for o in all_orders}),
        source_types_total=len({o.type_id for o in all_orders}),contract_rows=len(contracts),
-       structure_health=structure_health,metadata_missing=missing,metadata_requested=len(ids),
+       structure_health=structure_health,
+       private_market_order_book_sha256=private_market_hashes,
+       metadata_missing=missing,metadata_requested=len(ids),
        catalog_meta=catalog.meta,catalog_coverage=coverage,
        verified_approved_locations=len(approved),market_potential_pairs=len(potential_pairs),
        market_pricing_basis='JITA_4_4_BUY_DEPTH_SNAPSHOT',
