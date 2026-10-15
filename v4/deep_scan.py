@@ -265,8 +265,14 @@ def run(market_path,contract_path,output,api_key=''):
                        for t,qty in by_contract[cid].items())
                    if all(v is not None and math.isfinite(v) and v>0
                           for v in item_volumes) else None)
-        haul_estimate=(haul(contract_location,JITA,volume_m3,stations,npc_stations)
-                       if volume_m3 is not None else None)
+        # Preserve legacy four-argument haul call for already monitored
+        # stations (and existing tests). New SDE-only stations use NPC rates.
+        if volume_m3 is None:
+            haul_estimate=None
+        elif contract_location in npc_stations and contract_location not in KNOWN_STATIONS.values():
+            haul_estimate=haul(contract_location,JITA,volume_m3,stations,npc_stations)
+        else:
+            haul_estimate=haul(contract_location,JITA,volume_m3,stations)
         proof=contract_proof(row,by_contract[cid],jita_bids,volumes,
             policy=POLICY,haul_isk=haul_estimate,allowed=True,fresh=True,
             item_classifications=classes)
