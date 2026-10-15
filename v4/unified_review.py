@@ -14,6 +14,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from v4.contract_review import make_review as contract_review
+from v4.engine import Policy
 
 JITA = 60003760
 WORKER = "https://eve-contract-opener.99617224.workers.dev"
@@ -121,7 +122,7 @@ def make_review(root: Path, *, limit_each: int = MAX_EACH) -> dict:
             jita_vwap = _amount(row.get("jita_vwap_isk_per_unit"))
             if (profit is None or roi is None or stress is None or capital is None or
                     source_vwap is None or jita_vwap is None or
-                    profit <= 0 or roi <= 0 or stress <= 0 or capital <= 0 or
+                    profit <= 0 or roi <= 0 or stress <= Policy().profit_floor or capital <= 0 or
                     source_vwap <= 0 or jita_vwap <= 0 or
                     row.get("quantity_optimized") is not True):
                 continue
