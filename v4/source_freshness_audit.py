@@ -196,6 +196,26 @@ def audit(root: Path, *, deep: bool=False):
         "reported_contracts":full.get("contracts"),
         "source_validation_limit":"Checks V4 input/download metadata; does NOT prove every upstream region/page/contract is complete, and does NOT verify live executable prices.",
     }
+    # Private structure page-count validation does not reveal ESI cache age.
+    # Compare independently persisted full-book digests; equality may simply
+    # mean the market was quiet, so never label it stale based on hash alone.
+    deep_path=folder/"deep_shadow.json"
+    if deep_path.is_file():
+        d=json.loads(deep_path.read_text(encoding="utf-8"))
+        current_hashes=d.get("private_market_order_book_sha256") or {}
+        old_hashes={}
+        if prev_run:
+            old_path=Path(root)/"runs"/prev_run/"deep_shadow.json"
+            if old_path.is_file():
+                old_hashes=(json.loads(old_path.read_text(encoding="utf-8"))
+                            .get("private_market_order_book_sha256") or {})
+        outcome["authorized_structure_order_books"]={
+            lane:{"sha256":digest,
+                  "unchanged_since_previous_run":
+                    (digest==old_hashes[lane] if digest and old_hashes.get(lane)
+                     else None),
+                  "esi_cache_last_modified_age_verified":False}
+            for lane,digest in current_hashes.items()}
     if deep:
         outcome["market_esi_cache_timestamp_distribution"]=market_row_freshness(
             source_dir/"market_orders.csv.bz2",start)
