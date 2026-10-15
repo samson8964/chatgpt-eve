@@ -127,7 +127,7 @@ def inspect(root: Path, *, last: int = 12) -> dict:
             a.pop("sha256", None)
         for name, station in current["structures"].items():
             prior = (prev or {}).get("structures", {}).get(name) or {}
-            a, b = station.pop("_private_hash"), prior.get("_private_hash")
+            a, b = station.get("_private_hash"), prior.get("_private_hash")
             station["book_fingerprint_recorded"] = bool(a)
             station["book_changed_from_previous_run"] = (
                 a != b if a and b else None)
@@ -152,6 +152,10 @@ def inspect(root: Path, *, last: int = 12) -> dict:
         current.pop("model_market_keys",None)
         current.pop("_profit_values",None)
         current.pop("_proof_status",None)
+    # Strip all order-book hashes only after comparisons are complete.
+    for item in completed:
+        for station in item["structures"].values():
+            station.pop("_private_hash", None)
     return {
         "status":"V4_FRESHNESS_HISTORY",
         "runs_compared":len(completed),
