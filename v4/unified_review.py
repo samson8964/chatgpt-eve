@@ -170,6 +170,9 @@ def make_review(root: Path, *, limit_each: int = MAX_EACH) -> dict:
         "market_research_leads":market[:cap],
         "contract_research_leads_total":review.get("research_leads_total",0),
         "contract_research_leads":contracts[:cap],
+        # Legacy shared receipt fields must describe the ACTUALLY displayed
+        # contract leads, not the unbounded unsorted source pool.
+        "research_leads":contracts[:cap],
     })
     return review
 
