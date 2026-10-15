@@ -149,11 +149,12 @@ def inspect(root: Path, *, last: int = 12) -> dict:
         else:
             current["candidate_diff"] = None
         current["model_candidate_keys"] = len(current["model_market_keys"] or [])
-        current.pop("model_market_keys",None)
-        current.pop("_profit_values",None)
-        current.pop("_proof_status",None)
-    # Strip all order-book hashes only after comparisons are complete.
+    # Keep preceding run evidence until every consecutive comparison is done.
+    # Then strip all private/source fingerprints and detailed candidate IDs.
     for item in completed:
+        item.pop("model_market_keys",None)
+        item.pop("_profit_values",None)
+        item.pop("_proof_status",None)
         for station in item["structures"].values():
             station.pop("_private_hash", None)
     return {
