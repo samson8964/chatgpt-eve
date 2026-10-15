@@ -265,6 +265,8 @@ def render(review: dict, *, game: bool = False) -> tuple[str, str]:
                 f" 净{yi(p['net_profit_snapshot'])} ROI{p['roi_snapshot']*100:.0f}%")
     if not pairs and not contracts:
         lines.append("本轮暂无候选。")
+    if review.get("npc_catalog_status") == "NOT_INSTALLED_LEGACY_CONTRACT_SCOPE":
+        lines.append("注意：NPC高低安目录未安装，本轮合同仍仅覆盖旧站点。")
     lines.append("快照待核，不代表可立即成交。")
     # EVE ESI supports <br>, and actual native in-client <url=...> syntax.
     return subject, ("<br>" if game else "\n").join(lines)
@@ -310,6 +312,8 @@ def render_html(review: dict) -> tuple[str, str]:
                     f' ｜ROI {float(p["roi_snapshot"])*100:.0f}%</p>')
         if not pairs and not contracts:
             blocks.append("<p>本轮暂无候选。</p>")
+    if review.get("npc_catalog_status") == "NOT_INSTALLED_LEGACY_CONTRACT_SCOPE":
+        blocks.append('<p>注意：NPC高低安目录未安装，本轮合同仍仅覆盖旧站点。</p>')
     blocks.append('<p style="color:#777;font-size:12px">快照待核，不代表可立即成交。</p>')
     body = ('<!doctype html><html><head><meta charset="utf-8"></head>'
             '<body style="font-family:Arial,sans-serif;font-size:14px;'
