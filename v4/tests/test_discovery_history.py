@@ -107,6 +107,9 @@ class DiscoveryMailTests(unittest.TestCase):
             c=review["contract_research_leads"]
             self.assertEqual(len(m),10)
             self.assertEqual(len(c),10)
+            self.assertEqual(len(review["research_leads"]),10)
+            self.assertEqual([x["contract_id"] for x in review["research_leads"]],
+                             [x["contract_id"] for x in c])
             self.assertEqual(review["market_research_leads_total"],11)
             self.assertEqual(review["contract_research_leads_total"],11)
             self.assertNotIn(34,[x["type_id"] for x in m])
