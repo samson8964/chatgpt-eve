@@ -123,8 +123,8 @@ def inspect(root: Path, *, last: int = 12) -> dict:
             a["source_timestamp_changed"] = (
                 a["source_timestamp"] != b.get("source_timestamp")
                 if a["source_timestamp"] and b.get("source_timestamp") else None)
-            # Avoid printing hashes in the concise report; yes/no is enough.
-            a.pop("sha256", None)
+            # Keep prior hashes until ALL consecutive runs are compared.
+            # Redact them only at the final output stage.
         for name, station in current["structures"].items():
             prior = (prev or {}).get("structures", {}).get(name) or {}
             a, b = station.get("_private_hash"), prior.get("_private_hash")
@@ -152,6 +152,8 @@ def inspect(root: Path, *, last: int = 12) -> dict:
     # Keep preceding run evidence until every consecutive comparison is done.
     # Then strip all private/source fingerprints and detailed candidate IDs.
     for item in completed:
+        for source in ("market","contracts"):
+            item[source].pop("sha256", None)
         item.pop("model_market_keys",None)
         item.pop("_profit_values",None)
         item.pop("_proof_status",None)
