@@ -139,7 +139,9 @@ def make_review(root: Path, *, limit: int = MAX_CANDIDATES) -> dict:
         "contract_proofs_audited": observed,
         "contract_rejection_reasons": dict(count.most_common(12)),
         "research_leads_total": len(leads),
-        "research_leads": leads[:max(0, min(int(limit), 50))],
+        # Unified 10-per-category digest must sort the COMPLETE set by discovery
+        # before truncating it; legacy independent callers retain their limit.
+        "research_leads": leads if limit is None else leads[:max(0, min(int(limit), 50))],
         "formal_verified_contracts": 0,
         "live_orders_rechecked": False,
         "live_contract_rechecked": False,
