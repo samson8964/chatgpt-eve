@@ -35,6 +35,20 @@ def place(value) -> str:
     return LOCATION_NAMES.get(n, str(n))
 
 
+def contract_place(lead: dict) -> str:
+    """Identify high/low NPC contract pickup without claiming safe transport."""
+    source = place(lead.get("source_location"))
+    if source in ("吉他4-4", "Amarr", "Dodixie", "4-H", "C-J", "O4T"):
+        return source
+    name = lead.get("source_station_name")
+    band = lead.get("source_security_band")
+    prefix = {"HIGH": "高安NPC", "LOW": "低安NPC"}.get(band, "")
+    if isinstance(name, str) and name.strip():
+        safe = "".join(ch for ch in name if ch not in "<>&" and ord(ch) >= 32)
+        return (prefix + " " if prefix else "") + safe[:95]
+    return (prefix + "空间站 " if prefix else "") + source
+
+
 def beijing_scan_time(run_name) -> str:
     try:
         value = datetime.strptime(str(run_name)[:16], "%Y%m%dT%H%M%SZ")
@@ -245,7 +259,7 @@ def render(review: dict, *, game: bool = False) -> tuple[str, str]:
             else:
                 name = f"合同 {cid} {WORKER}/c/{cid}"
             lines.append(
-                f"{n}. {name} {place(p.get('source_location'))}"
+                f"{n}. {name} {contract_place(p)}"
                 f"{discovered_label(p)}"
                 f" 价{yi(p.get('contract_price'))}"
                 f" 净{yi(p['net_profit_snapshot'])} ROI{p['roi_snapshot']*100:.0f}%")
@@ -287,7 +301,7 @@ def render_html(review: dict) -> tuple[str, str]:
             blocks.append("<p><strong>合同</strong></p>")
             for n, p in enumerate(contracts, 1):
                 cid = int(p["contract_id"])
-                place_name = html.escape(place(p.get("source_location")))
+                place_name = html.escape(contract_place(p))
                 blocks.append(
                     f'<p>{n}. <a href="{WORKER}/c/{cid}">打开合同 {cid}</a>'
                     f' {place_name}{html.escape(discovered_label(p))}'
