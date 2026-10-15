@@ -131,6 +131,14 @@ class UnifiedReviewTests(unittest.TestCase):
             self.assertLess(len(rich),1600)
             self.assertNotIn('审核记录',game)
 
+    def test_missing_npc_reference_warning_in_both_mail_formats(self):
+        review=mocked_contract()
+        review["npc_catalog_status"]="NOT_INSTALLED_LEGACY_CONTRACT_SCOPE"
+        _,plain=render(review,game=True)
+        self.assertIn("NPC高低安目录未安装",plain)
+        _,rich=render_html(review)
+        self.assertIn("NPC高低安目录未安装",rich)
+
     def test_partial_scan_hides_all_candidates(self):
         incomplete=mocked_contract()
         incomplete["coverage_gate"]="PARTIAL_UNVERIFIED"
