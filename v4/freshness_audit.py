@@ -87,13 +87,14 @@ def inspect(root: Path, *, last: int = 12) -> dict:
         contracts["freshness_gate_hours"] = 3
         proof = _proof_summary(folder / "all_proofs.jsonl")
         health = deep.get("structure_health") or {}
+        hashes = deep.get("private_market_order_book_sha256") or {}
         stations = {}
         for name in ("four_h", "cj", "o4t"):
             h = health.get(name) or {}
             stations[name] = {
                 "status": h.get("status"),
                 "order_rows": h.get("orders"),
-                "esi_order_book_sha256": None,
+                "_private_hash": hashes.get(name),
             }
         completed.append({
             "run": folder.name,
@@ -124,6 +125,12 @@ def inspect(root: Path, *, last: int = 12) -> dict:
                 if a["source_timestamp"] and b.get("source_timestamp") else None)
             # Avoid printing hashes in the concise report; yes/no is enough.
             a.pop("sha256", None)
+        for name, station in current["structures"].items():
+            prior = (prev or {}).get("structures", {}).get(name) or {}
+            a, b = station.pop("_private_hash"), prior.get("_private_hash")
+            station["book_fingerprint_recorded"] = bool(a)
+            station["book_changed_from_previous_run"] = (
+                a != b if a and b else None)
         if prev and (current["model_market_keys"] is not None and
                      prev["model_market_keys"] is not None):
             ids = set(current["model_market_keys"])
@@ -152,7 +159,7 @@ def inspect(root: Path, *, last: int = 12) -> dict:
         "notes":[
             "EVE Ref public sources are pulled fresh every scan but may return the same version within their validity window.",
             "SHA changes indicate source compressed bytes differ; whether any particular opportunity changed is a separate comparison.",
-            "Private structure ESI market orders are fetched per scan but historical books were not saved or fingerprinted, so order-row counts cannot prove private price changes.",
+            "Older private ESI market books lacked fingerprints; once two scans include fingerprints, book_changed_from_previous_run reports order-book differences.",
             "Same candidate IDs over successive scans do not prove stale source data.",
             "Per-run research mail receipts suppress duplicates only within a run, not across runs.",
         ],
