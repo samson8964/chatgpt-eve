@@ -43,7 +43,7 @@ class UnifiedReviewTests(unittest.TestCase):
                 "status":"SHADOW_ONLY_NO_LIVE_ALERTS",
                 "market_pricing_basis":"JITA_4_4_BUY_DEPTH_SNAPSHOT",
                 "market_execution_basis":"OPTIMIZED_MATCHED_QUANTITY_AND_VWAP",
-                "market_proofs_examined":4,
+                "market_proofs_examined":5,
                 "market_potential_pairs":4}),encoding="utf-8")
             rows=[
                 {"kind":"market","model_candidate":True,"status":"WATCH",
@@ -56,7 +56,7 @@ class UnifiedReviewTests(unittest.TestCase):
                  "jita_vwap_isk_per_unit":3000000,
                  "executed_sell_cost":200000000,
                  "executed_jita_buy_gross":300000000,
-                 "stress_profit":33000000,"cost":300000000,
+                 "stress_profit":53000000,"cost":300000000,
                  "source_top5_sell":{"group_count":3,
                                     "simple_mean_isk_per_unit":2000000},
                  "jita_top5_buy":{"group_count":5,
@@ -83,12 +83,21 @@ class UnifiedReviewTests(unittest.TestCase):
                  "type_id":37,"quantity":10,"profit":45000000,"roi":.3,
                  "stress_profit":-3000000,"cost":200000000,
                  "reason":"BELOW_GATE_OR_STRESS"},
+                {"kind":"market","model_candidate":True,"status":"WATCH",
+                 "source_location":1053970513596,"destination_location":60003760,
+                 "valuation_location_id":60003760,
+                 "valuation_basis":"JITA_4_4_BUY_DEPTH_SNAPSHOT_NOT_LIVE",
+                 "type_id":38,"quantity":1,"profit":90000000,"roi":.5,
+                 "quantity_optimized":True,"source_vwap_isk_per_unit":10000000,
+                 "jita_vwap_isk_per_unit":100000000,
+                 "executed_sell_cost":10000000,"executed_jita_buy_gross":100000000,
+                 "stress_profit":50000000,"cost":10000000},
             ]
             (folder/"all_proofs.jsonl").write_text(
                 "".join(json.dumps(x)+"\n" for x in rows),encoding="utf-8")
             with patch("v4.unified_review.contract_review",return_value=mocked_contract()):
                 output=make_review(root)
-            self.assertEqual(output["market_proofs_examined"],4)
+            self.assertEqual(output["market_proofs_examined"],5)
             self.assertEqual(output["market_research_leads_total"],1)
             self.assertEqual(output["market_research_leads"][0]["type_id"],34)
             self.assertFalse(output["market_research_leads"][0]["live_verified"])
@@ -104,6 +113,7 @@ class UnifiedReviewTests(unittest.TestCase):
             self.assertIn("待核",title)
             self.assertNotIn("Type 35",game)
             self.assertNotIn("Type 37",game)
+            self.assertNotIn("showinfo:38",game)
             _,gmail=render(output,game=False)
             self.assertIn("/c/236977688",gmail)
             self.assertIn("/m/34",gmail)
