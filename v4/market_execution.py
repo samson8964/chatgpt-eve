@@ -78,17 +78,19 @@ def profitable_breakpoints(asks, bids, sales_tax: float) -> list[int]:
 
 
 def candidate_quantities(asks, bids, sales_tax: float) -> list[int]:
-    """Candidate lots include both normal and best-order-loss breakpoints.
+    """Candidate lots include both normal and top-Jita-BUY-loss breakpoints.
 
-    Adding stressed-depth boundaries prevents choosing a lot that requires
-    more buy-side liquidity than remains if the top bid disappears.
+    Preserve discounted source asks. Adding stressed BUY-depth boundaries
+    prevents choosing a lot that requires more exit liquidity than remains
+    if the best Jita bid disappears.
     """
     base = profitable_breakpoints(asks, bids, sales_tax)
     if not base:
         return []
+    # Keep source asks intact: losing a cheap ask means no pre-purchase trade,
+    # not a stranded inventory position. Model only a lost Jita top BUY order.
     stressed = profitable_breakpoints(
-        [a for a in asks if a.order_id != asks[0].order_id],
-        [b for b in bids if b.order_id != bids[0].order_id], sales_tax)
+        asks, [b for b in bids if b.order_id != bids[0].order_id], sales_tax)
     maximal = base[-1]
     values = set(base)
     values.update(q for q in stressed if 0 < q <= maximal)
