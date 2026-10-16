@@ -49,15 +49,29 @@ def energy_crystal_value_share(included: Mapping[int,int], books: Mapping,
 
 
 def eligible_contract_research(*, net_profit, roi, stress, cost,
-                               crystal_share, category_required: bool) -> bool:
-    """The email lead policy; market candidates use a separate policy."""
+                               crystal_share, category_required: bool,
+                               partial_mode: bool=False) -> bool:
+    """Ordinary contract research, with backwards-compatible legacy mode.
+
+    Partial mode: full bundle purchase price, credited subset liquidation;
+    stress is advisory (not gating); ROI strictly greater than 10%.
+    """
     try:
-        numbers=tuple(float(x) for x in (net_profit,roi,stress,cost))
+        net=float(net_profit)
+        ratio=float(roi)
+        investment=float(cost)
+        if not all(math.isfinite(n) for n in (net,ratio,investment)):
+            return False
+        if net < CONTRACT_MIN_NET_ISK or investment <= 0:
+            return False
+        if partial_mode:
+            if ratio <= .10:
+                return False
+        else:
+            stres=float(stress)
+            if not math.isfinite(stres) or stres<=0 or ratio < .10:
+                return False
     except (TypeError,ValueError,OverflowError):
-        return False
-    if (not all(math.isfinite(n) for n in numbers) or
-            numbers[0] < CONTRACT_MIN_NET_ISK or
-            numbers[1] < 0.10 or numbers[2] <= 0 or numbers[3] <= 0):
         return False
     if crystal_share is None:
         return not category_required
