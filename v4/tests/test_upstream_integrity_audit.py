@@ -3,12 +3,13 @@ from __future__ import annotations
 
 import bz2
 import io
+import tarfile
 import tempfile
 import unittest
 from pathlib import Path
 
 from v4.upstream_integrity_audit import (
-    _sample_status, compare_region, local_market_census, probe_region
+    _sample_status, compare_region, local_market_census, local_contract_census, probe_region
 )
 
 
@@ -30,6 +31,32 @@ class IndependentUpstreamAuditTests(unittest.TestCase):
             self.assertEqual(data["regions"]["10000060"]["cache_age_minutes"]["p90"],8.0)
             self.assertEqual(data["regions"]["10000043"]["rows_older_60m"],1)
             self.assertEqual(len(selected[10000060]),2)
+
+    def test_contract_list_regional_cache_ages_and_missing_items(self):
+        with tempfile.TemporaryDirectory() as td:
+            path=Path(td)/"contract.tar.bz2"
+            lists=(
+                "contract_id,region_id,type,http_last_modified\n"
+                "1,10000060,item_exchange,2026-10-16T12:00:00Z\n"
+                "2,10000060,item_exchange,2026-10-16T12:00:00Z\n"
+                "3,10000043,auction,2026-10-16T11:00:00Z\n").encode()
+            items=("contract_id,type_id,quantity\n"
+                   "1,34,1\n").encode()
+            with tarfile.open(path,"w:bz2") as t:
+                for name, data in (("pkg/contracts.csv",lists),
+                                   ("pkg/contract_items.csv",items)):
+                    info=tarfile.TarInfo(name)
+                    info.size=len(data)
+                    t.addfile(info,io.BytesIO(data))
+            result=local_contract_census(path,"2026-10-16T12:23:00Z")
+            self.assertEqual(result["contract_ids"],3)
+            self.assertEqual(result["item_exchange_contracts"],2)
+            self.assertEqual(result["item_exchange_without_any_items"],1)
+            self.assertEqual(result["item_exchange_without_any_items_sample"],[2])
+            self.assertEqual(result["region_freshness"]["10000060"]
+                             ["cache_age_minutes"]["p90"],23)
+            self.assertEqual(result["region_freshness"]["10000043"]
+                             ["rows_older_60m"],1)
 
     def test_equal_generation_complete_region_reconciliation(self):
         raw=[
