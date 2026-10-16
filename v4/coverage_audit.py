@@ -72,6 +72,13 @@ def audit_run(folder: Path) -> dict:
         ],
     }
     checks = report["quality_checks"]
+    checks["all_parsed_without_invalid_orders"] = (
+        deep.get("source_input_integrity") == "ALL_PARSED")
+    sources = full.get("sources") or {}
+    checks["both_eve_ref_archives_downloaded"] = all(
+        (sources.get(name) or {}).get("status") == "COMPLETE"
+        for name in ("market_orders", "public_contracts")
+    ) if sources else None
     public_raw = _int(deep, "public_market_rows_raw")
     public_active = _int(deep, "public_market_orders")
     public_zero = _int(deep, "zero_remaining_public_orders")
