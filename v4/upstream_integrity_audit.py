@@ -309,6 +309,7 @@ def run(root: Path, *, region_ids, probe_all=False, reconcile=True,
     report={
         "run":folder.name,
         "audit_at_utc":datetime.now(timezone.utc).isoformat(),
+        "scan_age_minutes_at_audit":_minutes(stamp,datetime.now(timezone.utc).isoformat()),
         "archive_market_upload_age_minutes_at_scan":source_age["sources"]["market_orders"]["upload_age_minutes_at_scan"],
         "archive_contract_upload_age_minutes_at_scan":source_age["sources"]["public_contracts"]["upload_age_minutes_at_scan"],
         "contract_scrape_end_age_minutes_at_scan":source_age["contract_archive_scrape"].get("scrape_end_age_minutes_at_scan"),
@@ -321,9 +322,14 @@ def run(root: Path, *, region_ids, probe_all=False, reconcile=True,
     import requests
     with requests.Session() as session:
         if probe_all:
-            regions,_,status=fetch(session,"/universe/regions/")
-            if status!=200 or not isinstance(regions,list):
-                raise EsiAuditError("ESI_REGION_LIST_NOT_AVAILABLE")
+            try:
+                regions,_,status=fetch(session,"/universe/regions/")
+                if status!=200 or not isinstance(regions,list):
+                    raise EsiAuditError("ESI_REGION_LIST_NOT_AVAILABLE")
+            except EsiAuditError as exc:
+                # Preserve valuable offline evidence even if ESI is blocked.
+                regions=[]
+                report["live_esi"]["all_region_probe_error"]=str(exc)
             report["live_esi"]["esi_universe_region_ids_total"]=len(regions)
             probes=[]
             for rid in regions:
