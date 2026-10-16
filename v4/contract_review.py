@@ -53,6 +53,8 @@ def make_review(root: Path, *, limit: int = MAX_CANDIDATES) -> dict:
         raise RuntimeError("REVIEW_REQUIRES_NEW_JITA_4_4_VALUATION_SCAN")
     if manifest.get("mail_enabled") is not False or manifest.get("ready_for_production") is not False:
         raise RuntimeError("UNSAFE_SCAN_MAIL_STATUS")
+    partial_mode=(deep.get("contract_partial_valuation_basis") ==
+                  "JITA_CREDITED_REGULAR_BUY_DEPTH_IGNORED_CARGO_ZERO")
     count = Counter()
     leads = []
     observed = 0
@@ -83,7 +85,8 @@ def make_review(root: Path, *, limit: int = MAX_CANDIDATES) -> dict:
                     net_profit=profit, roi=roi, stress=stress, cost=cost,
                     crystal_share=proof.get("energy_crystal_value_share"),
                     category_required=(
-                        deep.get("contract_crystal_screen_basis")==CRYSTAL_SHARE_BASIS)):
+                        deep.get("contract_crystal_screen_basis")==CRYSTAL_SHARE_BASIS),
+                    partial_mode=partial_mode):
                 continue
             reason = str(proof.get("reason") or "")
             if reason not in ("LIVE_ORDER_AND_CONTRACT_NOT_REVALIDATED",
@@ -113,6 +116,9 @@ def make_review(root: Path, *, limit: int = MAX_CANDIDATES) -> dict:
                 "roi_snapshot": roi,
                 "stress_profit_snapshot": stress,
                 "included_items": included,
+                "credited_items": proof.get("credited_items") if partial_mode else included,
+                "ignored_types_count": proof.get("ignored_types_count") if partial_mode else 0,
+                "partial_liquidation_basis":proof.get("partial_liquidation_basis") if partial_mode else None,
                 "source_location": proof.get("source_location"),
                 "source_security_band": proof.get("source_security_band"),
                 "source_station_name": proof.get("source_station_name"),
@@ -148,6 +154,7 @@ def make_review(root: Path, *, limit: int = MAX_CANDIDATES) -> dict:
         "contract_jita_examined": int(deep.get("contract_jita_examined") or 0),
         "contract_pricing_basis": deep["contract_pricing_basis"],
         "contract_min_net_profit_isk": CONTRACT_MIN_NET_ISK,
+        "contract_partial_mode":partial_mode,
         "contract_crystal_screen_basis": deep.get("contract_crystal_screen_basis"),
         "contract_proofs_audited": observed,
         "contract_rejection_reasons": dict(count.most_common(12)),
