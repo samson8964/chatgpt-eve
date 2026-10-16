@@ -11,6 +11,7 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 from v4.engine import Policy
+from v4.contract_content_policy import eligible_contract_research, CRYSTAL_SHARE_BASIS
 
 SCHEMA = 1
 JITA = 60003760
@@ -67,11 +68,18 @@ def _discovered_key(proof: dict) -> str | None:
                 proof.get("reason") not in ("LIVE_ORDER_AND_CONTRACT_NOT_REVALIDATED",
                                             "BELOW_GATE_OR_STRESS")):
             return None
-        if not all((_number(proof.get(field)) or 0) > 0
-                   for field in ("net_profit", "stress_profit", "cost")):
+        # Apply the same contract gates used by the Gmail/game-mail reader.
+        # Older proof rows without a crystal screen cannot be established as
+        # eligible under the new policy; do not backdate their discovery.
+        if proof.get("energy_crystal_share_verified") is not True:
             return None
-        if (_number(proof.get("roi")) is None or
-                _number(proof.get("roi")) < Policy().min_roi):
+        if not eligible_contract_research(
+                net_profit=_number(proof.get("net_profit")),
+                roi=_number(proof.get("roi")),
+                stress=_number(proof.get("stress_profit")),
+                cost=_number(proof.get("cost")),
+                crystal_share=proof.get("energy_crystal_value_share"),
+                category_required=True):
             return None
         included = proof.get("included_items")
         if not isinstance(included, dict) or not included:
