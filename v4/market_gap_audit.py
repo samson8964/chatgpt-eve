@@ -260,9 +260,21 @@ def audit(folder:Path, root:Path):
 def main():
     ap=argparse.ArgumentParser(description="Explain public global -> approved Jita depth -> research email market losses")
     ap.add_argument("--data-root",type=Path,default=Path.home()/"EVE-V4-Data")
+    ap.add_argument("--run",type=str,default=None,
+                    help="Previously completed run folder name, e.g. 20261016T122301Z-44ce82b9")
     ap.add_argument("--output",type=Path,default=None)
     opts=ap.parse_args()
-    folder,_=latest_run(opts.data_root)
+    if opts.run:
+        if not opts.run.replace("-","").isalnum() or "/" in opts.run or "\\" in opts.run:
+            ap.error("RUN_NAME_INVALID")
+        folder=opts.data_root/"runs"/opts.run
+        if not folder.is_dir():
+            ap.error("RUN_NOT_FOUND")
+        manifest=json.loads((folder/"manifest.json").read_text("utf-8"))
+        if manifest.get("status")!="SHADOW_RECORDED":
+            ap.error("RUN_NOT_COMPLETED")
+    else:
+        folder,_=latest_run(opts.data_root)
     result=audit(folder,opts.data_root)
     if opts.output:
         opts.output.parent.mkdir(parents=True,exist_ok=True)
