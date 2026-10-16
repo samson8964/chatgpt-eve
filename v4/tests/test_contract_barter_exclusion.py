@@ -53,6 +53,7 @@ class V4ContractBarterExclusionTests(unittest.TestCase):
             catalog=Mock()
             catalog.volume.return_value=1.0
             catalog.classification.return_value="regular"
+            catalog.group_id.return_value=18
             catalog.coverage.return_value={"missing_volume":[]}
             catalog.meta={"fixture":True}
             output=root/"deep_shadow.json"
