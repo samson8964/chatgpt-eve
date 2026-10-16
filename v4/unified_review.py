@@ -209,8 +209,9 @@ def make_review(root: Path, *, limit_each: int = MAX_EACH) -> dict:
     contracts = order_by_discovery(review.get("research_leads") or [],
                                    kind="contract", seen=seen,
                                    fallback_run=folder.name)
+    blueprints = order_by_discovery(blueprints,kind="blueprint",
+                                   seen=seen,fallback_run=folder.name)
     cap = max(0, min(int(limit_each), MAX_EACH))
-    blueprints.sort(key=lambda row:(row["net_profit_snapshot"],row["roi_snapshot"]),reverse=True)
     review.update({
         "report_type":"V4_UNIFIED_MARKET_AND_CONTRACT_REVIEW_ONLY",
         "market_pricing_basis":report["market_pricing_basis"],
