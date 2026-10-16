@@ -103,8 +103,9 @@ class V4ContractReviewTests(unittest.TestCase):
                 "".join(json.dumps(row)+"\n" for row in rows),encoding="utf-8")
             review=make_review(root)
             self.assertEqual(review["contract_proofs_audited"],4)
-            self.assertEqual(review["research_leads_total"],2)
-            self.assertEqual([p["contract_id"] for p in review["research_leads"]],[101,102])
+            # Contract 102 nets only 22m and is deliberately suppressed.
+            self.assertEqual(review["research_leads_total"],1)
+            self.assertEqual([p["contract_id"] for p in review["research_leads"]],[101])
             self.assertFalse(review["research_leads"][0]["live_verified"])
             self.assertFalse(review["research_leads"][0]["actionable"])
             self.assertEqual(review["contract_rejection_reasons"]
