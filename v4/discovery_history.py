@@ -79,7 +79,9 @@ def _discovered_key(proof: dict) -> str | None:
                 stress=_number(proof.get("stress_profit")),
                 cost=_number(proof.get("cost")),
                 crystal_share=proof.get("energy_crystal_value_share"),
-                category_required=True):
+                category_required=True,
+                partial_mode=(proof.get("partial_liquidation_basis") ==
+                    "JITA_CREDITED_REGULAR_BUY_DEPTH_IGNORED_CARGO_ZERO")):
             return None
         included = proof.get("included_items")
         if not isinstance(included, dict) or not included:
