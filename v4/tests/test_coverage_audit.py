@@ -20,6 +20,8 @@ def sample(root: Path, name: str, *,
     }))
     (folder/"full_market_report.json").write_text(json.dumps({
         "overall":"CENSUS_COMPLETE_PROOFS_NOT_READY",
+        "sources":{"market_orders":{"status":"COMPLETE"},
+                   "public_contracts":{"status":"COMPLETE"}},
         "market":{
             "market_raw_rows":market_count,"sell_order_rows":900,
             "buy_order_rows":598,"market_locations":700,
