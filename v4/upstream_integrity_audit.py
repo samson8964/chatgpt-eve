@@ -20,8 +20,6 @@ from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
-import requests
-
 from v4.source_freshness_audit import audit as source_age_audit, latest_run, utc
 
 ESI = "https://esi.evetech.net/latest"
@@ -141,6 +139,9 @@ def local_market_census(archive: Path, scan_started_at: str, *, compare_regions:
 
 
 def esi_fetch(session, path, *, params=None, sleep=time.sleep, max_tries=3):
+    # Lazy optional dependency: offline CI and unit tests must not require
+    # requests unless a real live ESI connection is requested.
+    import requests
     url=ESI+path
     for attempt in range(max_tries):
         try:
@@ -317,6 +318,7 @@ def run(root: Path, *, region_ids, probe_all=False, reconcile=True,
         "methodology":"A live ESI comparison is conclusive for order-ID and price equality ONLY if cache Last-Modified timestamps match exactly on every compared page and the saved region. Otherwise it is a time-shifted spot check, never proof of omissions.",
         "limitations":"ESI public regional orders do not include other players' private structure markets. Having all expected regions does not prove no orders were missing during initial upstream fetch."
     }
+    import requests
     with requests.Session() as session:
         if probe_all:
             regions,_,status=fetch(session,"/universe/regions/")
