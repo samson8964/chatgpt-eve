@@ -45,6 +45,16 @@ def contract_key(row: dict) -> str | None:
     return f"C:{ident}" if ident > 0 else None
 
 
+def blueprint_key(row: dict) -> str | None:
+    """A blueprint manufacturing lead has its own durable discovery identity."""
+    try:
+        cid=int(row["contract_id"])
+        bp=int(row["blueprint_type_id"])
+    except (KeyError,TypeError,ValueError,OverflowError):
+        return None
+    return f"B:{cid}:{bp}" if cid>0 and bp>0 else None
+
+
 def _number(value):
     try:
         n = float(value)
@@ -61,6 +71,14 @@ def _discovered_key(proof: dict) -> str | None:
                 proof.get("destination_location") == JITA and
                 proof.get("valuation_basis") == "JITA_4_4_BUY_DEPTH_SNAPSHOT_NOT_LIVE"):
             return market_key(proof)
+    elif proof.get("kind") == "blueprint_manufacturing":
+        if (proof.get("model_candidate") is True and
+            proof.get("status") == "WATCH" and
+            proof.get("valuation_basis") ==
+              "JITA_BUY_FINISHED_GOODS_JITA_SELL_MATERIALS_SNAPSHOT" and
+            proof.get("facility_fee_status") ==
+              "20_PERCENT_MATERIAL_COST_RESERVE_NOT_FACILITY_VERIFIED"):
+            return blueprint_key(proof)
     elif proof.get("kind") == "contract":
         if (proof.get("valuation_location_id") != JITA or
                 proof.get("destination_location") != JITA or
@@ -147,7 +165,7 @@ def first_seen(root: Path, current_run: str) -> dict[str, str]:
                     continue
                 proof = json.loads(line)
                 # Skip non-market/non-contract rows before deeper inspection.
-                if proof.get("kind") not in ("market", "contract"):
+                if proof.get("kind") not in ("market", "contract", "blueprint_manufacturing"):
                     continue
                 key = _discovered_key(proof)
                 if key is not None and key not in seen:
@@ -172,7 +190,8 @@ def first_seen(root: Path, current_run: str) -> dict[str, str]:
 def order_by_discovery(leads: list[dict], *, kind: str, seen: dict[str, str],
                        fallback_run: str) -> list[dict]:
     """Newly discovered candidates before old, with net profit as tie-breaker."""
-    key_fn = market_key if kind == "market" else contract_key
+    key_fn = (market_key if kind == "market" else
+              blueprint_key if kind == "blueprint" else contract_key)
     fallback = _run_time(fallback_run) or "1970-01-01T00:00:00Z"
     enriched = []
     for lead in leads:
