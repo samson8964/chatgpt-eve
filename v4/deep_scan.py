@@ -26,8 +26,8 @@ from v4.market_depth import top_price_levels, station_sell_census
 from v4.market_execution import gross_depth_upper_bound
 from v4.sources import market_dataframe, contract_dataframes
 from v4.npc_station_catalog import load_catalog
-from v4.contract_content_policy import (energy_crystal_value_share,
-                                        CRYSTAL_SHARE_BASIS)
+from v4.contract_content_policy import CRYSTAL_SHARE_BASIS
+from v4.contract_partial import partial_cash_contract_proof
 
 JITA = 60003760
 KNOWN_STATIONS = {'jita': JITA, 'amarr': 60008494, 'dodixie':60011866}
@@ -258,31 +258,20 @@ def run(market_path,contract_path,output,api_key=''):
         # Fail-closed until the complete verified SDE blueprint/item-class
         # dictionary and raw contract item copy metadata are integrated.
         # V4 deliberately does NOT assume blueprint-looking types are BPO.
-        classes={int(t):catalog.classification(t) for t in by_contract[cid]}
         contract_location=int(row['start_location_id'])
         jita_bids={t:markets.get((JITA,int(t),True),[])
                    for t in by_contract[cid]}
-        item_volumes=[volumes.get(int(t)) for t in by_contract[cid]]
-        volume_m3=(sum(float(volumes[int(t)])*int(qty)
-                       for t,qty in by_contract[cid].items())
-                   if all(v is not None and math.isfinite(v) and v>0
-                          for v in item_volumes) else None)
-        # Preserve legacy four-argument haul call for already monitored
-        # stations (and existing tests). New SDE-only stations use NPC rates.
-        if volume_m3 is None:
-            haul_estimate=None
-        elif contract_location in npc_stations and contract_location not in KNOWN_STATIONS.values():
-            haul_estimate=haul(contract_location,JITA,volume_m3,stations,npc_stations)
-        else:
-            haul_estimate=haul(contract_location,JITA,volume_m3,stations)
-        proof=contract_proof(row,by_contract[cid],jita_bids,volumes,
-            policy=POLICY,haul_isk=haul_estimate,allowed=True,fresh=True,
-            item_classifications=classes)
-        # Independently classify the liquidation-value composition, to screen
-        # contracts dominated by laser ammunition WITHOUT rejecting contracts
-        # that merely include a low-value crystal among valuable items.
-        crystal_share=(energy_crystal_value_share(by_contract[cid],jita_bids,catalog)
-                       if proof.get('net_profit') is not None else None)
+        # The whole contract price is paid, but uncredited goods are left at
+        # source and valued zero. Only the credited subset is hauled.
+        def subset_haul(cargo_m3, src=contract_location):
+            if src in npc_stations and src not in KNOWN_STATIONS.values():
+                return haul(src,JITA,cargo_m3,stations,npc_stations)
+            return haul(src,JITA,cargo_m3,stations)
+        proof=partial_cash_contract_proof(
+            row,by_contract[cid],jita_bids,catalog,subset_haul,policy=POLICY)
+        cargo_m3=proof.get('cargo_volume_m3')
+        haul_estimate=proof.get('haul_isk')
+        crystal_share=proof.get('energy_crystal_value_share')
         proof.update(energy_crystal_value_share=crystal_share,
                      energy_crystal_share_verified=(crystal_share is not None),
                      included_items=by_contract[cid],
@@ -351,6 +340,8 @@ def run(market_path,contract_path,output,api_key=''):
            local_contracts['start_location_id'].isin(set(npc_stations)).sum()),
        npc_contract_scope_definition='CCP_SDE_NPC_STATIONS_WITH_POSITIVE_SYSTEM_SECURITY',
        contract_pricing_basis='JITA_4_4_BUY_DEPTH_SNAPSHOT',
+       contract_partial_valuation_basis='JITA_CREDITED_REGULAR_BUY_DEPTH_IGNORED_CARGO_ZERO',
+       contract_ordinary_min_stress_not_required=True,
        contract_crystal_screen_basis=CRYSTAL_SHARE_BASIS,
        contract_min_net_profit_isk=50_000_000,
        contract_crystal_majority_share=0.50,
