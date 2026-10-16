@@ -255,9 +255,8 @@ def run(market_path,contract_path,output,api_key=''):
         if cid not in by_contract:continue
         if 'date_expired' in row and str(row['date_expired'])[:19] < datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'):
             continue
-        # Fail-closed until the complete verified SDE blueprint/item-class
-        # dictionary and raw contract item copy metadata are integrated.
-        # V4 deliberately does NOT assume blueprint-looking types are BPO.
+        # Blueprint types are excluded from ordinary cash-value credit,
+        # regardless of BPO/BPC instance state.
         contract_location=int(row['start_location_id'])
         jita_bids={t:markets.get((JITA,int(t),True),[])
                    for t in by_contract[cid]}
@@ -282,7 +281,7 @@ def run(market_path,contract_path,output,api_key=''):
                      contract_access_verified=False,
                      haul_cost_estimate_isk=haul_estimate,
                      haul_route_verified=False,
-                     volume_m3=volume_m3,
+                     volume_m3=cargo_m3,
                      requested_items_present=False,
                      contract_blueprint_evidence=dict(bp_states[cid]),
                      included_volumes={str(i):volumes.get(i) for i in by_contract[cid]},
