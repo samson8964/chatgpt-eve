@@ -26,6 +26,8 @@ from v4.market_depth import top_price_levels, station_sell_census
 from v4.market_execution import gross_depth_upper_bound
 from v4.sources import market_dataframe, contract_dataframes
 from v4.npc_station_catalog import load_catalog
+from v4.contract_content_policy import (energy_crystal_value_share,
+                                        CRYSTAL_SHARE_BASIS)
 
 JITA = 60003760
 KNOWN_STATIONS = {'jita': JITA, 'amarr': 60008494, 'dodixie':60011866}
@@ -276,7 +278,14 @@ def run(market_path,contract_path,output,api_key=''):
         proof=contract_proof(row,by_contract[cid],jita_bids,volumes,
             policy=POLICY,haul_isk=haul_estimate,allowed=True,fresh=True,
             item_classifications=classes)
-        proof.update(included_items=by_contract[cid],
+        # Independently classify the liquidation-value composition, to screen
+        # contracts dominated by laser ammunition WITHOUT rejecting contracts
+        # that merely include a low-value crystal among valuable items.
+        crystal_share=(energy_crystal_value_share(by_contract[cid],jita_bids,catalog)
+                       if proof.get('net_profit') is not None else None)
+        proof.update(energy_crystal_value_share=crystal_share,
+                     energy_crystal_share_verified=(crystal_share is not None),
+                     included_items=by_contract[cid],
                      contract_price=float(row.get('price') or 0),
                      contract_title=str(row.get('title') or '')[:180],
                      valuation_basis='JITA_4_4_BUY_DEPTH_SNAPSHOT_NOT_LIVE',
@@ -342,6 +351,9 @@ def run(market_path,contract_path,output,api_key=''):
            local_contracts['start_location_id'].isin(set(npc_stations)).sum()),
        npc_contract_scope_definition='CCP_SDE_NPC_STATIONS_WITH_POSITIVE_SYSTEM_SECURITY',
        contract_pricing_basis='JITA_4_4_BUY_DEPTH_SNAPSHOT',
+       contract_crystal_screen_basis=CRYSTAL_SHARE_BASIS,
+       contract_min_net_profit_isk=50_000_000,
+       contract_crystal_majority_share=0.50,
        contract_blueprint_states={state:sum(states.get(state,0) for states in bp_states.values())
                                   for state in ('BPC','BPO','UNKNOWN_BLUEPRINT')},
        proof_count=len(proofs),model_candidates=sum(x.get('model_candidate') is True for x in proofs),
