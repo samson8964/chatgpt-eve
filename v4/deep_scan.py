@@ -28,6 +28,8 @@ from v4.sources import market_dataframe, contract_dataframes
 from v4.npc_station_catalog import load_catalog
 from v4.contract_content_policy import CRYSTAL_SHARE_BASIS
 from v4.contract_partial import partial_cash_contract_proof
+from v4.blueprint_recipes import load as load_blueprint_recipes
+from v4.blueprint_manufacturing import evaluate_blueprint_contract
 
 JITA = 60003760
 KNOWN_STATIONS = {'jita': JITA, 'amarr': 60008494, 'dodixie':60011866}
@@ -244,12 +246,22 @@ def run(market_path,contract_path,output,api_key=''):
     jita_contract_count=int((local_contracts['start_location_id']==JITA).sum())
     by_contract=defaultdict(dict)
     bp_states=defaultdict(lambda:defaultdict(int))
+    bp_instances=defaultdict(list)
+    blueprints_reference=load_blueprint_recipes()
+    manufacturing_recipes=((blueprints_reference or {}).get('manufacturing_recipes') or {})
     for row in inc[inc['contract_id'].isin(set(local_contracts['contract_id']))].itertuples(index=False):
         key=int(row.contract_id);typ=int(row.type_id);qty=int(row.quantity)
         if qty>0:by_contract[key][typ]=by_contract[key].get(typ,0)+qty
         if qty>0 and catalog.classification(typ)=='blueprint_type':
             kind=blueprint_instance_kind(getattr(row,'is_blueprint_copy',None),getattr(row,'runs',None))
             bp_states[key][kind]+=qty
+            bp_instances[key].append({
+                'type_id':typ,'quantity':qty,
+                'is_blueprint_copy':getattr(row,'is_blueprint_copy',None),
+                'runs':getattr(row,'runs',None),
+                'material_efficiency':getattr(row,'material_efficiency',None),
+                'time_efficiency':getattr(row,'time_efficiency',None),
+            })
     for row in local_contracts.to_dict('records'):
         cid=int(row['contract_id'])
         if cid not in by_contract:continue
@@ -301,6 +313,28 @@ def run(market_path,contract_path,output,api_key=''):
         quarantine_snapshot_candidate(proof)
         proofs.append(proof)
         reasons[proof['reason']]+=1
+        # Separate, explicitly bounded blueprint manufacturing research lane.
+        # No manufacturing recipes -> no fabricated BOM or blueprints email.
+        if bp_instances.get(cid) and manufacturing_recipes:
+            bp_ship_volume=sum(
+                (catalog.volume(x['type_id']) or 0)*int(x['quantity'])
+                for x in bp_instances[cid])
+            # Building is modelled at Jita: ship only purchased blueprints
+            # to Jita, materials and output trades take place at Jita.
+            ship=subset_haul(bp_ship_volume) if bp_ship_volume>0 else None
+            bp=evaluate_blueprint_contract(
+                row,bp_instances[cid],manufacturing_recipes,markets,ship,
+                policy=POLICY)
+            if bp:
+                bp['instance']='blueprint-manufacture:'+str(cid)
+                bp['family']=bp['instance']
+                bp['blueprint_reference_source']=blueprints_reference.get('source')
+                bp['expires_at']=str(row.get('date_expired',''))
+                # Research-only, never formal execution outbox.
+                if bp.get('status')=='MAIL':
+                    quarantine_snapshot_candidate(bp)
+                proofs.append(bp)
+                reasons[bp['reason']]+=1
     report=dict(status='SHADOW_ONLY_NO_LIVE_ALERTS',run_id='v4-'+uuid.uuid4().hex,
        market_orders=len(all_orders),public_market_orders=len(public_orders),
        authorized_structure_orders=len(authorized_orders),
@@ -339,6 +373,12 @@ def run(market_path,contract_path,output,api_key=''):
            local_contracts['start_location_id'].isin(set(npc_stations)).sum()),
        npc_contract_scope_definition='CCP_SDE_NPC_STATIONS_WITH_POSITIVE_SYSTEM_SECURITY',
        contract_pricing_basis='JITA_4_4_BUY_DEPTH_SNAPSHOT',
+       blueprint_manufacturing_recipe_status=('INSTALLED' if manufacturing_recipes else 'NOT_INSTALLED'),
+       blueprint_manufacturing_recipe_count=len(manufacturing_recipes),
+       blueprint_manufacturing_cost_basis='JITA_SELL_INPUT_BUY_OUTPUT_PLUS_20PCT_MATERIAL_FEE_RESERVE',
+       blueprint_manufacturing_candidates=sum(
+           p.get('kind')=='blueprint_manufacturing' and p.get('model_candidate') is True
+           for p in proofs),
        contract_partial_valuation_basis='JITA_CREDITED_REGULAR_BUY_DEPTH_IGNORED_CARGO_ZERO',
        contract_ordinary_min_stress_not_required=True,
        contract_crystal_screen_basis=CRYSTAL_SHARE_BASIS,
