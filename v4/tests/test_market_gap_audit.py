@@ -64,9 +64,11 @@ class GapAttributionTests(unittest.TestCase):
             "JITA_AS_SOURCE_NOT_A_CROSS_STATION_TRADE",
             "NO_JITA_BUY",
             "JITA_BEST_BID_NOT_ABOVE_SOURCE_ASK",
-            "JITA_MATCHED_GROSS_BELOW_50M",
         ):
             self.assertEqual(reasons[reason],1)
+        # One expensive local quote and one shallow Jita book both produce
+        # less than the 50m matched-depth gross gate.
+        self.assertEqual(reasons["JITA_MATCHED_GROSS_BELOW_50M"],2)
         self.assertEqual(sum(reasons.values()),7)
 
     def test_deep_proof_attribution_and_email_gate(self):
@@ -80,8 +82,8 @@ class GapAttributionTests(unittest.TestCase):
                 "valuation_location_id":60003760,
                 "valuation_basis":"JITA_4_4_BUY_DEPTH_SNAPSHOT_NOT_LIVE",
                 "type_id":34,"quantity":10,"quantity_optimized":True,
-                "profit":90_000_000,"roi":.20,"stress_profit":60_000_000,
-                "cost":450_000_000,
+                "profit":90_000_000,"roi":.20,"density":5_000,
+                "stress_profit":60_000_000,"cost":450_000_000,
                 "source_vwap_isk_per_unit":10_000_000,
                 "jita_vwap_isk_per_unit":20_000_000,
                 "executed_sell_cost":100_000_000,
