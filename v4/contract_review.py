@@ -9,6 +9,7 @@ import json
 import math
 from collections import Counter
 from v4.engine import Policy
+from v4.contract_content_policy import eligible_contract_research, CRYSTAL_SHARE_BASIS, CONTRACT_MIN_NET_ISK
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -78,9 +79,11 @@ def make_review(root: Path, *, limit: int = MAX_CANDIDATES) -> dict:
                 continue
             # Only candidates whose ordinary items have already passed the
             # complete snapshot buy-depth/value calculation may be listed.
-            if not (profit is not None and roi is not None and
-                    stress is not None and cost is not None and
-                    profit > 0 and roi >= Policy().min_roi and stress > 0 and cost > 0):
+            if not eligible_contract_research(
+                    net_profit=profit, roi=roi, stress=stress, cost=cost,
+                    crystal_share=proof.get("energy_crystal_value_share"),
+                    category_required=(
+                        deep.get("contract_crystal_screen_basis")==CRYSTAL_SHARE_BASIS)):
                 continue
             reason = str(proof.get("reason") or "")
             if reason not in ("LIVE_ORDER_AND_CONTRACT_NOT_REVALIDATED",
@@ -144,6 +147,8 @@ def make_review(root: Path, *, limit: int = MAX_CANDIDATES) -> dict:
         "npc_contracts_approved_for_deep_analysis": deep.get("npc_contracts_approved_for_deep_analysis"),
         "contract_jita_examined": int(deep.get("contract_jita_examined") or 0),
         "contract_pricing_basis": deep["contract_pricing_basis"],
+        "contract_min_net_profit_isk": CONTRACT_MIN_NET_ISK,
+        "contract_crystal_screen_basis": deep.get("contract_crystal_screen_basis"),
         "contract_proofs_audited": observed,
         "contract_rejection_reasons": dict(count.most_common(12)),
         "research_leads_total": len(leads),
