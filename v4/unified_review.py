@@ -140,6 +140,7 @@ def make_review(root: Path, *, limit_each: int = MAX_EACH) -> dict:
                             "product_type_id":row.get("product_type_id"),
                             "product_units":row.get("product_units"),
                             "contract_price":row.get("contract_price_isk"),
+                            "product_gross":row.get("product_gross_isk"),
                             "material_cost":row.get("material_cost_isk"),
                             "fee_reserve":row.get("manufacturing_fee_reserve_isk"),
                             "sales_tax":row.get("sales_tax_isk"),
@@ -325,7 +326,11 @@ def render(review: dict, *, game: bool = False) -> tuple[str, str]:
                 f" 蓝图{bpid} {p['blueprint_kind']} ×{p['production_runs_assumed']}次"
                 f"→成品{product}×{p['product_units']}"
                 f"｜净{yi(p['net_profit_snapshot'])} ROI{p['roi_snapshot']*100:.0f}%"
-                f"｜材料{yi(p['material_cost'])} 预留制造费{yi(p['fee_reserve'])}"
+                f"｜成品卖出{yi(p.get('product_gross'))}"
+                f" 合同{yi(p.get('contract_price'))}"
+                f" 材料{yi(p['material_cost'])}"
+                f" 销售税{yi(p.get('sales_tax'))}"
+                f" 预留制造费{yi(p['fee_reserve'])}"
                 f"（按材料费20%预留；实际设施费、技能、工期未验证）")
     if not pairs and not contracts and not blueprints:
         lines.append("本轮暂无候选。")
@@ -389,7 +394,10 @@ def render_html(review: dict) -> tuple[str, str]:
                 f' 成品{int(b["product_type_id"])}×{int(b["product_units"])}'
                 f' 净{yi(b["net_profit_snapshot"])}'
                 f' ROI{float(b["roi_snapshot"])*100:.0f}%'
+                f' 成品卖出{yi(b.get("product_gross"))}'
+                f' 合同{yi(b.get("contract_price"))}'
                 f' 材料{yi(b["material_cost"])}'
+                f' 销售税{yi(b.get("sales_tax"))}'
                 f' 制造费用预留{yi(b["fee_reserve"])}'
                 '（材料费用20%预留，实际费用、工期、技能未核实）</p>')
     if review.get("npc_catalog_status") == "NOT_INSTALLED_LEGACY_CONTRACT_SCOPE":
