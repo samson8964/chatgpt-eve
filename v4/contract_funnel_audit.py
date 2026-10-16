@@ -72,6 +72,8 @@ def audit_folder(folder:Path):
     if manifest.get("status")!="SHADOW_RECORDED":
         raise ValueError("NOT_COMPLETED_SCAN")
     crystal_required=deep.get("contract_crystal_screen_basis")==CRYSTAL_SHARE_BASIS
+    partial_mode=(deep.get("contract_partial_valuation_basis")==
+                 "JITA_CREDITED_REGULAR_BUY_DEPTH_IGNORED_CARGO_ZERO")
     reasons=Counter()
     gates=Counter()
     near_miss=Counter()
@@ -123,7 +125,7 @@ def audit_folder(folder:Path):
             reason_qualified+=1
             args=dict(net_profit=net,roi=roi,stress=stress,cost=cost)
             base=eligible_contract_research(**args,crystal_share=None,
-                                            category_required=False)
+                                            category_required=False,partial_mode=partial_mode)
             if not base:
                 if net is not None and net >= PROFIT_FLOOR:
                     if roi is None or roi < .10:
@@ -139,11 +141,11 @@ def audit_folder(folder:Path):
             if not crystal_required:
                 allowed=eligible_contract_research(
                     **args,crystal_share=p.get("energy_crystal_value_share"),
-                    category_required=False)
+                    category_required=False,partial_mode=partial_mode)
             else:
                 allowed=eligible_contract_research(
                     **args,crystal_share=p.get("energy_crystal_value_share"),
-                    category_required=True)
+                    category_required=True,partial_mode=partial_mode)
             if share is None:
                 unknown_crystal_subset+=1
             elif share>=CRYSTAL_MAJORITY_SHARE:
@@ -181,6 +183,8 @@ def audit_folder(folder:Path):
         "among_basic_qualifiers_crystal_majority":high_crystal_subset,
         "among_basic_qualifiers_crystal_below_half":no_crystal_subset,
         "crystal_filter_enabled":crystal_required,
+        "ordinary_contract_partial_mode":partial_mode,
+        "ordinary_contract_stress_is_only_diagnostic":partial_mode,
         "basic_gate_near_misses_multi_label":dict(near_miss),
         "top_eligible_contracts":top[:8],
         "mail_coverage_gate":manifest.get("coverage_gate"),
