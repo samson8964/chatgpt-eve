@@ -13,8 +13,10 @@ from __future__ import annotations
 import argparse
 import bz2
 import csv
+import io
 import json
 import math
+import tarfile
 import time
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
@@ -136,6 +138,76 @@ def local_market_census(archive: Path, scan_started_at: str, *, compare_regions:
         "region_count_with_orders":len(public_regions),
         "regions":public_regions,
     }, {reg:x["sampled_order_map"] for reg,x in per.items() if reg in compare_regions}
+
+
+
+def local_contract_census(archive: Path, started_at: str):
+    """Per-region ESI cache ages for contract LISTS (not immutable item metadata).
+
+    Missing included item IDs are suspect, not automatically a scrape failure:
+    item-exchange contents can be unavailable by the ESI endpoint.
+    """
+    per=defaultdict(lambda: {"rows":0,"timestamps":Counter(),
+                             "missing_cache_timestamp":0})
+    item_exchange=set()
+    all_ids=set()
+    dup=0
+    missing_region=0
+    with tarfile.open(archive,"r:bz2") as tar:
+        members={m.name.rsplit("/",1)[-1]:m for m in tar.getmembers()
+                 if m.isfile()}
+        if "contracts.csv" not in members or "contract_items.csv" not in members:
+            raise ValueError("CONTRACT_ARCHIVE_MISSING_LIST_OR_ITEMS")
+        with tar.extractfile(members["contracts.csv"]) as raw:
+            with io.TextIOWrapper(raw,encoding="utf-8",newline="") as f:
+                for row in csv.DictReader(f):
+                    try:
+                        cid=int(row["contract_id"])
+                    except (ValueError,KeyError,TypeError):
+                        continue
+                    if cid in all_ids:
+                        dup+=1
+                    all_ids.add(cid)
+                    if str(row.get("type","")).strip().lower()=="item_exchange":
+                        item_exchange.add(cid)
+                    try:
+                        reg=int(row.get("region_id"))
+                    except (ValueError,TypeError):
+                        missing_region+=1
+                        continue
+                    rec=per[reg]
+                    rec["rows"]+=1
+                    modified=_stamp(row.get("http_last_modified"))
+                    if modified:
+                        rec["timestamps"][modified]+=1
+                    else:
+                        rec["missing_cache_timestamp"]+=1
+        items_contract_ids=set()
+        with tar.extractfile(members["contract_items.csv"]) as raw:
+            with io.TextIOWrapper(raw,encoding="utf-8",newline="") as f:
+                for row in csv.DictReader(f):
+                    try:
+                        items_contract_ids.add(int(row["contract_id"]))
+                    except (ValueError,TypeError,KeyError):
+                        continue
+    regions={}
+    for rid,v in sorted(per.items()):
+        cache=_sample_status(v["timestamps"],started_at)
+        regions[str(rid)]={
+            "contract_rows":v["rows"],
+            "missing_cache_timestamp":v["missing_cache_timestamp"],
+            **cache}
+    return {
+        "contract_ids":len(all_ids),
+        "duplicate_contract_rows":dup,
+        "item_exchange_contracts":len(item_exchange),
+        "item_exchange_without_any_items":len(item_exchange-items_contract_ids),
+        "item_exchange_without_any_items_sample":sorted(item_exchange-items_contract_ids)[:10],
+        "contracts_without_valid_region":missing_region,
+        "regions_with_contracts":len(regions),
+        "region_freshness":regions,
+        "warning":"Missing item rows could be ESI detail 404/unavailable, not a confirmed upstream omission; contract list http_last_modified indicates regional HTTP cache generation, not issuance time.",
+    }
 
 
 def esi_fetch(session, path, *, params=None, sleep=time.sleep, max_tries=3):
@@ -313,6 +385,7 @@ def run(root: Path, *, region_ids, probe_all=False, reconcile=True,
         "archive_market_upload_age_minutes_at_scan":source_age["sources"]["market_orders"]["upload_age_minutes_at_scan"],
         "archive_contract_upload_age_minutes_at_scan":source_age["sources"]["public_contracts"]["upload_age_minutes_at_scan"],
         "contract_scrape_end_age_minutes_at_scan":source_age["contract_archive_scrape"].get("scrape_end_age_minutes_at_scan"),
+        "contract_snapshot":local_contract_census(folder/"source"/"public_contracts.tar.bz2",stamp),
         "market_archive_global":{k:v for k,v in census.items() if k!="regions"},
         "region_cache_age_summary":census["regions"],
         "live_esi":{},
