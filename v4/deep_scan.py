@@ -247,8 +247,16 @@ def run(market_path,contract_path,output,api_key=''):
     by_contract=defaultdict(dict)
     bp_states=defaultdict(lambda:defaultdict(int))
     bp_instances=defaultdict(list)
-    blueprints_reference=load_blueprint_recipes()
+    # An absent or invalid optional recipe dictionary must never disrupt
+    # normal contract scanning or market mail. Do not download every hour.
+    blueprint_recipe_error=None
+    try:
+        blueprints_reference=load_blueprint_recipes()
+    except (OSError,ValueError,TypeError,KeyError,RuntimeError) as e:
+        blueprints_reference=None
+        blueprint_recipe_error=type(e).__name__
     manufacturing_recipes=((blueprints_reference or {}).get('manufacturing_recipes') or {})
+    blueprint_recipe_valuation_errors=0
     for row in inc[inc['contract_id'].isin(set(local_contracts['contract_id']))].itertuples(index=False):
         key=int(row.contract_id);typ=int(row.type_id);qty=int(row.quantity)
         if qty>0:by_contract[key][typ]=by_contract[key].get(typ,0)+qty
@@ -322,9 +330,13 @@ def run(market_path,contract_path,output,api_key=''):
             # Building is modelled at Jita: ship only purchased blueprints
             # to Jita, materials and output trades take place at Jita.
             ship=subset_haul(bp_ship_volume) if bp_ship_volume>0 else None
-            bp=evaluate_blueprint_contract(
-                row,bp_instances[cid],manufacturing_recipes,markets,ship,
-                policy=POLICY)
+            try:
+                bp=evaluate_blueprint_contract(
+                    row,bp_instances[cid],manufacturing_recipes,markets,ship,
+                    policy=POLICY)
+            except (ValueError,TypeError,KeyError,OverflowError):
+                blueprint_recipe_valuation_errors+=1
+                bp=None
             if bp:
                 bp['instance']='blueprint-manufacture:'+str(cid)
                 bp['family']=bp['instance']
@@ -373,7 +385,11 @@ def run(market_path,contract_path,output,api_key=''):
            local_contracts['start_location_id'].isin(set(npc_stations)).sum()),
        npc_contract_scope_definition='CCP_SDE_NPC_STATIONS_WITH_POSITIVE_SYSTEM_SECURITY',
        contract_pricing_basis='JITA_4_4_BUY_DEPTH_SNAPSHOT',
-       blueprint_manufacturing_recipe_status=('INSTALLED' if manufacturing_recipes else 'NOT_INSTALLED'),
+       blueprint_manufacturing_recipe_status=(
+           'INVALID' if blueprint_recipe_error else
+           'INSTALLED' if manufacturing_recipes else 'NOT_INSTALLED'),
+       blueprint_manufacturing_recipe_error_type=blueprint_recipe_error,
+       blueprint_manufacturing_valuation_errors=blueprint_recipe_valuation_errors,
        blueprint_manufacturing_recipe_count=len(manufacturing_recipes),
        blueprint_manufacturing_cost_basis='JITA_SELL_INPUT_BUY_OUTPUT_PLUS_20PCT_MATERIAL_FEE_RESERVE',
        blueprint_manufacturing_candidates=sum(
