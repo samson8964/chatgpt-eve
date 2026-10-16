@@ -128,12 +128,14 @@ def audit_folder(folder:Path):
                                             category_required=False,partial_mode=partial_mode)
             if not base:
                 if net is not None and net >= PROFIT_FLOOR:
-                    if roi is None or roi < .10:
-                        near_miss["ROI_LT_10_PERCENT"]+=1
-                    if stress is None:
-                        near_miss["STRESS_NOT_CALCULABLE"]+=1
-                    elif stress<=0:
-                        near_miss["STRESS_NOT_POSITIVE"]+=1
+                    if roi is None or (roi <= .10 if partial_mode else roi < .10):
+                        near_miss["ROI_NOT_ABOVE_10_PERCENT" if partial_mode else
+                                  "ROI_LT_10_PERCENT"]+=1
+                    if not partial_mode:
+                        if stress is None:
+                            near_miss["STRESS_NOT_CALCULABLE"]+=1
+                        elif stress<=0:
+                            near_miss["STRESS_NOT_POSITIVE"]+=1
                     if cost is None or cost<=0:
                         near_miss["COST_MISSING_OR_INVALID"]+=1
                 continue
