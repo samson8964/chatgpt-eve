@@ -39,6 +39,8 @@ def contract(cid):
         "status":"WATCH", "reason":"LIVE_ORDER_AND_CONTRACT_NOT_REVALIDATED",
         "net_profit":80_000_000,"roi":.2,"stress_profit":60_000_000,
         "cost":100_000_000,"included_items":{"34":3},
+        "energy_crystal_value_share":0.0,
+        "energy_crystal_share_verified":True,
     }
 
 
