@@ -395,6 +395,18 @@ def run(market_path,contract_path,output,api_key=''):
        blueprint_manufacturing_candidates=sum(
            p.get('kind')=='blueprint_manufacturing' and p.get('model_candidate') is True
            for p in proofs),
+       contract_partial_credited_proofs=sum(
+           p.get('kind')=='contract' and bool(p.get('credited_items'))
+           for p in proofs),
+       contract_partial_ignored_blueprint_item_types=sum(
+           p.get('ignored_blueprint_types',0)
+           for p in proofs if p.get('kind')=='contract'),
+       contract_partial_ignored_unclassified_item_types=sum(
+           p.get('ignored_unclassified_types',0)
+           for p in proofs if p.get('kind')=='contract'),
+       contract_partial_ignored_no_jita_buy_item_types=sum(
+           p.get('ignored_no_bid_types',0)
+           for p in proofs if p.get('kind')=='contract'),
        contract_partial_valuation_basis='JITA_CREDITED_REGULAR_BUY_DEPTH_IGNORED_CARGO_ZERO',
        contract_ordinary_min_stress_not_required=True,
        contract_crystal_screen_basis=CRYSTAL_SHARE_BASIS,
