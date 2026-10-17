@@ -127,7 +127,7 @@ class EsiSameV4MarketShadowTests(unittest.TestCase):
                 for order in (
                     row(1,10000002,JITA,True,10_000_000,25),
                     row(2,10000002,JITA,True,1_500_000,25)):
-                    f.write(json.dumps(order)+"\\n")
+                    f.write(json.dumps(order)+"\n")
             ref_book=ref/"source"/"market_orders.csv.bz2"
             with bz2.open(ref_book,"wt",encoding="utf-8",newline="") as f:
                 w=csv.DictWriter(f,fieldnames=list(FIELDS))
