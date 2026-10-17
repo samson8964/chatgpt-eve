@@ -28,6 +28,46 @@ Results are written exclusively to EVE-V4-Data/esi-parallel-validation/<UTC-run-
 
 If available, the reference is the latest successfully recorded V4 EVE Ref market-orders.csv.bz2. A stale reference is still valid for a historical difference comparison but NOT proof that ESI failed to find its orders.
 
+
+## October 18 audit: reuse the 965,510 already archived ESI orders
+
+The initial live run 20261017T213545Z-f56eeb8f queried all 114 regions,
+received 1,307 HTTP-200 responses and archived 965,510 orders from 58
+regions. It failed to produce the comparison due to the original validator:
+54 regions had empty one-page markets, 2 major market regions had orders
+rejected with generic INVALID_VALUE, and a historical EVE Ref reference
+had non-actionable exhausted zero-remaining orders. **This is an incomplete
+comparison, not proof that only 965,510 public market orders exist.**
+
+After pulling the patch, reuse those 965,510 records without ANY new ESI
+request. Only the independent forensic files reconciliation.json and
+reconciled.sqlite3 are added; the previous report and previous SQLite
+remain unmodified.
+
+    & .\.venv\Scripts\python.exe -m v4.esi_parallel_validation --reconcile-run 20261017T213545Z-f56eeb8f
+
+A no-reference-data or bad-input error is an explicit failure; never
+relabel the original 58/114 coverage as complete.
+
+Before running all regions again, separately inspect the two large trade
+regions that previously failed (The Forge and Domain). The targeted run
+downloads only the requested region IDs, is explicitly PARTIAL_REGION_TEST_ONLY,
+and prints the exact rejected order field, page and order ID if a real data
+anomaly still remains.
+
+    & .\.venv\Scripts\python.exe -m v4.esi_parallel_validation --region-ids 10000002,10000043 --workers 2 --no-reference
+
+Only once these two targeted regions have status COMPLETE should you
+perform a fresh full-universe census; this avoids wasting a second global
+ESI API crawl while a fixable major-market input anomaly remains.
+A complete fresh run omits --region-ids and --max-regions.
+
+Expected data-quality rules: a verified HTTP 200 [] with X-Pages=1
+is EMPTY_MARKET_CONFIRMED; never assume any 404 or an empty page within
+X-Pages>1 is valid zero. Zero-remaining orders are non-actionable and
+excluded with explicit counters. Unexpected price, identity, or quantity
+values still FAIL with the offending field and a minimal order identifier.
+
 ## Review requirements before any source switch
 
 1. Complete 200-status pagination across all enumerated ESI regions, with 404s explicitly assessed rather than invented as empty.
