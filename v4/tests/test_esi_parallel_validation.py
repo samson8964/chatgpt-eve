@@ -84,7 +84,7 @@ class FakeApi:
 
 def install_ref(root):
     """Store local immutable complete prior run matching V4 source layout."""
-    folder=root/"runs"/"20261017T202301Z-good"
+    folder=root/"runs"/"20261017T202301Z-abcde123"
     (folder/"source").mkdir(parents=True)
     (folder/"manifest.json").write_text(json.dumps({
         "status":"SHADOW_RECORDED"
@@ -137,7 +137,7 @@ class EsiParallelValidationTests(unittest.TestCase):
             self.assertTrue((Path(td)/"10000003.jsonl.gz").exists())
             report,_=run(Path(td),fetcher=fake,fetch_reference=False)
             self.assertEqual(report["status"],
-                             "PUBLIC_ESI_RETRIEVAL_COMPLETE_WITH_404_CAVEAT")
+                             "PUBLIC_ESI_404_COVERAGE_UNVERIFIED")
             self.assertEqual(report["confirmed_empty_regions"],[10000003])
             self.assertEqual(report["esi_unique_orders"],2)
 
