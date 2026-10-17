@@ -10,6 +10,7 @@ import math
 from collections import Counter
 from v4.engine import Policy
 from v4.ship_alert_exclusions import load_policy_for_run, POLICY_NAME
+from v4.mail_volume import contract_volume
 from v4.contract_content_policy import eligible_contract_research, CRYSTAL_SHARE_BASIS, CONTRACT_MIN_NET_ISK
 from datetime import datetime, timezone
 from pathlib import Path
@@ -110,8 +111,11 @@ def make_review(root: Path, *, limit: int = MAX_CANDIDATES) -> dict:
             if exclude_policy is not None and exclude_policy.blocks_contract(included):
                 excluded_ship_leads+=1
                 continue
+            credited=proof.get("credited_items") if partial_mode else included
+            volumes=contract_volume(proof,included,credited)
             leads.append({
                 "contract_id": cid,
+                **volumes,
                 "contract_price": _safe_float(proof.get("contract_price")),
                 "investment": cost,
                 "haul_estimate_isk": _safe_float(proof.get("haul_cost_estimate_isk")),
@@ -122,7 +126,7 @@ def make_review(root: Path, *, limit: int = MAX_CANDIDATES) -> dict:
                 "roi_snapshot": roi,
                 "stress_profit_snapshot": stress,
                 "included_items": included,
-                "credited_items": proof.get("credited_items") if partial_mode else included,
+                "credited_items": credited,
                 "ignored_types_count": proof.get("ignored_types_count") if partial_mode else 0,
                 "partial_liquidation_basis":proof.get("partial_liquidation_basis") if partial_mode else None,
                 "source_location": proof.get("source_location"),
