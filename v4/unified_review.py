@@ -370,6 +370,8 @@ def render(review: dict, *, game: bool = False) -> tuple[str, str]:
         lines.append("本轮暂无候选。")
     if review.get("npc_catalog_status") == "NOT_INSTALLED_LEGACY_CONTRACT_SCOPE":
         lines.append("注意：NPC高低安目录未安装，本轮合同仍仅覆盖旧站点。")
+    if pairs or contracts:
+        lines.append("体积按静态物品打包体积估算；已组装舰船等的实际运输体积以游戏内为准。")
     lines.append("快照待核，不代表可立即成交。")
     # EVE ESI supports <br>, and actual native in-client <url=...> syntax.
     return subject, ("<br>" if game else "\n").join(lines)
@@ -440,6 +442,9 @@ def render_html(review: dict) -> tuple[str, str]:
                 '（材料费用20%预留，实际费用、工期、技能未核实）</p>')
     if review.get("npc_catalog_status") == "NOT_INSTALLED_LEGACY_CONTRACT_SCOPE":
         blocks.append('<p>注意：NPC高低安目录未安装，本轮合同仍仅覆盖旧站点。</p>')
+    if pairs or contracts:
+        blocks.append('<p style="color:#777;font-size:12px">'
+                      '体积按静态物品打包体积估算；已组装舰船等实际运输体积以游戏内为准。</p>')
     blocks.append('<p style="color:#777;font-size:12px">快照待核，不代表可立即成交。</p>')
     body = ('<!doctype html><html><head><meta charset="utf-8"></head>'
             '<body style="font-family:Arial,sans-serif;font-size:14px;'
