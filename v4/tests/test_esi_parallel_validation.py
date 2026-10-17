@@ -47,6 +47,9 @@ class FakeApi:
         self.dirs=dirs or [10000001,10000002,10000003]
         self.version_drift=False
         self.fail_region=False
+        self.empty_region=False
+        self.exhausted_region=False
+        self.invalid_region=False
 
     def request(self,path,params=None):
         self.calls.append((path,dict(params or {})))
@@ -58,7 +61,14 @@ class FakeApi:
         if region==10000002:
             return 404,None,{}
         if region==10000003:
-            rows=[item(303,region=region)]
+            if self.empty_region:
+                rows=[]
+            elif self.exhausted_region:
+                rows=[item(303,region=region,remain=0)]
+            elif self.invalid_region:
+                rows=[{**item(303,region=region),"price":0}]
+            else:
+                rows=[item(303,region=region)]
             n=1
         else:
             n=2
@@ -100,11 +110,68 @@ def install_ref(root):
 class EsiParallelValidationTests(unittest.TestCase):
     def test_esi_row_validation(self):
         self.assertEqual(_row(item(101),10000001)["volume_remain"],5)
-        for patch_row in ({"order_id":-1},{"price":0},{"volume_remain":0},
+        for patch_row in ({"order_id":-1},{"price":0},
                           {"is_buy_order":"true"},{"volume_total":0}):
             with self.subTest(patch_row=patch_row):
                 with self.assertRaises(ValidationError):
                     _row({**item(101),**patch_row},10000001)
+
+    def test_exhausted_zero_remaining_is_not_a_tradeable_order(self):
+        self.assertIsNone(_row(item(101,remain=0),10000001))
+        with self.assertRaisesRegex(ValidationError,"volume_remain"):
+            _row(item(101,remain=-1),10000001)
+        for patch_row in ({"price":0},{"is_buy_order":"true"},
+                          {"volume_total":0}):
+            with self.subTest(patch_row=patch_row):
+                with self.assertRaises(ValidationError):
+                    _row({**item(101),**patch_row},10000001)
+
+    def test_verified_one_page_empty_region_is_not_failed(self):
+        with tempfile.TemporaryDirectory() as td:
+            fake=FakeApi()
+            fake.empty_region=True
+            result=fetch_region(fake,10000003,Path(td))
+            self.assertEqual(result["status"],"EMPTY_MARKET_CONFIRMED")
+            self.assertEqual(result["pages"],1)
+            self.assertEqual(result["orders"],0)
+            self.assertTrue((Path(td)/"10000003.jsonl.gz").exists())
+            report,_=run(Path(td),fetcher=fake,fetch_reference=False)
+            self.assertEqual(report["status"],
+                             "PUBLIC_ESI_RETRIEVAL_COMPLETE_WITH_404_CAVEAT")
+            self.assertEqual(report["confirmed_empty_regions"],[10000003])
+            self.assertEqual(report["esi_unique_orders"],2)
+
+    def test_zero_remaining_esi_order_counted_as_excluded_not_region_failure(self):
+        with tempfile.TemporaryDirectory() as td:
+            fake=FakeApi()
+            fake.exhausted_region=True
+            record=fetch_region(fake,10000003,Path(td))
+            self.assertEqual(record["status"],"EMPTY_MARKET_CONFIRMED")
+            self.assertEqual(record["exhausted_orders_excluded"],1)
+            self.assertEqual(record["orders"],0)
+
+    def test_unrelated_invalid_order_has_explicit_field_and_order_id(self):
+        with tempfile.TemporaryDirectory() as td:
+            fake=FakeApi()
+            fake.invalid_region=True
+            record=fetch_region(fake,10000003,Path(td))
+            self.assertEqual(record["status"],"FAILED")
+            self.assertIn("ESI_ORDER_INVALID_VALUE:price",record["error"])
+            self.assertIn("page=1:order_id=303",record["error"])
+
+    def test_region_override_stays_partial_and_is_checked_against_directory(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td)
+            report,_=run(root,fetcher=FakeApi(),fetch_reference=False,
+                         region_ids_override=[10000001,10000003])
+            self.assertEqual(report["status"],"PARTIAL_REGION_TEST_ONLY")
+            self.assertEqual(report["attempted_regions"],2)
+            self.assertFalse(report["full_universe_requested"])
+            invalid,_=run(root,fetcher=FakeApi(),fetch_reference=False,
+                          region_ids_override=[10000099])
+            self.assertEqual(invalid["status"],"VALIDATION_FAILED")
+            self.assertIn("REGION_OVERRIDE_NOT_IN_ESI_DIRECTORY",
+                          invalid["error"])
 
     def test_http_last_modified_must_be_valid(self):
         self.assertEqual(_http_time(STAMP).tzinfo,timezone.utc)
