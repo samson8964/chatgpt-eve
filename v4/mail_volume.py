@@ -10,6 +10,8 @@ import math
 
 
 def positive_volume(value):
+    if isinstance(value,bool):
+        return None
     try:
         n=float(value)
     except (TypeError,ValueError,OverflowError):
@@ -21,6 +23,8 @@ def format_m3(value) -> str:
     number=positive_volume(value)
     if number is None:
         return "未核实"
+    if number < .0001:
+        return "<0.0001 m³"
     if number >= 100:
         shown=f"{number:,.1f}"
     elif number >= 1:
