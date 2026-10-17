@@ -15,6 +15,7 @@ from pathlib import Path
 
 from v4.contract_review import make_review as contract_review
 from v4.engine import Policy
+from v4.ship_alert_exclusions import load_policy_for_run, POLICY_NAME
 from v4.discovery_history import first_seen, order_by_discovery
 
 JITA = 60003760
@@ -106,6 +107,8 @@ def make_review(root: Path, *, limit_each: int = MAX_EACH) -> dict:
         raise RuntimeError("UNIFIED_REVIEW_REQUIRES_DEPTH_VWAP_MARKET_SCAN")
     if review.get("contract_pricing_basis") != "JITA_4_4_BUY_DEPTH_SNAPSHOT":
         raise RuntimeError("UNIFIED_REVIEW_REQUIRES_FRESH_JITA_CONTRACT_SCAN")
+    exclusion=load_policy_for_run(report)
+    blocked=Counter()
     rejected = Counter()
     market = []
     blueprints = []
@@ -131,6 +134,10 @@ def make_review(root: Path, *, limit_each: int = MAX_EACH) -> dict:
                     net=_amount(row.get("net_profit"))
                     roi=_amount(row.get("roi"))
                     if net is not None and net>=50_000_000 and roi is not None and roi>.10:
+                        if exclusion is not None and exclusion.blocks_blueprint(
+                                row.get("blueprint_type_id"),row.get("product_type_id")):
+                            blocked["blueprint_manufacturing"]+=1
+                            continue
                         blueprints.append({
                             "contract_id":row.get("contract_id"),
                             "blueprint_type_id":row.get("blueprint_type_id"),
@@ -170,6 +177,9 @@ def make_review(root: Path, *, limit_each: int = MAX_EACH) -> dict:
                 continue
             if source <= 0 or typ <= 0 or quantity <= 0 or source == JITA:
                 continue
+            if exclusion is not None and exclusion.blocks_market(typ):
+                blocked["market"]+=1
+                continue
             profit,roi,stress,capital = (_amount(row.get(k)) for k in
                                           ("profit","roi","stress_profit","cost"))
             source_vwap = _amount(row.get("source_vwap_isk_per_unit"))
@@ -207,7 +217,18 @@ def make_review(root: Path, *, limit_each: int = MAX_EACH) -> dict:
     seen = first_seen(root, folder.name)
     market = order_by_discovery(market, kind="market", seen=seen,
                                 fallback_run=folder.name)
-    contracts = order_by_discovery(review.get("research_leads") or [],
+    all_contracts=review.get("research_leads") or []
+    if exclusion is not None:
+        # Defense in depth: even if a caller bypassed contract_review, no
+        # excluded hull/blueprint contract can occupy or escape the ten slots.
+        verified=[]
+        for lead in all_contracts:
+            if exclusion.blocks_contract(lead.get("included_items")):
+                blocked["contract_post_filter"]+=1
+            else:
+                verified.append(lead)
+        all_contracts=verified
+    contracts = order_by_discovery(all_contracts,
                                    kind="contract", seen=seen,
                                    fallback_run=folder.name)
     blueprints = order_by_discovery(blueprints,kind="blueprint",
@@ -220,6 +241,12 @@ def make_review(root: Path, *, limit_each: int = MAX_EACH) -> dict:
         "market_potential_pairs":int(report.get("market_potential_pairs") or 0),
         "market_proofs_examined":examined,
         "market_rejection_reasons":dict(rejected.most_common(8)),
+        "ship_exclusion_policy":POLICY_NAME if exclusion else "LEGACY_FIXTURE_NO_CATALOG",
+        "excluded_capital_freighter_market_leads":blocked["market"],
+        "excluded_capital_freighter_contract_leads":(
+            review.get("excluded_capital_freighter_contract_leads",0)+
+            blocked["contract_post_filter"]),
+        "excluded_capital_freighter_blueprint_leads":blocked["blueprint_manufacturing"],
         "market_research_leads_total":len(market),
         "market_research_leads":market[:cap],
         "contract_research_leads_total":review.get("research_leads_total",0),
