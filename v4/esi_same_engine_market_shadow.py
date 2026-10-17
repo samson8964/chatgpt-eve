@@ -24,11 +24,15 @@ from contextlib import closing
 from pathlib import Path
 
 from v4.catalog import Catalog, DEFAULT_CACHE
-from v4.deep_scan import JITA, KNOWN_STATIONS, haul, known_station_regions, _secure_route_jumps
+# deep_scan imports pandas/requests, unavailable in the lightweight
+# reliability test runner. Import it only when REAL route evidence is needed.
+from v4.market_depth import JITA
 from v4.engine import Order, Policy, market_proof, quarantine_snapshot_candidate, _well_formed_zero_remaining
 from v4.market_execution import gross_depth_upper_bound
 
-SOURCES=(KNOWN_STATIONS["amarr"],KNOWN_STATIONS["dodixie"])
+# Same two permitted public NPC sources as deep_scan.KNOWN_STATIONS.
+# Assert this mapping in full-runtime tests; no expansion to other locations.
+SOURCES=(60008494,60011866)
 VALIDATED_RUN=re.compile(r"^\d{8}T\d{6}Z-[0-9a-f]{8}$")
 POLICY=Policy()
 REQUIRED={"order_id","location_id","type_id","is_buy_order","price",
@@ -224,6 +228,9 @@ def _diff(lhs,rhs):
 def _route_evidence():
     # Same V4 transport model as deep_scan.py, with its own official route
     # metadata calls. No market, contract or mail network calls.
+    from v4.deep_scan import KNOWN_STATIONS, known_station_regions, _secure_route_jumps
+    if SOURCES!=(KNOWN_STATIONS["amarr"],KNOWN_STATIONS["dodixie"]):
+        raise ParityError("PUBLIC_NPC_STATION_SCOPE_DRIFT")
     stations=known_station_regions()
     output={}
     for station in SOURCES:
@@ -274,6 +281,7 @@ def audit(root,run_id,*,catalog=None,haul_fn=None,route_evidence=None):
     everef,ref_counts=_load_ref(reference)
     if haul_fn is None:
         stations,route_evidence=_route_evidence()
+        from v4.deep_scan import haul  # the unmodified production V4 model
         haul_fn=lambda src,dest,volume:haul(src,dest,volume,stations)
     if route_evidence is None:
         route_evidence={"injected_for_offline_test":True}
