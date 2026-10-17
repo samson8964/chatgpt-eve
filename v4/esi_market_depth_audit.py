@@ -29,34 +29,39 @@ def _one(con,sql,params=()):
     return con.execute(sql,params).fetchone()[0]
 
 
-def _location_deltas(con, region_id, limit=8):
-    """Ground unusual regional counts in actual order IDs and locations."""
-    # Only-ref and only-ESI do NOT claim either source is wrong; they were
-    # recorded at distinct times, typically many hours apart.
-    def rows(table, other):
-        return [
-            dict(location_id=int(location),buy=bool(buy),count=int(count),
-                 distinct_types=int(types))
-            for location,buy,count,types in con.execute(f"""
-                SELECT a.location_id,a.is_buy_order,COUNT(*) AS n,
-                       COUNT(DISTINCT a.type_id) AS types
-                FROM {table} a
-                WHERE a.region_id=? AND NOT EXISTS
-                  (SELECT 1 FROM {other} b WHERE b.order_id=a.order_id)
-                GROUP BY a.location_id,a.is_buy_order
-                ORDER BY n DESC,a.location_id LIMIT ?""",(region_id,limit))]
+def _unmatched_by_region(con,table,other):
+    """One unmatched-order pass per source, not repeated 24x full scans.
+
+    Order-id primary-key lookup is efficient; region is not indexed in the
+    original independent comparison DB and must not be altered here.
+    """
+    groups=defaultdict(list)
+    for region,location,buy,count,types in con.execute(f"""
+        SELECT a.region_id,a.location_id,a.is_buy_order,
+               COUNT(*) AS n,COUNT(DISTINCT a.type_id) AS types
+        FROM {table} a
+        WHERE NOT EXISTS
+          (SELECT 1 FROM {other} b WHERE b.order_id=a.order_id)
+        GROUP BY a.region_id,a.location_id,a.is_buy_order
+    """):
+        groups[region].append({
+            "location_id":int(location),"buy":bool(buy),
+            "count":int(count),"distinct_types":int(types)})
+    return groups
+
+
+def _location_deltas(region_id,esi_unmatched,ref_unmatched,limit=8):
+    def top(groups):
+        rows=groups.get(region_id,[])
+        return sorted(rows,key=lambda x:(-x["count"],x["location_id"]))[:limit]
     return {
         "region_id":region_id,
-        "everef_only_locations":rows("everef","esi"),
-        "esi_only_locations":rows("esi","everef"),
-        "everef_only_total":int(_one(con,"""
-            SELECT COUNT(*) FROM everef a WHERE a.region_id=?
-            AND NOT EXISTS (SELECT 1 FROM esi b WHERE b.order_id=a.order_id)
-        """,(region_id,))),
-        "esi_only_total":int(_one(con,"""
-            SELECT COUNT(*) FROM esi a WHERE a.region_id=?
-            AND NOT EXISTS (SELECT 1 FROM everef b WHERE b.order_id=a.order_id)
-        """,(region_id,))),
+        "everef_only_locations":top(ref_unmatched),
+        "esi_only_locations":top(esi_unmatched),
+        "everef_only_total":sum(
+            x["count"] for x in ref_unmatched.get(region_id,[])),
+        "esi_only_total":sum(
+            x["count"] for x in esi_unmatched.get(region_id,[])),
     }
 
 
@@ -162,18 +167,16 @@ def audit(root:Path,run_id:str):
             or n_ref!= (snapshot.get("comparison") or {}).get("everef_orders")):
             raise OfflineAuditError("ARCHIVE_DOES_NOT_MATCH_RUN_REPORT")
         old_ref=snapshot.get("reference") or {}
-        scope=ANOMALY_REGIONS
-        gaps=[_location_deltas(con,region) for region in scope]
+        esi_unmatched=_unmatched_by_region(con,"esi","everef")
+        ref_unmatched=_unmatched_by_region(con,"everef","esi")
+        gaps=[_location_deltas(region,esi_unmatched,ref_unmatched)
+              for region in ANOMALY_REGIONS]
         jita=_depth_audit(_book(con,"esi"),_book(con,"everef"))
-        # Other regions with the highest ABSOLUTE unmatched-order counts.
-        ranked=[dict(region_id=int(r),everef_only_count=int(n)) for r,n in
-            con.execute("""
-                SELECT a.region_id,COUNT(*) AS n
-                FROM everef a WHERE NOT EXISTS
-                (SELECT 1 FROM esi b WHERE b.order_id=a.order_id)
-                AND a.region_id IS NOT NULL
-                GROUP BY a.region_id ORDER BY n DESC LIMIT 12
-            """)]
+        ranked=sorted([
+            dict(region_id=int(region),
+                 everef_only_count=sum(x["count"] for x in rows))
+            for region,rows in ref_unmatched.items() if region is not None
+        ],key=lambda x:(-x["everef_only_count"],x["region_id"]))[:12]
         shared = int(_one(con,"SELECT COUNT(*) FROM esi e "
                                "JOIN everef r ON e.order_id=r.order_id"))
         result={
