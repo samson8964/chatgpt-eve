@@ -1,7 +1,8 @@
-"""Small always-on-top Windows desktop widget for EVE V4 shadow task.
+"""Small Windows V4 monitor with explicit manual full-scan action.
 
-Local-only, read-only monitoring. Never triggers a scan, reads secrets,
-imports mail modules, or makes HTTP calls. Tkinter ships with CPython.
+Read-only status monitoring plus one user-click action that requests the
+ALREADY INSTALLED Task Scheduler job. Never runs a parallel scanner,
+touches secrets, imports mail modules, or makes HTTP calls itself.
 """
 from __future__ import annotations
 
@@ -15,6 +16,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from v4.desktop_status import elapsed_clock, human_clock, read_snapshot
+from v4.manual_scan import request_full_scan
 
 COLORS = {
     "bg": "#101827",
@@ -96,7 +98,13 @@ class DesktopWidget:
         self.data_root = data_root
         self.log_path = data_root / "logs" / "shadow-task.log"
         self.pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="v4-task-watch")
+        self.manual_pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="v4-click-scan")
         self.pending = None
+        self.manual_future = None
+        self.manual_started_request_at = None
+        self.manual_prior_last_run = None
+        self.manual_message = "手动执行与定时任务共用同一进程锁"
+        self.manual_message_color = "muted"
         self.last_query_at = 0.0
         self.task = {"state": "Unknown"}
         self.closed = False
@@ -107,7 +115,7 @@ class DesktopWidget:
         root.configure(bg=COLORS["line"])
         root.attributes("-topmost", True)
         root.resizable(False, False)
-        w, h = 358, 255
+        w, h = 358, 315
         x = max(0, root.winfo_screenwidth() - w - 26)
         root.geometry(f"{w}x{h}+{x}+60")
         tkfont = ("Microsoft YaHei UI", 9)
@@ -142,6 +150,16 @@ class DesktopWidget:
         self.metrics_label.pack(anchor="w", padx=14, pady=(1, 4))
         self.next_label = self._label(shell, "下次自动：--", 9, "white")
         self.next_label.pack(anchor="w", padx=14, pady=(1, 5))
+
+        # Manual start is user-initiated only. Task Scheduler's IgnoreNew
+        # setting serializes it with the normal hourly trigger.
+        self.manual_button = self._button(
+            shell, "立即全面扫描", self.start_full_scan, width=16, bg="panel")
+        self.manual_button.pack(anchor="w", padx=14, pady=(2, 2))
+        self.manual_button.configure(state="disabled")
+        self.manual_label = self._label(
+            shell, self.manual_message, 8, "muted")
+        self.manual_label.pack(anchor="w", padx=14, pady=(1, 2))
 
         footer = tk.Frame(shell, bg=COLORS["panel"], height=26)
         footer.pack(side="bottom", fill="x")
@@ -180,6 +198,82 @@ class DesktopWidget:
         self.pinned = not self.pinned
         self.root.attributes("-topmost", self.pinned)
         self.pin_button.configure(text="置顶" if self.pinned else "普通")
+
+    def start_full_scan(self):
+        """Tk-thread callback; launch only the already installed job.
+
+        Never run a second V4 Python process or block Tk on PowerShell.
+        A task accepted by Windows may later safely SKIP if sources are stale.
+        """
+        if self.closed or self.manual_future is not None:
+            return
+        if self.manual_started_request_at is not None:
+            return  # Wait for the previous request to be observed or time out.
+        if str(self.task.get("state") or "").lower() != "ready":
+            self.manual_message = "计划任务未就绪，无法立即启动"
+            self.manual_message_color = "amber"
+            return
+        self.manual_prior_last_run = self.task.get("last_run")
+        self.manual_message = "正在向计划任务提交启动请求…"
+        self.manual_message_color = "blue"
+        self.manual_button.configure(state="disabled")
+        self.manual_future = self.manual_pool.submit(request_full_scan)
+
+    def _refresh_manual_action(self, clock):
+        """Only this UI thread may touch Tk widgets or the task snapshot."""
+        if self.manual_future is not None and self.manual_future.done():
+            try:
+                status = self.manual_future.result().get("status")
+            except Exception:
+                status = "TASK_START_FAILED"
+            self.manual_future = None
+            if status == "START_REQUESTED":
+                self.manual_started_request_at = clock
+                self.manual_message = "启动请求已提交，等待任务状态确认"
+                self.manual_message_color = "blue"
+                # Do not wait the normal polling period after a manual click.
+                self.last_query_at = 0.0
+            elif status == "ALREADY_RUNNING":
+                self.manual_message = "自动扫描正在运行，未重复启动"
+                self.manual_message_color = "amber"
+            elif status == "NOT_READY":
+                self.manual_message = "计划任务不在待命状态，未启动"
+                self.manual_message_color = "amber"
+            elif status == "UNSAFE_MULTIPLE_INSTANCES":
+                self.manual_message = "任务缺少防重叠保护，拒绝启动"
+                self.manual_message_color = "red"
+            elif status == "WINDOWS_REQUIRED":
+                self.manual_message = "此功能仅在 Windows 上可用"
+                self.manual_message_color = "amber"
+            else:
+                self.manual_message = "未能提交启动请求，请查看计划任务"
+                self.manual_message_color = "red"
+
+        if self.manual_started_request_at is not None:
+            current_state = str(self.task.get("state") or "").lower()
+            new_last_run = self.task.get("last_run")
+            if current_state == "running":
+                self.manual_message = "任务正在运行，已进入完整扫描流程"
+                self.manual_message_color = "blue"
+                self.manual_started_request_at = None
+            elif (new_last_run and self.manual_prior_last_run and
+                  new_last_run != self.manual_prior_last_run):
+                self.manual_message = "任务已触发；请查看扫描状态及邮件结果"
+                self.manual_message_color = "green"
+                self.manual_started_request_at = None
+            elif clock - self.manual_started_request_at > 30:
+                self.manual_message = "启动请求已提交；未能确认运行，请查看日志"
+                self.manual_message_color = "amber"
+                self.manual_started_request_at = None
+
+        if self.closed:
+            return
+        state = str(self.task.get("state") or "").lower()
+        can_start = (state == "ready" and self.manual_future is None
+                     and self.manual_started_request_at is None)
+        self.manual_button.configure(state="normal" if can_start else "disabled")
+        self.manual_label.configure(
+            text=self.manual_message,fg=COLORS[self.manual_message_color])
 
     def open_log(self):
         from tkinter import messagebox
@@ -239,16 +333,18 @@ class DesktopWidget:
             self.next_label.configure(text="下次自动：" + human_clock(info["next_run"]))
             channels = ("G" if info["research_gmail_enabled"] else "g") + (
                 "E" if info["research_game_enabled"] else "e")
-            self.refresh_label.configure(text="只读 · "+channels+" · 更新 " +
+            self.refresh_label.configure(text="状态只读 · "+channels+" · 更新 " +
                                          time.strftime("%H:%M:%S"))
         except Exception:
             self.state_label.configure(text="●  监控数据读取异常", fg=COLORS["red"])
             self.phase_label.configure(text="扫描任务不受监控窗口影响")
+        self._refresh_manual_action(clock)
         self.root.after(FILE_POLL_MS, self.refresh)
 
     def close(self):
         self.closed = True
         self.pool.shutdown(wait=False, cancel_futures=True)
+        self.manual_pool.shutdown(wait=False, cancel_futures=True)
         self.root.destroy()
 
 
