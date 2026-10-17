@@ -68,7 +68,7 @@ class FakeApi:
                  "last-modified":(
                      STAMP_CHANGED if self.version_drift and
                      region==10000001 and params["page"]==2 else STAMP),
-                 "expires":"Sat, 17 Oct 2026 20:07:00 GMT"}
+                 "expires":"Thu, 01 Jan 2099 00:00:00 GMT"}
         return 200,rows,headers
 
 
