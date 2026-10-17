@@ -39,6 +39,14 @@ def inspect(root: Path) -> dict:
             }
             for key, value in (full.get("sources") or {}).items()
         }
+    if manifest.get("status") == "SKIPPED_UPSTREAM_STALE":
+        # A skipped publication cycle should not be mistaken for missing or
+        # corrupted deep-scan evidence. No deep-scan was supposed to execute.
+        result["deep_scan"] = "INTENTIONALLY_NOT_RUN_UPSTREAM_STALE"
+        result["sqlite"] = "PREVIOUS_SUCCESS_UNCHANGED"
+        result["mail"] = "INTENTIONALLY_NOT_SENT_UPSTREAM_STALE"
+        result["upstream_sources"] = manifest.get("upstream_sources") or {}
+        return result
     if not deepfile.is_file():
         result["missing_deep_shadow_report"] = True
         return result
