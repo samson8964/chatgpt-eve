@@ -36,7 +36,7 @@ def item(oid, *,region=10000001, price=1500000,remain=5):
         "type_id":34,"location_id":STATION_JITA,
         "is_buy_order":True,"price":price,
         "volume_remain":remain,"volume_total":remain,
-        "min_volume":1
+        "min_volume":1,"range":"station"
     }
 
 
@@ -111,7 +111,8 @@ class EsiParallelValidationTests(unittest.TestCase):
     def test_esi_row_validation(self):
         self.assertEqual(_row(item(101),10000001)["volume_remain"],5)
         for patch_row in ({"order_id":-1},{"price":0},
-                          {"is_buy_order":"true"},{"volume_total":0}):
+                          {"is_buy_order":"true"},{"volume_total":0},
+                          {"range":"invalid_range"}):
             with self.subTest(patch_row=patch_row):
                 with self.assertRaises(ValidationError):
                     _row({**item(101),**patch_row},10000001)
@@ -173,6 +174,17 @@ class EsiParallelValidationTests(unittest.TestCase):
             self.assertIn("REGION_OVERRIDE_NOT_IN_ESI_DIRECTORY",
                           invalid["error"])
 
+    def test_active_order_range_and_minimum_are_retained_exactly(self):
+        raw={**item(201),"min_volume":3,"range":"region"}
+        saved=_row(raw,10000002)
+        self.assertEqual(saved["min_volume"],3)
+        self.assertEqual(saved["range"],"region")
+        self.assertEqual(saved["volume_total"],5)
+        with self.assertRaisesRegex(ValidationError,"MISSING_REQUIRED_FIELD"):
+            _row({k:v for k,v in raw.items() if k!="range"},10000002)
+        with self.assertRaisesRegex(ValidationError,"INVALID_VALUE:range"):
+            _row({**raw,"range":"galaxy"},10000002)
+
     def test_http_last_modified_must_be_valid(self):
         self.assertEqual(_http_time(STAMP).tzinfo,timezone.utc)
         with self.assertRaises(ValidationError):
@@ -186,6 +198,12 @@ class EsiParallelValidationTests(unittest.TestCase):
             self.assertEqual(report["status"],"COMPLETE")
             self.assertEqual(report["orders"],2)
             self.assertEqual(report["pages"],2)
+            import gzip
+            with gzip.open(p/"10000001.jsonl.gz","rt",encoding="utf-8") as f:
+                archived=json.loads(next(f))
+            self.assertEqual(archived["min_volume"],1)
+            self.assertEqual(archived["range"],"station")
+            self.assertEqual(archived["volume_total"],5)
             self.assertTrue((p/"10000001.jsonl.gz").is_file())
             self.assertFalse((p/"10000001.jsonl.gz.part").exists())
 
