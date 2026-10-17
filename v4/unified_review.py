@@ -16,6 +16,7 @@ from pathlib import Path
 from v4.contract_review import make_review as contract_review
 from v4.engine import Policy
 from v4.ship_alert_exclusions import load_policy_for_run, POLICY_NAME
+from v4.mail_volume import market_volume, market_label, contract_label, credited_volume_breakdown
 from v4.discovery_history import first_seen, order_by_discovery
 
 JITA = 60003760
@@ -196,8 +197,10 @@ def make_review(root: Path, *, limit_each: int = MAX_EACH) -> dict:
                 not math.isclose(jita_vwap*quantity,
                                  float(row.get("executed_jita_buy_gross") or 0),rel_tol=1e-9)):
                 continue
+            cargo=market_volume(row,quantity)
             market.append({
                 "type_id":typ,"quantity":quantity,
+                **cargo,
                 "source_location":source, "destination_location":JITA,
                 "net_profit_snapshot":profit,"roi_snapshot":roi,
                 "stress_profit_snapshot":stress,
@@ -324,7 +327,8 @@ def render(review: dict, *, game: bool = False) -> tuple[str, str]:
                 f"｜成交均 本地卖{unit_price(p['source_vwap_isk_per_unit'])}"
                 f"→吉买{unit_price(p['jita_vwap_isk_per_unit'])}"
                 f"｜参考{five_level_label(p, 'source_top5_sell', '卖')}"
-                f" / {five_level_label(p, 'jita_top5_buy', '吉买')}")
+                f" / {five_level_label(p, 'jita_top5_buy', '吉买')}"
+                f"｜{market_label(p)}")
     if contracts:
         lines.append("【合同】")
         for n, p in enumerate(contracts, 1):
@@ -337,7 +341,10 @@ def render(review: dict, *, game: bool = False) -> tuple[str, str]:
                 f"{n}. {name} {contract_place(p)}"
                 f"{discovered_label(p)}"
                 f" 价{yi(p.get('contract_price'))}"
-                f" 净{yi(p['net_profit_snapshot'])} ROI{p['roi_snapshot']*100:.0f}%")
+                f" 净{yi(p['net_profit_snapshot'])} ROI{p['roi_snapshot']*100:.0f}%"
+                f"｜{contract_label(p)}"
+                + (f"｜{credited_volume_breakdown(p)}"
+                   if credited_volume_breakdown(p) else ""))
     if blueprints:
         lines.append("【蓝图制造（估算研究）】")
         for n, p in enumerate(blueprints,1):
@@ -395,7 +402,8 @@ def render_html(review: dict) -> tuple[str, str]:
                     f' ｜成交均 本地卖{unit_price(p["source_vwap_isk_per_unit"])}'
                     f'→吉买{unit_price(p["jita_vwap_isk_per_unit"])}'
                     f' ｜参考{html.escape(five_level_label(p, "source_top5_sell", "卖"))}'
-                    f' / {html.escape(five_level_label(p, "jita_top5_buy", "吉买"))}</p>')
+                    f' / {html.escape(five_level_label(p, "jita_top5_buy", "吉买"))}'
+                    f' ｜{html.escape(market_label(p))}</p>')
         if contracts:
             blocks.append("<p><strong>合同</strong></p>")
             for n, p in enumerate(contracts, 1):
@@ -406,7 +414,10 @@ def render_html(review: dict) -> tuple[str, str]:
                     f' {place_name}{html.escape(discovered_label(p))}'
                     f' ｜价{yi(p.get("contract_price"))}'
                     f' ｜净{yi(p["net_profit_snapshot"])}'
-                    f' ｜ROI {float(p["roi_snapshot"])*100:.0f}%</p>')
+                    f' ｜ROI {float(p["roi_snapshot"])*100:.0f}%'
+                    f' ｜{html.escape(contract_label(p))}'
+                    + (f' ｜{html.escape(credited_volume_breakdown(p))}'
+                       if credited_volume_breakdown(p) else '') + '</p>')
         if not pairs and not contracts:
             blocks.append("<p>本轮暂无候选。</p>")
     if blueprints:
