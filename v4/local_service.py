@@ -49,6 +49,14 @@ def execute(root: Path, *, scanner=run, backup_fn=backup,
     if not disk["enough_space"]:
         return {"status": "SKIPPED_LOW_DISK", "disk": disk, "mail_enabled": False}
     scan = scanner(root)
+    if scan.get("status") == "SKIPPED_UPSTREAM_STALE":
+        if scan.get("mail_enabled") is not False:
+            raise RuntimeError("STALE_SNAPSHOT_MAIL_MUST_REMAIN_DISABLED")
+        return {"status":"SKIPPED_UPSTREAM_STALE",
+                "reason":"UPSTREAM_PUBLIC_SNAPSHOT_NOT_FRESH",
+                "run_folder_name":Path(scan["run_folder"]).name,
+                "upstream_sources":scan.get("upstream_sources") or {},
+                "mail_enabled":False,"disk":disk}
     if scan.get("status") != "SHADOW_RECORDED" or scan.get("mail_enabled") is not False:
         raise RuntimeError("SHADOW_SCAN_NOT_RECORDED_OR_MAIL_NOT_DISABLED")
     lanes = scan.get("structure_health") or {}
@@ -101,6 +109,13 @@ def main() -> int:
                 try:
                     result=execute(root)
                     print("RESULT",json.dumps(result,ensure_ascii=False),flush=True)
+                    if result.get("status") == "SKIPPED_UPSTREAM_STALE":
+                        # A normal no-data cycle: never re-mail the previous
+                        # completed scan or manufacture candidates from a
+                        # delayed upstream snapshot.
+                        print("RESEARCH_MAIL_SKIPPED UPSTREAM_SNAPSHOT_STALE",
+                              flush=True)
+                        return 0
                     # Independent opt-in research mail channels. Failure of
                     # either sender must NOT suppress the other sender. Both
                     # channels are separate from formal production alerts.
