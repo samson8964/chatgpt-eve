@@ -106,6 +106,31 @@ def run(data_root: Path) -> dict:
         try:
             _step("full_scan", common+["v4.full_scan","--data-dir",str(raw),
                                       "--output",str(report)],run_dir,repo)
+            census = json.loads(report.read_text(encoding="utf-8"))
+            if census.get("overall") == "SKIPPED_UPSTREAM_STALE":
+                # Expected, safe publisher delay: never run deep-scan,
+                # overwrite SQLite, or send research mail on stale inputs.
+                sources={
+                    key:{k:row.get(k) for k in
+                         ("status","age_hours","threshold_hours","last_modified","error")
+                         if k in row}
+                    for key,row in (census.get("sources") or {}).items()
+                }
+                result={
+                    **progress,"status":"SKIPPED_UPSTREAM_STALE",
+                    "reason":"UPSTREAM_PUBLIC_SNAPSHOT_NOT_FRESH",
+                    "coverage_gate":"UPSTREAM_SNAPSHOT_STALE",
+                    "source_input_integrity":"NOT_DOWNLOADED",
+                    "upstream_sources":sources,
+                    "finished_at":datetime.now(timezone.utc).isoformat(),
+                    "ready_for_production":False,"mail_enabled":False,
+                }
+                manifest.write_text(
+                    json.dumps(result,ensure_ascii=False,indent=2),
+                    encoding="utf-8")
+                return result
+            if census.get("overall") != "CENSUS_COMPLETE_PROOFS_NOT_READY":
+                raise RuntimeError("FULL_SCAN_CENSUS_NOT_COMPLETE")
             _step("deep_scan", common+["v4.deep_scan",
                                      "--market",str(raw / "market_orders.csv.bz2"),
                                      "--contracts",str(raw / "public_contracts.tar.bz2"),
