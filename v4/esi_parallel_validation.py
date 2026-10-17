@@ -436,12 +436,19 @@ def _latest_ref(root:Path):
 
 
 def run(root:Path, *, max_workers=3, max_regions=None, fetch_reference=True,
-        fetcher=None, compatibility_date=COMPAT_DATE):
+        fetcher=None, compatibility_date=COMPAT_DATE, region_ids_override=None):
     root=Path(root)
     if max_workers<1 or max_workers>4:
         raise ValueError("MAX_WORKERS_OUT_OF_RANGE")
     if max_regions is not None and not (1<=max_regions<=200):
         raise ValueError("INVALID_MAX_REGIONS")
+    if region_ids_override is not None:
+        if (not isinstance(region_ids_override,(list,tuple))
+                or not region_ids_override
+                or not all(isinstance(x,int) and x>0 for x in region_ids_override)
+                or len(set(region_ids_override))!=len(region_ids_override)
+                or max_regions is not None):
+            raise ValueError("INVALID_REGION_OVERRIDE")
     name=datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")+"-"+uuid.uuid4().hex[:8]
     directory=root/"esi-parallel-validation"/name
     directory.mkdir(parents=True,exist_ok=False)
@@ -467,10 +474,17 @@ def run(root:Path, *, max_workers=3, max_regions=None, fetch_reference=True,
                 not isinstance(x,int) or x<=0 for x in regions):
             raise ValidationError("ESI_INVALID_REGION_DIRECTORY")
         region_ids=sorted(regions)
-        chosen=region_ids[:max_regions] if max_regions else region_ids
+        if region_ids_override is not None:
+            if not set(region_ids_override).issubset(set(region_ids)):
+                raise ValidationError("REGION_OVERRIDE_NOT_IN_ESI_DIRECTORY")
+            chosen=sorted(region_ids_override)
+        else:
+            chosen=region_ids[:max_regions] if max_regions else region_ids
         report.update(universe_regions=len(region_ids),
-                      attempted_regions=len(chosen),full_universe_requested=
-                      (max_regions is None))
+                      attempted_regions=len(chosen),
+                      requested_region_ids=(chosen if region_ids_override is not None else None),
+                      full_universe_requested=(
+                          max_regions is None and region_ids_override is None))
         results=[]
         with ThreadPoolExecutor(max_workers=max_workers) as pool:
             jobs={pool.submit(fetch_region,api,rid,parts):rid for rid in chosen}
@@ -550,7 +564,7 @@ def run(root:Path, *, max_workers=3, max_regions=None, fetch_reference=True,
             con.close()
         if not complete:
             report["status"]="INCOMPLETE_ESI_REGIONS"
-        elif max_regions is not None:
+        elif max_regions is not None or region_ids_override is not None:
             report["status"]="PARTIAL_REGION_TEST_ONLY"
         elif report["unverified_404_regions"]:
             missing=(report["comparison"] or {}).get(
@@ -584,10 +598,18 @@ def main():
     ap.add_argument("--max-regions",type=int,default=None,
                     help="For offline/limited smoke tests ONLY; omit for full universe")
     ap.add_argument("--no-reference",action="store_true")
+    ap.add_argument("--region-ids",type=str,default=None,
+                    help="Comma-separated targeted DEBUG regions only; never full universe")
     args=ap.parse_args()
+    try:
+        region_ids=([int(x) for x in args.region_ids.split(",")]
+                    if args.region_ids else None)
+    except ValueError:
+        ap.error("REGION_IDS_INVALID")
     result,folder=run(args.data_root,max_workers=args.workers,
                        max_regions=args.max_regions,
-                       fetch_reference=not args.no_reference)
+                       fetch_reference=not args.no_reference,
+                       region_ids_override=region_ids)
     brief={k:result.get(k) for k in (
         "status","run","universe_regions","attempted_regions",
         "esi_pages","esi_unique_orders","region_status_counts",
