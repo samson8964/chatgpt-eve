@@ -113,3 +113,64 @@ markets, contracts, or blueprint opportunities. Their own data lanes
 must remain isolated, and official production source switching still
 needs a separate approval.
 
+
+## Single-region recovery of the 2026-10-18 06:56 CST run
+
+Latest all-region run **20261017T225007Z-79cc75a2**:
+- 114 attempted, 59 COMPLETE, 54 EMPTY_MARKET_CONFIRMED.
+- **Only 10000028 FAILED: ESI_PAGINATION_VERSION_MISMATCH**.
+- Saved 1,534,255 independently verified order rows, 1,629 pages.
+- The missing region held 24,679 orders in the old EVE Ref snapshot. This historical value does not establish current liquidity.
+- 1,704 HTTP 200; no HTTP failure or 429 limit was shown.
+- Never reclassify this failed run as completed or the missing region as zero orders.
+
+Avoid re-reading the same 113 independent regional archives:
+
+```powershell
+Set-Location (Join-Path $HOME 'EVE-V4-Code')
+git pull --ff-only
+& .\.venv\Scripts\python.exe -m unittest `
+    v4.tests.test_esi_merge_single_region `
+    v4.tests.test_esi_same_engine_market_shadow -v
+
+# Target ONLY failed region without downloading all regions again.
+& .\.venv\Scripts\python.exe -m v4.esi_parallel_validation `
+    --region-ids 10000028 --workers 1 --no-reference
+```
+
+Inspect status PARTIAL_REGION_TEST_ONLY, regions[0].status COMPLETE, and
+the newly printed patch run ID. If the targeted run fails, do not merge.
+Next, substitute the targeted run ID:
+
+```powershell
+& .\.venv\Scripts\python.exe -m v4.esi_merge_single_region `
+    --base-run 20261017T225007Z-79cc75a2 `
+    --patch-run PATCH_RUN_ID
+```
+
+The merge reads the original comparison.sqlite3 in read-only mode,
+checks the patch for duplicate order IDs, validates each regional archive
+and creates a NEW independent report referencing immutable source files.
+It never copies 1.5 million rows or alters the old full-run report.
+
+Composite status is **SHADOW_MULTI_EPOCH_REPAIRED_COVERAGE**, deliberately
+not PUBLIC_ESI_REGIONS_COMPLETE. Check its ESI Last-Modified span: this
+is historical shadow research ONLY, not a coherent single-epoch census.
+Even if the data are old or hours apart, no opportunity alert is allowed.
+
+Run same production-market-engine historical NPC parity using the newly
+printed composite run ID:
+
+```powershell
+& .\.venv\Scripts\python.exe -m v4.esi_same_engine_market_shadow `
+    --run COMPOSITE_RUN_ID
+```
+
+This evaluates only approved NPC Amarr + Dodixie station asks against
+Jita 4-4 BUY depth. It reuses the actual v4.engine.market_proof and
+deep_scan.haul and writes same_engine_market_comparison.json. It may call
+official station/route metadata, not market or contract data. Zero mail,
+zero scheduled changes, zero authenticated player-station market writes.
+
+Production source migration still needs a new coherent independent fresh
+full-region census and separately authorized Upwell market coverage.
