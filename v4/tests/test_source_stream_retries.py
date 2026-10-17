@@ -12,8 +12,15 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from requests.exceptions import ChunkedEncodingError
-from v4.sources import SourceError, download_fresh
+try:
+    from requests.exceptions import ChunkedEncodingError
+    from v4.sources import SourceError, download_fresh
+except ImportError:
+    # Lightweight reliability CI intentionally omits pandas/requests. The
+    # full Windows/Ubuntu V4 suite installs both and runs the stream tests.
+    ChunkedEncodingError = None
+    SourceError = None
+    download_fresh = None
 
 
 class FakeResponse:
@@ -40,6 +47,7 @@ class FakeResponse:
             raise self.exc or ChunkedEncodingError("Connection broken")
 
 
+@unittest.skipUnless(download_fresh is not None, "requires pandas and requests full V4 runtime")
 class StreamRetryTests(unittest.TestCase):
     def setUp(self):
         # Deliberately incompressible to exceed the 1024-byte minimum.
