@@ -7,6 +7,7 @@ Reports source timestamp and explicit completeness to avoid stale pretending LIV
 """
 from __future__ import annotations
 import bz2
+import http.client
 import json
 import hashlib
 import tarfile
@@ -68,24 +69,86 @@ def advertised(index_url: str, *, max_age_hours: float) -> dict:
                 fetched_at=datetime.now(timezone.utc).isoformat())
 
 
-def download_fresh(source: dict, path: Path) -> dict:
+def _check_complete_bz2(path: Path) -> None:
+    """Check CRC and EOF before a snapshot can become the official file.
+
+    A full HTTP response can still contain a truncated or invalid bzip2
+    stream. Handles concatenated bzip2 streams without retaining decompressed
+    market rows in memory.
+    """
+    decoder = bz2.BZ2Decompressor()
+    read_any = False
+    try:
+        with path.open('rb') as f:
+            for chunk in iter(lambda: f.read(256 * 1024), b''):
+                pending = chunk
+                while pending:
+                    if decoder.eof:
+                        decoder = bz2.BZ2Decompressor()
+                    decoder.decompress(pending)
+                    read_any = True
+                    pending = decoder.unused_data if decoder.eof else b''
+        if not read_any or not decoder.eof:
+            raise SourceError('SNAPSHOT_BZ2_INCOMPLETE_EOF')
+    except (EOFError, OSError) as exc:
+        raise SourceError('SNAPSHOT_BZ2_INVALID:' + type(exc).__name__) from exc
+
+
+def download_fresh(source: dict, path: Path, *, attempts: int=4) -> dict:
+    """Download anew on a broken *stream*, never resume unknown content.
+
+    Each attempt opens the same advertised immutable snapshot URL with a
+    NEW response, NEW sha256 and truncated .part. The final file is replaced
+    atomically ONLY after HTTP length and bzip2 CRC/EOF validation pass.
+    Never silently fall back to yesterday's data after all attempts fail.
+    """
+    if attempts < 1 or attempts > 8:
+        raise ValueError('INVALID_DOWNLOAD_ATTEMPTS')
     path.parent.mkdir(parents=True, exist_ok=True)
     temp = path.with_suffix(path.suffix + '.part')
-    digest = hashlib.sha256()
-    n = 0
-    try:
-        with _get(source['url'], stream=True) as response, temp.open('wb') as fh:
-            for block in response.iter_content(1024 * 1024):
-                if block:
-                    n += len(block)
-                    digest.update(block)
-                    fh.write(block)
-        if n < 1024:
-            raise SourceError('SNAPSHOT_TOO_SMALL')
-        temp.replace(path)
-    finally:
-        temp.unlink(missing_ok=True)
-    return dict(source, sha256=digest.hexdigest(), compressed_bytes=n, local_file=str(path))
+    last = None
+    for attempt in range(1, attempts + 1):
+        digest = hashlib.sha256()
+        n = 0
+        length = None
+        try:
+            with _get(source['url'], stream=True) as response, temp.open('wb') as fh:
+                advertised_length = response.headers.get('Content-Length')
+                if advertised_length is not None:
+                    try:
+                        length = int(advertised_length)
+                    except (TypeError, ValueError):
+                        raise SourceError('SNAPSHOT_INVALID_CONTENT_LENGTH') from None
+                    if length < 1024:
+                        raise SourceError('SNAPSHOT_TOO_SMALL_CONTENT_LENGTH')
+                for block in response.iter_content(1024 * 1024):
+                    if block:
+                        n += len(block)
+                        digest.update(block)
+                        fh.write(block)
+            if n < 1024:
+                raise SourceError('SNAPSHOT_TOO_SMALL')
+            if length is not None and n != length:
+                raise SourceError('SNAPSHOT_CONTENT_LENGTH_MISMATCH')
+            _check_complete_bz2(temp)
+            temp.replace(path)
+            return dict(source, sha256=digest.hexdigest(), compressed_bytes=n,
+                        local_file=str(path), download_attempts=attempt,
+                        download_retries=attempt-1, bz2_crc_and_eof_verified=True)
+        except (requests.exceptions.RequestException, http.client.IncompleteRead,
+                SourceError) as exc:
+            # Reopen the whole advertised URL. Do not stitch content from
+            # different HTTP responses, use Range or accept a partial file.
+            last = exc
+            if attempt == attempts:
+                raise SourceError(
+                    'SOURCE_STREAM_RETRY_EXHAUSTED:' + type(exc).__name__
+                ) from exc
+            time.sleep(min(20, 2 ** attempt))
+        finally:
+            temp.unlink(missing_ok=True)
+    raise SourceError('SOURCE_STREAM_RETRY_EXHAUSTED:' +
+                      (type(last).__name__ if last else 'UNKNOWN'))
 
 
 def market_dataframe(path: Path) -> pd.DataFrame:
