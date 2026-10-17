@@ -418,7 +418,7 @@ def render_html(review: dict) -> tuple[str, str]:
                     f' ｜{html.escape(contract_label(p))}'
                     + (f' ｜{html.escape(credited_volume_breakdown(p))}'
                        if credited_volume_breakdown(p) else '') + '</p>')
-        if not pairs and not contracts:
+        if not pairs and not contracts and not blueprints:
             blocks.append("<p>本轮暂无候选。</p>")
     if blueprints:
         blocks.append('<p><strong>蓝图制造（成本预留估算，非交易核验）</strong></p>')
