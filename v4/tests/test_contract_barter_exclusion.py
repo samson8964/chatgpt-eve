@@ -119,7 +119,12 @@ class V4ContractBarterExclusionTests(unittest.TestCase):
                 "source_input_integrity":"ALL_PARSED",
                 "sqlite_unique_proofs":len(proofs)}),encoding="utf-8")
             from v4.unified_review import make_review, render
-            unified=make_review(root)
+            # Synthetic integration scan has a mocked in-memory catalog and
+            # deliberately no installed SDE file. The real production mail
+            # path remains fail-closed when a scan catalog cannot be loaded.
+            with patch("v4.contract_review.load_policy_for_run",return_value=None), \
+                 patch("v4.unified_review.load_policy_for_run",return_value=None):
+                unified=make_review(root)
             self.assertEqual(unified["market_proofs_examined"],1)
             self.assertEqual(unified["contract_proofs_audited"],2)
             subject,body=render(unified,game=True)
