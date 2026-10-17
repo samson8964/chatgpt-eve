@@ -278,3 +278,83 @@ Only after reviewing the differences do we design a controlled live
 fresh Jita-ESI book trial, isolated from production outbox, requiring
 one synchronized source and price capture and direct verification of
 actual executable lots.
+
+## 2026-10-18 07:43+ CST: actual authorized 4-H/C-J/O4T price-feed A/B
+
+User supplied `private_source_jita_ab_*.json` of run
+`20261017T231839Z-9c24d05b`:
+
+- All authorized lanes COMPLETE: 4-H 33,390 market orders (34 pages),
+  C-J 52,697 (53 pages), O4T 6,974 (7 pages); 93,061 total active,
+  71,442 SELL; 15,367 station/type sell pairs.
+- SAME private SELL inputs against historical Jita BUY snapshots:
+  ESI 32 optimistic depth-prefilter candidates (4-H 3, C-J 24, O4T 5);
+  pinned EVE Ref 4 (4-H 1, C-J 3, O4T 0).
+- Union 33: only ESI 29, only EVE Ref 1, both 3.
+- FULL approved formal policy passes: ESI 0, EVE Ref 0.
+- 4-H item 28352: ESI net 187.16m ISK, ROI 4.50%,
+  stress fill unavailable (stress_profit=-1 sentinel, NOT -1 ISK loss).
+- C-J item 28352: ESI net 587.16m, ROI 15.62%,
+  stress fill unavailable: DO NOT mail as executable.
+- C-J item 36: ESI net 68.82m, stress 68.58m, ROI 4.60%, fails ROI.
+- O4T item 19111: ESI net 67.00m, ROI 35.08%,
+  stress 44.10m, fails 50m stress floor.
+- Original complete ESI source book is from 22:45:39-23:11:16 UTC.
+  EVE Ref fixed old reference is 14:21:20 UTC; private markets collected
+  23:43:43 UTC. The 32 vs 4 gap CANNOT isolate which source is better
+  because the two price books are from different times.
+
+### Fresh Jita-4-4 validation gate (no production changes)
+
+New optional `--fresh-jita-run` to `v4.esi_private_source_jita_ab`:
+pass a newly independently validated **only The Forge region 10000002**
+ESI one-shot archive. It checks 10000002 COMPLETE, all archive counts,
+all required economic fields, nonduplicate order IDs, page count,
+Last-Modified UTC age <= 15 minutes AT PRIVATE COMPARISON TIME, and
+only uses verified **Jita station 60003760 BUY** orders.
+
+Leave original composite EVE Ref pinned as the historical control.
+Only fresh ESI is different. Do not interpret EVE Ref as matched-current.
+Private asks are separately fetched once (all three lanes must pass),
+then both Jita buy feeds value the SAME asks through original market_proof.
+New output `private_source_jita_fresh_ab_<stamp>-<id>.json` explicitly
+includes the ESI archive run and verified timestamp. No mail, live
+trade, public market re-query from this A/B process, or production write.
+
+PowerShell run promptly after git pull and CI/tests passing:
+
+```powershell
+Set-Location (Join-Path $HOME 'EVE-V4-Code')
+git pull --ff-only
+& .\.venv\Scripts\python.exe -m unittest `
+    v4.tests.test_esi_private_source_jita_ab -v
+
+# Download ONLY Forge public regional market orders; all pages must agree.
+$out = & .\.venv\Scripts\python.exe -m v4.esi_parallel_validation `
+    --region-ids 10000002 --workers 1 --no-reference
+$out | Write-Output
+if ($LASTEXITCODE -ne 0) { throw 'Fresh Jita ESI collection failed' }
+$line = $out | Where-Object { $_ -match '^REPORT\s+' } | Select-Object -Last 1
+if (-not $line) { throw 'Fresh Jita report path missing' }
+$file = $line -replace '^REPORT\s+', ''
+$fresh = Get-Content -LiteralPath $file -Raw -Encoding UTF8 | ConvertFrom-Json
+if ($fresh.status -ne 'PARTIAL_REGION_TEST_ONLY' -or `
+    $fresh.regions[0].status -ne 'COMPLETE' -or `
+    $fresh.requested_region_ids[0] -ne 10000002) {
+    throw 'FRESH_JITA_ESI_REGION_INCOMPLETE'
+}
+
+# Do this immediately: ESI last-modified must be <=15 minutes old
+# when the one-shot authorized private comparison FINISHES.
+& .\.venv\Scripts\python.exe -m v4.esi_private_source_jita_ab `
+    --run 20261017T231839Z-9c24d05b `
+    --fresh-jita-run $fresh.run
+```
+
+If error FRESH_JITA_ESI_SNAPSHOT_TOO_OLD_OR_CLOCK_SKEW appears,
+the old validated Forge book has expired for this **research** run.
+Do not circumvent the guard; perform a new 10000002-only collection.
+If a private lane fails, treat whole comparison as unavailable.
+
+Share ONLY the generated `private_source_jita_fresh_ab_*.json`, not
+credentials or raw private pages. Do not infer live tradeability.
