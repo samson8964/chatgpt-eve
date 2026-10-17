@@ -104,6 +104,8 @@ def read_snapshot(data_root: Path, task: dict | None = None) -> dict:
         status = "TASK_MISSING"
     elif event["last_section_has_failure"]:
         status = "FAILED"
+    elif current.get("status") == "SKIPPED_UPSTREAM_STALE":
+        status = "SKIPPED_UPSTREAM_STALE"
     elif latest_result:
         status = str(latest_result.get("status") or "UNKNOWN")
     elif current.get("status") == "FAILED":
@@ -131,6 +133,8 @@ def read_snapshot(data_root: Path, task: dict | None = None) -> dict:
     if not running and event["last_section_has_failure"]:
         # Never show the previous success as the latest outcome after failure.
         last_result_status = "FAILED"
+    elif not running and current.get("status") == "SKIPPED_UPSTREAM_STALE":
+        last_result_status = "SKIPPED_UPSTREAM_STALE"
     elif result_folder and result_folder != completed_folder:
         last_result_status = latest_result.get("status")
     else:
@@ -160,6 +164,9 @@ def read_snapshot(data_root: Path, task: dict | None = None) -> dict:
         "zero_remaining_public_orders": completed.get("zero_remaining_public_orders"),
         "coverage_gate": completed.get("coverage_gate"),
         "source_input_integrity": completed.get("source_input_integrity"),
+        "latest_upstream_sources": (
+            current.get("upstream_sources") if
+            current.get("status") == "SKIPPED_UPSTREAM_STALE" else None),
         "elapsed_start": current.get("started_at") if running else None,
         "mail_enabled": False,
         "read_only": True,
