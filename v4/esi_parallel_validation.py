@@ -81,7 +81,7 @@ def _row(record:dict, region:int) -> dict | None:
     Anything else unexpected is a hard error with its failing field named.
     """
     required=("order_id","location_id","type_id","price","volume_remain",
-              "volume_total","min_volume","is_buy_order")
+              "volume_total","min_volume","is_buy_order","range")
     if not isinstance(record,dict) or any(k not in record for k in required):
         raise ValidationError("ESI_ORDER_MISSING_REQUIRED_FIELD")
     try:
@@ -103,13 +103,24 @@ def _row(record:dict, region:int) -> dict | None:
         raise ValidationError("ESI_ORDER_INVALID_VALUE:price")
     if not isinstance(buy,bool):
         raise ValidationError("ESI_ORDER_INVALID_VALUE:is_buy_order")
+    # Range controls the buyer's reach in V4 Order.parse and must not be
+    # invented as 'station' if ESI has omitted it.
+    range_value=record["range"]
+    accepted_ranges={"station","solarsystem","region"}
+    accepted_ranges.update(str(i) for i in (1,2,3,4,5,10,20,30,40))
+    if isinstance(range_value,bool) or str(range_value).lower() not in accepted_ranges:
+        raise ValidationError("ESI_ORDER_INVALID_VALUE:range")
     if total<remaining:
         raise ValidationError("ESI_ORDER_INVALID_VALUE:volume_total_less_than_remaining")
     if remaining==0:
         return None  # Non-actionable exhausted order; counted, not priced.
     return {"order_id":order,"region_id":region,"location_id":location,
             "type_id":typ,"is_buy_order":int(buy),"price":price,
-            "volume_remain":remaining}
+            "volume_remain":remaining,
+            # JSONL only: extra execution fields don't change the existing
+            # seven-column comparison SQLite schema or its historic reports.
+            "min_volume":minimum,"range":str(range_value).lower(),
+            "volume_total":total}
 
 
 class Api:
@@ -463,6 +474,12 @@ def run(root:Path, *, max_workers=3, max_regions=None, fetch_reference=True,
         "live_mail_allowed":False,"read_only_existing_v4":True,
         "esi_url":ESI,"compatibility_date":compatibility_date,
         "workers":max_workers,"region_limit":max_regions,
+        "archive_execution_fields":["order_id","region_id","location_id",
+                                    "type_id","is_buy_order","price",
+                                    "volume_remain","min_volume","range",
+                                    "volume_total"],
+        "archive_execution_fields_coverage":"ALL_ACTIVE_PUBLIC_ESI_ROWS",
+        "same_v4_profit_model_executed":False,
         "authorized_structure_markets":"EXCLUDED_FROM_PUBLIC_ESI_AND_UNCHANGED_IN_V4",
         "comparison":None,
     }
