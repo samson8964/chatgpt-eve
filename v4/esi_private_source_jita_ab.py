@@ -16,6 +16,7 @@ import os
 import uuid
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 
 from v4.catalog import Catalog, DEFAULT_CACHE
@@ -84,8 +85,13 @@ def _fresh_jita_books(root,run_id,*,now=None,max_age_minutes=15):
               "volume_total"}
     if not required.issubset(report.get("archive_execution_fields") or []):
         raise ParityError("FRESH_JITA_ESI_EXECUTION_FIELDS_MISSING")
-    from v4.esi_parallel_validation import _http_time  # requests only for opt-in fresh mode
-    stamp=_http_time(region.get("last_modified"))
+    try:
+        stamp=parsedate_to_datetime(str(region.get("last_modified")))
+        if stamp.tzinfo is None:
+            raise ValueError("naive ESI HTTP date")
+        stamp=stamp.astimezone(timezone.utc)
+    except (TypeError,ValueError,OverflowError) as exc:
+        raise ParityError("FRESH_JITA_ESI_LAST_MODIFIED_INVALID") from None
     reference_time=now or datetime.now(timezone.utc)
     age_minutes=(reference_time-stamp).total_seconds()/60
     if not (0<=age_minutes<=max_age_minutes):
