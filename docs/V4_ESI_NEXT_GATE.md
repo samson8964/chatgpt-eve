@@ -174,3 +174,44 @@ zero scheduled changes, zero authenticated player-station market writes.
 
 Production source migration still needs a new coherent independent fresh
 full-region census and separately authorized Upwell market coverage.
+
+## 2026-10-18: Zero formal opportunities requires near-miss evidence
+
+The actual `same_engine_market_comparison.json` on the immutable
+multi-epoch run `20261017T231839Z-9c24d05b` returned:
+
+- ESI 16 prefilter passes: 15 BELOW_GATE_OR_STRESS, 1 NO_PROFITABLE_MATCHED_DEPTH.
+- EVE Ref 17 prefilter passes: all 17 BELOW_GATE_OR_STRESS.
+- Both final formal gate sets empty; union of prefilter station/type candidates is 20.
+- Only approved NPC Amarr 60008494 and Dodixie 60011866 were considered.
+- No evidence supports weakening the 50m ISK, 10% ROI, 2000/m3,
+  3.375% sales tax or top-Jita-bid-loss stress policy based on this output.
+
+The old JSON withheld *all* 20 prefilter candidates because both final
+gate sets were empty. Instead, inspect precisely which constraints failed
+without rescraping any market orders. This runs the SAME market_proof
+on the SAME immutable archives and creates a distinct file, preserving
+the previous comparison:
+
+```powershell
+Set-Location (Join-Path $HOME 'EVE-V4-Code')
+git pull --ff-only
+& .\.venv\Scripts\python.exe -m unittest `
+    v4.tests.test_esi_same_engine_market_shadow -v
+& .\.venv\Scripts\python.exe -m v4.esi_same_engine_market_shadow `
+    --run 20261017T231839Z-9c24d05b --explain-existing
+```
+
+Read `same_engine_market_near_miss_audit.json`: all prefilter
+station/type pairs, each source's original model reason, quantity,
+profit, ROI, density, stress profit, haul cost, source and Jita VWAP,
+plus each formal gate's threshold and explicit pass/fail status.
+
+No market / contract / private structure requests or opportunity mail.
+The V4 route metadata may be read for the same transport model.
+Historical multi-epoch data remain research-only and never qualify for
+production alert freshness. After analyzing rejection reasons, the next
+business-relevant A/B comparison must hold the actual authorized Upwell
+sell-order inputs (4-H, C-J, O4T) constant and change ONLY the Jita 4-4
+BUY feed. This isolates pricing-source impact without recomputing
+contracts or exposing private order books.
