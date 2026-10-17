@@ -32,6 +32,14 @@ if ($t.Settings.MultipleInstances.ToString() -ne 'IgnoreNew') {
     [pscustomobject]@{status='UNSAFE_MULTIPLE_INSTANCES'} | ConvertTo-Json -Compress
     return
 }
+# Ensure a same-name task has not been changed to run unrelated software.
+$actions = @($t.Actions)
+if ($actions.Count -ne 1 -or
+    [System.IO.Path]::GetFileName([string]$actions[0].Execute) -ne 'pythonw.exe' -or
+    [string]$actions[0].Arguments -notmatch '(?i)(^|\s)-m\s+v4\.local_service(\s|$)') {
+    [pscustomobject]@{status='TASK_ACTION_MISMATCH'} | ConvertTo-Json -Compress
+    return
+}
 Start-ScheduledTask -InputObject $t -ErrorAction Stop
 [pscustomobject]@{status='START_REQUESTED'} | ConvertTo-Json -Compress
 """
@@ -65,7 +73,7 @@ def request_full_scan(*, runner=subprocess.run, platform=None) -> dict:
             return {"status": "TASK_START_FAILED"}
         state=data.get("status")
         if state not in ("START_REQUESTED", "ALREADY_RUNNING", "NOT_READY",
-                         "UNSAFE_MULTIPLE_INSTANCES"):
+                         "UNSAFE_MULTIPLE_INSTANCES", "TASK_ACTION_MISMATCH"):
             return {"status": "TASK_START_FAILED"}
         return {"status": state}
     except (OSError, ValueError, subprocess.TimeoutExpired):
