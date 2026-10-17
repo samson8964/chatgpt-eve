@@ -103,7 +103,7 @@ class DesktopWidget:
         self.manual_future = None
         self.manual_started_request_at = None
         self.manual_prior_last_run = None
-        self.manual_message = "手动执行与定时任务共用同一进程锁"
+        self.manual_message = "与自动扫描共用任务，避免重复运行"
         self.manual_message_color = "muted"
         self.last_query_at = 0.0
         self.task = {"state": "Unknown"}
@@ -241,6 +241,9 @@ class DesktopWidget:
                 self.manual_message_color = "amber"
             elif status == "UNSAFE_MULTIPLE_INSTANCES":
                 self.manual_message = "任务缺少防重叠保护，拒绝启动"
+                self.manual_message_color = "red"
+            elif status == "TASK_ACTION_MISMATCH":
+                self.manual_message = "计划任务执行程序不符，拒绝启动"
                 self.manual_message_color = "red"
             elif status == "WINDOWS_REQUIRED":
                 self.manual_message = "此功能仅在 Windows 上可用"
