@@ -19,7 +19,7 @@ from unittest.mock import Mock, patch
 try:
     from v4.esi_parallel_validation import (
         Api, ValidationError, _http_time, _row,
-        fetch_region, run, STATION_JITA
+        fetch_region, run, reconcile_saved, STATION_JITA
     )
 except ImportError:
     Api=ValidationError=_http_time=_row=fetch_region=run=None
@@ -263,6 +263,33 @@ class EsiParallelValidationTests(unittest.TestCase):
             self.assertEqual(report["status"],"PUBLIC_ESI_404_COVERAGE_UNVERIFIED")
             self.assertEqual(report["comparison"]["reference_regions_not_complete_on_esi"],
                              [10000002])
+
+    def test_archived_esi_orders_can_be_reconciled_offline_without_redownload(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td)
+            source=install_ref(root)
+            with bz2.open(source,"at",encoding="utf-8") as output:
+                output.write("1001,10000001,60003760,34,7,0,True\n")
+            original=source.read_bytes()
+            fake=FakeApi()
+            report,folder=run(root,fetcher=fake,fetch_reference=True)
+            self.assertEqual(report["reference"]["excluded_nontradeable_orders"]
+                             ["exhausted_zero_remaining"],1)
+            first= (folder/"comparison.sqlite3").read_bytes()
+            with patch("v4.esi_parallel_validation.Api") as no_network:
+                result,saved=reconcile_saved(root,folder.name)
+                no_network.assert_not_called()
+            self.assertTrue(saved.is_file())
+            self.assertTrue((folder/"reconciled.sqlite3").is_file())
+            self.assertEqual((folder/"comparison.sqlite3").read_bytes(),first)
+            self.assertEqual(source.read_bytes(),original)
+            self.assertEqual(result["archived_esi_orders"],3)
+            self.assertEqual(result["reference_tradeable_orders"],2)
+            self.assertEqual(result["reference_excluded_nontradeable_orders"]
+                             ["exhausted_zero_remaining"],1)
+            self.assertEqual(result["data_source_decision"],"DO_NOT_SWITCH_PRODUCTION")
+            with self.assertRaisesRegex(ValidationError,"ALREADY_EXISTS"):
+                reconcile_saved(root,folder.name)
 
     def test_current_http_header_case_normalizes_and_respects_429(self):
         fake_response=Mock(status_code=200,headers={
