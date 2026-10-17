@@ -21,6 +21,27 @@ git pull --ff-only
 - 只对 `PUBLIC_ESI_REGIONS_COMPLETE` 且所有星域验证无失败的归档运行；没有证据就拒绝输出正常覆盖结论。
 - 当前比较库仅存 `order_id / region_id / location_id / type_id / is_buy_order / price / volume_remain`，未完整保存 `min_volume / range`。因此不得据此给出 V4 真实成交利润或实际可交易候选。需要下一轮新鲜订单归档保留这些字段，再共用正式 V4 的经济模型、授权站点、体积、运费、税费和压力利润，完成相同输入标准下的候选数量及差异验证。
 
+## 2026-10-18 深度审计实测结论
+
+已收到 depth_difference_audit.json （run 20261017T220739Z-69e03d4c）：
+- ESI 1,559,428 vs EVE Ref 1,590,543，匹配订单ID 1,530,213，占 ESI 98.127%。
+- 吉他双方共有17,680个带买单商品；最优买价不同4,992种，前五价格档位数量不同5,500种。这些是不同时间快照的变动，不能据此断定接口故障。
+- 10000030 EVE Ref 独有11,884单，其中玩家建筑 1022167642188 卖单9,721及买单313，总计10,034单，占84.43%。10000027/10000014/10000066的独有单几乎全部集中在玩家建筑。这符合公开ESI不提供全部Upwell建筑订单的覆盖差异，且说明正式切换时绝不能丢弃独立授权的玩家建筑市场链路。
+- 正式生产 EVE Ref 数据源暂时不变；截图/JSON总结不能证明同V4净利润结果。
+
+已经将新采集器的逐单独立 JSONL 归档扩展为保存 min_volume、range、volume_total；原有 comparison.sqlite3 的7列只读对账模式不变；此前的旧归档不会凭空获得缺失字段。
+
+先做轻量真实 ESI 字段取样（约一个中小星域；不是完整市场扫描）：
+
+```powershell
+Set-Location (Join-Path $HOME 'EVE-V4-Code')
+git pull --ff-only
+& .\.venv\Scripts\python.exe -m unittest v4.tests.test_esi_parallel_validation -v
+& .\.venv\Scripts\python.exe -m v4.esi_parallel_validation --region-ids 10000001 --workers 2 --no-reference
+```
+
+只有取样确定字段齐全、没有分页/类型问题后，才考虑下一轮全量归档和同算法影子利润验证。特别注意在下一轮模型中只与正式 V4 相同的许可 NPC 站点和独立授权私有站点匹配，不应假装 ES I 公开数据覆盖全部可访问玩家建筑市场。
+
 ## 通过后行动顺序
 
 1. 审计异常星域，确认旧快照独有订单是否高度集中于特定站点/类型及交易方向。
