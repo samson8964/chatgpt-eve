@@ -194,6 +194,7 @@ def _model(market,catalog,haul_fn):
             "policy_passed_shadow_only":passed,
             "reason":p.get("reason"),"quantity":p.get("quantity"),
             "profit":p.get("profit"),"roi":p.get("roi"),
+            "density_isk_per_m3":p.get("density"),
             "stress_profit":p.get("stress_profit"),
             "haul":p.get("haul"),"source_vwap":p.get("source_vwap_isk_per_unit"),
             "jita_vwap":p.get("jita_vwap_isk_per_unit"),
@@ -204,10 +205,32 @@ def _model(market,catalog,haul_fn):
     return proofs,dict(counts)
 
 
-def _diff(lhs,rhs):
+def _gate_evidence(p):
+    if p is None:
+        return None
+    fields=(
+        ("profit",POLICY.profit_floor,False),
+        ("roi",POLICY.min_roi,False),
+        ("density_isk_per_m3",POLICY.min_density,False),
+        ("stress_profit",POLICY.profit_floor,True),
+    )
+    gates={}
+    for name,threshold,strict in fields:
+        value=p.get(name)
+        gates[name]={
+            "actual":value,"required":threshold,
+            "test":">" if strict else ">=",
+            "passed":(value>threshold if strict else value>=threshold)
+                     if value is not None else None,
+        }
+    return gates
+
+
+def _diff(lhs,rhs,*,include_near_misses=False):
     keys=sorted(set(lhs)|set(rhs))
     categories=Counter()
     rows=[]
+    all_prefilter=[]
     for key in keys:
         a=lhs.get(key)
         b=rhs.get(key)
@@ -218,17 +241,33 @@ def _diff(lhs,rhs):
                   "EVEREF_ONLY_FORMAL_GATE" if b_pass else
                   "NEITHER_FORMAL_GATE")
         categories[category]+=1
+        pair={
+            "station_type":key,"classification":category,
+            "esi":a,"everef":b,
+            "net_profit_difference_isk":(
+                round(a["profit"]-b["profit"],2)
+                if a and b and a["profit"] is not None and
+                b["profit"] is not None else None),
+        }
         if a_pass or b_pass:
-            rows.append({
-                "station_type":key,"classification":category,
-                "esi":a,"everef":b,
-                "net_profit_difference_isk":(
-                    round(a["profit"]-b["profit"],2)
-                    if a and b and a["profit"] is not None and
-                    b["profit"] is not None else None),
+            rows.append(pair)
+        if include_near_misses:
+            all_prefilter.append({
+                **pair,
+                "esi_gate_evidence":_gate_evidence(a),
+                "everef_gate_evidence":_gate_evidence(b),
+                "prefilter_presence":(
+                    "BOTH" if a is not None and b is not None else
+                    "ESI_ONLY" if a is not None else "EVEREF_ONLY"),
             })
-    return {"classification_counts":dict(categories),
+    result={"classification_counts":dict(categories),
             "all_gate_positive_pairs":rows}
+    if include_near_misses:
+        result["all_prefilter_pairs"]=all_prefilter
+        result["prefilter_pairs_total"]=len(all_prefilter)
+        result["prefilter_presence_counts"]=dict(Counter(
+            p["prefilter_presence"] for p in all_prefilter))
+    return result
 
 
 def _route_evidence():
@@ -253,7 +292,8 @@ def _route_evidence():
     return stations,output
 
 
-def audit(root,run_id,*,catalog=None,haul_fn=None,route_evidence=None):
+def audit(root,run_id,*,catalog=None,haul_fn=None,route_evidence=None,
+          explain_existing=False):
     if not VALIDATED_RUN.fullmatch(run_id):
         raise ParityError("INVALID_ESI_RUN_ID")
     folder=Path(root)/"esi-parallel-validation"/run_id
@@ -278,9 +318,11 @@ def audit(root,run_id,*,catalog=None,haul_fn=None,route_evidence=None):
         raise ParityError("PINNED_EVEREF_SNAPSHOT_MISSING")
     if json.loads(manifest.read_text("utf-8")).get("status")!="SHADOW_RECORDED":
         raise ParityError("PINNED_EVEREF_RUN_NOT_COMPLETED")
-    output=folder/"same_engine_market_comparison.json"
+    output=folder/("same_engine_market_near_miss_audit.json"
+                   if explain_existing else "same_engine_market_comparison.json")
     if output.exists():
-        raise ParityError("SAME_ENGINE_COMPARISON_ALREADY_EXISTS")
+        raise ParityError("SAME_ENGINE_DIAGNOSTIC_ALREADY_EXISTS" if explain_existing
+                          else "SAME_ENGINE_COMPARISON_ALREADY_EXISTS")
     if catalog is None:
         if not DEFAULT_CACHE.is_file():
             raise ParityError("LOCAL_V4_CATALOG_MISSING_RUN_REGULAR_V4_FIRST")
@@ -295,9 +337,10 @@ def audit(root,run_id,*,catalog=None,haul_fn=None,route_evidence=None):
         route_evidence={"injected_for_offline_test":True}
     left,lc=_model(esi,catalog,haul_fn)
     right,rc=_model(everef,catalog,haul_fn)
-    compared=_diff(left,right)
+    compared=_diff(left,right,include_near_misses=explain_existing)
     outcome={
-        "status":"SHADOW_SAME_V4_ENGINE_PUBLIC_NPC_ONLY",
+        "status":("SHADOW_SAME_V4_ENGINE_NEAR_MISS_DIAGNOSTIC"
+                  if explain_existing else "SHADOW_SAME_V4_ENGINE_PUBLIC_NPC_ONLY"),
         "run":run_id,"reference_run":ref_run,
         "esi_orders":esi_counts,"everef_orders":ref_counts,
         "source_scope":"APPROVED_PUBLIC_NPC_AMARR_DODIXIE_TO_JITA_ONLY",
@@ -318,6 +361,8 @@ def audit(root,run_id,*,catalog=None,haul_fn=None,route_evidence=None):
         "route_evidence":route_evidence,
         "esi_model_counts":lc,"everef_model_counts":rc,
         "comparison":compared,
+        "diagnostic_includes_all_prefilter_candidates":explain_existing,
+        "existing_successful_comparison_report_preserved":explain_existing,
         "network_order_requests":0,
         "possible_official_metadata_route_requests":(
             False if route_evidence.get("injected_for_offline_test")
@@ -335,14 +380,22 @@ def main():
     p=argparse.ArgumentParser(description="V4 same-engine historical ESI vs EVE Ref public NPC market proof shadow; no emails")
     p.add_argument("--data-root",type=Path,default=Path.home()/"EVE-V4-Data")
     p.add_argument("--run",required=True)
+    p.add_argument("--explain-existing",action="store_true",
+                   help="Read the same archived orders again and write a separate "
+                        "near-miss diagnosis; never replace the previous report")
     args=p.parse_args()
-    result,path=audit(args.data_root,args.run)
+    result,path=audit(args.data_root,args.run,
+                      explain_existing=args.explain_existing)
     print(json.dumps({k:result[k] for k in (
         "status","run","esi_model_counts","everef_model_counts",
         "source_scope","mail_sent","production_market_source_changed",
         "decision")},ensure_ascii=False,indent=2))
     print("CLASSIFICATIONS",json.dumps(result["comparison"]["classification_counts"],
                                         ensure_ascii=False))
+    if args.explain_existing:
+        print("PREFILTER_PRESENCE",json.dumps(
+            result["comparison"]["prefilter_presence_counts"],ensure_ascii=False))
+        print("NEAR_MISS_CANDIDATES",result["comparison"]["prefilter_pairs_total"])
     print("REPORT",path)
 
 
