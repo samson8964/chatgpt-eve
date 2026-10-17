@@ -20,6 +20,7 @@ import json
 import math
 import os
 import re
+import shutil
 import sqlite3
 import threading
 import time
@@ -591,6 +592,71 @@ def run(root:Path, *, max_workers=3, max_regions=None, fetch_reference=True,
     return report,directory
 
 
+def reconcile_saved(root:Path, run_name:str):
+    """Compare ALREADY archived ESI with fixed historical EVE Ref, zero HTTP.
+
+    Never rewrites the original ESI report or the original comparison database.
+    The archived ESI run may remain incomplete; this is a forensic comparison,
+    NOT production eligibility or a second, freshly synchronized market scan.
+    """
+    if not re.fullmatch(r"[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8}",run_name):
+        raise ValidationError("INVALID_SAVED_ESI_RUN_NAME")
+    root=Path(root)
+    folder=root/"esi-parallel-validation"/run_name
+    report_file=folder/"report.json"
+    original_db=folder/"comparison.sqlite3"
+    if not (report_file.is_file() and original_db.is_file()):
+        raise ValidationError("SAVED_ESI_RUN_MISSING")
+    report=json.loads(report_file.read_text(encoding="utf-8"))
+    if report.get("run")!=run_name:
+        raise ValidationError("SAVED_ESI_RUN_ID_MISMATCH")
+    ref_run=(report.get("reference") or {}).get("run")
+    if not isinstance(ref_run,str) or not re.fullmatch(
+            r"[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8}",ref_run):
+        raise ValidationError("SAVED_REFERENCE_RUN_INVALID")
+    ref_folder=root/"runs"/ref_run
+    reference=ref_folder/"source"/"market_orders.csv.bz2"
+    if not reference.is_file():
+        raise ValidationError("SAVED_REFERENCE_ARCHIVE_MISSING")
+    if json.loads((ref_folder/"manifest.json").read_text(
+            encoding="utf-8")).get("status")!="SHADOW_RECORDED":
+        raise ValidationError("SAVED_REFERENCE_NOT_COMPLETED")
+    expected=int(report.get("esi_unique_orders",-1))
+    clone=folder/"reconciled.sqlite3"
+    output=folder/"reconciliation.json"
+    if clone.exists() or output.exists():
+        raise ValidationError("RECONCILIATION_ALREADY_EXISTS")
+    # The original failed comparison.sqlite3 is evidence; never edit it.
+    shutil.copy2(original_db,clone)
+    with sqlite3.connect(clone) as con:
+        actual=_count(con,"SELECT COUNT(*) FROM esi")
+        if actual!=expected:
+            raise ValidationError("ARCHIVED_ESI_ORDER_COUNT_MISMATCH")
+        con.execute("DELETE FROM everef")
+        reference_count,ref_regions,ignored=_read_reference(con,reference)
+        con.commit()
+        comparison=compare(con,report.get("regions") or [],ref_regions)
+    outcome={
+        "status":"OFFLINE_RECONCILIATION_ONLY",
+        "run":run_name,
+        "original_status":report.get("status"),
+        "original_region_status_counts":report.get("region_status_counts"),
+        "original_esi_cache_freshness":report.get("esi_cache_freshness"),
+        "original_reference":report.get("reference"),
+        "archived_esi_orders":actual,
+        "reference_tradeable_orders":reference_count,
+        "reference_excluded_nontradeable_orders":ignored,
+        "comparison":comparison,
+        "no_new_esi_requests":True,
+        "production_source_unchanged":True,
+        "data_source_decision":"DO_NOT_SWITCH_PRODUCTION",
+        "note":"Uses original, potentially incomplete ESI regions and historical EVE Ref with different timestamps. Differences are descriptive, not evidence of missing live orders."
+    }
+    output.write_text(json.dumps(outcome,ensure_ascii=False,indent=2),
+                      encoding="utf-8")
+    return outcome,output
+
+
 def main():
     ap=argparse.ArgumentParser(description="One-shot ESI full-market parallel shadow validation (never changes V4 or mails)")
     ap.add_argument("--data-root",type=Path,default=Path.home()/"EVE-V4-Data")
@@ -598,9 +664,21 @@ def main():
     ap.add_argument("--max-regions",type=int,default=None,
                     help="For offline/limited smoke tests ONLY; omit for full universe")
     ap.add_argument("--no-reference",action="store_true")
+    ap.add_argument("--reconcile-run",type=str,default=None,
+                    help="Offline-only reconciliation of a previously archived ESI run")
     ap.add_argument("--region-ids",type=str,default=None,
                     help="Comma-separated targeted DEBUG regions only; never full universe")
     args=ap.parse_args()
+    if args.reconcile_run:
+        if (args.max_regions is not None or args.region_ids or args.no_reference):
+            ap.error("RECONCILIATION_HAS_NO_SCRAPE_OPTIONS")
+        outcome,path=reconcile_saved(args.data_root,args.reconcile_run)
+        print(json.dumps({k:outcome.get(k) for k in (
+            "status","run","archived_esi_orders","reference_tradeable_orders",
+            "reference_excluded_nontradeable_orders","comparison",
+            "data_source_decision")},ensure_ascii=False,indent=2))
+        print("REPORT",path)
+        return
     try:
         region_ids=([int(x) for x in args.region_ids.split(",")]
                     if args.region_ids else None)
