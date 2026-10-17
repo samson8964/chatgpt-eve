@@ -92,7 +92,13 @@ def _load_esi(folder,report):
     ids=set()
     for region in results:
         rid=int(region["region_id"])
-        path=folder/"regions"/f"{rid}.jsonl.gz"
+        archive_run=region.get("archive_run")
+        if archive_run is not None:
+            if not VALIDATED_RUN.fullmatch(str(archive_run)):
+                raise ParityError("ESI_REGION_ARCHIVE_LINEAGE_INVALID")
+            path=folder.parent/archive_run/"regions"/f"{rid}.jsonl.gz"
+        else:
+            path=folder/"regions"/f"{rid}.jsonl.gz"
         if not path.is_file():
             raise ParityError(f"ESI_REGION_ARCHIVE_MISSING:{rid}")
         n=0
@@ -255,8 +261,10 @@ def audit(root,run_id,*,catalog=None,haul_fn=None,route_evidence=None):
     if not report_path.is_file():
         raise ParityError("ESI_REPORT_NOT_FOUND")
     report=json.loads(report_path.read_text("utf-8"))
+    allowed_statuses=("PUBLIC_ESI_REGIONS_COMPLETE",
+                      "SHADOW_MULTI_EPOCH_REPAIRED_COVERAGE")
     if (report.get("run")!=run_id or
-            report.get("status")!="PUBLIC_ESI_REGIONS_COMPLETE" or
+            report.get("status") not in allowed_statuses or
             report.get("full_universe_requested") is not True or
             report.get("failed_regions") or report.get("unverified_404_regions")):
         raise ParityError("ESI_ARCHIVE_NOT_FULLY_VERIFIED")
@@ -297,6 +305,10 @@ def audit(root,run_id,*,catalog=None,haul_fn=None,route_evidence=None):
         "snapshot_timestamps":{
             "esi":report.get("esi_cache_freshness"),
             "everef":pinned.get("last_modified")},
+        "input_esi_archive_status":report["status"],
+        "multi_epoch_reconstruction":(
+            report["status"]=="SHADOW_MULTI_EPOCH_REPAIRED_COVERAGE"),
+        "archive_lineage":report.get("archive_lineage"),
         "economic_logic":"v4.engine.market_proof + v4.market_execution.gross_depth_upper_bound + v4.deep_scan.haul",
         "policy":{
             "profit_floor_isk":POLICY.profit_floor,
@@ -312,7 +324,7 @@ def audit(root,run_id,*,catalog=None,haul_fn=None,route_evidence=None):
             else True),
         "mail_sent":False,"production_market_source_changed":False,
         "decision":"DO_NOT_SWITCH_PRODUCTION",
-        "limitations":"Different-time ESI and EVE Ref market snapshots. Public NPC stations only. No contracts, private Upwell books or real trade execution. Policy passes are research-only and never delivered."
+        "limitations":"Different-time ESI and EVE Ref market snapshots; multi-epoch reconstructed archives (if used) also combine distinct ESI time windows. Public NPC stations only. No contracts, private Upwell books or real trade execution. Policy passes are research-only and never delivered."
     }
     output.write_text(json.dumps(outcome,ensure_ascii=False,indent=2),
                       encoding="utf-8")
