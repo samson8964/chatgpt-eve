@@ -117,6 +117,57 @@ class EsiSameV4MarketShadowTests(unittest.TestCase):
                 audit(Path(td),RUN,catalog=Catalog(),haul_fn=haul_fn,
                       route_evidence={"fixture":True})
 
+    def test_zero_formal_passes_still_preserve_near_miss_reason_and_gates(self):
+        with tempfile.TemporaryDirectory() as td:
+            folder,ref=create_fixtures(td)
+            # Create two genuine optimistic 50m+ matched-depth spreads,
+            # where losing the strongest Jita bid defeats the stress test.
+            esi_book=folder/"regions"/"10000002.jsonl.gz"
+            with gzip.open(esi_book,"wt",encoding="utf-8") as f:
+                for order in (
+                    row(1,10000002,JITA,True,10_000_000,25),
+                    row(2,10000002,JITA,True,1_500_000,25)):
+                    f.write(json.dumps(order)+"\\n")
+            ref_book=ref/"source"/"market_orders.csv.bz2"
+            with bz2.open(ref_book,"wt",encoding="utf-8",newline="") as f:
+                w=csv.DictWriter(f,fieldnames=list(FIELDS))
+                w.writeheader()
+                w.writerows([
+                    row(1,10000002,JITA,True,5_000_000,25),
+                    row(2,10000002,JITA,True,1_500_000,25),
+                    row(3,10000043,SOURCES[0],False,1_000_000,20)])
+            route={"fixture":True}
+            first,old_path=audit(Path(td),RUN,catalog=Catalog(),
+                haul_fn=lambda s,d,v:2_000_000,route_evidence=route)
+            self.assertEqual(
+                first["comparison"]["classification_counts"]
+                    ["NEITHER_FORMAL_GATE"],1)
+            self.assertEqual(first["comparison"]["all_gate_positive_pairs"],[])
+            old_bytes=old_path.read_bytes()
+            second,details=audit(Path(td),RUN,catalog=Catalog(),
+                haul_fn=lambda s,d,v:2_000_000,route_evidence=route,
+                explain_existing=True)
+            self.assertEqual(second["status"],
+                             "SHADOW_SAME_V4_ENGINE_NEAR_MISS_DIAGNOSTIC")
+            self.assertEqual(second["comparison"]["prefilter_pairs_total"],1)
+            self.assertEqual(second["comparison"]["prefilter_presence_counts"],
+                             {"BOTH":1})
+            case=second["comparison"]["all_prefilter_pairs"][0]
+            self.assertEqual(case["classification"],"NEITHER_FORMAL_GATE")
+            self.assertEqual(case["esi"]["reason"],"BELOW_GATE_OR_STRESS")
+            self.assertEqual(case["everef"]["reason"],"BELOW_GATE_OR_STRESS")
+            self.assertFalse(case["esi_gate_evidence"]["stress_profit"]["passed"])
+            self.assertIsNotNone(case["esi"]["profit"])
+            self.assertIsNotNone(case["esi"]["quantity"])
+            self.assertFalse(second["mail_sent"])
+            self.assertFalse(second["production_market_source_changed"])
+            self.assertEqual(old_path.read_bytes(),old_bytes)
+            self.assertTrue(details.exists())
+            with self.assertRaisesRegex(ParityError,"DIAGNOSTIC_ALREADY_EXISTS"):
+                audit(Path(td),RUN,catalog=Catalog(),
+                      haul_fn=lambda s,d,v:2_000_000,route_evidence=route,
+                      explain_existing=True)
+
     def test_old_archives_without_execution_fields_rejected(self):
         with tempfile.TemporaryDirectory() as td:
             create_fixtures(td,omit_execution_fields=True)
