@@ -332,7 +332,31 @@ def compare(con, region_results:list, ref_region_counts:dict):
                     (STATION_JITA,))
     jita_ref=_count(con,"SELECT COUNT(*) FROM everef WHERE location_id=? AND is_buy_order=1",
                     (STATION_JITA,))
+    esi_by_region=dict(con.execute(
+        "SELECT region_id,COUNT(*) FROM esi GROUP BY region_id").fetchall())
+    ref_by_region=dict(con.execute(
+        "SELECT region_id,COUNT(*) FROM everef WHERE region_id IS NOT NULL "
+        "GROUP BY region_id").fetchall())
+    region_comparison=[
+        {"region_id":int(r),"esi_orders":int(esi_by_region.get(r,0)),
+         "everef_orders":int(ref_by_region.get(r,0)),
+         "delta":int(esi_by_region.get(r,0))-int(ref_by_region.get(r,0))}
+        for r in sorted(set(esi_by_region)|set(ref_by_region))]
+    jita_overlap=_count(con,"SELECT COUNT(*) FROM esi e JOIN everef r "
+        "USING(order_id) WHERE e.location_id=? AND e.is_buy_order=1 "
+        "AND r.location_id=? AND r.is_buy_order=1",
+        (STATION_JITA,STATION_JITA))
     return {"esi_orders":esi_count,"everef_orders":ref_count,
+            "esi_distinct_types":_count(con,"SELECT COUNT(DISTINCT type_id) FROM esi"),
+            "everef_distinct_types":_count(con,"SELECT COUNT(DISTINCT type_id) FROM everef"),
+            "esi_regions_with_orders":len(esi_by_region),
+            "everef_regions_with_orders":len(ref_by_region),
+            "region_order_comparison":region_comparison,
+            "esi_jita_buy_distinct_types":_count(con,"SELECT COUNT(DISTINCT type_id) "
+                "FROM esi WHERE location_id=? AND is_buy_order=1",(STATION_JITA,)),
+            "everef_jita_buy_distinct_types":_count(con,"SELECT COUNT(DISTINCT type_id) "
+                "FROM everef WHERE location_id=? AND is_buy_order=1",(STATION_JITA,)),
+            "jita_buy_order_ids_matched":jita_overlap,
             "matched_order_ids":both,
             "esi_only_order_ids":esi_count-both,
             "everef_only_order_ids":ref_count-both,
@@ -379,6 +403,7 @@ def run(root:Path, *, max_workers=3, max_regions=None, fetch_reference=True,
     directory.mkdir(parents=True,exist_ok=False)
     parts=directory/"regions"
     parts.mkdir()
+    clock_started=time.monotonic()
     report={
         "status":"STARTED","run":name,"started_at":utc_now(),
         "mode":"INDEPENDENT_ONE_SHOT_PUBLIC_ESI_SHADOW_NOT_LIVE",
@@ -491,6 +516,7 @@ def run(root:Path, *, max_workers=3, max_regions=None, fetch_reference=True,
         report["data_source_decision"]="DO_NOT_SWITCH_PRODUCTION"
     finally:
         report["finished_at"]=utc_now()
+        report["duration_seconds"]=round(time.monotonic()-clock_started,2)
         counts=getattr(api,"counts",None)
         if counts is not None:
             report["http_status_counts"]=dict(counts)
