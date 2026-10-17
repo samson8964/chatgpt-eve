@@ -215,3 +215,66 @@ business-relevant A/B comparison must hold the actual authorized Upwell
 sell-order inputs (4-H, C-J, O4T) constant and change ONLY the Jita 4-4
 BUY feed. This isolates pricing-source impact without recomputing
 contracts or exposing private order books.
+
+## 2026-10-18: real near-miss report and the next private-market research lane
+
+The user supplied `same_engine_market_near_miss_audit.json` for composite run
+`20261017T231839Z-9c24d05b`. Audited all 20 unique station/type
+prefilter candidates (13 both feeds, 3 ESI only, 4 EVE Ref only).
+The ESI model returned 16 prefilter candidates: 15 negative net, one
+NO_PROFITABLE_MATCHED_DEPTH. The EVE Ref model returned 17 candidates:
+16 negative and one positive (Dodixie, type ID 18789, quantity 5,
+18,361,500 ISK modeled profit, 1.936% ROI, 18,168,250 ISK stress profit).
+This positive is still below the approved 50m ISK net and stress and 10%
+ROI thresholds. Every final formal alert set is empty.
+
+Many pass the pre-tax, pre-haul optimistic gross-depth ceiling only to
+fail the full model with quantity 1. This is consistent with a permissive
+upper-bound prefilter (not evidence of an optimizer defect). Do not
+weaken the 50m/10%/2000-per-m3/stress policy on this evidence.
+
+### Authenticated 4-H/C-J/O4T identical-source Jita price-feed A/B
+
+The new `v4.esi_private_source_jita_ab` runner uses **exactly one**
+fresh complete authorized collection of existing 4-H/C-J/O4T structure
+SELL books via the existing V4 credential/bridge. That same immutable
+in-memory source book is independently valued against historical
+Jita 4-4 BUY books archived under this composite ESI run (ESI and
+its pinned EVE Ref), with existing `Order.parse`,
+`gross_depth_upper_bound`, `market_proof`, volume catalog and
+`deep_scan.haul`. The runner uses the same V4 source authorization IDs,
+rejects any failed structure lane and writes only aggregate research
+proofs plus SHA-256 book fingerprints; it never persists raw private
+orders or bridge authentication keys. It does not call a new public
+market/orders endpoint, scan contracts, modify V4 databases, change
+timers or send mail.
+
+To run on the user's Windows machine (with the same saved bridge
+credential already configured for normal V4), outside of the scheduled
+:23 scan if possible:
+
+```powershell
+Set-Location (Join-Path $HOME 'EVE-V4-Code')
+git pull --ff-only
+& .\.venv\Scripts\python.exe -m unittest `
+    v4.tests.test_esi_private_source_jita_ab -v
+& .\.venv\Scripts\python.exe -m v4.esi_private_source_jita_ab `
+    --run 20261017T231839Z-9c24d05b
+```
+
+On success status is READ_ONLY_PRIVATE_SOURCE_FIXED_JITA_BUY_AB.
+The runner prints the path of a new independent file in the composite
+run folder, named `private_source_jita_ab_<timestamp>-<id>.json`.
+Upload that **JSON summary** only. Never share bridge keys,
+credential manager contents or private order raw page exports.
+
+**Hard limitation:** private source asks are from this new run, while
+both historic Jita books date from October 17 and EVE Ref is hours
+older. Candidate pass counts are hypothetical retrospective sensitivity
+analysis, *not executable opportunities*, not validation of live
+source switching, and never eligible for automated alerting.
+
+Only after reviewing the differences do we design a controlled live
+fresh Jita-ESI book trial, isolated from production outbox, requiring
+one synchronized source and price capture and direct verification of
+actual executable lots.
