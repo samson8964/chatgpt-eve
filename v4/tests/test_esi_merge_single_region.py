@@ -7,6 +7,7 @@ import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
+from contextlib import closing
 
 from v4.esi_merge_single_region import MergeError, combine
 
@@ -71,7 +72,7 @@ def fixture(root):
         "regions":patched_reg}
     (base/"report.json").write_text(json.dumps(original),encoding="utf-8")
     (patch/"report.json").write_text(json.dumps(targeted),encoding="utf-8")
-    with sqlite3.connect(base/"comparison.sqlite3") as db:
+    with closing(sqlite3.connect(base/"comparison.sqlite3")) as db:
         db.executescript("CREATE TABLE esi(order_id INTEGER PRIMARY KEY);")
         db.execute("INSERT INTO esi VALUES(11)")
     return base,patch
