@@ -407,9 +407,28 @@ def run(root:Path, *, max_workers=3, max_regions=None, fetch_reference=True,
             jobs={pool.submit(fetch_region,api,rid,parts):rid for rid in chosen}
             for job in as_completed(jobs):
                 results.append(job.result())
+                if len(results)%10==0 or len(results)==len(chosen):
+                    successes=sum(x["status"]=="COMPLETE" for x in results)
+                    errors=sum(x["status"]=="FAILED" for x in results)
+                    print(f"ESI {len(results)}/{len(chosen)} regions "
+                          f"complete={successes} errors={errors}",flush=True)
         results.sort(key=lambda x:x["region_id"])
         report["regions"]=results
         report["region_status_counts"]=dict(Counter(x["status"] for x in results))
+        recorded_stamps=[
+            _http_time(x["last_modified"]) for x in results
+            if x["status"]=="COMPLETE" and x.get("last_modified")]
+        if recorded_stamps:
+            now=datetime.now(timezone.utc)
+            oldest=min(recorded_stamps); newest=max(recorded_stamps)
+            report["esi_cache_freshness"]={
+                "oldest_last_modified":oldest.isoformat(),
+                "newest_last_modified":newest.isoformat(),
+                "oldest_age_minutes":round((now-oldest).total_seconds()/60,2),
+                "newest_age_minutes":round((now-newest).total_seconds()/60,2),
+                "span_minutes":round((newest-oldest).total_seconds()/60,2),
+                "five_minute_rolling_cache_not_atomic_global_snapshot":True,
+            }
         report["esi_pages"]=sum(x.get("pages") or 0 for x in results)
         report["esi_orders_reported"]=sum(x.get("orders") or 0 for x in results)
         report["failed_regions"]=[x["region_id"] for x in results
@@ -420,6 +439,15 @@ def run(root:Path, *, max_workers=3, max_regions=None, fetch_reference=True,
         ref_path,ref_meta=_latest_ref(root) if fetch_reference else (None,None)
         if ref_path:
             report["reference"]=ref_meta
+            try:
+                stamp=datetime.fromisoformat(
+                    str(ref_meta["last_modified"]).replace("Z","+00:00"))
+                if stamp.tzinfo is not None:
+                    report["reference"]["age_hours"]=round(
+                        (datetime.now(timezone.utc)-stamp.astimezone(
+                            timezone.utc)).total_seconds()/3600,3)
+            except (ValueError,TypeError,OverflowError):
+                pass
         else:
             report["reference"]={"status":"NO_PREVIOUS_COMPLETED_EVEREF_MARKET_ARCHIVE"}
         db=directory/"comparison.sqlite3"
