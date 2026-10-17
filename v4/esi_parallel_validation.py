@@ -306,6 +306,7 @@ def _read_reference(con, archive:Path):
     """Unmodified archived EVE Ref CSV; do not download a different generation."""
     count=0
     by_region=Counter()
+    skipped=Counter()
     batch=[]
     with gzip.open(archive,"rt",encoding="utf-8",newline="") if archive.suffix==".gz" else \
          __import__("bz2").open(archive,"rt",encoding="utf-8",newline="") as f:
@@ -325,8 +326,17 @@ def _read_reference(con, archive:Path):
                 buy=int(flag in ("true","1"))
             except (ValueError,TypeError,OverflowError) as exc:
                 raise ValidationError("EVEREF_REFERENCE_INVALID_ROW") from exc
-            if min(oid,loc,typ,remaining)<=0 or not math.isfinite(price) or price<=0:
-                raise ValidationError("EVEREF_REFERENCE_INVALID_VALUE")
+            if min(oid,loc,typ)<=0:
+                raise ValidationError("EVEREF_REFERENCE_INVALID_VALUE:IDENTITY")
+            if remaining<0:
+                raise ValidationError("EVEREF_REFERENCE_INVALID_VALUE:NEGATIVE_REMAINING")
+            if not math.isfinite(price) or price<=0:
+                raise ValidationError("EVEREF_REFERENCE_INVALID_VALUE:PRICE")
+            if remaining==0:
+                # Preserved in source CSV; omit ONLY from executable order
+                # coverage comparison, matching V4's zero-remaining policy.
+                skipped["exhausted_zero_remaining"]+=1
+                continue
             batch.append((oid,rid,loc,typ,buy,price,remaining))
             if rid is not None:
                 by_region[rid]+=1
@@ -336,7 +346,7 @@ def _read_reference(con, archive:Path):
         if batch:
             con.executemany("INSERT INTO everef VALUES (?,?,?,?,?,?,?)",batch)
             count+=len(batch)
-    return count,by_region
+    return count,by_region,dict(skipped)
 
 
 def _count(con,statement,params=()):
@@ -359,7 +369,8 @@ def compare(con, region_results:list, ref_region_counts:dict):
     missing_regions=[]
     for region,number in ref_region_counts.items():
         if number>0 and not any(int(x["region_id"])==int(region) and
-                x["status"]=="COMPLETE" for x in region_results):
+                x["status"] in ("COMPLETE","EMPTY_MARKET_CONFIRMED")
+                for x in region_results):
             missing_regions.append(int(region))
     jita_esi=_count(con,"SELECT COUNT(*) FROM esi WHERE location_id=? AND is_buy_order=1",
                     (STATION_JITA,))
@@ -466,7 +477,8 @@ def run(root:Path, *, max_workers=3, max_regions=None, fetch_reference=True,
             for job in as_completed(jobs):
                 results.append(job.result())
                 if len(results)%10==0 or len(results)==len(chosen):
-                    successes=sum(x["status"]=="COMPLETE" for x in results)
+                    successes=sum(x["status"] in ("COMPLETE","EMPTY_MARKET_CONFIRMED")
+                                  for x in results)
                     errors=sum(x["status"]=="FAILED" for x in results)
                     print(f"ESI {len(results)}/{len(chosen)} regions "
                           f"complete={successes} errors={errors}",flush=True)
@@ -475,7 +487,8 @@ def run(root:Path, *, max_workers=3, max_regions=None, fetch_reference=True,
         report["region_status_counts"]=dict(Counter(x["status"] for x in results))
         recorded_stamps=[
             _http_time(x["last_modified"]) for x in results
-            if x["status"]=="COMPLETE" and x.get("last_modified")]
+            if x["status"] in ("COMPLETE","EMPTY_MARKET_CONFIRMED")
+            and x.get("last_modified")]
         if recorded_stamps:
             now=datetime.now(timezone.utc)
             oldest=min(recorded_stamps); newest=max(recorded_stamps)
@@ -489,6 +502,10 @@ def run(root:Path, *, max_workers=3, max_regions=None, fetch_reference=True,
             }
         report["esi_pages"]=sum(x.get("pages") or 0 for x in results)
         report["esi_orders_reported"]=sum(x.get("orders") or 0 for x in results)
+        report["esi_exhausted_orders_excluded"]=sum(
+            x.get("exhausted_orders_excluded",0) for x in results)
+        report["confirmed_empty_regions"]=[
+            x["region_id"] for x in results if x["status"]=="EMPTY_MARKET_CONFIRMED"]
         report["failed_regions"]=[x["region_id"] for x in results
                                    if x["status"]=="FAILED"]
         report["unverified_404_regions"]=[x["region_id"] for x in results
@@ -515,7 +532,7 @@ def run(root:Path, *, max_workers=3, max_regions=None, fetch_reference=True,
             con.execute("BEGIN")
             inserted=0
             for region in results:
-                if region["status"]=="COMPLETE":
+                if region["status"] in ("COMPLETE","EMPTY_MARKET_CONFIRMED"):
                     inserted+=_insert_archive(con,parts/f'{region["region_id"]}.jsonl.gz')
             con.commit()
             if inserted!=report["esi_orders_reported"]:
@@ -523,9 +540,10 @@ def run(root:Path, *, max_workers=3, max_regions=None, fetch_reference=True,
             report["esi_unique_orders"]=inserted
             if ref_path:
                 con.execute("BEGIN")
-                ref_count,regions_with_ref=_read_reference(con,ref_path)
+                ref_count,regions_with_ref,excluded_ref=_read_reference(con,ref_path)
                 con.commit()
                 report["reference"]["orders"]=ref_count
+                report["reference"]["excluded_nontradeable_orders"]=excluded_ref
                 report["comparison"]=compare(con,results,regions_with_ref)
                 report["comparison"]["reference_market_region_count"]=len(regions_with_ref)
         finally:
