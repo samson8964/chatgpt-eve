@@ -29,6 +29,20 @@ class SourceError(RuntimeError):
     pass
 
 
+class SnapshotStale(SourceError):
+    """Expected upstream publication delay, not a program or network crash."""
+
+    def __init__(self, age_hours: float, threshold_hours: float,
+                 last_modified: str):
+        self.age_hours = float(age_hours)
+        self.threshold_hours = float(threshold_hours)
+        self.last_modified = str(last_modified)
+        super().__init__(
+            'STALE_SNAPSHOT: %.2fh age, threshold %.2fh' %
+            (self.age_hours, self.threshold_hours))
+
+
+
 def _get(url: str, *, stream=False, tries=3):
     last = None
     for attempt in range(tries):
@@ -60,8 +74,10 @@ def advertised(index_url: str, *, max_age_hours: float) -> dict:
     except Exception as e:
         raise SourceError('UNKNOWN_SNAPSHOT_AGE') from e
     age = (datetime.now(timezone.utc) - dt).total_seconds() / 3600
-    if age > max_age_hours or age < -0.08:
-        raise SourceError('STALE_SNAPSHOT: %.2fh age, threshold %.2fh' % (age, max_age_hours))
+    if age < -0.08:
+        raise SourceError('SOURCE_TIMESTAMP_FUTURE_CLOCK_SKEW')
+    if age > max_age_hours:
+        raise SnapshotStale(age, max_age_hours, stamp)
     url = latest.get('url') or ''
     if not url.startswith('https://'):
         raise SourceError('SNAPSHOT_URL_NOT_HTTPS')
