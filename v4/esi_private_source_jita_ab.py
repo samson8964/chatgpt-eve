@@ -9,6 +9,7 @@ no production source change, and no assertion of live tradability.
 from __future__ import annotations
 
 import argparse
+import gzip
 import hashlib
 import json
 import os
@@ -23,6 +24,7 @@ from v4.market_execution import gross_depth_upper_bound
 from v4.esi_same_engine_market_shadow import (
     ParityError, _load_esi, _load_ref, _sort_books, VALIDATED_RUN, JITA
 )
+from v4.esi_parallel_validation import _http_time
 
 # Existing V4 deep_scan.py station IDs (validated again when fetching in
 # production runtime). Never broaden scope to unknown player structures.
@@ -49,6 +51,88 @@ def _fetch_authorized_once():
     if not key:
         raise ParityError("PRIVATE_BRIDGE_AUTH_MISSING")
     return all_structure_orders(key)
+
+
+def _fresh_jita_books(root,run_id,*,now=None,max_age_minutes=15):
+    """Offline load a fresh, verified ONE-REGION ESI capture: The Forge.
+
+    No extra network requests; leaves original ESI validation archive intact.
+    Requires freshness *at comparison time*, not just at collection time.
+    """
+    if not isinstance(run_id,str) or not VALIDATED_RUN.fullmatch(run_id):
+        raise ParityError("INVALID_JITA_ESI_VALIDATION_RUN_ID")
+    folder=Path(root)/"esi-parallel-validation"/run_id
+    report_file=folder/"report.json"
+    if not report_file.is_file():
+        raise ParityError("FRESH_JITA_ESI_REPORT_MISSING")
+    report=json.loads(report_file.read_text("utf-8"))
+    if (report.get("run")!=run_id or
+            report.get("status")!="PARTIAL_REGION_TEST_ONLY"
+            or report.get("requested_region_ids")!=[10000002]
+            or report.get("attempted_regions")!=1
+            or report.get("full_universe_requested") is not False
+            or report.get("failed_regions") or
+            report.get("unverified_404_regions")
+            or len(report.get("regions") or [])!=1):
+        raise ParityError("FRESH_JITA_ESI_TARGETED_COVERAGE_INVALID")
+    region=report["regions"][0]
+    if (region.get("region_id")!=10000002 or
+            region.get("status")!="COMPLETE"
+            or int(region.get("pages") or 0)<1):
+        raise ParityError("FRESH_JITA_ESI_REGION_INCOMPLETE")
+    required={"order_id","region_id","location_id","type_id",
+              "is_buy_order","price","volume_remain","min_volume","range",
+              "volume_total"}
+    if not required.issubset(report.get("archive_execution_fields") or []):
+        raise ParityError("FRESH_JITA_ESI_EXECUTION_FIELDS_MISSING")
+    stamp=_http_time(region.get("last_modified"))
+    reference_time=now or datetime.now(timezone.utc)
+    age_minutes=(reference_time-stamp).total_seconds()/60
+    if not (0<=age_minutes<=max_age_minutes):
+        raise ParityError("FRESH_JITA_ESI_SNAPSHOT_TOO_OLD_OR_CLOCK_SKEW")
+    archive=folder/"regions"/"10000002.jsonl.gz"
+    if not archive.is_file():
+        raise ParityError("FRESH_JITA_ESI_ARCHIVE_MISSING")
+    books=defaultdict(list)
+    seen=set()
+    metrics=Counter()
+    with gzip.open(archive,"rt",encoding="utf-8") as stream:
+        for line in stream:
+            row=json.loads(line)
+            if not isinstance(row,dict) or not required.issubset(row):
+                raise ParityError("FRESH_JITA_ESI_ORDER_FIELDS_MISSING")
+            if int(row["region_id"])!=10000002:
+                raise ParityError("FRESH_JITA_ESI_REGION_ROW_MISMATCH")
+            oid=int(row["order_id"])
+            if oid in seen:
+                raise ParityError("FRESH_JITA_ESI_DUPLICATE_ORDER")
+            seen.add(oid)
+            metrics["forge_active_orders"]+=1
+            if int(row["location_id"])==JITA and str(row["is_buy_order"]).lower() in (
+                    "1","true"):
+                try:
+                    order=Order.parse(row)
+                except (KeyError,TypeError,ValueError,OverflowError) as exc:
+                    raise ParityError("FRESH_JITA_ESI_INVALID_JITA_BUY") from None
+                books[(JITA,order.type_id,True)].append(order)
+                metrics["jita_buy_orders"]+=1
+    if (metrics["forge_active_orders"]!=int(region["orders"])
+            or metrics["forge_active_orders"]!=int(report["esi_unique_orders"])
+            or not metrics["jita_buy_orders"]):
+        raise ParityError("FRESH_JITA_ESI_ARCHIVE_COUNT_MISMATCH")
+    _sort_books(books)
+    metadata={
+        "archive_run":run_id,
+        "region_id":10000002,
+        "verified_pages":int(region["pages"]),
+        "forge_active_orders":metrics["forge_active_orders"],
+        "jita_buy_orders":metrics["jita_buy_orders"],
+        "last_modified":stamp.isoformat(),
+        "age_at_private_comparison_minutes":round(age_minutes,3),
+        "max_allowed_age_minutes":max_age_minutes,
+        "archive_reused_read_only":True,
+    }
+    return books,dict(metrics),metadata
 
 
 def _private_asks(raw,health):
@@ -190,7 +274,8 @@ def _compare(a,b):
             "candidate_differences":candidates}
 
 
-def audit(root,run_id,*,fetch_structures=None,catalog=None,haul_fn=None):
+def audit(root,run_id,*,fetch_structures=None,catalog=None,haul_fn=None,
+          fresh_jita_run=None):
     if not VALIDATED_RUN.fullmatch(run_id):
         raise ParityError("INVALID_ESI_RUN_ID")
     root=Path(root)
@@ -224,12 +309,21 @@ def audit(root,run_id,*,fetch_structures=None,catalog=None,haul_fn=None):
     if haul_fn is None:
         from v4.deep_scan import haul
         haul_fn=lambda source,dest,volume:haul(source,dest,volume,{})
-    esi,esi_counts=_load_esi(parent,report)
+    # Read historical EVE Ref once. Private authenticated asks are fetched
+    # once and are IDENTICAL for both comparison branches.
     old,old_counts=_load_ref(ref)
     if fetch_structures is None:
         fetch_structures=_fetch_authorized_once
+    private_started=datetime.now(timezone.utc)
     raw,health=fetch_structures()
+    private_finished=datetime.now(timezone.utc)
     asks,counts,hashes=_private_asks(raw,health)
+    if fresh_jita_run:
+        esi,esi_counts,fresh_metadata=_fresh_jita_books(
+            root,fresh_jita_run,now=private_finished)
+    else:
+        esi,esi_counts=_load_esi(parent,report)
+        fresh_metadata=None
     if not asks:
         raise ParityError("NO_AUTHORIZED_PRIVATE_SELL_ORDERS")
     new_proofs,new_counts,new_station=_evaluate(asks,esi,catalog,haul_fn)
@@ -237,11 +331,14 @@ def audit(root,run_id,*,fetch_structures=None,catalog=None,haul_fn=None):
     diff=_compare(new_proofs,old_proofs)
     now=datetime.now(timezone.utc)
     result={
-        "status":"READ_ONLY_PRIVATE_SOURCE_FIXED_JITA_BUY_AB",
+        "status":("READ_ONLY_PRIVATE_SOURCE_FRESH_JITA_BUY_AB"
+                  if fresh_jita_run else "READ_ONLY_PRIVATE_SOURCE_FIXED_JITA_BUY_AB"),
         "run":run_id,
         "generated_at_utc":now.isoformat(),
         "scope":"4-H_C-J_O4T_SAME_AUTHORIZED_PRIVATE_ASKS_VS_HISTORICAL_JITA_BUYS",
-        "authenticated_ask_collection_utc":now.isoformat(),
+        "authenticated_ask_collection_utc":private_finished.isoformat(),
+        "private_collection_started_utc":private_started.isoformat(),
+        "private_collection_finished_utc":private_finished.isoformat(),
         "private_market_lane_health":{
             label:{
                 "status":health[key]["status"],
@@ -251,9 +348,13 @@ def audit(root,run_id,*,fetch_structures=None,catalog=None,haul_fn=None):
             for label,key in [("4-H","four_h"),("C-J","cj"),("O4T","o4t")]},
         "private_market_counts":counts,
         "private_sell_snapshot_sha256_by_location":hashes,
-        "esi_public_count":esi_counts.get("all_archived"),
+        "esi_public_count":(esi_counts.get("forge_active_orders")
+                            if fresh_jita_run else esi_counts.get("all_archived")),
+        "esi_price_feed_kind":("FRESH_VERIFIED_THE_FORGE_REGION_JITA_BUYS"
+                               if fresh_jita_run else "HISTORICAL_MULTIREGION"),
+        "fresh_jita_snapshot_evidence":fresh_metadata,
         "everef_public_count":old_counts.get("all_archived"),
-        "esi_cache_times":report.get("esi_cache_freshness"),
+        "esi_cache_times":(fresh_metadata or report.get("esi_cache_freshness")),
         "everef_timestamp":pin.get("last_modified"),
         "esi_model_counts":new_counts,
         "everef_model_counts":old_counts_by_model,
@@ -271,9 +372,13 @@ def audit(root,run_id,*,fetch_structures=None,catalog=None,haul_fn=None):
         "mail_sent":False,
         "production_source_changed":False,
         "decision":"DO_NOT_SWITCH_PRODUCTION",
-        "warning":"Authorised private SELL orders collected once now, both Jita BUY books are historical from different epochs. Do not infer LIVE profitability, a production source switch, or structure-side ESI-vs-EVERef parity from this research.",
+        "warning":("Authorised private SELL orders captured now and valued with a verified recently archived ESI Jita BUY snapshot against an old EVE Ref snapshot. The fresh ESI and private sources are not atomic/live-confirmed; old EVE Ref is from a different epoch. Never infer executable LIVE opportunity, grant a production source switch, or send a signal."
+                   if fresh_jita_run else
+                   "Authorised private SELL orders collected once now, both Jita BUY books are historical from different epochs. Do not infer LIVE profitability, a production source switch, or structure-side ESI-vs-EVERef parity from this research."),
     }
-    save=parent/("private_source_jita_ab_"+now.strftime("%Y%m%dT%H%M%SZ")
+    save=parent/(("private_source_jita_fresh_ab_" if fresh_jita_run
+                  else "private_source_jita_ab_")
+                 +now.strftime("%Y%m%dT%H%M%SZ")
                  +"-"+uuid.uuid4().hex[:8]+".json")
     with save.open("x",encoding="utf-8") as f:
         json.dump(result,f,ensure_ascii=False,indent=2)
@@ -285,8 +390,13 @@ def main():
         description="Read-only private 4-H C-J O4T SAME source SELL book vs two historical Jita BUY feeds; no email")
     p.add_argument("--data-root",type=Path,default=Path.home()/"EVE-V4-Data")
     p.add_argument("--run",required=True)
+    p.add_argument("--fresh-jita-run",default=None,
+                   help="NEW optional: exact run ID of a recently verified "
+                        "one-region ESI 10000002 capture, freshness <= 15 minutes; "
+                        "compares it to pinned EVE Ref using identical private asks")
     args=p.parse_args()
-    result,output=audit(args.data_root,args.run)
+    result,output=audit(args.data_root,args.run,
+                        fresh_jita_run=args.fresh_jita_run)
     print(json.dumps({
         "status":result["status"],"run":result["run"],
         "private_market_counts":result["private_market_counts"],
@@ -295,6 +405,8 @@ def main():
         "classifications":result["comparison"]["classification_counts"],
         "mail_sent":result["mail_sent"],
         "production_source_changed":result["production_source_changed"],
+        "esi_price_feed_kind":result["esi_price_feed_kind"],
+        "fresh_jita_snapshot_evidence":result["fresh_jita_snapshot_evidence"],
         "decision":result["decision"],
     },ensure_ascii=False,indent=2))
     print("REPORT",output)
