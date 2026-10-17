@@ -30,6 +30,8 @@ class ManualTaskRequestTests(unittest.TestCase):
         self.assertIn("Start-ScheduledTask -InputObject $t",script)
         self.assertIn("$t.Settings.MultipleInstances.ToString() -ne 'IgnoreNew'",script)
         self.assertIn("$state -ne 'Ready'",script)
+        self.assertIn("TASK_ACTION_MISMATCH",script)
+        self.assertIn("pythonw.exe",script)
         self.assertNotIn("python.exe",script)
         self.assertNotIn("v4.local_service",script)
         self.assertNotIn("Send-MailMessage",script)
@@ -43,7 +45,8 @@ class ManualTaskRequestTests(unittest.TestCase):
         runner.assert_not_called()
 
     def test_supported_no_launch_states(self):
-        for status in ("ALREADY_RUNNING","NOT_READY","UNSAFE_MULTIPLE_INSTANCES"):
+        for status in ("ALREADY_RUNNING","NOT_READY","UNSAFE_MULTIPLE_INSTANCES",
+                       "TASK_ACTION_MISMATCH"):
             with self.subTest(status=status):
                 runner=Mock(return_value=subprocess.CompletedProcess(
                     args=[],returncode=0,
@@ -155,7 +158,7 @@ class ManualDesktopActionTests(unittest.TestCase):
 
     def test_rejection_and_worker_failure_keep_ui_usable(self):
         for status in ("ALREADY_RUNNING","NOT_READY","UNSAFE_MULTIPLE_INSTANCES",
-                       "TASK_START_FAILED"):
+                       "TASK_ACTION_MISMATCH","TASK_START_FAILED"):
             widget=self.new_widget()
             future=Future()
             future.set_result({"status":status})
