@@ -75,6 +75,7 @@ def fixture(root):
     with closing(sqlite3.connect(base/"comparison.sqlite3")) as db:
         db.executescript("CREATE TABLE esi(order_id INTEGER PRIMARY KEY);")
         db.execute("INSERT INTO esi VALUES(11)")
+        db.commit()
     return base,patch
 
 
