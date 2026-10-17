@@ -68,6 +68,7 @@ def _status_style(s: str) -> tuple[str, str]:
     names = {
         "RUNNING": ("正在扫描", "blue"),
         "SHADOW_RECORDED": ("最近扫描成功", "green"),
+        "SKIPPED_UPSTREAM_STALE": ("上游数据尚未更新", "amber"),
         "DEGRADED_INPUT_QUARANTINE": ("数据校验告警", "amber"),
         "DEGRADED_PARTIAL_COVERAGE": ("数据覆盖不完整", "amber"),
         "PARTIAL_UNVERIFIED": ("数据尚未完整验证", "amber"),
@@ -217,7 +218,10 @@ class DesktopWidget:
             else:
                 gmail = "开" if info["research_gmail_enabled"] else "关"
                 game = "开" if info["research_game_enabled"] else "关"
-                phase = f"任务状态：{info['task_state']}  ·  Gmail {gmail} / 游戏 {game}"
+                if info["status"] == "SKIPPED_UPSTREAM_STALE":
+                    phase = "待上游快照发布 · 本轮不扫描、不发邮件"
+                else:
+                    phase = f"任务状态：{info['task_state']}  ·  Gmail {gmail} / 游戏 {game}"
             self.phase_label.configure(text=phase)
             last_name, last_color = _status_style(str(info["latest_result_status"]))
             self.previous_label.configure(
