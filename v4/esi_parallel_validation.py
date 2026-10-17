@@ -26,6 +26,7 @@ import threading
 import time
 import uuid
 from collections import Counter
+from contextlib import closing
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
@@ -628,7 +629,9 @@ def reconcile_saved(root:Path, run_name:str):
         raise ValidationError("RECONCILIATION_ALREADY_EXISTS")
     # The original failed comparison.sqlite3 is evidence; never edit it.
     shutil.copy2(original_db,clone)
-    with sqlite3.connect(clone) as con:
+    # SQLite Connection's context manager commits but does NOT close the
+    # handle. Close explicitly so Windows can release and inspect the file.
+    with closing(sqlite3.connect(clone)) as con:
         actual=_count(con,"SELECT COUNT(*) FROM esi")
         if actual!=expected:
             raise ValidationError("ARCHIVED_ESI_ORDER_COUNT_MISMATCH")
