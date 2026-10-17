@@ -101,7 +101,12 @@ class StationDepthIntegration(unittest.TestCase):
                       "source_input_integrity":"ALL_PARSED"}
             (deep.parent/"manifest.json").write_text(json.dumps(manifest),encoding="utf-8")
             from v4.unified_review import make_review,render
-            unified=make_review(root)
+            # Synthetic integration scan has a mocked in-memory catalog and
+            # deliberately no installed SDE file. The real production mail
+            # path remains fail-closed when a scan catalog cannot be loaded.
+            with patch("v4.contract_review.load_policy_for_run",return_value=None), \
+                 patch("v4.unified_review.load_policy_for_run",return_value=None):
+                unified=make_review(root)
             self.assertEqual(unified["market_research_leads_total"],1)
             _,mail=render(unified,game=True)
             self.assertIn("成交均 本地卖",mail)
