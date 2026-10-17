@@ -72,7 +72,12 @@ def _http_time(value):
         raise ValidationError("ESI_MISSING_OR_INVALID_LAST_MODIFIED") from exc
 
 
-def _row(record:dict, region:int) -> dict:
+def _row(record:dict, region:int) -> dict | None:
+    """Validate a public order. Zero-remaining orders are not tradeable.
+
+    Excluding an exhausted order is not losing available buy/sell depth.
+    Anything else unexpected is a hard error with its failing field named.
+    """
     required=("order_id","location_id","type_id","price","volume_remain",
               "volume_total","min_volume","is_buy_order")
     if not isinstance(record,dict) or any(k not in record for k in required):
@@ -85,10 +90,21 @@ def _row(record:dict, region:int) -> dict:
         buy=record["is_buy_order"]
     except (TypeError,ValueError,OverflowError) as exc:
         raise ValidationError("ESI_ORDER_INVALID_FIELD") from exc
-    if (order<=0 or location<=0 or typ<=0 or remaining<=0 or total<remaining
-            or minimum<=0 or not math.isfinite(price) or price<=0
-            or not isinstance(buy,bool)):
-        raise ValidationError("ESI_ORDER_INVALID_VALUE")
+    for field,value in (
+        ("order_id",order),("location_id",location),("type_id",typ),
+        ("volume_remain",remaining),("volume_total",total),
+        ("min_volume",minimum)):
+        if value<0 or (field in ("order_id","location_id","type_id","min_volume")
+                       and value==0):
+            raise ValidationError("ESI_ORDER_INVALID_VALUE:"+field)
+    if not math.isfinite(price) or price<=0:
+        raise ValidationError("ESI_ORDER_INVALID_VALUE:price")
+    if not isinstance(buy,bool):
+        raise ValidationError("ESI_ORDER_INVALID_VALUE:is_buy_order")
+    if total<remaining:
+        raise ValidationError("ESI_ORDER_INVALID_VALUE:volume_total_less_than_remaining")
+    if remaining==0:
+        return None  # Non-actionable exhausted order; counted, not priced.
     return {"order_id":order,"region_id":region,"location_id":location,
             "type_id":typ,"is_buy_order":int(buy),"price":price,
             "volume_remain":remaining}
@@ -198,6 +214,7 @@ def fetch_region(api:Api, region:int, directory:Path):
                 except ValidationError:
                     pass
             count=0
+            exhausted=0
             all_ids=set()  # ~1.6m total across ~110 regions; region-local only
             conflict=False
             with gzip.open(temp,"wt",encoding="utf-8",newline="") as stream:
@@ -218,12 +235,25 @@ def fetch_region(api:Api, region:int, directory:Path):
                         conflict=True
                         info["error"]="ESI_PAGINATION_VERSION_MISMATCH"
                         break
-                    if not isinstance(rows,list) or not rows:
+                    if not isinstance(rows,list):
                         conflict=True
-                        info["error"]="ESI_PAGE_EMPTY"
+                        info["error"]="ESI_PAGE_NOT_LIST"
+                        break
+                    if not rows and pages>1:
+                        conflict=True
+                        info["error"]="ESI_PAGE_EMPTY_IN_MULTIPAGE_REGION"
                         break
                     for record in rows:
-                        item=_row(record,region)
+                        try:
+                            item=_row(record,region)
+                        except ValidationError as exc:
+                            raise ValidationError(
+                                f"{exc}:page={page}:order_id="
+                                f"{record.get('order_id','?') if isinstance(record,dict) else '?'}"
+                            ) from exc
+                        if item is None:
+                            exhausted+=1
+                            continue
                         if item["order_id"] in all_ids:
                             conflict=True
                             info["error"]="ESI_ORDER_DUPLICATED_WITHIN_REGION"
@@ -240,7 +270,10 @@ def fetch_region(api:Api, region:int, directory:Path):
                     continue
                 raise ValidationError(info.get("error") or "ESI_PAGE_CONFLICT")
             os.replace(temp,output)
-            return dict(info,status="COMPLETE",pages=pages,orders=count,
+            return dict(info,status=("EMPTY_MARKET_CONFIRMED" if count==0
+                                       and pages==1 else "COMPLETE"),
+                        pages=pages,orders=count,
+                        exhausted_orders_excluded=exhausted,
                         last_modified=reference_stamp,cache_expires=cache_expires,
                         attempts=attempt,error=None)
         raise ValidationError("ESI_REGION_RETRY_EXHAUSTED")
