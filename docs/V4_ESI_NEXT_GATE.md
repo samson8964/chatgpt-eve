@@ -50,3 +50,66 @@ git pull --ff-only
 4. 仅当覆盖、新鲜度、报价结构、利润结果都通过，才申请切换官方 ESI 优先；合同采集独立解耦，避免合同 EVE Ref 延迟继续阻塞市场提醒。
 
 生产数据源切换和自动邮件逻辑必须另外经用户批准。
+## Same-engine market opportunity shadow parity (2026-10-18)
+
+The one-region field smoke-test `20261017T223910Z-0854a10e` has **passed**:
+15,559 orders / 16 pages / 17 HTTP 200 responses, 7.84 seconds; all
+active orders retained `min_volume`, `range` and `volume_total`.
+
+An isolated comparison runner now uses the **production V4**:
+- `v4.engine.Order.parse`
+- `v4.market_execution.gross_depth_upper_bound` and the same 50M ISK prefilter
+- `v4.engine.market_proof` with its quantity optimization, 10% ROI,
+  volume density, sales tax and Jita bid-loss stress
+- `v4.catalog.Catalog.volume` from the existing local catalog
+- `v4.deep_scan.haul` and `known_station_regions` / secure route-jump
+  metadata, using the same model on both historical input sources
+
+**Scope matters**: Only existing approved *NPC* purchase venues Amarr
+station 60008494 and Dodixie station 60011866 are compared to the
+Jita 4-4 station's BUY depth. The authorized Upwell markets in 4-H,
+C-J and O4T are NOT compared or replaced. Contracts / manufacturing
+are unchanged. A policy pass is stored as a RESEARCH-ONLY shadow proof:
+the user gets no market opportunity email from this module.
+
+The old complete-run ESI JSONLs `20261017T220739Z-69e03d4c`
+cannot be reused for this gate: they lacked exact `min_volume` and
+`range`. To do one complete same-engine parity, first create a
+NEW all-regions archive with those original fields:
+
+```powershell
+Set-Location (Join-Path $HOME 'EVE-V4-Code')
+git pull --ff-only
+& .\.venv\Scripts\python.exe -m unittest v4.tests.test_esi_same_engine_market_shadow -v
+& .\.venv\Scripts\python.exe -m v4.esi_parallel_validation --workers 3
+```
+
+IMPORTANT: Run the following comparison **only if** the above complete
+ESI run reports `status=PUBLIC_ESI_REGIONS_COMPLETE` and identifies
+a pinned prior successful EVE Ref reference archive. The command prints a
+new run ID; replace `<NEW_RUN_ID>` with that ID:
+
+```powershell
+& .\.venv\Scripts\python.exe -m v4.esi_same_engine_market_shadow --run <NEW_RUN_ID>
+```
+
+The runner refuses incomplete regions, incomplete order fields, missing
+pinned EVE Ref archives and missing local catalog. It does not update
+production. The output is one isolated file:
+
+`%USERPROFILE%\EVE-V4-Data\esi-parallel-validation\<NEW_RUN_ID>\same_engine_market_comparison.json`
+
+It compares candidate station/type pair sets, profit/stress/ROI/quantity
+and why a model threshold passed on one historical book and not on the
+other. Both books receive *identical* route and haul logic. It may call
+a small number of **official ESI route and station metadata endpoints**
+for route jumps, never the full market or contract API. The ESI orders
+are archived at distinct five-minute cache times and EVE Ref orders
+are from a different historical timestamp, so neither report proves
+that an opportunity was executable live.
+
+Do **not** use this workflow to declare complete parity of private Upwell
+markets, contracts, or blueprint opportunities. Their own data lanes
+must remain isolated, and official production source switching still
+needs a separate approval.
+
