@@ -2,14 +2,18 @@
 from __future__ import annotations
 
 import json
+import gzip
 import tempfile
 import unittest
 from pathlib import Path
+from datetime import datetime, timezone, timedelta
+from email.utils import format_datetime
 from unittest.mock import Mock, patch
 
 from v4.engine import Order
 from v4.esi_private_source_jita_ab import (
-    STRUCTURES, JITA, ParityError, _private_asks, _evaluate, audit
+    STRUCTURES, JITA, ParityError, _private_asks, _evaluate, audit,
+    _fresh_jita_books
 )
 
 RUN="20261017T231839Z-9c24d05b"
@@ -126,6 +130,91 @@ class PrivateSourceABTests(unittest.TestCase):
             self.assertNotIn('"order_id": 11',doc)
             self.assertNotIn('"order_id": 12',doc)
             self.assertIn("4-H:34",doc)
+
+    def test_fresh_verified_jita_archive_enforces_age_and_full_region(self):
+        with tempfile.TemporaryDirectory() as td:
+            target=Path(td)/"esi-parallel-validation"/"20261017T230000Z-1234abcd"
+            (target/"regions").mkdir(parents=True)
+            clock=datetime(2026,10,17,23,10,tzinfo=timezone.utc)
+            report={
+                "run":target.name,"status":"PARTIAL_REGION_TEST_ONLY",
+                "requested_region_ids":[10000002],
+                "attempted_regions":1,"full_universe_requested":False,
+                "failed_regions":[],"unverified_404_regions":[],
+                "archive_execution_fields":[
+                    "order_id","region_id","location_id","type_id",
+                    "is_buy_order","price","volume_remain","min_volume",
+                    "range","volume_total"],
+                "regions":[{
+                    "region_id":10000002,"status":"COMPLETE",
+                    "orders":2,"pages":1,
+                    "last_modified":format_datetime(clock-timedelta(minutes=5),
+                                                   usegmt=True)}],
+                "esi_unique_orders":2,
+            }
+            (target/"report.json").write_text(json.dumps(report),encoding="utf-8")
+            with gzip.open(target/"regions"/"10000002.jsonl.gz",
+                           "wt",encoding="utf-8") as fh:
+                for order in (record(81,JITA,True,12e6),
+                              record(82,STRUCTURES["4-H"],False,1e6)):
+                    order["region_id"]=10000002
+                    order["volume_total"]=order["volume_remain"]
+                    fh.write(json.dumps(order)+"\n")
+            books,counts,meta=_fresh_jita_books(
+                Path(td),target.name,now=clock)
+            self.assertEqual(meta["age_at_private_comparison_minutes"],5)
+            self.assertEqual(meta["jita_buy_orders"],1)
+            self.assertEqual(counts["forge_active_orders"],2)
+            self.assertEqual(len(books[(JITA,34,True)]),1)
+            with self.assertRaisesRegex(ParityError,"TOO_OLD"):
+                _fresh_jita_books(Path(td),target.name,
+                                  now=clock+timedelta(minutes=12))
+            report["regions"][0]["status"]="FAILED"
+            (target/"report.json").write_text(json.dumps(report),encoding="utf-8")
+            with self.assertRaisesRegex(ParityError,"INCOMPLETE"):
+                _fresh_jita_books(Path(td),target.name,now=clock)
+
+    def test_fresh_jita_ab_uses_only_region_book_not_old_combined_book(self):
+        with tempfile.TemporaryDirectory() as td:
+            folder=Path(td)/"esi-parallel-validation"/RUN
+            folder.mkdir(parents=True)
+            report={
+                "run":RUN,"status":"SHADOW_MULTI_EPOCH_REPAIRED_COVERAGE",
+                "failed_regions":[],"unverified_404_regions":[],
+                "reference":{"run":REF,"last_modified":"2026-10-17T14:21:20Z"},
+                "esi_cache_freshness":{"span_minutes":25.62},
+            }
+            (folder/"report.json").write_text(json.dumps(report),encoding="utf-8")
+            ref_folder=Path(td)/"runs"/REF
+            (ref_folder/"source").mkdir(parents=True)
+            (ref_folder/"source"/"market_orders.csv.bz2").write_bytes(b"immutable")
+            (ref_folder/"manifest.json").write_text(
+                '{"status":"SHADOW_RECORDED"}',encoding="utf-8")
+            raw,health=input_private()
+            with patch("v4.esi_private_source_jita_ab._load_esi") as old_esi, \
+                 patch("v4.esi_private_source_jita_ab._load_ref",
+                       return_value=(books(4_200_000,4_000_000),{
+                           "all_archived":1590547})), \
+                 patch("v4.esi_private_source_jita_ab._fresh_jita_books",
+                       return_value=(books(10_000_000,8_000_000),
+                           {"forge_active_orders":403199},
+                           {"archive_run":"20261017T233000Z-abcd1234",
+                            "last_modified":"2026-10-17T23:28:00Z",
+                            "age_at_private_comparison_minutes":5})):
+                result,out=audit(Path(td),RUN,fetch_structures=lambda:(raw,health),
+                    catalog=Catalog(),haul_fn=lambda s,d,v:10_000_000,
+                    fresh_jita_run="20261017T233000Z-abcd1234")
+            old_esi.assert_not_called()
+            self.assertEqual(result["status"],
+                             "READ_ONLY_PRIVATE_SOURCE_FRESH_JITA_BUY_AB")
+            self.assertEqual(result["esi_price_feed_kind"],
+                             "FRESH_VERIFIED_THE_FORGE_REGION_JITA_BUYS")
+            self.assertEqual(result["comparison"]["classification_counts"]
+                             ["ESI_ONLY_PASS"],1)
+            self.assertFalse(result["mail_sent"])
+            self.assertFalse(result["production_source_changed"])
+            self.assertIn("private_source_jita_fresh_ab_",out.name)
+            self.assertNotIn("SENSITIVE_BRIDGE_RESPONSE",out.read_text("utf-8"))
 
     def test_unverified_private_lane_blocks_all_comparisons(self):
         raw,health=input_private()
