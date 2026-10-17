@@ -24,7 +24,6 @@ from v4.market_execution import gross_depth_upper_bound
 from v4.esi_same_engine_market_shadow import (
     ParityError, _load_esi, _load_ref, _sort_books, VALIDATED_RUN, JITA
 )
-from v4.esi_parallel_validation import _http_time
 
 # Existing V4 deep_scan.py station IDs (validated again when fetching in
 # production runtime). Never broaden scope to unknown player structures.
@@ -85,6 +84,7 @@ def _fresh_jita_books(root,run_id,*,now=None,max_age_minutes=15):
               "volume_total"}
     if not required.issubset(report.get("archive_execution_fields") or []):
         raise ParityError("FRESH_JITA_ESI_EXECUTION_FIELDS_MISSING")
+    from v4.esi_parallel_validation import _http_time  # requests only for opt-in fresh mode
     stamp=_http_time(region.get("last_modified"))
     reference_time=now or datetime.now(timezone.utc)
     age_minutes=(reference_time-stamp).total_seconds()/60
