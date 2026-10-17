@@ -129,11 +129,12 @@ class Api:
                                          timeout=(12,70))
                 with self.lock:
                     self.counts[str(resp.status_code)]+=1
+                headers={str(k).lower():v for k,v in resp.headers.items()}
                 if resp.status_code==404:
-                    return 404,None,dict(resp.headers)
+                    return 404,None,headers
                 if resp.status_code in (420,429,500,502,503,504):
                     try:
-                        delay=int(resp.headers.get("Retry-After") or 0)
+                        delay=int(headers.get("retry-after") or 0)
                     except (ValueError,TypeError):
                         delay=0
                     if attempt==4:
@@ -144,7 +145,7 @@ class Api:
                 if resp.status_code!=200:
                     raise ValidationError(f"ESI_HTTP_{resp.status_code}")
                 data=resp.json()
-                return 200,data,dict(resp.headers)
+                return 200,data,headers
             except (requests.RequestException,ValueError) as exc:
                 last=exc
                 if attempt==4:
@@ -156,7 +157,7 @@ class Api:
 
 def _pages(headers):
     try:
-        pages=int(headers["X-Pages"])
+        pages=int(headers["x-pages"])
     except (KeyError,TypeError,ValueError) as exc:
         raise ValidationError("ESI_X_PAGES_MISSING") from exc
     if not 1<=pages<=1500:
@@ -183,9 +184,9 @@ def fetch_region(api:Api, region:int, directory:Path):
             if not isinstance(first,list):
                 raise ValidationError("ESI_MARKET_PAGE_NOT_LIST")
             pages=_pages(head)
-            reference_stamp=head.get("Last-Modified")
+            reference_stamp=head.get("last-modified")
             _http_time(reference_stamp)
-            cache_expires=head.get("Expires")
+            cache_expires=head.get("expires")
             # When Expires is already near, a multi-page scrape is likely to
             # roll over between pages. A strict mismatch will invalidate it.
             if cache_expires:
@@ -213,7 +214,7 @@ def fetch_region(api:Api, region:int, directory:Path):
                             info["error"]="ESI_PAGE_UNAVAILABLE_OR_404"
                             break
                     if (_pages(headers)!=pages or
-                            headers.get("Last-Modified")!=reference_stamp):
+                            headers.get("last-modified")!=reference_stamp):
                         conflict=True
                         info["error"]="ESI_PAGINATION_VERSION_MISMATCH"
                         break
