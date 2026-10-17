@@ -9,6 +9,7 @@ import json
 import math
 from collections import Counter
 from v4.engine import Policy
+from v4.ship_alert_exclusions import load_policy_for_run, POLICY_NAME
 from v4.contract_content_policy import eligible_contract_research, CRYSTAL_SHARE_BASIS, CONTRACT_MIN_NET_ISK
 from datetime import datetime, timezone
 from pathlib import Path
@@ -53,6 +54,8 @@ def make_review(root: Path, *, limit: int = MAX_CANDIDATES) -> dict:
         raise RuntimeError("REVIEW_REQUIRES_NEW_JITA_4_4_VALUATION_SCAN")
     if manifest.get("mail_enabled") is not False or manifest.get("ready_for_production") is not False:
         raise RuntimeError("UNSAFE_SCAN_MAIL_STATUS")
+    exclude_policy=load_policy_for_run(deep)
+    excluded_ship_leads=0
     partial_mode=(deep.get("contract_partial_valuation_basis") ==
                   "JITA_CREDITED_REGULAR_BUY_DEPTH_IGNORED_CARGO_ZERO")
     count = Counter()
@@ -103,6 +106,9 @@ def make_review(root: Path, *, limit: int = MAX_CANDIDATES) -> dict:
             except (ValueError,TypeError,OverflowError):
                 safe_items=False
             if not safe_items:
+                continue
+            if exclude_policy is not None and exclude_policy.blocks_contract(included):
+                excluded_ship_leads+=1
                 continue
             leads.append({
                 "contract_id": cid,
@@ -158,6 +164,8 @@ def make_review(root: Path, *, limit: int = MAX_CANDIDATES) -> dict:
         "contract_crystal_screen_basis": deep.get("contract_crystal_screen_basis"),
         "contract_proofs_audited": observed,
         "contract_rejection_reasons": dict(count.most_common(12)),
+        "excluded_capital_freighter_contract_leads": excluded_ship_leads,
+        "ship_exclusion_policy": POLICY_NAME if exclude_policy else "LEGACY_FIXTURE_NO_CATALOG",
         "research_leads_total": len(leads),
         # Unified 10-per-category digest must sort the COMPLETE set by discovery
         # before truncating it; legacy independent callers retain their limit.
