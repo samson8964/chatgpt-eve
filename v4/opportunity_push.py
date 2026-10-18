@@ -1,4 +1,4 @@
-"""V4 autonomous two-hour opportunity-notification lane for a Windows host.
+"""V4 autonomous hourly opportunity-notification lane for a Windows host.
 
 Fetches exactly one complete official ESI Forge region book and once each
 of the three authenticated private structure books. Reuses the unmodified
