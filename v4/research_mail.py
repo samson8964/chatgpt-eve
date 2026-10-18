@@ -13,6 +13,7 @@ import json
 import os
 import re
 import smtplib
+import ssl
 import sys
 from datetime import datetime, timezone
 from email.message import EmailMessage
@@ -202,6 +203,39 @@ def send_transport_test(root: Path, *, vault=None, smtp_factory=None) -> dict:
             "secret_printed": False}
 
 
+def _send_review_smtp(msg: EmailMessage, sender: str, password: str,
+                      *, smtp_factory=None) -> None:
+    """Retry only before SMTP DATA; never retry an ambiguous in-flight send.
+
+    smtplib.SMTP.__exit__ sends QUIT. Some TLS connections EOF during QUIT
+    *after* send_message completed successfully; that is not a failed mail.
+    """
+    factory = smtp_factory or smtplib.SMTP_SSL
+    for attempt in range(2):
+        data_started = False
+        accepted = False
+        try:
+            with factory("smtp.gmail.com", 465, timeout=35) as client:
+                client.login(sender, password)
+                data_started = True
+                refused = client.send_message(msg)
+                if refused:
+                    raise RuntimeError("REVIEW_GMAIL_RECIPIENT_REFUSED")
+                accepted = True
+            return
+        except (ssl.SSLEOFError, smtplib.SMTPServerDisconnected,
+                ConnectionError, TimeoutError):
+            if accepted:
+                # Only SMTP QUIT/context cleanup can fail after send_message
+                # returned; the server has already acknowledged SMTP DATA.
+                return
+            if data_started or attempt == 1:
+                # SMTP DATA in flight: outcome ambiguous. Do not risk a
+                # duplicate by blindly resending the same message.
+                raise
+            # TLS/login failed before DATA; one bounded reconnect is safe.
+
+
 def send_review(root: Path, *, expected_run: str | None = None,
                 vault=None, smtp_factory=None) -> dict:
     root = Path(root)
@@ -232,11 +266,8 @@ def send_review(root: Path, *, expected_run: str | None = None,
     if html_subject != subject:
         raise RuntimeError("GMAIL_REVIEW_SUBJECT_MISMATCH")
     msg.add_alternative(html_body, subtype="html")
-    smtp_factory = smtp_factory or smtplib.SMTP_SSL
-    with smtp_factory("smtp.gmail.com",465,timeout=35) as client:
-        client.login(config["sender"], password)
-        client.send_message(msg)
-    # Receipt is written only after the SMTP server accepted the email.
+    _send_review_smtp(msg, config["sender"], password, smtp_factory=smtp_factory)
+    # Receipt is written only after SMTP DATA acceptance, not a clean QUIT.
     receipt.parent.mkdir(parents=True, exist_ok=True)
     tmp = receipt.with_suffix(".part")
     try:
