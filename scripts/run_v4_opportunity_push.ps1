@@ -1,4 +1,4 @@
-# Two-hour EVE V4 market opportunity runner; hidden Windows Task Scheduler.
+# Hourly EVE V4 market opportunity runner; hidden Windows Task Scheduler.
 $ErrorActionPreference = 'Stop'
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $python = Join-Path $repo '.venv\Scripts\python.exe'
