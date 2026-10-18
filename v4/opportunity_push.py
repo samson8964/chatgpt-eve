@@ -15,7 +15,6 @@ import argparse
 import hashlib
 import json
 import os
-import smtplib
 from datetime import datetime, timezone, timedelta
 from email.message import EmailMessage
 from pathlib import Path
@@ -250,7 +249,7 @@ def _send_game(root,run_name,leads,evidence,*,settings=None,session=None,
 
 def _send_gmail(root,run_name,leads,evidence,*,config=None,
                 vault=None,smtp_factory=None):
-    from v4.research_mail import _config, _windows_keyring, SERVICE
+    from v4.research_mail import _config, _windows_keyring, _send_review_smtp, SERVICE
     root=Path(root)
     cfg=config if config is not None else _config(root)
     if not cfg:
@@ -269,10 +268,10 @@ def _send_gmail(root,run_name,leads,evidence,*,config=None,
     msg["Subject"]=subject
     msg["Message-ID"]=f"<v4-opportunity-{run_name}@gmail.com>"
     msg.set_content(body)
-    with (smtp_factory or smtplib.SMTP_SSL)(
-            "smtp.gmail.com",465,timeout=35) as smtp:
-        smtp.login(cfg["sender"],password)
-        smtp.send_message(msg)
+    # Shared guarded SMTP delivery: tolerate EOF on QUIT *after* Gmail
+    # accepted DATA; never retry an ambiguous in-flight send.
+    _send_review_smtp(msg, cfg["sender"], password,
+                      smtp_factory=smtp_factory)
     _atomic(receipt,{"sent_at":_utcnow().isoformat(),"run":run_name})
     return {"status":"GMAIL_SENT","sent":True}
 
