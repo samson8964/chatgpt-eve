@@ -427,3 +427,64 @@ C-J/39 ~388.52m net but ROI ~7.6%, below 10%. Do not bypass gates.
 This finding establishes the **technical and economic promise** of the
 fresh ESI Jita valuation approach, but not a verified live executable
 trade or authorization to change production.
+
+
+## 2026-10-18: User explicitly approved ending manual tests and starting normal V4 alerts
+
+User instruction: "你给我开始正常推送机会吧，别让我测了".
+
+A NEW production-targeted local task is prepared on
+`prep/v4-windows-local-migration-20261013`, deliberately leaving the
+existing `EVE-V4-Shadow` task and retired V3 worktree alone:
+
+- `v4/opportunity_push.py`: independently fetches ONLY the full
+  10000002 Forge ESI market, validates strict pagination and 15-minute
+  Last-Modified age *after* 4-H/C-J/O4T authenticated complete books
+  are fetched. Uses actual V4 `market_proof`, same 50m+10%+2000/m3,
+  sales tax and top-buy-order-loss stress, with the existing transport
+  estimate (NOT an actual courier quote).
+- `scripts/run_v4_opportunity_push.ps1`: local credential-vault-owner
+  execution and on-disk status log. No external test/UI or black console.
+- `scripts/install_v4_opportunity_push.ps1`: registers a SEPARATE
+  `EVE-V4-Opportunity-Push` task under the currently interactive
+  Windows user's own token, every 2 hours, IgnoreNew concurrency policy,
+  40-minute time limit, and requests an immediate initial run.
+- It uses existing Gmail credentials if configured; in-game
+  LadyGuaGua sender via existing Cloudflare mail Worker. Explicit user
+  authorization covers MikeChong and LadyBaBa; recipient IDs must be
+  verified via existing on-device ESI exact-name resolution rather than
+  guessed.
+- Delivery channels are independent. Per-channel last-send receipts
+  and stable hash signatures suppress identical opportunities for 12h
+  without preventing retry on partial game-mail failure. No opportunity
+  => no spam. A real duplicate game-mail is also Worker idempotent.
+- Mail clearly says `下单前复核`: snapshots are fresh but NOT
+  atomic locked executable orders, and the private logistics cost is
+  still a research estimate. There is no automatic trading.
+- Existing contract research mail is unaffected, as are game ESI
+  credentials, all old raw orders, and V3's retired status.
+
+**Deployment truthfulness**: GitHub commits alone CANNOT start a task
+on the user's Windows host. The only necessary user-side action if
+the local machine is not exposed for remote execution is one-time
+activation of the install script. The assistant must NEVER claim the
+scheduled task or real mail delivery has occurred before observing
+Task Scheduler results and mail receipts.
+
+One-time activation, no tests and no repeated manual sample uploads:
+
+```powershell
+Set-Location (Join-Path $HOME 'EVE-V4-Code')
+git pull --ff-only
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\install_v4_opportunity_push.ps1
+```
+
+After install, the Windows task autonomously refreshes order books,
+evaluates opportunities, and sends *fresh-snapshot candidate alerts*.
+Its log is `%USERPROFILE%\EVE-V4-Data\logs\opportunity-push.log`.
+If the machine is off, credential vault inaccessible, ESI page pagination
+rolls, bridge permission expires, or HTTP cache age exceeds 15 minutes,
+the affected run FAILS CLOSED without inventing or emailing old deals.
+Gmail may remain unavailable if its separate Windows vault is not
+configured; the independent game-mail path still operates, and
+vice versa.
