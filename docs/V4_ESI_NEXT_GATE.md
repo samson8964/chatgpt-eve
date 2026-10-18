@@ -358,3 +358,72 @@ If a private lane fails, treat whole comparison as unavailable.
 
 Share ONLY the generated `private_source_jita_fresh_ab_*.json`, not
 credentials or raw private pages. Do not infer live tradeability.
+
+
+## 2026-10-18 08:03 CST: fresh-Jita authenticated private-market shadow result
+
+User supplied a completed `READ_ONLY_PRIVATE_SOURCE_FRESH_JITA_BUY_AB` report
+for the same research base run `20261017T231839Z-9c24d05b`.
+This is research-only: no alerts, no trading, no production feed change.
+
+- Fresh Forge `10000002` ESI archive `20261017T235514Z-1a88e576`:
+  403,196 active orders, 404 verified pages, **91,179 Jita 4-4 BUY orders**;
+  official `Last-Modified` `2026-10-17T23:55:46Z`, age 7.813 minutes
+  when the authorized 3-station collection completed.
+- Private bridge captured from `2026-10-18T00:01:24Z` to
+  `2026-10-18T00:03:34Z`: all three lanes COMPLETE;
+  4-H 33,394 orders, C-J 52,644, O4T 6,974; 93,012 active,
+  71,391 SELL and 21,621 BUY excluded from sourcing.
+- Source station/type SELL pairs: 15,361. Against SAME private SELL inputs,
+  recently archived official ESI Jita BUY book produces 99 gross-depth
+  prefilter passes (4-H 12, C-J 73, O4T 14) and 3 `market_proof` full gate
+  passes (O4T 2, C-J 1, 4-H 0). The pinned historical EVE Ref
+  (2026-10-17T14:21:20Z) produces 4 prefilters and 0 final passes.
+  Candidate union 99, classification 96 NEITHER_PASS and 3 ESI_ONLY_PASS.
+  This comparison **does not establish contemporaneous source superiority**.
+
+### Three model-qualified candidates (all retrospective)
+
+| Location / type | Qty | Net profit ISK | ROI | Stressed net ISK | Estimated haul ISK |
+|---|---:|---:|---:|---:|---:|
+| O4T / 41059 (Domination Heavy Stasis Grappler) | 13 | 184,553,000 | 12.2608% | 181,364,375 | 10,325,000 |
+| O4T / 19111 (Corpum A-Type Medium Energy Nosferatu) | 3 | 75,735,137.5 | 39.6483% | 75,696,487.5 | 10,007,500 |
+| C-J / 96789 (Mutated Blood Sample; 2026 event item) | 8,025 | 55,231,867.1875 | 10.000224% | 54,533,993.125 | 10,040,125 |
+
+**IMPORTANT COST-SENSITIVITY TEST**: The V4 private-structure transport
+estimate is `10m + 500 ISK × m3`, not a real safe transport quote.
+When an added expense `x` reduces modeled profit by `x` and increases
+total invested cost by `x`, the 10% ROI gate becomes
+`(profit - x)/(capital + x) >= 10%`.
+The maximum extra unmodeled expense before *any* profit/ROI/stress threshold
+fails is approximately **30.94m ISK** for O4T/41059 (ROI limited),
+**25.70m** for O4T/19111 (stressed profit limited), and only **1,127 ISK**
+for C-J/96789 (ROI limited). These are sensitivity calculations from the
+report, not validated courier prices or remaining ISK after game fees.
+
+Some near-misses have larger unstressed profit than 3 qualified ones:
+C-J/28352 587.16m ISK modeled normal net, but stress fill unavailable
+(`stress_profit=-1` means nonexecutability, NOT a real -1 ISK quote);
+C-J/39 ~388.52m net but ROI ~7.6%, below 10%. Do not bypass gates.
+
+### Next strictly isolated acceptance gate, before any production approval
+
+1. Validate exact source SELL and Jita BUY order IDs, prices, quantities,
+   `min_volume` and order range of the **three** prioritized type IDs
+   with freshly collected authorized structure books and a fresh official
+   Jita BUY type-filtered/book snapshot. The existing summary does not
+   include raw private order IDs by design; never disclose credentials.
+2. Check collateral-adjusted hauling quotations, delivery risk/route,
+   taxes, and cash capital; the 10m+500/m3 proxy can materially overstate
+   net and ROI, especially C-J/96789, whose ROI buffer is ~1,127 ISK.
+3. Require two independent fresh validations separated by the 5-minute
+   official ESI cache rollover, and reject changed/missing execution
+   liquidity. Only confirmed opportunity proofs may be considered for
+   a *separately approved* production change.
+4. Do not substitute the >9-hour-old EVE Ref BUY book or saved historical
+   opportunities for current executable quotes. Preserve the contracts
+   and existing 4-H/C-J/O4T data lanes as-is; mail/scheduler unchanged.
+
+This finding establishes the **technical and economic promise** of the
+fresh ESI Jita valuation approach, but not a verified live executable
+trade or authorization to change production.
