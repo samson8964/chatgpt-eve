@@ -310,8 +310,11 @@ def run_once(root,*,now=None,build=None,send_game=None,send_gmail=None):
             outcome=func(run_name=run_name,leads=novel,
                          evidence=dataset["esi_jita"])
             statuses[channel]=outcome
-            if outcome.get("sent") or outcome.get("status") in (
-                    "GAME_MAIL_ALREADY_SENT","GMAIL_ALREADY_SENT"):
+            # Partial game-mail success must remain retryable for LadyBaBa
+            # or MikeChong; successful users have their own worker receipts.
+            if (outcome.get("status") in (
+                    "GAME_MAIL_SENT","GMAIL_SENT",
+                    "GAME_MAIL_ALREADY_SENT","GMAIL_ALREADY_SENT")):
                 for p in novel:
                     known[p["signal_key"]]=now.isoformat()
                 _atomic(root/PUSH_STATE,{"schema":1,"channels":recent})
