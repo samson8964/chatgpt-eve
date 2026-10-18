@@ -488,3 +488,37 @@ the affected run FAILS CLOSED without inventing or emailing old deals.
 Gmail may remain unavailable if its separate Windows vault is not
 configured; the independent game-mail path still operates, and
 vice versa.
+
+
+## 2026-10-18 hourly opportunity-push cadence (user-requested)
+
+The user asked both existing V4 Gmail alert types to operate hourly. The historical
+`V4捡漏待核` comprehensive market/contract/blueprint review is already hourly
+(typically the :23 scan); the new `EVE V4 市场机会` fresh-ESI private-market
+lane was every two hours. Keep both distinct content types and approved filters;
+no change to the contract scanner, V3 retirement, or source authorization.
+
+`install_v4_opportunity_push.ps1` now sets the independent opportunity lane
+at local `:45` every hour, giving the :23 main scan time to complete. A
+re-install of an EXISTING task re-registers the cadence without forcing an
+extra on-demand scan. Task scheduling still requires a one-time Windows
+activation using the current credential-vault Windows account:
+
+```powershell
+$repo = Join-Path $HOME 'EVE-V4-Code'
+git -C $repo pull --ff-only
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repo 'scripts\install_v4_opportunity_push.ps1')
+Get-ScheduledTaskInfo -TaskName 'EVE-V4-Opportunity-Push' | Select-Object LastRunTime,LastTaskResult,NextRunTime
+```
+
+Every-hour means SCAN cadence, not an unconditional email every hour:
+only novel model-approved market opportunities are sent; unchanged
+opportunity signatures retain 12-hour suppression. The comprehensive
+review remains a separate hourly research digest. Gmail sending was
+verified in the connected mailbox for BOTH types on Oct 18 (last examples
+18:27 and 18:51 CST); phone push notification availability is a separate
+mobile account/OS setting and cannot be inferred from SMTP receipts.
+
+GitHub updates alone do not change the existing Windows Task Scheduler:
+report a pending local deployment until Windows task configuration and
+fresh mail receipts are checked.
