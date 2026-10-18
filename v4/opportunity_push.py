@@ -197,12 +197,24 @@ def _digest(leads,evidence,*,game):
 def _send_game(root,run_name,leads,evidence,*,settings=None,session=None,
                get_key=None):
     from v4.game_mail_review import (
-        read_settings, _one_game_mail, _recipient_receipt,
+        read_settings, enable, add_recipient, _one_game_mail,
+        _recipient_receipt,
         WORKER_URL, EXPECTED_SENDER, EXPECTED_SENDER_ID, GameMailTestError,
         _get_bridge_credential, _request_json
     )
     from requests import Session
     config=settings if settings is not None else read_settings(root)
+    if not config and settings is None:
+        # This user explicitly approved normal opportunity push for both
+        # characters. The existing module validates MikeChong's fixed ID.
+        enable(root,recipient="MikeChong")
+        config=read_settings(root)
+    if config and settings is None:
+        present={r["name"] for r in config["recipients"]}
+        if "MikeChong" in present and "LadyBaBa" not in present:
+            # Runtime official exact-name resolution; never invent character IDs.
+            add_recipient(root,recipient="LadyBaBa")
+            config=read_settings(root)
     if not config:
         return {"status":"GAME_MAIL_NOT_CONFIGURED","sent":False}
     recipients=config["recipients"]
@@ -307,8 +319,14 @@ def run_once(root,*,now=None,build=None,send_game=None,send_gmail=None):
             digest=hashlib.sha256((",".join(sorted(
                 p["signal_key"] for p in novel))+":"+channel).encode()).hexdigest()[:24]
             run_name="esi-market-"+digest
-            outcome=func(run_name=run_name,leads=novel,
-                         evidence=dataset["esi_jita"])
+            try:
+                outcome=func(run_name=run_name,leads=novel,
+                             evidence=dataset["esi_jita"])
+            except Exception as exc:
+                # One dead delivery channel must not suppress the other.
+                # Never write exception bodies containing HTTP/SMTP secrets.
+                outcome={"status":"OPPORTUNITY_CHANNEL_FAILED",
+                         "sent":False,"error_type":type(exc).__name__}
             statuses[channel]=outcome
             # Partial game-mail success must remain retryable for LadyBaBa
             # or MikeChong; successful users have their own worker receipts.
