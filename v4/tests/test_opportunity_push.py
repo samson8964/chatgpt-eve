@@ -87,6 +87,22 @@ class OpportunityPushTests(unittest.TestCase):
             self.assertEqual(len(calls),2)
             self.assertEqual(calls[0]["run_name"],calls[1]["run_name"])
 
+    def test_failed_game_mail_does_not_block_configured_gmail(self):
+        with tempfile.TemporaryDirectory() as td:
+            delivered=[]
+            def game(**kw):
+                raise RuntimeError("GAME_MAIL_BRIDGE_DOWN")
+            def gmail(**kw):
+                delivered.append(kw)
+                return {"status":"GMAIL_SENT","sent":True}
+            result,_=run_once(Path(td),now=CLOCK,
+                build=lambda:dataset([signal()]),
+                send_game=game,send_gmail=gmail)
+            self.assertEqual(result["notification_channels"]["game"]["status"],
+                             "OPPORTUNITY_CHANNEL_FAILED")
+            self.assertTrue(result["notification_channels"]["gmail"]["sent"])
+            self.assertEqual(len(delivered),1)
+
     def test_zero_candidates_are_not_spam(self):
         with tempfile.TemporaryDirectory() as td:
             def fail(**kw):raise AssertionError("MUST_NOT_MAIL_EMPTY")
