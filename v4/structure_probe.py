@@ -34,6 +34,21 @@ def probe(*, key=None, get=None) -> dict:
                 stream=True,
             ) as response:
                 code = response.status_code
+                # The Worker has two distinct 401 paths:
+                # text/plain Unauthorized = shared MAIL_API_KEY rejected;
+                # application/json token_refresh_failed = authenticated
+                # Worker could not refresh that EVE SSO character token.
+                # Inspect headers ONLY; never read response bodies or orders.
+                content_type = (response.headers.get("Content-Type", "")
+                                .split(";", 1)[0].strip().lower())
+                if code == 401:
+                    origin = (
+                        "WORKER_BRIDGE_KEY_REJECTED" if content_type == "text/plain" else
+                        "EVE_SSO_REFRESH_FAILED" if content_type == "application/json" else
+                        "UNKNOWN_401_SOURCE"
+                    )
+                else:
+                    origin = None
                 rows[name] = {"http_status": code,
                               "category": (
                                   "OK" if code == 200 else
@@ -41,7 +56,8 @@ def probe(*, key=None, get=None) -> dict:
                                   "ROUTE_NOT_FOUND" if code in (404, 405) else
                                   "RATE_LIMITED" if code == 429 else
                                   "UPSTREAM_OR_WORKER_FAILURE" if 500 <= code <= 599 else
-                                  "OTHER_HTTP_ERROR")}
+                                  "OTHER_HTTP_ERROR"),
+                              "auth_failure_layer": origin}
         except requests.Timeout:
             rows[name] = {"category": "TIMEOUT"}
         except requests.ConnectionError:
