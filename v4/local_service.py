@@ -89,6 +89,7 @@ def execute(root: Path, *, scanner=run, backup_fn=backup,
               "failed_structure_diagnostics":{
                   lane:{
                       "reason":info.get("reason", "UNSPECIFIED"),
+                      "http_status":info.get("http_status"),
                       "failed_page":info.get("failed_page"),
                       "pages_fetched":info.get("pages_fetched"),
                       "transient_retries":info.get("transient_retries"),
