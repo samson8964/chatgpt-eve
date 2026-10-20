@@ -84,8 +84,12 @@ class FailClosedTests(unittest.TestCase):
             with patch.object(sys, "argv",
                               ["v4.local_service", "--data-root", td]), \
                  patch("v4.local_service.execute", return_value=degraded), \
-                 patch("v4.research_mail.send_review") as gmail, \
-                 patch("v4.game_mail_review.send_review_to_game") as game:
+                 patch("v4.research_mail.send_review",
+                       return_value={"status": "REVIEW_GMAIL_SENT",
+                                     "sent": True}) as gmail, \
+                 patch("v4.game_mail_review.send_review_to_game",
+                       return_value={"status": "V4_GAME_RESEARCH_MAIL_BATCH_SENT",
+                                     "recipient_failure_count": 0}) as game:
                 code = main()
             logfile = (Path(td) / "logs" / "shadow-task.log").read_text(encoding="utf8")
         self.assertEqual(code, 2)
