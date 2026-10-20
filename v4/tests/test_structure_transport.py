@@ -80,6 +80,8 @@ class StructureTransportTests(unittest.TestCase):
         self.assertEqual(calls,3)
         self.assertEqual(waits,[])
         self.assertTrue(all(v["reason"]=="NONRETRYABLE_REQUEST" for v in health.values()))
+        self.assertTrue(all(v["http_status"] == 403 for v in health.values()))
+        self.assertNotIn("Bearer ", str(health))
 
     def test_429_retry_succeeds(self):
         calls={}
@@ -95,6 +97,7 @@ class StructureTransportTests(unittest.TestCase):
         (_,health), waits=self.read(fetch)
         self.assertEqual(len(waits),3)
         self.assertTrue(all(v["transient_retries"]==1 for v in health.values()))
+        self.assertTrue(all(v["status"] == "COMPLETE" for v in health.values()))
 
     def test_page_count_drift_fails_closed(self):
         def fetch(url,params,headers,timeout):
