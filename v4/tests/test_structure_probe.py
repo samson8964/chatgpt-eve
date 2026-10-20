@@ -7,8 +7,9 @@ from v4.structure_probe import probe
 
 
 class FakeResponse:
-    def __init__(self, status):
+    def __init__(self, status, content_type="application/json; charset=utf-8"):
         self.status_code = status
+        self.headers = {"Content-Type": content_type}
 
     def __enter__(self):
         return self
@@ -37,6 +38,34 @@ class StructureProbeTests(unittest.TestCase):
         self.assertNotIn(self.KEY, str(report))
         self.assertTrue(report["secret_displayed"] is False)
         self.assertTrue(report["orders_saved"] is False)
+
+    def test_plain_text_401_is_worker_bridge_key_mismatch(self):
+        def get(url, **kwargs):
+            return FakeResponse(401, "text/plain; charset=utf-8")
+        result = probe(key=self.KEY, get=get)
+        self.assertTrue(all(
+            row["auth_failure_layer"] == "WORKER_BRIDGE_KEY_REJECTED"
+            for row in result["profiles"].values()
+        ))
+        self.assertNotIn(self.KEY, str(result))
+
+    def test_json_401_is_worker_sso_refresh_layer(self):
+        def get(url, **kwargs):
+            return FakeResponse(401, "application/json; charset=utf-8")
+        result = probe(key=self.KEY, get=get)
+        self.assertTrue(all(
+            row["auth_failure_layer"] == "EVE_SSO_REFRESH_FAILED"
+            for row in result["profiles"].values()
+        ))
+
+    def test_html_401_not_misclassified(self):
+        def get(url, **kwargs):
+            return FakeResponse(401, "text/html")
+        result = probe(key=self.KEY, get=get)
+        self.assertTrue(all(
+            row["auth_failure_layer"] == "UNKNOWN_401_SOURCE"
+            for row in result["profiles"].values()
+        ))
 
     def test_missing_bridge_key_never_calls_network(self):
         def network(*args, **kwargs):
