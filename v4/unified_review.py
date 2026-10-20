@@ -410,7 +410,7 @@ def render_html(review: dict) -> tuple[str, str]:
     blocks = []
     if not good:
         subject, body = _coverage_alert(review)
-        blocks.append("<p>" + html.escape(body).replace("\\n", "<br>") + "</p>")
+        blocks.append("<p>" + html.escape(body).replace("\n", "<br>") + "</p>")
     else:
         if pairs:
             blocks.append("<p><strong>市场</strong></p>")
