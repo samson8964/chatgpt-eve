@@ -11,7 +11,7 @@ class FakeResponse:
         self.status_code = status
         self.headers = {"Content-Type": content_type}
         self.body = body if body is not None else (
-            b'{"error":"token_refresh_failed","detail":"{\"error\":\"invalid_grant\"}"}'
+            b'{"error":"token_refresh_failed","detail":"no refresh token"}'
         )
     
     def iter_content(self, chunk_size=1024):
