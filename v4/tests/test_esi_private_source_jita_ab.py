@@ -46,6 +46,9 @@ def input_private():
         "o4t":{"status":"COMPLETE","orders":0,"pages":1,
                "location":STRUCTURES["O4T"]},
     }
+    if "74L2-U" in STRUCTURES:
+        health["banestar"]={"status":"COMPLETE","orders":0,"pages":1,
+                             "location":STRUCTURES["74L2-U"]}
     rows[0]["mock_secret_do_not_log"]="SENSITIVE_BRIDGE_RESPONSE"
     return rows,health
 
@@ -62,7 +65,7 @@ class PrivateSourceABTests(unittest.TestCase):
         self.assertEqual(counts["all_active_orders"],2)
         self.assertEqual(counts["active_sell_orders"],1)
         self.assertEqual(counts["active_buy_orders_excluded"],1)
-        self.assertEqual(len(hashes),3)
+        self.assertEqual(len(hashes),len(STRUCTURES))
         self.assertEqual(len(book),1)
         self.assertEqual(len(hashes[str(STRUCTURES["C-J"])]),64)
         # Failed structure is not silently dropped from candidate scope.
