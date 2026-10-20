@@ -43,7 +43,34 @@ class FailClosedTests(unittest.TestCase):
         self.assertEqual(result["failed_structure_diagnostics"]["cj"]["failed_page"], 2)
         self.assertNotIn("o4t", result["failed_structure_diagnostics"])
 
-    def test_degraded_job_sends_neither_gmail_nor_game_mail(self):
+    def test_incomplete_digest_subject_is_explicit_outage_not_zero_profit(self):
+        from v4.unified_review import render, render_html
+        review = {
+            "run_folder": "20261020T152301Z-fixture",
+            "coverage_gate": "PARTIAL_UNVERIFIED",
+            "source_input_integrity": "ALL_PARSED",
+            "structure_health": {
+                "four_h": "FAILED", "cj": "FAILED", "o4t": "COMPLETE"
+            },
+            "market_research_leads": [{"type_id": 1}],
+        }
+        subject, body = render(review)
+        html_subject, html_body = render_html(review)
+        game_subject, game_body = render(review, game=True)
+        self.assertEqual(subject, html_subject)
+        self.assertEqual(subject, game_subject)
+        self.assertIn("V4采集故障", subject)
+        self.assertIn("4-H", subject)
+        self.assertIn("C-J", subject)
+        self.assertNotIn("市场0", subject)
+        self.assertIn("机会判断已暂停", subject)
+        self.assertIn("不是零机会", body)
+        self.assertIn("不是零机会", html_body)
+        self.assertIn("不是零机会", game_body)
+        self.assertNotIn("商品", body)
+
+
+    def test_degraded_job_retains_warning_delivery_but_nonzero_task_status(self):
         degraded = {
             "status": "DEGRADED_PARTIAL_COVERAGE",
             "run_folder_name": "20261020T152301Z-fixture",
@@ -62,10 +89,12 @@ class FailClosedTests(unittest.TestCase):
                 code = main()
             logfile = (Path(td) / "logs" / "shadow-task.log").read_text(encoding="utf8")
         self.assertEqual(code, 2)
-        self.assertIn("REVIEW_MAIL_SKIPPED INCOMPLETE_SOURCE_COVERAGE", logfile)
+        self.assertIn("REVIEW_MAIL_WARNING INCOMPLETE_SOURCE_COVERAGE", logfile)
         self.assertIn("failed_structure_diagnostics", logfile)
-        gmail.assert_not_called()
-        game.assert_not_called()
+        gmail.assert_called_once_with(
+            Path(td), expected_run="20261020T152301Z-fixture")
+        game.assert_called_once_with(
+            Path(td), expected_run="20261020T152301Z-fixture")
 
 
 if __name__ == "__main__":
