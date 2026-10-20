@@ -26,23 +26,18 @@ from v4.esi_same_engine_market_shadow import (
     ParityError, _load_esi, _load_ref, _sort_books, VALIDATED_RUN, JITA
 )
 
-# Existing V4 deep_scan.py station IDs (validated again when fetching in
-# production runtime). Never broaden scope to unknown player structures.
-STRUCTURES={
-    "4-H":1053970513596,
-    "C-J":1049588174021,
-    "O4T":1040804972352,
-}
+# Central, explicitly approved structure scope; BANESTAR opt-in only.
+from v4.structure_registry import (
+    STRUCTURES as AUTHORIZED_LANES, STATIONS as STRUCTURES,
+    LANE_TO_LABEL, LABEL_TO_LANE,
+)
 POLICY=Policy()
 
 
 def _fetch_authorized_once():
     """Keep bridge access token only in memory. No secret in CLI arguments."""
     from v4.deep_scan import all_structure_orders, STRUCTURES as live_ids
-    if {k:v[0] for k,v in live_ids.items()}!={
-            "four_h":STRUCTURES["4-H"],
-            "cj":STRUCTURES["C-J"],
-            "o4t":STRUCTURES["O4T"]}:
+    if live_ids != AUTHORIZED_LANES:
         raise ParityError("PRIVATE_STRUCTURE_SCOPE_DRIFT")
     key=os.environ.get("EVE_MARKET_API_KEY")
     if not key and os.name=="nt":
@@ -142,10 +137,9 @@ def _fresh_jita_books(root,run_id,*,now=None,max_age_minutes=15):
 
 
 def _private_asks(raw,health):
-    if not isinstance(health,dict) or set(health)!={"four_h","cj","o4t"}:
+    expected = {lane: location for lane, (location, _) in AUTHORIZED_LANES.items()}
+    if not isinstance(health, dict) or set(health) != set(expected):
         raise ParityError("PRIVATE_STRUCTURE_COVERAGE_UNVERIFIED")
-    expected={"four_h":STRUCTURES["4-H"],"cj":STRUCTURES["C-J"],
-              "o4t":STRUCTURES["O4T"]}
     for name,location in expected.items():
         lane=health[name]
         if (not isinstance(lane,dict) or lane.get("status")!="COMPLETE"
@@ -341,7 +335,7 @@ def audit(root,run_id,*,fetch_structures=None,catalog=None,haul_fn=None,
                   if fresh_jita_run else "READ_ONLY_PRIVATE_SOURCE_FIXED_JITA_BUY_AB"),
         "run":run_id,
         "generated_at_utc":now.isoformat(),
-        "scope":"4-H_C-J_O4T_SAME_AUTHORIZED_PRIVATE_ASKS_VS_HISTORICAL_JITA_BUYS",
+        "scope":"_".join(STRUCTURES) + "_SAME_AUTHORIZED_PRIVATE_ASKS_VS_HISTORICAL_JITA_BUYS",
         "authenticated_ask_collection_utc":private_finished.isoformat(),
         "private_collection_started_utc":private_started.isoformat(),
         "private_collection_finished_utc":private_finished.isoformat(),
@@ -351,7 +345,7 @@ def audit(root,run_id,*,fetch_structures=None,catalog=None,haul_fn=None,
                 "orders":health[key]["orders"],
                 "pages":health[key]["pages"],
             }
-            for label,key in [("4-H","four_h"),("C-J","cj"),("O4T","o4t")]},
+            for key,label in LANE_TO_LABEL.items()},
         "private_market_counts":counts,
         "private_sell_snapshot_sha256_by_location":hashes,
         "esi_public_count":(esi_counts.get("forge_active_orders")
@@ -393,7 +387,7 @@ def audit(root,run_id,*,fetch_structures=None,catalog=None,haul_fn=None,
 
 def main():
     p=argparse.ArgumentParser(
-        description="Read-only private 4-H C-J O4T SAME source SELL book vs two historical Jita BUY feeds; no email")
+        description="Read-only approved private station SELL books vs Jita BUY feeds; no email")
     p.add_argument("--data-root",type=Path,default=Path.home()/"EVE-V4-Data")
     p.add_argument("--run",required=True)
     p.add_argument("--fresh-jita-run",default=None,
