@@ -7,9 +7,16 @@ from v4.structure_probe import probe
 
 
 class FakeResponse:
-    def __init__(self, status, content_type="application/json; charset=utf-8"):
+    def __init__(self, status, content_type="application/json; charset=utf-8", body=None):
         self.status_code = status
         self.headers = {"Content-Type": content_type}
+        self.body = body if body is not None else (
+            b'{"error":"token_refresh_failed","detail":"{\"error\":\"invalid_grant\"}"}'
+        )
+    
+    def iter_content(self, chunk_size=1024):
+        for i in range(0, len(self.body), chunk_size):
+            yield self.body[i:i + chunk_size]
 
     def __enter__(self):
         return self
@@ -57,6 +64,50 @@ class StructureProbeTests(unittest.TestCase):
             row["auth_failure_layer"] == "EVE_SSO_REFRESH_FAILED"
             for row in result["profiles"].values()
         ))
+
+    def test_worker_oauth_failure_reason_is_fixed_category_only(self):
+        fixtures = [
+            (b'{"error":"token_refresh_failed","detail":"no refresh token"}',
+             "WORKER_REFRESH_TOKEN_MISSING"),
+            (b'{"error":"token_refresh_failed","detail":"{\\"error\\":\\"invalid_client\\"}"}',
+             "OAUTH_SHARED_CLIENT_CREDENTIALS_REJECTED"),
+            (b'{"error":"token_refresh_failed","detail":"{\\"error\\":\\"invalid_grant\\"}"}',
+             "OAUTH_SAVED_REFRESH_TOKEN_REJECTED"),
+            (b'{"error":"token_refresh_failed","detail":"token request exception: private token"}',
+             "OAUTH_ENDPOINT_REQUEST_EXCEPTION"),
+        ]
+        for body, expected in fixtures:
+            with self.subTest(reason=expected):
+                def get(url, **kw):
+                    return FakeResponse(401, body=body)
+                result = probe(key=self.KEY, get=get)
+                self.assertTrue(all(
+                    row["refresh_failure_reason"] == expected
+                    for row in result["profiles"].values()
+                ))
+                self.assertNotIn("private token", str(result))
+                self.assertNotIn(self.KEY, str(result))
+
+    def test_success_never_reads_response_body(self):
+        class SuccessResponse(FakeResponse):
+            def iter_content(self, chunk_size=1024):
+                raise AssertionError("Must never read EVE market orders")
+        def get(url, **kw):
+            return SuccessResponse(200)
+        result = probe(key=self.KEY, get=get)
+        self.assertTrue(all(
+            row["http_status"] == 200 for row in result["profiles"].values()
+        ))
+
+    def test_large_error_payload_never_echoed(self):
+        def get(url, **kw):
+            return FakeResponse(401, body=b'SECRET-' * 2000)
+        result = probe(key=self.KEY, get=get)
+        self.assertTrue(all(
+            row["refresh_failure_reason"] == "UNKNOWN_REFRESH_FAILURE"
+            for row in result["profiles"].values()
+        ))
+        self.assertNotIn("SECRET", str(result))
 
     def test_html_401_not_misclassified(self):
         def get(url, **kwargs):
