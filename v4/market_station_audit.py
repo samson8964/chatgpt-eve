@@ -12,6 +12,7 @@ from collections import Counter
 from pathlib import Path
 
 from v4.market_depth import STATIONS
+from v4.structure_registry import LABEL_TO_LANE
 
 
 def _read(path):
@@ -55,7 +56,7 @@ def summarize(root: Path) -> dict:
     except (OSError,ValueError,UnicodeError):
         return {"status":"PROOF_FILE_UNREADABLE","run":folder.name}
     rows={}
-    health_names={"4-H":"four_h","C-J":"cj","O4T":"o4t"}
+    health_names=LABEL_TO_LANE
     for name,ident in STATIONS.items():
         lane=health.get(health_names[name]) or {}
         fresh=census.get(name)
