@@ -12,11 +12,7 @@ from collections.abc import Iterable
 
 from v4.market_execution import gross_depth_upper_bound
 
-STATIONS = {
-    "4-H": 1053970513596,
-    "C-J": 1049588174021,
-    "O4T": 1040804972352,
-}
+from v4.structure_registry import STATIONS
 JITA = 60003760
 TOP_LEVELS = 5
 
