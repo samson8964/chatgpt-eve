@@ -300,6 +300,27 @@ def _subject(review: dict, pairs: list, contracts: list) -> str:
     return f"V4捡漏待核 {time} 市场{len(pairs)} 合同{len(contracts)}"
 
 
+def _coverage_alert(review: dict) -> tuple[str, str]:
+    """Never call an incomplete scan zero opportunities.
+
+    Only trusted, fixed lane labels and recorded status values are displayed.
+    No ESI credentials, worker error payloads or market candidates are shown.
+    """
+    names = {"four_h": "4-H", "cj": "C-J", "o4t": "O4T"}
+    health = review.get("structure_health") or {}
+    failed = [label for lane, label in names.items()
+              if health.get(lane) != "COMPLETE"]
+    detail = "、".join(failed) if failed else "数据源完整性未通过"
+    when = beijing_scan_time(review.get("run_folder"))
+    subject = f"【EVE V4采集故障】{when} {detail}｜机会判断已暂停"
+    body = ("本轮采集数据不完整，所有市场、合同和蓝图制造机会均已暂停推送。"
+            "这不是零机会，不能据此判断市场没有利润。"
+            f"\n采集异常：{detail}。"
+            "\n请核查本机最近一次 manifest.json 的 failed_structure_lanes "
+            "及 structure_health 字段。")
+    return subject, body
+
+
 def render(review: dict, *, game: bool = False) -> tuple[str, str]:
     """Short human-readable body. Game version contains native EVE click targets.
 
@@ -311,7 +332,7 @@ def render(review: dict, *, game: bool = False) -> tuple[str, str]:
     subject = _subject(review, pairs, contracts) + f" 蓝图制造{len(blueprints)}"
     lines = []
     if not good:
-        return subject, "本轮数据不完整，未推送机会。"
+        return _coverage_alert(review)
     if pairs:
         lines.append("【市场】")
         for n, p in enumerate(pairs, 1):
@@ -388,7 +409,8 @@ def render_html(review: dict) -> tuple[str, str]:
     subject = _subject(review, pairs, contracts) + f" 蓝图制造{len(blueprints)}"
     blocks = []
     if not good:
-        blocks.append("<p>本轮数据不完整，未推送机会。</p>")
+        subject, body = _coverage_alert(review)
+        blocks.append("<p>" + html.escape(body).replace("\\n", "<br>") + "</p>")
     else:
         if pairs:
             blocks.append("<p><strong>市场</strong></p>")
