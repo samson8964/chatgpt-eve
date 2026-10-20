@@ -18,14 +18,14 @@ from v4.engine import Policy
 from v4.ship_alert_exclusions import load_policy_for_run, POLICY_NAME
 from v4.mail_volume import market_volume, market_label, contract_label, credited_volume_breakdown
 from v4.discovery_history import first_seen, order_by_discovery
+from v4.structure_registry import STATIONS as APPROVED_STRUCTURES, LANE_TO_LABEL
 
 JITA = 60003760
 WORKER = "https://eve-contract-opener.99617224.workers.dev"
 MAX_EACH = 10
 LOCATION_NAMES = {
     60003760:"吉他4-4", 60008494:"Amarr", 60011866:"Dodixie",
-    1053970513596:"4-H", 1049588174021:"C-J",
-    1040804972352:"O4T",
+    **{location: name for name, location in APPROVED_STRUCTURES.items()},
 }
 
 
@@ -40,7 +40,7 @@ def place(value) -> str:
 def contract_place(lead: dict) -> str:
     """Identify high/low NPC contract pickup without claiming safe transport."""
     source = place(lead.get("source_location"))
-    if source in ("吉他4-4", "Amarr", "Dodixie", "4-H", "C-J", "O4T"):
+    if source in LOCATION_NAMES.values():
         return source
     name = lead.get("source_station_name")
     band = lead.get("source_security_band")
@@ -306,7 +306,7 @@ def _coverage_alert(review: dict) -> tuple[str, str]:
     Only trusted, fixed lane labels and recorded status values are displayed.
     No ESI credentials, worker error payloads or market candidates are shown.
     """
-    names = {"four_h": "4-H", "cj": "C-J", "o4t": "O4T"}
+    names = LANE_TO_LABEL
     health = review.get("structure_health") or {}
     failed = [label for lane, label in names.items()
               if health.get(lane) != "COMPLETE"]
