@@ -1,4 +1,4 @@
-"""Windowless 2-hour shadow job with opt-in research-only mail digests.
+"""Windowless scheduled shadow job with opt-in research-only mail digests.
 
 Use with Windows Task Scheduler and pythonw.exe. All stdout/stderr goes into the
 private local data root; exceptions are caught so pythonw never opens an error box.
@@ -84,6 +84,19 @@ def execute(root: Path, *, scanner=run, backup_fn=backup,
               "zero_remaining_structure_orders":scan.get("zero_remaining_structure_orders"),
               "structure_status":{lane:(lanes.get(lane) or {}).get("status", "MISSING")
                                   for lane in ("four_h", "cj", "o4t")},
+              # Only fixed diagnostic codes/counters, never worker HTTP bodies
+              # or authentication secrets. Make the failure actionable.
+              "failed_structure_diagnostics":{
+                  lane:{
+                      "reason":info.get("reason", "UNSPECIFIED"),
+                      "failed_page":info.get("failed_page"),
+                      "pages_fetched":info.get("pages_fetched"),
+                      "transient_retries":info.get("transient_retries"),
+                  }
+                  for lane in ("four_h", "cj", "o4t")
+                  for info in [lanes.get(lane) or {}]
+                  if info.get("status") != "COMPLETE"
+              },
               "sqlite_unique_proofs":scan.get("sqlite_unique_proofs"),
               "backup": "NOT_DUE","mail_enabled": False,"disk":disk}
     if backup_due(root,now_fn()):
@@ -116,6 +129,13 @@ def main() -> int:
                         print("RESEARCH_MAIL_SKIPPED UPSTREAM_SNAPSHOT_STALE",
                               flush=True)
                         return 0
+                    if result.get("status") != "SHADOW_RECORDED":
+                        # A partial source snapshot is not a "zero opportunities"
+                        # scan. Never emit normal market/contract/blueprint mail.
+                        # Windows Task Scheduler remains nonzero and GUI warns.
+                        print("REVIEW_MAIL_SKIPPED INCOMPLETE_SOURCE_COVERAGE",
+                              flush=True)
+                        return 2
                     # Independent opt-in research mail channels. Failure of
                     # either sender must NOT suppress the other sender. Both
                     # channels are separate from formal production alerts.
