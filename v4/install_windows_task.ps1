@@ -34,7 +34,12 @@ if ($status.run_status -ne 'SHADOW_RECORDED' -or
     $status.ready_for_production -ne $false) {
     throw 'LATEST_SHADOW_RUN_NOT_FULLY_VERIFIED_FOR_UNATTENDED_MODE'
 }
-foreach ($lane in @('four_h','cj','o4t')) {
+# Read the same approved source registry used by scheduled V4 Python jobs.
+$lanesJson = & $python -c 'import json; from v4.structure_registry import STRUCTURES; print(json.dumps(list(STRUCTURES)))'
+if ($LASTEXITCODE -ne 0) { throw 'V4_STRUCTURE_REGISTRY_UNAVAILABLE' }
+$laneNames = @($lanesJson | ConvertFrom-Json -ErrorAction Stop)
+if ($laneNames.Count -lt 3) { throw 'V4_STRUCTURE_REGISTRY_INCOMPLETE' }
+foreach ($lane in $laneNames) {
     $info = $status.structure_health.$lane
     if ($null -eq $info -or $info.status -ne 'COMPLETE' -or
         $null -eq $info.pages -or $info.pages -lt 1 -or
@@ -42,7 +47,7 @@ foreach ($lane in @('four_h','cj','o4t')) {
         throw ('STRUCTURE_LANE_NOT_COMPLETE: ' + $lane)
     }
 }
-Write-Host 'Verified last run: public + 3 structure markets COMPLETE; SQLite audit OK; MAIL OFF.'
+Write-Host ('Verified last run: public + ' + $laneNames.Count + ' structure markets COMPLETE; SQLite audit OK; MAIL OFF.')
 if (Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue) {
     throw "Task already exists: $TaskName. Refusing to overwrite."
 }
