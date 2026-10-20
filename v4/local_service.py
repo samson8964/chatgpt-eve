@@ -130,12 +130,12 @@ def main() -> int:
                               flush=True)
                         return 0
                     if result.get("status") != "SHADOW_RECORDED":
-                        # A partial source snapshot is not a "zero opportunities"
-                        # scan. Never emit normal market/contract/blueprint mail.
-                        # Windows Task Scheduler remains nonzero and GUI warns.
-                        print("REVIEW_MAIL_SKIPPED INCOMPLETE_SOURCE_COVERAGE",
+                        # Keep a prominent, dedicated coverage alert via the
+                        # existing research-only mail paths, but render() must
+                        # suppress ALL opportunity candidates on partial input.
+                        # The scheduler still returns exit code 2 below.
+                        print("REVIEW_MAIL_WARNING INCOMPLETE_SOURCE_COVERAGE",
                               flush=True)
-                        return 2
                     # Independent opt-in research mail channels. Failure of
                     # either sender must NOT suppress the other sender. Both
                     # channels are separate from formal production alerts.
