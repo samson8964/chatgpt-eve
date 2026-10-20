@@ -19,10 +19,14 @@ RETRYABLE_HTTP = frozenset({408, 425, 429, 500, 502, 503, 504})
 
 
 class StructurePageError(RuntimeError):
-    def __init__(self, category: str, page: int, attempts: int):
+    def __init__(self, category: str, page: int, attempts: int,
+                 *, http_status: int | None = None):
         self.category = category
         self.page = page
         self.attempts = attempts
+        # Safe status code only. Never log URLs, headers, response bodies
+        # or bearer tokens from the underlying HTTP exception.
+        self.http_status = http_status if isinstance(http_status, int) and 100 <= http_status <= 599 else None
         super().__init__(f"{category}:page={page}:attempts={attempts}")
 
 
@@ -47,10 +51,14 @@ def _fetch_page(fetch: Callable, url: str, params: dict, header: dict, *,
         except StructurePageError:
             raise
         except Exception as exc:
+            response = getattr(exc, "response", None)
+            status = getattr(response, "status_code", None)
             if not _transient(exc):
-                raise StructurePageError("NONRETRYABLE_REQUEST", params["page"], n) from None
+                raise StructurePageError("NONRETRYABLE_REQUEST", params["page"], n,
+                                         http_status=status) from None
             if n >= attempts:
-                raise StructurePageError("TRANSIENT_EXHAUSTED", params["page"], n) from None
+                raise StructurePageError("TRANSIENT_EXHAUSTED", params["page"], n,
+                                         http_status=status) from None
             retries += 1
             sleep(min(12.0, 1.5 * (2 ** (n - 1))) + jitter() * 0.5)
     raise AssertionError("unreachable")
@@ -114,6 +122,7 @@ def all_structure_orders(api_key: str, *, structures: dict, worker: str,
             health[lane] = {
                 "status": "FAILED", "reason": exc.category, "failed_page": exc.page,
                 "attempts_on_failed_page": exc.attempts,
+                "http_status": exc.http_status,
                 "pages_fetched": pages_done, "transient_retries": retries}
         except Exception as exc:
             health[lane] = {
