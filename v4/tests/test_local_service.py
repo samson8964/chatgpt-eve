@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from v4.local_service import storage_check, backup_due, execute
+from v4.structure_registry import STRUCTURES
 
 
 class LocalServiceTests(unittest.TestCase):
@@ -33,7 +34,7 @@ class LocalServiceTests(unittest.TestCase):
                         "run_folder":str(r/"runs"/"now"),"sqlite_unique_proofs":31931,
                         "coverage_gate":"INPUT_LANES_REPORTED_COMPLETE_NOT_LIVE_VERIFIED",
                         "structure_health":{name:{"status":"COMPLETE","pages":1,"pages_fetched":1}
-                                            for name in ("four_h","cj","o4t")}}
+                                            for name in STRUCTURES}}
             def save(r):
                 calls.append("backup")
                 return {"sqlite_integrity":"ok","proof_versions":31931}
@@ -94,7 +95,7 @@ class LocalServiceTests(unittest.TestCase):
                         "rejected_input_orders":1,
                         "structure_health":{
                             name:{"status":"COMPLETE","pages":2,"pages_fetched":2}
-                            for name in ("four_h","cj","o4t")}}
+                            for name in STRUCTURES}}
             with patch("v4.local_service.storage_check",
                        return_value={"free_gib":300,"enough_space":True}):
                 result=execute(root,scanner=scan,
