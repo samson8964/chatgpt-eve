@@ -10,7 +10,7 @@ import math
 from collections import Counter
 from pathlib import Path
 
-STATIONS = {"4-H": 1053970513596, "C-J": 1049588174021, "O4T": 1040804972352}
+from v4.market_depth import STATIONS
 FLOOR = 50_000_000
 ROI = 0.10
 DENSITY = 2000
@@ -123,7 +123,7 @@ def run_one(folder):
     return result
 
 def main():
-    parser = argparse.ArgumentParser(description="V4 read-only 4-H/O4T funnel audit")
+    parser = argparse.ArgumentParser(description="V4 read-only approved private stations funnel audit")
     parser.add_argument("--data-dir", type=Path, default=Path.home() / "EVE-V4-Data")
     parser.add_argument("--runs", type=int, default=3)
     parser.add_argument("--output", type=Path, default=Path.home() / "Desktop" / "V4-4H-O4T-Forensic.json")
