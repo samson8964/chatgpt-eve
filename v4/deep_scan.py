@@ -22,7 +22,8 @@ import requests
 
 from v4.engine import Order, Policy, contract_proof, market_proof, profitable_trade, quarantine_snapshot_candidate, parse_orders_with_quarantine
 from v4.catalog import ensure_catalog, blueprint_instance_kind
-from v4.market_depth import top_price_levels, station_sell_census
+from v4.market_depth import STATIONS, top_price_levels, station_sell_census
+from v4.structure_registry import STRUCTURES
 from v4.market_execution import gross_depth_upper_bound
 from v4.sources import market_dataframe, contract_dataframes
 from v4.npc_station_catalog import load_catalog
@@ -33,8 +34,6 @@ from v4.blueprint_manufacturing import evaluate_blueprint_contract
 
 JITA = 60003760
 KNOWN_STATIONS = {'jita': JITA, 'amarr': 60008494, 'dodixie':60011866}
-STRUCTURES = {'four_h':(1053970513596,'main'), 'cj':(1049588174021,'cj'),
-              'o4t':(1040804972352,'dc')}
 WORKER = 'https://eve-contract-opener.99617224.workers.dev'
 ESI = 'https://esi.evetech.net/latest'
 UA = 'EVE-V4 shadow verification (github.com/samson8964/chatgpt-eve)'
@@ -165,9 +164,7 @@ def run(market_path,contract_path,output,api_key=''):
     # All approved private-station sell types are counted and benchmarked.
     # This census includes even products excluded by the profit prefilter.
     station_census = station_sell_census(
-        markets, locations={'4-H': STRUCTURES['four_h'][0],
-                            'C-J': STRUCTURES['cj'][0],
-                            'O4T': STRUCTURES['o4t'][0]},
+        markets, locations=STATIONS,
         jita=JITA, floor=POLICY.profit_floor)
     # Market cash exit is ALWAYS the Jita 4-4 station's BUY depth, just
     # like contracts; do not value any item at remote stations' local bids.
