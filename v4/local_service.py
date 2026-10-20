@@ -16,6 +16,7 @@ from pathlib import Path
 
 from v4.local_backup import backup
 from v4.local_run import run
+from v4.structure_registry import STRUCTURES
 
 MIN_FREE_GIB = 20
 BACKUP_AFTER_HOURS = 24
@@ -67,10 +68,10 @@ def execute(root: Path, *, scanner=run, backup_fn=backup,
                 and isinstance(lanes[lane].get("pages"), int)
                 and lanes[lane]["pages"] > 0
                 and lanes[lane].get("pages_fetched") == lanes[lane]["pages"]
-                for lane in ("four_h", "cj", "o4t"))
+                for lane in STRUCTURES)
     )
     issue = "DEGRADED_PARTIAL_COVERAGE"
-    if all((lanes.get(name) or {}).get("status") == "COMPLETE" for name in ("four_h", "cj", "o4t")):
+    if all((lanes.get(name) or {}).get("status") == "COMPLETE" for name in STRUCTURES):
         if scan.get("source_input_integrity") == "PARTIAL_QUARANTINED":
             issue = "DEGRADED_INPUT_QUARANTINE"
     result = {"status":"SHADOW_RECORDED" if complete else issue,
@@ -83,7 +84,7 @@ def execute(root: Path, *, scanner=run, backup_fn=backup,
               "zero_remaining_public_orders":scan.get("zero_remaining_public_orders"),
               "zero_remaining_structure_orders":scan.get("zero_remaining_structure_orders"),
               "structure_status":{lane:(lanes.get(lane) or {}).get("status", "MISSING")
-                                  for lane in ("four_h", "cj", "o4t")},
+                                  for lane in STRUCTURES},
               # Only fixed diagnostic codes/counters, never worker HTTP bodies
               # or authentication secrets. Make the failure actionable.
               "failed_structure_diagnostics":{
@@ -94,7 +95,7 @@ def execute(root: Path, *, scanner=run, backup_fn=backup,
                       "pages_fetched":info.get("pages_fetched"),
                       "transient_retries":info.get("transient_retries"),
                   }
-                  for lane in ("four_h", "cj", "o4t")
+                  for lane in STRUCTURES
                   for info in [lanes.get(lane) or {}]
                   if info.get("status") != "COMPLETE"
               },
