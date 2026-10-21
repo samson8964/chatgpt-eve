@@ -8,6 +8,8 @@ const CJ_MARKET_SCOPE = "esi-markets.structure_markets.v1 esi-wallet.read_charac
 const CJ_ACCESS_TOKEN_CACHE_KEY = "https://eve-contract-opener.internal/cj-market-access-token";
 const DC_MARKET_SCOPE = "esi-markets.structure_markets.v1";
 const DC_ACCESS_TOKEN_CACHE_KEY = "https://eve-contract-opener.internal/dc-market-access-token";
+const BANESTAR_MARKET_SCOPE = "esi-markets.structure_markets.v1";
+const BANESTAR_ACCESS_TOKEN_CACHE_KEY = "https://eve-contract-opener.internal/banestar-market-access-token";
 
 let memoryAccessToken = "";
 let memoryAccessTokenExp = 0;
@@ -18,6 +20,9 @@ let cjRefreshInFlight = null;
 let memoryDcAccessToken = "";
 let memoryDcAccessTokenExp = 0;
 let dcRefreshInFlight = null;
+let memoryBanestarAccessToken = "";
+let memoryBanestarAccessTokenExp = 0;
+let banestarRefreshInFlight = null;
 
 export default {
   async fetch(request, env) {
@@ -37,6 +42,9 @@ export default {
       const dcHasToken = Boolean(await env.AUTH_STORE.get("dc_refresh_token"));
       const dcName = await env.AUTH_STORE.get("dc_character_name");
       const dcId = await env.AUTH_STORE.get("dc_character_id");
+      const banestarHasToken = Boolean(await env.AUTH_STORE.get("banestar_refresh_token"));
+      const banestarName = await env.AUTH_STORE.get("banestar_character_name");
+      const banestarId = await env.AUTH_STORE.get("banestar_character_id");
       return html(`<!doctype html><meta charset="utf-8"><title>EVE Contract Opener</title>
         <style>body{font:16px system-ui;max-width:760px;margin:48px auto;padding:0 20px;line-height:1.65}code{background:#eee;padding:2px 6px;border-radius:5px}</style>
         <h1>EVE Contract Opener</h1>
@@ -48,6 +56,8 @@ export default {
         <p>C-J6MT接口使用 <code>auth_profile=cj</code>，与原4-H主授权彼此独立。</p>
         <p>DC影子市场授权：<b>${dcHasToken ? "已授权" : "尚未授权"}</b>${dcName ? ` · ${escapeHtml(dcName)} (${escapeHtml(dcId || "")})` : ""} · <a href="/auth-dc">授权/更换</a> · <a href="/logout-dc">清除</a></p>
         <p>DC接口使用 <code>auth_profile=dc</code>；用于O4T-Z5 Prime正式V3扫描与TCAG-3影子研究，不影响4-H、C-J6MT和邮件角色。</p>
+        <p>74L2-U BANESTAR 专用市场授权：<b>${banestarHasToken ? "已授权" : "尚未授权"}</b>${banestarName ? ` · ${escapeHtml(banestarName)} (${escapeHtml(banestarId || "")})` : ""} · <a href="/auth-banestar">授权/更换</a></p>
+        <p>74L2-U 专用接口使用 <code>auth_profile=banestar</code>，独立于其他市场和邮件授权。</p>
         <p>打开合同：<code>/c/合同ID</code></p>
         <p>打开市场：<code>/m/物品Type ID</code></p>
         <p><a href="/auth">重新授权角色</a> · <a href="/logout">清除授权</a></p>`);
@@ -63,9 +73,11 @@ export default {
     if (url.pathname === "/auth-cj") return startCjAuth(env);
     if (url.pathname === "/logout-cj") return logoutCjAuth(env);
     if (url.pathname === "/auth-dc") return startDcAuth(env);
+    if (url.pathname === "/auth-banestar") return startBanestarAuth(env);
     if (url.pathname === "/logout-dc") return logoutDcAuth(env);
     if (url.pathname === "/callback") {
       const cookies = parseCookies(request.headers.get("Cookie") || "");
+      if (cookies.eve_banestar_state) return handleBanestarCallback(request, env, cookies);
       if (cookies.eve_dc_state) return handleDcCallback(request, env, cookies);
       if (cookies.eve_cj_state) return handleCjCallback(request, env, cookies);
       return handleCallback(request, env);
@@ -159,12 +171,15 @@ async function handleStructureMarket(request, env) {
   if (!Number.isSafeInteger(structureId) || structureId <= 0 || !Number.isSafeInteger(page) || page < 1) {
     return json({ ok: false, error: "invalid_structure_id_or_page" }, 400);
   }
-  if (!["main", "cj", "dc"].includes(authProfile)) {
+  if (!["main", "cj", "dc", "banestar"].includes(authProfile)) {
     return json({ ok: false, error: "invalid_auth_profile", auth_profile: authProfile }, 400);
   }
 
-  const token = authProfile === "dc" ? await getFreshDcToken(env) : authProfile === "cj" ? await getFreshCjToken(env) : await getFreshToken(env);
-  const authUrl = authProfile === "dc" ? "/auth-dc" : authProfile === "cj" ? "/auth-cj" : "/auth";
+  const token = authProfile === "banestar" ? await getFreshBanestarToken(env)
+    : authProfile === "dc" ? await getFreshDcToken(env)
+    : authProfile === "cj" ? await getFreshCjToken(env) : await getFreshToken(env);
+  const authUrl = authProfile === "banestar" ? "/auth-banestar"
+    : authProfile === "dc" ? "/auth-dc" : authProfile === "cj" ? "/auth-cj" : "/auth";
   if (!token.ok) {
     return json({ ok: false, error: "token_refresh_failed", detail: token.detail || token.status, auth_profile: authProfile, auth_url: authUrl }, 401);
   }
@@ -629,6 +644,52 @@ async function handleDcCallback(request, env, cookies) {
   );
 }
 
+function startBanestarAuth(env) {
+  const state = randomHex(24);
+  const authUrl = new URL(SSO_AUTHORIZE);
+  authUrl.searchParams.set("response_type", "code");
+  authUrl.searchParams.set("client_id", env.EVE_CLIENT_ID);
+  authUrl.searchParams.set("redirect_uri", env.EVE_REDIRECT_URI);
+  authUrl.searchParams.set("scope", BANESTAR_MARKET_SCOPE);
+  authUrl.searchParams.set("state", state);
+  const headers = new Headers({ Location: authUrl.toString() });
+  headers.append("Set-Cookie", cookie("eve_banestar_state", state, 600));
+  return new Response(null, { status: 302, headers });
+}
+
+async function handleBanestarCallback(request, env, cookies) {
+  const url = new URL(request.url);
+  const code = url.searchParams.get("code");
+  const returnedState = url.searchParams.get("state");
+  if (!code || !returnedState || !cookies.eve_banestar_state
+      || returnedState !== cookies.eve_banestar_state) {
+    return text("74L2-U EVE SSO state mismatch.", 400);
+  }
+  const resp = await tokenRequest(env, new URLSearchParams({
+    grant_type: "authorization_code", code,
+  }));
+  if (!resp.ok) return text(`74L2-U SSO token exchange failed (${resp.status}).`, 502);
+  if (!resp.access_token || !resp.refresh_token) return text("74L2-U SSO token response invalid.", 502);
+  const claims = decodeJwtClaims(resp.access_token);
+  const characterId = String(claims.sub || "").split(":").pop();
+  if (!/^\d+$/.test(characterId || "")) return text("74L2-U SSO character invalid.", 502);
+  // New dedicated keys only; never replace main, C-J, O4T or mail token.
+  await env.AUTH_STORE.put("banestar_refresh_token", resp.refresh_token);
+  await env.AUTH_STORE.put("banestar_character_id", characterId);
+  if (claims.name) await env.AUTH_STORE.put("banestar_character_name", String(claims.name));
+  rememberBanestarAccessToken(resp.access_token, claims);
+  await cacheBanestarAccessToken(resp.access_token, claims);
+  const headers = new Headers({ "Content-Type": "text/html; charset=utf-8" });
+  headers.append("Set-Cookie", expiredCookie("eve_banestar_state"));
+  return new Response(
+    `<!doctype html><meta charset="utf-8"><h2>74L2-U 市场授权成功</h2>
+    <p>角色：${escapeHtml(claims.name || characterId)}</p>
+    <p>权限：${escapeHtml(BANESTAR_MARKET_SCOPE)}</p>
+    <p>该授权只供 74L2-U 市场访问；仍需单独核验建筑 ACL 与全部分页。</p><a href="/">返回状态页</a>`,
+    { status: 200, headers }
+  );
+}
+
 function startAuth(env, action) {
   const state = randomHex(24);
   const authUrl = new URL(SSO_AUTHORIZE);
@@ -914,6 +975,84 @@ async function getFreshDcToken(env) {
     return await dcRefreshInFlight;
   } finally {
     dcRefreshInFlight = null;
+  }
+}
+
+function rememberBanestarAccessToken(accessToken, claims = {}) {
+  const nowSec = Math.floor(Date.now() / 1000);
+  memoryBanestarAccessToken = accessToken || "";
+  memoryBanestarAccessTokenExp = Number(claims.exp || 0) || (nowSec + 900);
+}
+
+async function readCachedBanestarAccessToken() {
+  const nowSec = Math.floor(Date.now() / 1000);
+  if (memoryBanestarAccessToken && memoryBanestarAccessTokenExp > nowSec + 60) {
+    return { ok: true, access_token: memoryBanestarAccessToken, cached: "memory" };
+  }
+  try {
+    const cached = await caches.default.match(BANESTAR_ACCESS_TOKEN_CACHE_KEY);
+    if (!cached) return null;
+    const data = await cached.json();
+    if (!data || !data.access_token || Number(data.exp || 0) <= nowSec + 60) return null;
+    memoryBanestarAccessToken = String(data.access_token);
+    memoryBanestarAccessTokenExp = Number(data.exp);
+    return { ok: true, access_token: memoryBanestarAccessToken, cached: "edge" };
+  } catch {
+    return null;
+  }
+}
+
+async function cacheBanestarAccessToken(accessToken, claims = {}) {
+  if (!accessToken) return;
+  const nowSec = Math.floor(Date.now() / 1000);
+  const exp = Number(claims.exp || 0) || (nowSec + 900);
+  const ttl = Math.max(60, Math.min(1100, exp - nowSec - 60));
+  try {
+    const response = new Response(JSON.stringify({ access_token: accessToken, exp }), {
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": `public, max-age=${ttl}`,
+      },
+    });
+    await caches.default.put(BANESTAR_ACCESS_TOKEN_CACHE_KEY, response);
+  } catch {
+    // KV token remains available; a failed edge cache write is not auth loss.
+  }
+}
+
+async function refreshBanestarAccessToken(env) {
+  const refreshToken = await env.AUTH_STORE.get("banestar_refresh_token");
+  if (!refreshToken) return { ok: false, status: 401, detail: "no BANESTAR refresh token" };
+  let result;
+  try {
+    result = await tokenRequest(env, new URLSearchParams({
+      grant_type: "refresh_token", refresh_token: refreshToken,
+    }));
+  } catch {
+    return { ok: false, status: 502, detail: "BANESTAR token request exception" };
+  }
+  if (!result.ok) return { ok: false, status: result.status, detail: "BANESTAR token refresh failed" };
+  const claims = decodeJwtClaims(result.access_token);
+  rememberBanestarAccessToken(result.access_token, claims);
+  await cacheBanestarAccessToken(result.access_token, claims);
+  if (result.refresh_token && result.refresh_token !== refreshToken) {
+    try {
+      await env.AUTH_STORE.put("banestar_refresh_token", result.refresh_token);
+    } catch {
+      // Fail closed on next cache expiry rather than expose secrets in logs.
+    }
+  }
+  return result;
+}
+
+async function getFreshBanestarToken(env) {
+  const cached = await readCachedBanestarAccessToken();
+  if (cached) return cached;
+  if (!banestarRefreshInFlight) banestarRefreshInFlight = refreshBanestarAccessToken(env);
+  try {
+    return await banestarRefreshInFlight;
+  } finally {
+    banestarRefreshInFlight = null;
   }
 }
 
