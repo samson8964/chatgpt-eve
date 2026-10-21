@@ -73,7 +73,7 @@ def _status_style(s: str) -> tuple[str, str]:
         "WAITING_NEW_SCOPE": ("等待四站首次完整扫描", "amber"),
         "SKIPPED_UPSTREAM_STALE": ("上游数据尚未更新", "amber"),
         "DEGRADED_INPUT_QUARANTINE": ("数据校验告警", "amber"),
-        "DEGRADED_PARTIAL_COVERAGE": ("数据覆盖不完整", "amber"),
+        "DEGRADED_PARTIAL_COVERAGE": ("完整扫描覆盖不完整", "amber"),
         "PARTIAL_UNVERIFIED": ("数据尚未完整验证", "amber"),
         "CHECK_TASK_RESULT": ("需要查看任务日志", "amber"),
         "FAILED": ("上次运行失败", "red"),
