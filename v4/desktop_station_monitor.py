@@ -76,7 +76,9 @@ def read_opportunity(root: Path, lanes: tuple[str, ...],
             break
         report = _json(file)
         if report.get("status") != "OPPORTUNITY_NOTIFICATION_CYCLE_COMPLETE":
-            continue
+            # A newer malformed/incomplete summary must not be skipped just
+            # to reuse an earlier green success.
+            return {**result, "status": "INVALID_REPORT"}
         health = report.get("authenticated_structure_health")
         if not isinstance(health, dict) or not all(
             isinstance(health.get(lane), dict)
