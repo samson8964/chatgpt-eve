@@ -185,8 +185,15 @@ class FourStationWidgetTests(unittest.TestCase):
                             encoding="utf-8")
         import os
         os.utime(manifest, (t+100,t+100))
+        # The previous successful RESULT must not mask a newer failed
+        # manifest when the scheduled task exited before logging again.
+        (self.root / "logs" / "shadow-task.log").write_text(
+            'START 2026-10-21T12:00:00+00:00\n'
+            'RESULT {"status":"SHADOW_RECORDED","run_folder_name":"20261021T120000Z-valid"}\n',
+            encoding="utf-8")
         snap = read_snapshot(self.root, {"state":"Ready","last_result":1})
         self.assertEqual(snap["status"],"FAILED")
+        self.assertEqual(snap["latest_result_status"],"FAILED")
         self.assertEqual(snap["scan_scope_status"],"INCOMPLETE_COVERAGE")
         self.assertEqual(snap["structures"]["banestar"],"MISSING")
 
