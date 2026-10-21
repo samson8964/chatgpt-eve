@@ -5,7 +5,7 @@ Location ID: 1050474463169
 
 ## Permission evidence
 2026-10-21 first-page probe: main HTTP403, cj HTTP200, dc HTTP200.
-Reuse the existing dc profile; no Cloudflare Worker or EVE SSO changes.
+The user has a separate character with docking access; use the new dedicated BANESTAR SSO profile instead of replacing main/cj/dc. Existing cj/dc 200 first-page results are not proof that the intended character has granted SSO access.
 
 ## Safety gate
 The V4 station registry (v4/structure_registry.py) keeps the original
@@ -28,7 +28,7 @@ Do not activate on any failed test.
 ## 2. Full-page one-station canary
     & .\.venv\Scripts\python.exe -m v4.candidate_station_full_probe
 
-This fetches all pages for only 74L2-U using the existing dc profile.
+This fetches all pages for only 74L2-U using the new banestar profile.
 It validates page count, structure ID and unique order IDs; only aggregate
 counts are printed. Individual private orders, prices, keys and bodies are
 never saved or printed. Target status FULL_BOOK_VALIDATED_NOT_ENROLLED.
@@ -61,5 +61,5 @@ Do not touch Cloudflare KV tokens, structure ACL, existing tasks, or mail.
 
 ## Deployment
 Git branch: prep/v4-windows-local-migration-20261013.
-Cloudflare Worker change is NOT required. Python station registration happens
+First deploy the updated Cloudflare Worker with the BANESTAR SSO endpoint; then visit https://eve-contract-opener.99617224.workers.dev/auth-banestar in a browser and select ONLY the new docking-capable EVE character, authorizing esi-markets.structure_markets.v1. The Worker uses new banestar_refresh_token/banestar_character_id/banestar_character_name KV keys; do not touch existing main/cj/dc/mail tokens. Verify the character name on the SSO success page. The URL will not work on production until Cloudflare Worker deployment succeeds. A deployment updates the whole Worker and must be carefully reviewed for unsynced live changes. Run node --test v4/tests/test_worker_banestar_auth.mjs locally before deployment. Python station registration happens
 only on the Windows host after git pull and explicit opt-in.
