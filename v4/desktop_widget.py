@@ -70,6 +70,7 @@ def _status_style(s: str) -> tuple[str, str]:
     names = {
         "RUNNING": ("正在扫描", "blue"),
         "SHADOW_RECORDED": ("最近扫描成功", "green"),
+        "WAITING_NEW_SCOPE": ("等待四站首次完整扫描", "amber"),
         "SKIPPED_UPSTREAM_STALE": ("上游数据尚未更新", "amber"),
         "DEGRADED_INPUT_QUARANTINE": ("数据校验告警", "amber"),
         "DEGRADED_PARTIAL_COVERAGE": ("数据覆盖不完整", "amber"),
@@ -88,6 +89,59 @@ def _format_int(value) -> str:
         return format(int(value), ",")
     except (ValueError, TypeError):
         return "--"
+
+
+def _station_symbol(status: str) -> str:
+    if status == "COMPLETE":
+        return "✓"
+    if status in ("UNKNOWN", "PENDING_FIRST_RUN"):
+        return "…" if status == "PENDING_FIRST_RUN" else "—"
+    return "✕"
+
+
+def _channel_label(status: str) -> str:
+    if status in ("GAME_MAIL_SENT", "GMAIL_SENT"):
+        return "已发送"
+    if status in ("GAME_MAIL_ALREADY_SENT", "GMAIL_ALREADY_SENT"):
+        return "已处理"
+    if status == "NO_NEW_QUALIFIED_LEADS":
+        return "无新机会"
+    if status == "OPPORTUNITY_CHANNEL_FAILED":
+        return "发送失败"
+    return "未确认"
+
+
+def _opportunity_text(opportunity: dict, banestar_enabled: bool) -> tuple[str, str, str]:
+    """Pure text conversion; does not infer live opportunity availability."""
+    status = opportunity.get("status")
+    if status == "WAITING_FIRST_CYCLE":
+        header = "最近捡漏：等待新扫描报告"
+    elif status == "INCOMPLETE_COVERAGE":
+        header = "最近捡漏：采集不完整，未确认结果"
+    elif status == "COMPLETE":
+        n = _format_int(opportunity.get("qualified_model_leads"))
+        stamp = human_clock(opportunity.get("reported_at"))
+        header = f"最近捡漏：完成 · 合格 {n} · {stamp}"
+    else:
+        header = "最近捡漏：结果未知"
+    station = opportunity.get("station") or {}
+    if not banestar_enabled:
+        detail = "74L2-U：未启用"
+    elif status != "COMPLETE":
+        detail = "74L2-U：等待四站机会扫描通过"
+    elif not isinstance(station, dict):
+        detail = "74L2-U：品种数据待确认"
+    else:
+        sell = _format_int(station.get("sell_types", 0))
+        pre = _format_int(station.get("PREFILTER_PASSED", 0))
+        passed = _format_int(station.get("MODEL_PASS_RESEARCH_ONLY", 0))
+        detail = f"74L2-U：卖盘品种 {sell} · 初筛 {pre} · 合格 {passed}"
+    if status == "COMPLETE":
+        mail = ("通知：游戏 " + _channel_label(opportunity.get("game_mail")) +
+                " · Gmail " + _channel_label(opportunity.get("gmail")))
+    else:
+        mail = "通知：等待有效扫描结果（并非零机会）"
+    return header, detail, mail
 
 
 class DesktopWidget:
@@ -115,7 +169,7 @@ class DesktopWidget:
         root.configure(bg=COLORS["line"])
         root.attributes("-topmost", True)
         root.resizable(False, False)
-        w, h = 358, 315
+        w, h = 392, 424
         x = max(0, root.winfo_screenwidth() - w - 26)
         root.geometry(f"{w}x{h}+{x}+60")
         tkfont = ("Microsoft YaHei UI", 9)
@@ -144,12 +198,22 @@ class DesktopWidget:
 
         self.previous_label = self._label(shell, "上一轮：读取中", 9, "white")
         self.previous_label.pack(anchor="w", padx=14, pady=(9, 2))
-        self.structures_label = self._label(shell, "4-H --    C-J --    O4T --", 9, "muted")
-        self.structures_label.pack(anchor="w", padx=14, pady=(1, 3))
+        self.structures_label = self._label(shell, "4-H —    C-J —    O4T —", 9, "muted")
+        self.structures_label.pack(anchor="w", padx=14, pady=(1, 1))
+        self.fourth_label = self._label(shell, "74L2-U：读取配置中", 9, "muted")
+        self.fourth_label.pack(anchor="w", padx=14, pady=(1, 3))
         self.metrics_label = self._label(shell, "审核记录 --  |  候选 --", 9, "muted")
         self.metrics_label.pack(anchor="w", padx=14, pady=(1, 4))
         self.next_label = self._label(shell, "下次自动：--", 9, "white")
         self.next_label.pack(anchor="w", padx=14, pady=(1, 5))
+
+        tk.Frame(shell, height=1, bg=COLORS["line"]).pack(fill="x", padx=12, pady=(1, 5))
+        self.opportunity_label = self._label(shell, "最近捡漏：读取中", 9, "white")
+        self.opportunity_label.pack(anchor="w", padx=14, pady=(1, 3))
+        self.opportunity_station_label = self._label(shell, "74L2-U：读取中", 9, "muted")
+        self.opportunity_station_label.pack(anchor="w", padx=14, pady=(1, 3))
+        self.opportunity_mail_label = self._label(shell, "通知：读取中", 9, "muted")
+        self.opportunity_mail_label.pack(anchor="w", padx=14, pady=(1, 6))
 
         # Manual start is user-initiated only. Task Scheduler's IgnoreNew
         # setting serializes it with the normal hourly trigger.
@@ -163,7 +227,7 @@ class DesktopWidget:
 
         footer = tk.Frame(shell, bg=COLORS["panel"], height=26)
         footer.pack(side="bottom", fill="x")
-        self.refresh_label = self._label(footer, "只读 · 双通道审核 · 3秒刷新", 8, "muted",
+        self.refresh_label = self._label(footer, "只读 · 四站/机会监控 · 3秒刷新", 8, "muted",
                                          bg="panel")
         self.refresh_label.pack(side="left", padx=(10, 0), pady=5)
         self._button(footer, "查看日志", self.open_log, width=7, bg="panel").pack(
@@ -325,8 +389,18 @@ class DesktopWidget:
                 text="上一轮结果：" + last_name, fg=COLORS[last_color])
             states = info["structures"]
             self.structures_label.configure(text="    ".join(
-                f"{label} {'✓' if states[name]=='COMPLETE' else '—' if states[name]=='UNKNOWN' else '✕'}"
-                for name, label in (("four_h","4-H"),("cj","C-J"),("o4t","O4T"))))
+                f"{label} {_station_symbol(states.get(name, 'UNKNOWN'))}"
+                for name, label in (("four_h", "4-H"), ("cj", "C-J"), ("o4t", "O4T"))))
+            if info["banestar_enabled"]:
+                fourth = states.get("banestar", "UNKNOWN")
+                tail = (" · 等待首次四站扫描" if fourth == "PENDING_FIRST_RUN"
+                        else " · 采集完整" if fourth == "COMPLETE"
+                        else " · 采集异常/缺失")
+                self.fourth_label.configure(
+                    text="74L2-U " + _station_symbol(fourth) + tail,
+                    fg=COLORS["green" if fourth == "COMPLETE" else "amber"])
+            else:
+                self.fourth_label.configure(text="74L2-U — 未启用", fg=COLORS["muted"])
             evidence = _format_int(info["proofs"])
             models = _format_int(info["model_candidates"])
             market = _format_int(info["market_examined"])
@@ -334,6 +408,13 @@ class DesktopWidget:
             self.metrics_label.configure(
                 text=f"市场审核 {market} · 合同审核 {contracts} · 候选 {models}")
             self.next_label.configure(text="下次自动：" + human_clock(info["next_run"]))
+            o_header, o_station, o_mail = _opportunity_text(
+                info["opportunity"], info["banestar_enabled"])
+            self.opportunity_label.configure(
+                text=o_header, fg=COLORS["amber" if info["opportunity"]["status"]
+                                        != "COMPLETE" else "white"])
+            self.opportunity_station_label.configure(text=o_station)
+            self.opportunity_mail_label.configure(text=o_mail)
             channels = ("G" if info["research_gmail_enabled"] else "g") + (
                 "E" if info["research_game_enabled"] else "e")
             self.refresh_label.configure(text="状态只读 · "+channels+" · 更新 " +
