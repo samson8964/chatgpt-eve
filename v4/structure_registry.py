@@ -14,7 +14,7 @@ BASE_LANES = (
     ("cj", "C-J", 1049588174021, "cj"),
     ("o4t", "O4T", 1040804972352, "dc"),
 )
-BANESTAR_LANE = ("banestar", "74L2-U", 1050474463169, "dc")
+BANESTAR_LANE = ("banestar", "74L2-U", 1050474463169, "banestar")
 ENABLE_FILE = Path.home() / "EVE-V4-Data" / "config" / "banestar-market.enabled"
 ENABLE_CONTENT = "APPROVED_1050474463169"
 
