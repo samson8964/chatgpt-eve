@@ -96,7 +96,9 @@ def read_opportunity(root: Path, lanes: tuple[str, ...],
         by_station = report.get("by_station")
         if not isinstance(by_station, dict):
             by_station = {}
-        station = by_station.get("74L2-U", {}) if activated_at is not None else None
+        # _evaluate(...) keys this dictionary by the internal lane name,
+        # not by the human-facing station label.
+        station = by_station.get(BANESTAR, {}) if activated_at is not None else None
         if station is not None and not isinstance(station, dict):
             station = None
         count = report.get("qualified_model_leads")
