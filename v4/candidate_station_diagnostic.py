@@ -20,6 +20,7 @@ from v4.local_bridge_auth import get_bridge_key, valid_bridge_key
 CHECKS = (
     ("banestar_cj", STATION_ID, "cj"),
     ("banestar_dc", STATION_ID, "dc"),
+    ("banestar_dedicated", STATION_ID, "banestar"),
     ("control_cj", 1049588174021, "cj"),
     ("control_o4t", 1040804972352, "dc"),
 )
