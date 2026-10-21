@@ -63,7 +63,7 @@ class FourStationWidgetTests(unittest.TestCase):
             "status": status,
             "finished_at": "2026-10-21T12:30:00+00:00",
             "authenticated_structure_health": self.health(four),
-            "by_station": {"74L2-U": {
+            "by_station": {"banestar": {
                 "sell_types":1049, "PREFILTER_PASSED":11,
                 "MODEL_PASS_RESEARCH_ONLY":3,
             }},
@@ -119,6 +119,7 @@ class FourStationWidgetTests(unittest.TestCase):
         self.assertEqual(op["status"], "COMPLETE")
         self.assertEqual(op["qualified_model_leads"], 9)
         self.assertEqual(op["station"]["sell_types"], 1049)
+        self.assertEqual(op["station"]["PREFILTER_PASSED"], 11)
         header, station, mail = _opportunity_text(op, True)
         self.assertIn("合格 9", header)
         self.assertIn("1,049", station)
