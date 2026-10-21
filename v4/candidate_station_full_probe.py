@@ -16,7 +16,7 @@ from v4.local_bridge_auth import get_bridge_key, valid_bridge_key
 from v4.structure_transport import all_structure_orders
 
 STATION = "74L2-U"
-AUTH_PROFILE = "dc"
+AUTH_PROFILE = "banestar"
 
 
 def probe(*, key=None, fetch=request, sleep=None, jitter=None) -> dict:
