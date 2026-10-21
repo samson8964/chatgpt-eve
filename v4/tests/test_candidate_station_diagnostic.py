@@ -51,8 +51,8 @@ class DiagnosticTests(unittest.TestCase):
                 })
             return Response(200, body_read_fail=True)
         result = probe(key=KEY, get=get)
-        self.assertEqual(len(calls), 4)
-        self.assertEqual([x["auth_profile"] for x in calls], ["cj", "dc", "cj", "dc"])
+        self.assertEqual(len(calls), 5)
+        self.assertEqual([x["auth_profile"] for x in calls], ["cj", "dc", "banestar", "cj", "dc"])
         self.assertEqual(result["checks"]["banestar_cj"]["esi_upstream_http_status"], 404)
         self.assertEqual(result["checks"]["banestar_dc"]["diagnosis"],
                          "ESI_STRUCTURE_NOT_FOUND_OR_NOT_VISIBLE")
