@@ -6,6 +6,7 @@ the Worker, API keys, EVE SSO, order data, or mail transmission.
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 
 from v4.structure_registry import BASE_LANES, BANESTAR_LANE, ENABLE_CONTENT
@@ -97,8 +98,12 @@ def read_opportunity(root: Path, lanes: tuple[str, ...],
         count = report.get("qualified_model_leads")
         if type(count) is not int or count < 0:
             count = None
+        # The hourly opportunity job can stop without writing another report.
+        # A past success is not current health after three hours of silence.
+        age_seconds = time.time() - _mtime(file)
         return {
-            "status": "COMPLETE",
+            "status": ("STALE_REPORT" if age_seconds > 3 * 3600
+                       else "COMPLETE"),
             "reported_at": report.get("finished_at"),
             "qualified_model_leads": count,
             "station": station,
@@ -126,7 +131,16 @@ def read_station_scope(root: Path, *, current: dict, completed: dict,
     prior_fresh = bool(
         enabled and prior_path and _mtime(prior_path) > activated_at
     )
-    if enabled and not current_fresh and not prior_fresh:
+    new_failure = bool(
+        enabled and current_path and _mtime(current_path) > activated_at
+        and current.get("status") == "FAILED"
+    )
+    if new_failure:
+        # Do not let an earlier successful four-station run conceal a newer
+        # failed attempt. The failure itself has no verified lane statuses.
+        states = {lane: "MISSING" for lane in lanes}
+        scan_status = "INCOMPLETE_COVERAGE"
+    elif enabled and not current_fresh and not prior_fresh:
         states = {lane: "PENDING_FIRST_RUN" for lane in lanes}
         scan_status = "WAITING_NEW_SCOPE"
     else:
