@@ -45,6 +45,8 @@ def _mail_status(value, channel: str) -> str:
     if not isinstance(value, dict):
         return "UNKNOWN"
     status = value.get("status")
+    if not isinstance(status, str):
+        return "UNKNOWN"
     allowed = (
         {"GAME_MAIL_SENT", "GAME_MAIL_ALREADY_SENT",
          "NO_NEW_QUALIFIED_LEADS", "OPPORTUNITY_CHANNEL_FAILED"}
