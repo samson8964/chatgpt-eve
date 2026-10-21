@@ -145,8 +145,9 @@ def read_station_scope(root: Path, *, current: dict, completed: dict,
             if isinstance(log_health, dict):
                 health = {lane: {"status": log_health.get(lane, "MISSING")}
                           for lane in lanes}
+        missing_label = "MISSING" if enabled else "UNKNOWN"
         states = {
-            lane: (str((health.get(lane) or {}).get("status") or "MISSING"))
+            lane: (str((health.get(lane) or {}).get("status") or missing_label))
             for lane in lanes
         }
         scan_status = (
