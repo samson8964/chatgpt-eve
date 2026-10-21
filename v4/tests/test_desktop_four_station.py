@@ -63,7 +63,7 @@ class FourStationWidgetTests(unittest.TestCase):
             "status": status,
             "finished_at": "2026-10-21T12:30:00+00:00",
             "authenticated_structure_health": self.health(four),
-            "by_station": {"banestar": {
+            "by_station": {"74L2-U": {
                 "sell_types":1049, "PREFILTER_PASSED":11,
                 "MODEL_PASS_RESEARCH_ONLY":3,
             }},
