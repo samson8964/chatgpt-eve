@@ -161,6 +161,11 @@ def read_snapshot(data_root: Path, task: dict | None = None) -> dict:
                 status = "DEGRADED_PARTIAL_COVERAGE"
             if last_result_status == "SHADOW_RECORDED":
                 last_result_status = "DEGRADED_PARTIAL_COVERAGE"
+    # Quantities from the previous three-lane success are not four-lane
+    # measurements; suppress them while the newly approved scope is pending
+    # or incomplete.
+    metrics_valid = (not scope["banestar_enabled"] or
+                     scope_status == "COMPLETE")
     return {
         "status": status,
         "task_state": task_state,
@@ -176,12 +181,13 @@ def read_snapshot(data_root: Path, task: dict | None = None) -> dict:
         "banestar_enabled": scope["banestar_enabled"],
         "scan_scope_status": scope_status,
         "opportunity": scope["opportunity"],
-        "model_candidates": deep.get("model_candidates"),
-        "market_examined": deep.get("market_proofs_examined"),
-        "contract_examined": deep.get("contract_approved_locations_examined"),
+        "model_candidates": deep.get("model_candidates") if metrics_valid else None,
+        "market_examined": deep.get("market_proofs_examined") if metrics_valid else None,
+        "contract_examined": (deep.get("contract_approved_locations_examined")
+                              if metrics_valid else None),
         "research_gmail_enabled": _json_file(root / "config" / "research_gmail.json").get("enabled") is True,
         "research_game_enabled": _json_file(root / "config" / "eve_game_mail_review.json").get("enabled") is True,
-        "proofs": completed.get("sqlite_unique_proofs"),
+        "proofs": completed.get("sqlite_unique_proofs") if metrics_valid else None,
         "invalid_public_orders": completed.get("invalid_public_orders"),
         "zero_remaining_public_orders": completed.get("zero_remaining_public_orders"),
         "coverage_gate": completed.get("coverage_gate"),
