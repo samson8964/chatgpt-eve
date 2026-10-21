@@ -99,6 +99,9 @@ class FourStationWidgetTests(unittest.TestCase):
         self.assertTrue(all(v=="PENDING_FIRST_RUN"
                             for v in snapshot["structures"].values()))
         self.assertEqual(snapshot["opportunity"]["status"], "WAITING_FIRST_CYCLE")
+        self.assertIsNone(snapshot["model_candidates"])
+        self.assertIsNone(snapshot["market_examined"])
+        self.assertIsNone(snapshot["proofs"])
         self.assertEqual(_station_symbol(snapshot["structures"]["banestar"]), "…")
 
     def test_four_station_complete_and_funnel_plus_mail(self):
@@ -143,6 +146,20 @@ class FourStationWidgetTests(unittest.TestCase):
             self.root, BASE_NAMES + (BANESTAR,), marker.stat().st_mtime)
         self.assertEqual(snapshot["status"],"WAITING_FIRST_CYCLE")
         self.assertIsNone(snapshot["station"])
+
+    def test_bad_latest_opportunity_report_does_not_fall_back_to_old_success(self):
+        marker=self.enable()
+        report=self.write_opportunity()
+        import os
+        t=marker.stat().st_mtime+100
+        os.utime(report,(t,t))
+        newest=self.root / "opportunity-push" / "20261021T133000Z-bad.json"
+        newest.write_text('{"status":"INCOMPLETE"}',encoding="utf-8")
+        os.utime(newest,(t+100,t+100))
+        result=read_opportunity(
+            self.root,BASE_NAMES+(BANESTAR,),marker.stat().st_mtime)
+        self.assertEqual(result["status"],"INVALID_REPORT")
+        self.assertIsNone(result["qualified_model_leads"])
 
     def test_post_activation_three_station_opportunity_cannot_fake_four(self):
         marker=self.enable()
