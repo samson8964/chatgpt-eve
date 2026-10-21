@@ -108,10 +108,11 @@ def read_snapshot(data_root: Path, task: dict | None = None) -> dict:
         status = "FAILED"
     elif current.get("status") == "SKIPPED_UPSTREAM_STALE":
         status = "SKIPPED_UPSTREAM_STALE"
+    elif current.get("status") == "FAILED":
+        # An older logged RESULT must not hide a more recent failed run.
+        status = "FAILED"
     elif latest_result:
         status = str(latest_result.get("status") or "UNKNOWN")
-    elif current.get("status") == "FAILED":
-        status = "FAILED"
     elif completed.get("status") == "SHADOW_RECORDED":
         status = ("SHADOW_RECORDED" if completed.get("coverage_gate") ==
                   "INPUT_LANES_REPORTED_COMPLETE_NOT_LIVE_VERIFIED"
@@ -139,6 +140,8 @@ def read_snapshot(data_root: Path, task: dict | None = None) -> dict:
         last_result_status = "FAILED"
     elif not running and current.get("status") == "SKIPPED_UPSTREAM_STALE":
         last_result_status = "SKIPPED_UPSTREAM_STALE"
+    elif not running and current.get("status") == "FAILED":
+        last_result_status = "FAILED"
     elif result_folder and result_folder != completed_folder:
         last_result_status = latest_result.get("status")
     else:
