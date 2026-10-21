@@ -9,6 +9,8 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
+from v4.desktop_station_monitor import read_station_scope
+
 
 def _json_file(path: Path) -> dict:
     try:
@@ -125,10 +127,12 @@ def read_snapshot(data_root: Path, task: dict | None = None) -> dict:
         phase = event["phase"]
     else:
         phase = "待命" if task_state.lower() == "ready" else "未运行"
-    health = (completed.get("structure_health") or
-              deep.get("structure_health") or {})
-    sources = {name: str((health.get(name) or {}).get("status") or "UNKNOWN")
-               for name in ("four_h", "cj", "o4t")}
+    scope = read_station_scope(
+        root, current=current, completed=completed,
+        completed_folder=completed_folder, latest_result=latest_result,
+        runs=runs,
+    )
+    sources = scope["structures"]
     result_folder = latest_result.get("run_folder_name")
     if not running and event["last_section_has_failure"]:
         # Never show the previous success as the latest outcome after failure.
@@ -143,6 +147,20 @@ def read_snapshot(data_root: Path, task: dict | None = None) -> dict:
             completed.get("coverage_gate") ==
             "INPUT_LANES_REPORTED_COMPLETE_NOT_LIVE_VERIFIED"
             else "PARTIAL_UNVERIFIED" if completed else "NO_HISTORY")
+    # The legacy status derives from latest logs and may still be green for
+    # the old three-station scope. Never imply four-station completion from it.
+    scope_status = scope["scan_scope_status"]
+    if scope["banestar_enabled"]:
+        if scope_status == "WAITING_NEW_SCOPE":
+            if status in ("SHADOW_RECORDED", "NO_HISTORY"):
+                status = "WAITING_NEW_SCOPE"
+            if last_result_status == "SHADOW_RECORDED":
+                last_result_status = "WAITING_NEW_SCOPE"
+        elif scope_status == "INCOMPLETE_COVERAGE":
+            if status == "SHADOW_RECORDED":
+                status = "DEGRADED_PARTIAL_COVERAGE"
+            if last_result_status == "SHADOW_RECORDED":
+                last_result_status = "DEGRADED_PARTIAL_COVERAGE"
     return {
         "status": status,
         "task_state": task_state,
@@ -154,6 +172,10 @@ def read_snapshot(data_root: Path, task: dict | None = None) -> dict:
         "last_completed_folder": completed_folder,
         "latest_result_status": last_result_status,
         "structures": sources,
+        "structure_labels": scope["labels"],
+        "banestar_enabled": scope["banestar_enabled"],
+        "scan_scope_status": scope_status,
+        "opportunity": scope["opportunity"],
         "model_candidates": deep.get("model_candidates"),
         "market_examined": deep.get("market_proofs_examined"),
         "contract_examined": deep.get("contract_approved_locations_examined"),
