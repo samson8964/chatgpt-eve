@@ -156,6 +156,38 @@ class FourStationWidgetTests(unittest.TestCase):
         self.assertIsNone(value["qualified_model_leads"])
         self.assertIn("并非零机会",_opportunity_text(value,True)[2])
 
+    def test_new_failed_scan_cannot_reuse_previous_four_station_success(self):
+        marker = self.enable()
+        t = marker.stat().st_mtime
+        self.write_run("20261021T120000Z-valid", self.health(True),
+                       modified=t+50)
+        broken = self.runs / "20261021T130000Z-failed"
+        broken.mkdir()
+        manifest = broken / "manifest.json"
+        manifest.write_text('{"status":"FAILED","reason":"connection"}',
+                            encoding="utf-8")
+        import os
+        os.utime(manifest, (t+100,t+100))
+        snap = read_snapshot(self.root, {"state":"Ready","last_result":1})
+        self.assertEqual(snap["status"],"FAILED")
+        self.assertEqual(snap["scan_scope_status"],"INCOMPLETE_COVERAGE")
+        self.assertEqual(snap["structures"]["banestar"],"MISSING")
+
+    def test_opportunity_report_stale_not_current_and_no_mail_claim(self):
+        marker = self.enable()
+        p = self.write_opportunity()
+        import os
+        now = time.time()
+        os.utime(marker, (now - 6*3600, now - 6*3600))
+        os.utime(p, (now - 4*3600, now - 4*3600))
+        result = read_opportunity(
+            self.root, BASE_NAMES + (BANESTAR,), marker.stat().st_mtime)
+        self.assertEqual(result["status"], "STALE_REPORT")
+        header, detail, mail = _opportunity_text(result, True)
+        self.assertIn("已过期",header)
+        self.assertIn("过期历史结果",detail)
+        self.assertIn("并非零机会",mail)
+
     def test_untrusted_mail_channel_status_is_not_displayed(self):
         self.assertEqual(_channel_label("OPPORTUNITY_CHANNEL_FAILED"),"发送失败")
         self.assertEqual(_channel_label("SENSITIVE_TOKEN"),"未确认")
