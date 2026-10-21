@@ -122,11 +122,16 @@ def _opportunity_text(opportunity: dict, banestar_enabled: bool) -> tuple[str, s
         n = _format_int(opportunity.get("qualified_model_leads"))
         stamp = human_clock(opportunity.get("reported_at"))
         header = f"最近捡漏：完成 · 合格 {n} · {stamp}"
+    elif status == "STALE_REPORT":
+        header = ("最近捡漏：报告已过期 · " +
+                  human_clock(opportunity.get("reported_at")))
     else:
         header = "最近捡漏：结果未知"
     station = opportunity.get("station") or {}
     if not banestar_enabled:
         detail = "74L2-U：未启用"
+    elif status == "STALE_REPORT":
+        detail = "74L2-U：仅有过期历史结果，需新一轮"
     elif status != "COMPLETE":
         detail = "74L2-U：等待四站机会扫描通过"
     elif not isinstance(station, dict):
