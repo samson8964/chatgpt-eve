@@ -30,7 +30,7 @@ def order(ident, location, side=False, price=1e6, typ=34):
 
 
 def full_fetch(url, params, headers, timeout):
-    assert params["auth_profile"] == "dc"
+    assert params["auth_profile"] == "banestar"
     assert params["structure_id"] == BANESTAR
     assert headers["Authorization"] == "Bearer " + KEY
     page = params["page"]
@@ -60,7 +60,7 @@ class BanestarEnrollmentTests(unittest.TestCase):
                 self.assertTrue(registry.banestar_enabled())
             self.assertEqual(len(registry.BASE_LANES), 3)
             self.assertEqual(registry.BANESTAR_LANE[2], BANESTAR)
-            self.assertEqual(registry.BANESTAR_LANE[3], "dc")
+            self.assertEqual(registry.BANESTAR_LANE[3], "banestar")
 
     def test_full_page_canary_aggregates_only_and_never_enrolls(self):
         result = full_probe(key=KEY, fetch=full_fetch,
@@ -116,7 +116,7 @@ class BanestarEnrollmentTests(unittest.TestCase):
         base_lanes = dict(AUTHORIZED_LANES)
         base_stations = dict(APPROVED_STATIONS)
         base_labels = dict(LANE_TO_LABEL)
-        base_lanes["banestar"] = (BANESTAR, "dc")
+        base_lanes["banestar"] = (BANESTAR, "banestar")
         base_stations["74L2-U"] = BANESTAR
         base_labels["banestar"] = "74L2-U"
         rows = [order(12345, BANESTAR, False)]
@@ -162,7 +162,7 @@ class BanestarEnrollmentTests(unittest.TestCase):
                        return_value={"free_gib": 100, "enough_space": True}), \
                  patch("v4.local_service.backup_due", return_value=False), \
                  patch.dict(registry.STRUCTURES,
-                            {"banestar": (BANESTAR, "dc")}):
+                            {"banestar": (BANESTAR, "banestar")}):
                 status = execute(Path(td), scanner=scan)
         self.assertEqual(status["status"], "DEGRADED_PARTIAL_COVERAGE")
         self.assertEqual(status["structure_status"]["banestar"], "MISSING")
