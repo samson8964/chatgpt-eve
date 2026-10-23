@@ -81,6 +81,7 @@ class FailClosedTests(unittest.TestCase):
             }
         }
         with tempfile.TemporaryDirectory() as td:
+            resolved_root = Path(td).resolve()  # Windows 8.3 aliases differ.
             with patch.object(sys, "argv",
                               ["v4.local_service", "--data-root", td]), \
                  patch("v4.local_service.execute", return_value=degraded), \
@@ -96,9 +97,9 @@ class FailClosedTests(unittest.TestCase):
         self.assertIn("REVIEW_MAIL_WARNING INCOMPLETE_SOURCE_COVERAGE", logfile)
         self.assertIn("failed_structure_diagnostics", logfile)
         gmail.assert_called_once_with(
-            Path(td), expected_run="20261020T152301Z-fixture")
+            resolved_root, expected_run="20261020T152301Z-fixture")
         game.assert_called_once_with(
-            Path(td), expected_run="20261020T152301Z-fixture")
+            resolved_root, expected_run="20261020T152301Z-fixture")
 
 
 if __name__ == "__main__":

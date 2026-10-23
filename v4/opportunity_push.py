@@ -1,7 +1,8 @@
 """V4 autonomous hourly opportunity-notification lane for a Windows host.
 
-Fetches exactly one complete official ESI Forge region book and once each
-of the three authenticated private structure books. Reuses the unmodified
+Fetches complete official ESI Forge, Domain, and Sinq Laison books plus the
+approved authenticated private structure books. Failed NPC coverage is reported
+and omitted; it never suppresses otherwise valid private-structure alerts. Reuses the unmodified
 V4 market execution engine, the existing Windows credential vault, and the
 existing game mail worker/Gmail sender. No buy/sell/contract action.
 
@@ -89,23 +90,23 @@ def _record_candidate(p,asks,jita):
 
 def _current_opportunities(root,*,run_esi=None,fetch_private=None,catalog=None,
                            haul_fn=None,now=None):
+    from v4.npc_market_opportunity import (
+        REGIONS, NPC_REGIONS, fresh_public_books, evaluate_npc)
+    from v4.structure_registry import LANE_TO_LABEL
     root=Path(root)
     start=now or _utcnow()
     if catalog is None:
         if not DEFAULT_CACHE.is_file():
             raise RuntimeError("LOCAL_V4_CATALOG_MISSING")
         catalog=Catalog.load(DEFAULT_CACHE)
-    if run_esi is None:
+    default_esi=run_esi is None
+    if default_esi:
         from v4.esi_parallel_validation import run
         def run_esi():
-            return run(root,max_workers=1,max_regions=None,
+            return run(root,max_workers=3,max_regions=None,
                        fetch_reference=False,
-                       region_ids_override=[10000002])
+                       region_ids_override=list(REGIONS))
     snapshot,folder=run_esi()
-    if (snapshot.get("status")!="PARTIAL_REGION_TEST_ONLY"
-            or snapshot.get("requested_region_ids")!=[10000002]
-            or snapshot.get("regions",[{}])[0].get("status")!="COMPLETE"):
-        raise RuntimeError("NEW_FORGE_REGION_CAPTURE_FAILED")
 
     if fetch_private is None:
         fetch_private=_fetch_authorized_once
@@ -114,12 +115,81 @@ def _current_opportunities(root,*,run_esi=None,fetch_private=None,catalog=None,
     asks,counts,hashes=_private_asks(raw,health)
     if not asks:
         raise ParityError("NO_AUTHORIZED_SELL_ORDERS")
-    jita,jita_count,jita_evidence=_fresh_jita_books(
-        root,snapshot["run"],now=private_finished)
+
+    # Official public books only. Never treat a failed NPC regional census
+    # as a verified "no opportunities" result or use stale EVE Ref quotes.
+    npc_asks={}
+    npc_health={name:{"status":"NOT_CAPTURED"}
+                for name,_ in NPC_REGIONS.values()}
+    multi=(snapshot.get("status")=="PARTIAL_REGION_TEST_ONLY"
+           and snapshot.get("requested_region_ids")==list(REGIONS)
+           and len(snapshot.get("regions") or [])==len(REGIONS))
+    if multi:
+        try:
+            jita,npc_asks,jita_evidence,npc_health=fresh_public_books(
+                root,snapshot,now=private_finished)
+        except (ParityError,ValueError,OSError) as exc:
+            if not default_esi:
+                raise
+            # A newly added NPC region cannot take down the existing
+            # 4-structure notification lane. Recapture Forge alone, fail
+            # CLOSED for NPC, and surface source health to operators.
+            npc_health={name:{"status":"FAILED","reason":type(exc).__name__}
+                        for name,_ in NPC_REGIONS.values()}
+            rescue,_=run(root,max_workers=1,max_regions=None,
+                         fetch_reference=False,
+                         region_ids_override=[10000002])
+            if (rescue.get("status")!="PARTIAL_REGION_TEST_ONLY"
+                    or rescue.get("requested_region_ids")!=[10000002]
+                    or rescue.get("failed_regions")
+                    or rescue.get("unverified_404_regions")):
+                raise ParityError("NPC_FAILURE_AND_FORGE_RECAPTURE_FAILED")
+            private_finished=_utcnow()
+            jita,_,jita_evidence=_fresh_jita_books(
+                root,rescue["run"],now=private_finished)
+            snapshot=rescue
+    else:
+        if default_esi:
+            npc_health={name:{"status":"FAILED","reason":"NPC_ESI_REGION_CAPTURE_FAILED"}
+                        for name,_ in NPC_REGIONS.values()}
+            rescue,_=run(root,max_workers=1,max_regions=None,
+                         fetch_reference=False,
+                         region_ids_override=[10000002])
+            if (rescue.get("status")!="PARTIAL_REGION_TEST_ONLY"
+                    or rescue.get("requested_region_ids")!=[10000002]
+                    or rescue.get("failed_regions")
+                    or rescue.get("unverified_404_regions")):
+                raise ParityError("NPC_FAILURE_AND_FORGE_RECAPTURE_FAILED")
+            private_finished=_utcnow()
+            jita,_,jita_evidence=_fresh_jita_books(
+                root,rescue["run"],now=private_finished)
+            snapshot=rescue
+        else:
+            # Legacy injected single-region fixture remains private-only;
+            # it never silently activates NPC trading.
+            if (snapshot.get("status")!="PARTIAL_REGION_TEST_ONLY"
+                    or snapshot.get("requested_region_ids")!=[10000002]
+                    or (snapshot.get("regions") or [{}])[0].get("status")!="COMPLETE"):
+                raise ParityError("NPC_ESI_UNVERIFIED_CAPTURE")
+            jita,_,jita_evidence=_fresh_jita_books(
+                root,snapshot["run"],now=private_finished)
+
     if haul_fn is None:
-        from v4.deep_scan import haul
-        haul_fn=lambda src,dest,volume:haul(src,dest,volume,{})
+        from v4.deep_scan import haul, known_station_regions
+        stations=known_station_regions() if npc_asks else {}
+        haul_fn=lambda src,dest,volume:haul(src,dest,volume,stations)
+
     evaluated,model_counts,by_station=_evaluate(asks,jita,catalog,haul_fn)
+    all_asks=dict(asks)
+    npc_model_counts={}
+    if npc_asks:
+        npc_evaluated,npc_model_counts,npc_by_station=evaluate_npc(
+            npc_asks,jita,catalog,haul_fn)
+        evaluated.update(npc_evaluated)
+        all_asks.update(npc_asks)
+        by_station.update(npc_by_station)
+    for name,_ in NPC_REGIONS.values():
+        by_station.setdefault(name,{"sell_types":0})
     passing=[]
     for p in evaluated.values():
         if p["hypothetical_model_pass"]:
@@ -129,27 +199,35 @@ def _current_opportunities(root,*,run_esi=None,fetch_private=None,catalog=None,
                     p["roi"]<POLICY.min_roi or
                     p["stress_profit_isk"]<=POLICY.profit_floor):
                 raise RuntimeError("MODEL_PASS_POLICY_INCONSISTENT")
-            passing.append(_record_candidate(p,asks,jita))
+            passing.append(_record_candidate(p,all_asks,jita))
     passing.sort(key=lambda p:(-p["net_profit_isk"],p["station"],p["type_id"]))
+    source_lanes=[LANE_TO_LABEL.get(name,name)
+                  for name,item in health.items() if item["status"]=="COMPLETE"]
+    source_lanes+=sorted(name for name,item in npc_health.items()
+                         if item["status"]=="COMPLETE")
+    jita_evidence={**jita_evidence,"source_lanes":source_lanes,
+                   "npc_source_health":npc_health}
     return {
         "status":"FRESH_ESI_PRIVATE_MARKET_SHADOW_LEADS",
         "run":snapshot["run"],
         "started_at":start.isoformat(),
         "finished_at":private_finished.isoformat(),
         "esi_jita":jita_evidence,
+        "npc_source_health":npc_health,
         "authenticated_structure_health":{
             n:{"status":x["status"],"orders":x["orders"],"pages":x["pages"]}
             for n,x in health.items()},
         "private_order_counts":counts,
         "private_fingerprints":hashes,
         "model_counts":model_counts,
+        "npc_model_counts":npc_model_counts,
         "by_station":by_station,
         "approved_leads":passing,
         "leads_count":len(passing),
         "model":"UNMODIFIED_V4_market_proof_and_haul",
         "min_profit_isk":POLICY.profit_floor,
         "min_roi":POLICY.min_roi,
-        "warning":"Complete fresh snapshot valuation only, not live guaranteed executable. Check source and Jita orders, accessibility and actual transportation price before buying.",
+        "warning":"Complete fresh official ESI snapshot valuation, not live guaranteed executable. Check source/Jita orders, access and transport before buying.",
     }
 
 
@@ -165,9 +243,12 @@ def _digest(leads,evidence,*,game):
         "估值：官方 ESI 吉他4-4实际买单深度；已扣销售税与模型运输费。",
         f"吉他市场快照：{evidence['last_modified']}，"
         f"延迟{evidence['age_at_private_comparison_minutes']:.1f}分钟",
-        "卖单：4-H、C-J、O4T官方授权市场完整分页读取。",
+        "卖单来源：" + "、".join(evidence.get("source_lanes") or
+                                ["已授权玩家建筑"]) + "，完整分页快照。",
         "筛选：净利≥5000万、ROI≥10%、ISK/m3≥2000、最优吉他买单消失后压力净利>5000万。",
         "注意：运输费用只是V4模型估算，不代表实际运输报价；请在游戏中复核。",
+        "NPC采集：" + "、".join(name + "=" + info.get("status","UNKNOWN")
+            for name,info in (evidence.get("npc_source_health") or {}).items()),
         "",
     ]
     for index,p in enumerate(leads[:MAX_MAIL_ITEMS],1):
