@@ -107,8 +107,9 @@ def _sqlite_snapshot(path: Path, *, deep=False) -> dict:
             "page_size_bytes": page_size,
             "allocated_gib": round(total*page_size/GIB, 3),
             "free_pages_gib": round(free*page_size/GIB, 3),
-            "possible_vacuum_savings_gib_at_most": round(
-                free*page_size/GIB, 3),
+            # SQLite VACUUM can also compact partially empty *allocated*
+            # pages. freelist_count is NOT an upper bound on VACUUM savings.
+            "vacuum_savings_estimate": "UNKNOWN_WITHOUT_PAGE_UTILIZATION",
         })
         if deep:
             # dbstat is read-only; groups actual SQLite B-tree page space,
