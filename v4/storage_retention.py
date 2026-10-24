@@ -66,7 +66,9 @@ def rotate_backups(data_root: Path, *, apply: bool = False,
     to preview; --apply intentionally removes old local backup files.
     """
     root = Path(data_root).resolve()
-    with exclusive_lock(root / "v4-local-shadow.lock"):
+    # Independent maintenance lock: verification of 20+ GiB backups must
+    # never occupy the opportunity/scan mutex and delay live alerts.
+    with exclusive_lock(root / "v4-backup-retention.lock"):
         files = _backups(root)
         records = _meta(files)
         retain = files[:KEEP]
