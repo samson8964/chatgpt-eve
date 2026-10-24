@@ -39,7 +39,27 @@ class StorageAuditTests(unittest.TestCase):
             self.assertGreater(report["hot_sqlite"]["page_size_bytes"],0)
             self.assertEqual(report["hot_sqlite"]["scan_run_count"],1)
             self.assertEqual(report["hot_sqlite"]["proof_row_count"],1)
+            sample=report["hot_sqlite"]["proof_json_sample"]
+            self.assertEqual(sample["status"],"ESTIMATE_NOT_EXACT")
+            self.assertGreater(sample["avg_proof_json_bytes"],0)
+            self.assertEqual(report["hot_sqlite"]["recent_scan_runs"],[])
             self.assertEqual(path.stat().st_size,size_before)
+
+    def test_backup_inventory_includes_unexpected_partial_files(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td)
+            folder=root/"backups"
+            folder.mkdir()
+            (folder/"v4-shadow-20261023T000000Z.sqlite3").write_bytes(b"x"*8)
+            (folder/"v4-shadow-20261024T000000Z.sqlite3.part").write_bytes(b"x"*16)
+            report=inspect(root)
+            inventory=report["backup_inventory"]
+            self.assertEqual(inventory["files"],2)
+            self.assertIn("v4-shadow-20261024T000000Z.sqlite3.part",
+                          inventory["unrecognized_files"])
+            self.assertEqual(
+                inventory["largest_files"][0]["bytes"],16)
+            self.assertTrue((folder/"v4-shadow-20261024T000000Z.sqlite3.part").exists())
 
     def test_missing_root_reports_empty_directory_breakdown(self):
         with tempfile.TemporaryDirectory() as td:
