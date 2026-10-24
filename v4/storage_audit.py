@@ -135,13 +135,20 @@ def _sqlite_snapshot(path: Path, *, deep=False) -> dict:
                     row[0] for row in conn.execute(
                         "SELECT name FROM sqlite_master WHERE type='index' "
                         "ORDER BY name")]
+            except sqlite3.DatabaseError:
+                result["row_counts_status"] = "UNAVAILABLE"
+            # Keep optional recent-run listing independent from the core
+            # statistics. An old/partial test schema must not suppress proof
+            # counts or masquerade as a corrupted production database.
+            try:
                 result["recent_scan_runs"] = [
                     {"run_id":r[0],"proof_count":r[1],"audited_at":r[2]}
                     for r in conn.execute(
                         "SELECT run_id,proof_count,audited_at FROM scan_runs "
                         "ORDER BY audited_at DESC LIMIT 3")]
             except sqlite3.DatabaseError:
-                result["row_counts_status"] = "UNAVAILABLE"
+                result["recent_scan_runs"] = []
+                result["recent_scan_runs_status"] = "UNAVAILABLE_SCHEMA"
     return result
 
 
