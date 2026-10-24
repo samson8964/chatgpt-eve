@@ -26,7 +26,7 @@ not changed. This is an estimate, not a deletion performed by this commit.
     git -C $repo pull --ff-only
     if ($LASTEXITCODE -ne 0) { throw 'Git update failed' }
     Set-Location $repo
-    & .\.venv\Scripts\python.exe -m unittest v4.tests.test_storage_retention v4.tests.test_local_service v4.tests.test_local_store
+    & .\.venv\Scripts\python.exe -m unittest v4.tests.test_storage_retention v4.tests.test_storage_audit v4.tests.test_local_service v4.tests.test_local_store
     if ($LASTEXITCODE -ne 0) { throw 'Do not apply: tests failed' }
 
 Preview which old backups would be removed (NO deletes, NO SQLite writes):
