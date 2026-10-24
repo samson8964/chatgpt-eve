@@ -26,7 +26,7 @@ not changed. This is an estimate, not a deletion performed by this commit.
     git -C $repo pull --ff-only
     if ($LASTEXITCODE -ne 0) { throw 'Git update failed' }
     Set-Location $repo
-    & .\.venv\Scripts\python.exe -m unittest v4.tests.test_storage_retention v4.tests.test_storage_audit v4.tests.test_local_service v4.tests.test_local_store
+    & .\.venv\Scripts\python.exe -m unittest v4.tests.test_storage_retention v4.tests.test_storage_audit v4.tests.test_local_backup_atomic v4.tests.test_local_service v4.tests.test_local_store
     if ($LASTEXITCODE -ne 0) { throw 'Do not apply: tests failed' }
 
 Preview which old backups would be removed (NO deletes, NO SQLite writes):
@@ -39,6 +39,10 @@ different UTC dates and each passes SQLite quick_check and schema checks):
 
     & .\.venv\Scripts\python.exe -m v4.storage_retention --apply
     if ($LASTEXITCODE -ne 0) { throw 'Backup rotation blocked' }
+
+New daily backup files are now first generated as *.sqlite3.part, promoted
+to *.sqlite3 ONLY after full SQLite integrity_check + required table checks.
+A failed creation does not leave a falsely valid current backup file.
 
 Existing daily backups created by EVE-V4-Shadow now trigger the SAME
 safety-checked rotation automatically AFTER backup creation and full
