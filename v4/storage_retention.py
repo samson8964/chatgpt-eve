@@ -95,8 +95,12 @@ def rotate_backups(data_root: Path, *, apply: bool = False,
         # All kept local restore points must pass basic structural checks.
         # A newly created backup has ALREADY passed full integrity_check in
         # v4.local_backup.backup before reaching this function.
-        for path in retain:
+        for index, path in enumerate(retain, start=1):
+            print("BACKUP_VERIFY_START", index, "of", len(retain),
+                  path.name, flush=True)
             _check_sqlite(path)
+            print("BACKUP_VERIFY_OK", index, "of", len(retain),
+                  path.name, flush=True)
         # If the source changes during checks, avoid decisions on stale data.
         if _meta(_backups(root)) != records:
             raise RuntimeError("BACKUP_SET_CHANGED_DURING_CHECK")
