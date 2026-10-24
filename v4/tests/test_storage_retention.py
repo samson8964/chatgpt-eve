@@ -105,6 +105,68 @@ class LocalBackupRetentionTests(unittest.TestCase):
         self.assertEqual(report["deleted"],0)
         self.assertTrue(all(p.exists() for p in paths))
 
+    def test_service_rotates_after_valid_backup_without_changing_scan(self):
+        from v4.local_service import execute
+        from v4.structure_registry import STRUCTURES
+
+        def scan(root):
+            return {
+                "status": "SHADOW_RECORDED", "mail_enabled": False,
+                "run_folder": str(root/"runs"/"test-success"),
+                "coverage_gate":
+                    "INPUT_LANES_REPORTED_COMPLETE_NOT_LIVE_VERIFIED",
+                "structure_health": {
+                    lane: {"status": "COMPLETE", "pages": 1,
+                           "pages_fetched": 1}
+                    for lane in STRUCTURES
+                },
+            }
+
+        new = self.root/"backups"/"v4-shadow-20261024T000000Z.sqlite3"
+        with patch("v4.local_service.storage_check",
+                   return_value={"free_gib": 227, "enough_space": True}), \
+             patch("v4.storage_retention.rotate_backups",
+                   return_value={"status": "ROTATED", "deleted": 9}) as rotate:
+            result=execute(self.root,scanner=scan,
+                backup_fn=lambda _: {
+                    "sqlite_integrity": "ok", "proof_versions": 1234,
+                    "path": str(new),
+                })
+        self.assertEqual(result["status"], "SHADOW_RECORDED")
+        self.assertEqual(result["backup_retention"]["deleted"], 9)
+        rotate.assert_called_once_with(
+            self.root, apply=True, expected_newest=new)
+
+    def test_retention_failure_cannot_interrupt_shadow_result_or_mail(self):
+        from v4.local_service import execute
+        from v4.structure_registry import STRUCTURES
+
+        def scan(root):
+            return {
+                "status": "SHADOW_RECORDED", "mail_enabled": False,
+                "run_folder": str(root/"runs"/"test-success"),
+                "coverage_gate":
+                    "INPUT_LANES_REPORTED_COMPLETE_NOT_LIVE_VERIFIED",
+                "structure_health": {
+                    lane: {"status": "COMPLETE", "pages": 1,
+                           "pages_fetched": 1}
+                    for lane in STRUCTURES
+                },
+            }
+        with patch("v4.local_service.storage_check",
+                   return_value={"free_gib": 227, "enough_space": True}), \
+             patch("v4.storage_retention.rotate_backups",
+                   side_effect=RuntimeError("CHECK_FAILED")):
+            result=execute(self.root,scanner=scan,
+                backup_fn=lambda _: {
+                    "sqlite_integrity": "ok", "proof_versions": 1234,
+                    "path": str(self.root/"backups"/"new.sqlite3"),
+                })
+        self.assertEqual(result["status"], "SHADOW_RECORDED")
+        self.assertFalse(result["mail_enabled"])
+        self.assertEqual(result["backup"], "COMPLETE")
+        self.assertEqual(result["backup_retention"]["status"], "BLOCKED")
+
     def test_symlink_backup_is_not_pruned(self):
         with tempfile.TemporaryDirectory() as outside:
             try:
