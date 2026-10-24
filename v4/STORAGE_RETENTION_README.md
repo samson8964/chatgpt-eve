@@ -69,6 +69,55 @@ it can take time on a 23 GiB database but NEVER changes data. Use it
 before choosing a reversible proof-version archive and hot-retention
 window.
 
+## Audit results and phase-2 decision (2026-10-24)
+
+Operator supplied a live read-only audit after the manual rotation:
+
+- sqlite/v4-shadow.sqlite3: 23.162 GiB (plus tiny WAL/SHM files)
+- scan_runs: 235
+- proof_versions: 13,788,412 rows (~58,674 proof rows per completed run)
+- SQLite freelist pages: 0 GiB. This is NOT a reliable upper bound
+  on VACUUM savings; VACUUM can compact partly empty pages.
+- dbstat virtual table: unavailable in Windows Python. The enhanced audit
+  now samples 128 rowids to estimate stored proof_json byte lengths
+  without the dbstat extension.
+- backup directory: 63.772 GiB, 5 files in the audit immediately after
+  a manual rotation deleted 9 older named snapshots (33.92 GiB freed).
+  Do not infer which 2 extra files are present: enhanced audit prints
+  every backup filename and size; identify them before further deletion.
+
+Because proof_versions is keyed by (run_id, instance), the offline shadow
+research ledger copies a full set of proofs every run even for unchanged
+instances. The production opportunity push has a separate code path;
+however, retained proofs are valuable for audit, evidence and reproducibility.
+No retroactive hot SQLite purge has been authorized or performed.
+
+Proposed future lossless cold archive (NOT deployed):
+
+1. Select old completed run IDs outside a conservative hot window.
+2. Verify each run's original all_proofs.jsonl stream against persisted
+   proof_sha256 and proof_count, cross-check corresponding manifest and
+   scan_runs metadata.
+3. Write immutable per-run compressed cold archive(s) with SHA256 checksums,
+   independent manifest, and a checked round-trip restore routine.
+4. Verify at least one independent backup/off-machine copy before any
+   source/ledger compaction.
+5. Build a new smaller hot SQLite offline from preserved recent runs.
+   Verify count, SHA256, historical archive lookup, and mail isolation;
+   replace production only in a planned maintenance window while scheduled
+   tasks are stopped, with a tested rollback. Do NOT perform DELETE/VACUUM
+   on the live 23+ GiB database while hourly jobs are running.
+6. Retain opportunities, audit manifests and indexed history separately;
+   never treat shadow proofs as confirmed trade execution.
+
+Command to inspect this phase (read-only, after git pull):
+
+    & .\\.venv\\Scripts\\python.exe -m v4.storage_audit --deep
+
+Examine backup_inventory.largest_files / unrecognized_files and
+hot_sqlite.proof_json_sample. DBSTAT_UNAVAILABLE is expected on some
+SQLite builds and is not database corruption.
+
 ## Deferred until the main DB archive is restore-tested
 
 - proof_versions is append-only by (run_id, instance); old proofs can
