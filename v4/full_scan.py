@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
-from v4.sources import (MARKET_INDEX, CONTRACT_INDEX, SourceError, advertised,
+from v4.sources import (MARKET_INDEX, CONTRACT_INDEX, SourceError, SnapshotStale, advertised,
                         download_fresh, market_dataframe, contract_dataframes)
 
 
@@ -70,15 +70,43 @@ def run(output: Path, data_dir: Path, *, max_market_age_h: float=2,
                   version='V4-initial-readonly', sources={}, overall='FAILED',
                   live_mail_allowed=False, execution_proof_complete=False)
     try:
-        for name,index,limit,suffix in (
+        # Verify BOTH advertised snapshot timestamps before downloading any
+        # files. A delayed publisher is a safe, expected skip; not a crash.
+        # Never download stale data or mix one fresh and one stale generation.
+        required = (
             ('market_orders', MARKET_INDEX,max_market_age_h,'.csv.bz2'),
-            ('public_contracts', CONTRACT_INDEX,max_contract_age_h,'.tar.bz2')):
+            ('public_contracts', CONTRACT_INDEX,max_contract_age_h,'.tar.bz2'))
+        available = {}
+        for name,index,limit,suffix in required:
             try:
                 source=advertised(index,max_age_hours=limit)
-                report['sources'][name]=download_fresh(source,data_dir/(name+suffix))
-                report['sources'][name]['status']='COMPLETE'
+                available[name]=source
+                report['sources'][name]=dict(source,status='FRESH_ADVERTISED')
+            except SnapshotStale as exc:
+                report['sources'][name]=dict(
+                    status='STALE',error=str(exc),
+                    age_hours=round(exc.age_hours,3),
+                    threshold_hours=exc.threshold_hours,
+                    last_modified=exc.last_modified)
             except Exception as exc:
                 report['sources'][name]=dict(status='FAILED',error=str(exc))
+        outcomes={name:record['status'] for name,record in report['sources'].items()}
+        if 'FAILED' in outcomes.values():
+            report['overall']='FAILED_SOURCE_COVERAGE'
+            return report
+        if 'STALE' in outcomes.values():
+            report['overall']='SKIPPED_UPSTREAM_STALE'
+            report['skip_reason']='UPSTREAM_PUBLIC_SNAPSHOT_NOT_FRESH'
+            report['next_action']='WAIT_FOR_PUBLISHER_AND_RECHECK_NEXT_SCHEDULE'
+            return report
+        for name,index,limit,suffix in required:
+            try:
+                report['sources'][name]=download_fresh(
+                    available[name],data_dir/(name+suffix))
+                report['sources'][name]['status']='COMPLETE'
+            except Exception as exc:
+                report['sources'][name]=dict(
+                    available[name],status='FAILED',error=str(exc))
         if any(row['status'] != 'COMPLETE' for row in report['sources'].values()):
             report['overall']='FAILED_SOURCE_COVERAGE'
             return report
@@ -115,7 +143,8 @@ def main():
           max_market_age_h=args.max_market_age_hours,
           max_contract_age_h=args.max_contract_age_hours)
     print(json.dumps({key:val for key,val in r.items() if key not in ('sources',)},ensure_ascii=False,indent=2))
-    if r['overall'] != 'CENSUS_COMPLETE_PROOFS_NOT_READY':
+    if r['overall'] not in ('CENSUS_COMPLETE_PROOFS_NOT_READY',
+                            'SKIPPED_UPSTREAM_STALE'):
         raise SystemExit('V4 full market census failed: '+r['overall'])
 
 
