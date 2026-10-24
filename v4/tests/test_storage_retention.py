@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import sqlite3
+from contextlib import closing
 import tempfile
 import unittest
 from pathlib import Path
@@ -16,7 +17,7 @@ def valid_backup(folder: Path, stamp: str, *, valid: bool = True) -> Path:
     if not valid:
         name.write_text("not a SQLite database", encoding="ascii")
         return name
-    with sqlite3.connect(name) as db:
+    with closing(sqlite3.connect(name)) as db:
         db.execute("CREATE TABLE scan_runs (run_id TEXT)")
         db.execute("CREATE TABLE proof_versions (run_id TEXT)")
         db.execute("INSERT INTO scan_runs VALUES (?)", (stamp,))
@@ -62,8 +63,9 @@ class LocalBackupRetentionTests(unittest.TestCase):
 
     def test_missing_schema_prevents_all_deletion(self):
         paths = self.create(5)
-        with sqlite3.connect(paths[-1]) as db:
+        with closing(sqlite3.connect(paths[-1])) as db:
             db.execute("DROP TABLE proof_versions")
+            db.commit()
         with self.assertRaisesRegex(RuntimeError, "SCHEMA_INVALID"):
             rotate_backups(self.root, apply=True)
         self.assertTrue(all(p.exists() for p in paths))
