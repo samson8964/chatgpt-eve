@@ -2,6 +2,7 @@
 from __future__ import annotations
 import argparse
 import json
+import os
 import sqlite3
 from contextlib import closing
 from datetime import datetime, timezone
@@ -16,16 +17,23 @@ def backup(data_root: Path) -> dict:
     folder=root/"backups"
     folder.mkdir(parents=True,exist_ok=True)
     destination=folder/("v4-shadow-"+datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")+".sqlite3")
-    if destination.exists():
+    # Never publish a partially written backup with the final *.sqlite3
+    # name: the scheduler's backup_due() must only see verified copies.
+    partial=destination.with_name(destination.name+".part")
+    if destination.exists() or partial.exists():
         raise FileExistsError("BACKUP_TARGET_EXISTS")
-    with closing(sqlite3.connect(f"file:{source.as_posix()}?mode=ro",uri=True)) as original:
-        with closing(sqlite3.connect(destination)) as target:
-            original.backup(target)
-            result=target.execute("PRAGMA integrity_check").fetchone()[0]
-            if result!="ok":
-                raise RuntimeError("BACKUP_INTEGRITY_FAILED:"+str(result))
-            proofs=target.execute("SELECT COUNT(*) FROM proof_versions").fetchone()[0]
-            runs=target.execute("SELECT COUNT(*) FROM scan_runs").fetchone()[0]
+    try:
+        with closing(sqlite3.connect(f"file:{source.as_posix()}?mode=ro",uri=True)) as original:
+            with closing(sqlite3.connect(partial)) as target:
+                original.backup(target)
+                result=target.execute("PRAGMA integrity_check").fetchone()[0]
+                if result!="ok":
+                    raise RuntimeError("BACKUP_INTEGRITY_FAILED:"+str(result))
+                proofs=target.execute("SELECT COUNT(*) FROM proof_versions").fetchone()[0]
+                runs=target.execute("SELECT COUNT(*) FROM scan_runs").fetchone()[0]
+        os.replace(partial,destination)
+    finally:
+        partial.unlink(missing_ok=True)
     return {"ok":True,"path":str(destination),"sqlite_integrity":"ok","scan_runs":runs,
             "proof_versions":proofs,"email_sent":False,
             "off_machine_backup_still_required":True}
