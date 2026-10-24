@@ -118,6 +118,29 @@ Examine backup_inventory.largest_files / unrecognized_files and
 hot_sqlite.proof_json_sample. DBSTAT_UNAVAILABLE is expected on some
 SQLite builds and is not database corruption.
 
+### 2026-10-24 audit observation: in-flight automatic backup
+
+After manual rotation to 3 completed backup files, operator's audit
+reported a fourth 23.162 GiB temporary file:
+`v4-shadow-20261024T153725Z.sqlite3.part`, with `.part-shm`
+and `.part-wal` companions. This exactly follows the new
+atomic daily backup code path, whose SQLite `integrity_check` may
+continue after the data file reaches full size. The audit alone does
+NOT prove the backup has successfully completed: check the
+`shadow-task.log` for `backup: COMPLETE` and `backup_retention`,
+and confirm the `.part` has been renamed to a valid `.sqlite3`.
+Do not remove a live `.part` or its journal, and do not start
+another backup or rotate again while it is active.
+
+The primary audit DB has 235 completed runs and 13,788,412 proofs.
+Rowid sample of 128 proof_json values: average 1,230 bytes, estimated
+raw proof_json payload 15.79 GiB (excluding indexes/SQLite overhead).
+`dbstat` is unavailable on the local SQLite build; this is expected.
+A test error `KeyError: recent_scan_runs` was caused by a fixture
+missing the production `run_id, proof_count, audited_at` columns.
+The fixture is repaired, and optional recent-run lookup no longer
+hides essential proof counts if schema differs. No live DB changes.
+
 ## Deferred until the main DB archive is restore-tested
 
 - proof_versions is append-only by (run_id, instance); old proofs can
