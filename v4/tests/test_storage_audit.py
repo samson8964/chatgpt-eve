@@ -28,9 +28,11 @@ class StorageAuditTests(unittest.TestCase):
             folder.mkdir()
             path=folder/"v4-shadow.sqlite3"
             with closing(sqlite3.connect(path)) as con:
-                con.execute("CREATE TABLE scan_runs (id INTEGER)")
+                con.execute(
+                    "CREATE TABLE scan_runs (run_id TEXT, proof_count INTEGER, audited_at TEXT)")
                 con.execute("CREATE TABLE proof_versions (id INTEGER, proof_json TEXT)")
-                con.execute("INSERT INTO scan_runs VALUES (1)")
+                con.execute(
+                    "INSERT INTO scan_runs VALUES ('v4-test', 1, '2026-10-24T00:00:00Z')")
                 con.execute("INSERT INTO proof_versions VALUES (1, 'example')")
                 con.commit()
             size_before=path.stat().st_size
@@ -42,7 +44,9 @@ class StorageAuditTests(unittest.TestCase):
             sample=report["hot_sqlite"]["proof_json_sample"]
             self.assertEqual(sample["status"],"ESTIMATE_NOT_EXACT")
             self.assertGreater(sample["avg_proof_json_bytes"],0)
-            self.assertEqual(report["hot_sqlite"]["recent_scan_runs"],[])
+            self.assertEqual(report["hot_sqlite"]["recent_scan_runs"],[
+                {"run_id":"v4-test","proof_count":1,
+                 "audited_at":"2026-10-24T00:00:00Z"}])
             self.assertEqual(path.stat().st_size,size_before)
 
     def test_backup_inventory_includes_unexpected_partial_files(self):
