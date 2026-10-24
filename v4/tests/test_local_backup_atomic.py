@@ -1,5 +1,6 @@
 """Backup promotion happens only after full integrity verification."""
 import sqlite3
+from contextlib import closing
 import tempfile
 import unittest
 from pathlib import Path
@@ -14,7 +15,7 @@ class LocalBackupAtomicTests(unittest.TestCase):
             folder=root/"sqlite"
             folder.mkdir()
             source=folder/"v4-shadow.sqlite3"
-            with sqlite3.connect(source) as db:
+            with closing(sqlite3.connect(source)) as db:
                 db.execute("CREATE TABLE proof_versions (instance TEXT)")
                 db.execute("CREATE TABLE scan_runs (run_id TEXT)")
                 db.execute("INSERT INTO scan_runs VALUES ('test')")
@@ -25,7 +26,7 @@ class LocalBackupAtomicTests(unittest.TestCase):
             dest=Path(result["path"])
             self.assertTrue(dest.is_file())
             self.assertFalse(dest.with_name(dest.name+".part").exists())
-            with sqlite3.connect(dest) as db:
+            with closing(sqlite3.connect(dest)) as db:
                 self.assertEqual(db.execute(
                     "PRAGMA integrity_check").fetchone()[0],"ok")
             self.assertTrue(source.is_file())
@@ -36,7 +37,7 @@ class LocalBackupAtomicTests(unittest.TestCase):
             folder=root/"sqlite"
             folder.mkdir()
             source=folder/"v4-shadow.sqlite3"
-            with sqlite3.connect(source) as db:
+            with closing(sqlite3.connect(source)) as db:
                 db.execute("CREATE TABLE scan_runs (run_id TEXT)")
                 db.commit()
             with self.assertRaises(sqlite3.DatabaseError):
