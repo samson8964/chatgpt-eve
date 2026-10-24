@@ -107,6 +107,20 @@ def execute(root: Path, *, scanner=run, backup_fn=backup,
             raise RuntimeError("BACKUP_INTEGRITY_NOT_OK")
         result["backup"] = "COMPLETE"
         result["backup_proofs"] = backed["proof_versions"]
+        # Retention is strictly post-backup and never allowed to affect the
+        # already-verified scan or either notification channel.
+        if backed.get("path"):
+            try:
+                from v4.storage_retention import rotate_backups
+                result["backup_retention"] = rotate_backups(
+                    root, apply=True, expected_newest=Path(backed["path"]))
+            except Exception as exc:
+                # Preserve the new backup and all old copies on any safety
+                # check or filesystem failure. Never print credentials.
+                result["backup_retention"] = {
+                    "status": "BLOCKED",
+                    "error_type": type(exc).__name__,
+                }
     return result
 
 
