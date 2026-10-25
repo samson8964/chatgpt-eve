@@ -203,6 +203,41 @@ class CutoverTests(unittest.TestCase):
         finally:
             wal.unlink(missing_ok=True)
 
+    def test_windows_utf16_declaration_with_utf8_bytes(self):
+        # Observed schtasks.exe /Query /XML behavior: declaration says
+        # UTF-16 while the actual stdout has UTF-8-compatible bytes.
+        xml=('<?xml version="1.0" encoding="UTF-16"?>\\r\\n'
+             '<Task xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">'
+             '<Settings><Enabled>false</Enabled></Settings></Task>')
+        with patch("v4.hot_cutover.subprocess.run") as fake:
+            fake.return_value.returncode=0
+            fake.return_value.stdout=xml.encode("utf-8")
+            self.assertTrue(_task_disabled("EVE-V4-Opportunity-Push"))
+            fake.return_value.stdout=xml.replace(
+                "<Enabled>false", "<Enabled>true").encode("utf-8")
+            self.assertFalse(_task_disabled("EVE-V4-Shadow"))
+
+    def test_chinese_oem_codepage_xml_and_disabled_setting(self):
+        xml=('<?xml version="1.0" encoding="UTF-16"?>'
+             '<Task xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">'
+             '<RegistrationInfo><Description>本地捡漏检查</Description></RegistrationInfo>'
+             '<Settings><Enabled>false</Enabled></Settings></Task>')
+        with patch("v4.hot_cutover.subprocess.run") as fake:
+            fake.return_value.returncode=0
+            fake.return_value.stdout=xml.encode("cp936")
+            self.assertTrue(_task_disabled("EVE-V4-Opportunity-Push"))
+
+    def test_unreadable_task_xml_remains_fail_closed(self):
+        with patch("v4.hot_cutover.subprocess.run") as fake:
+            fake.return_value.returncode=0
+            fake.return_value.stdout=b'NOT AN XML DOCUMENT'
+            with self.assertRaisesRegex(
+                    RuntimeError,"SCHEDULED_TASK_XML_INVALID"):
+                _task_disabled("EVE-V4-Shadow")
+            fake.return_value.stdout=(
+                b'<Task><Settings></Settings></Task>')
+            self.assertFalse(_task_disabled("EVE-V4-Shadow"))
+
     def test_task_enabled_flag_requires_settings_not_trigger(self):
         xml=b"""<Task xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
           <Triggers><TimeTrigger><Enabled>false</Enabled></TimeTrigger></Triggers>
