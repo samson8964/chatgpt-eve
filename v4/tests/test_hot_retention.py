@@ -10,7 +10,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from v4.local_store import _init
-from v4.hot_retention import maintain, policy
+from v4.hot_retention import maintain, policy, _reclaim_free_pages
 
 
 class HotRetentionTests(unittest.TestCase):
@@ -123,8 +123,39 @@ class HotRetentionTests(unittest.TestCase):
         with patch("v4.proof_cold_archive.MIN_FREE_GIB",0):
             result=maintain(self.root,apply=True,max_vacuum_pages=1000)
         self.assertEqual(result["runs_pruned"],1)
-        self.assertGreater(result["vacuum_pages_reclaimed"],20)
+        self.assertGreater(result["vacuum_freelist_before"],20,
+                           msg=str(result))
+        self.assertGreater(result["vacuum_pages_reclaimed"],20,
+                           msg=str(result))
+        self.assertLess(result["vacuum_page_count_after"],
+                        result["vacuum_page_count_before"],msg=str(result))
         self.assertEqual(self.count(),25)
+
+    def test_bounded_vacuum_retries_when_sqlite_releases_one_page_per_call(self):
+        # Reproduces the observed Windows symptom deterministically:
+        # a SQLite backend that handles at most one page per invocation.
+        path=self.root/"one-page-vacuum.sqlite3"
+        with closing(sqlite3.connect(path)) as db:
+            db.execute("PRAGMA auto_vacuum=INCREMENTAL")
+            db.execute("CREATE TABLE large_text (data TEXT)")
+            db.execute("INSERT INTO large_text VALUES (?)",("x"*500000,))
+            db.commit()
+            db.execute("DELETE FROM large_text")
+            db.commit()
+            self.assertGreater(
+                db.execute("PRAGMA freelist_count").fetchone()[0],20)
+
+            class OnePageAdapter:
+                def execute(self, sql, *args):
+                    if sql.startswith("PRAGMA incremental_vacuum("):
+                        return db.execute("PRAGMA incremental_vacuum(1)")
+                    return db.execute(sql,*args)
+
+            stats=_reclaim_free_pages(OnePageAdapter(),limit=40,seconds=20)
+            self.assertEqual(stats["vacuum_pages_reclaimed"],40,
+                             msg=str(stats))
+            self.assertGreaterEqual(stats["vacuum_passes"],40)
+            self.assertFalse(stats["vacuum_incomplete"])
 
     def test_modified_raw_proof_blocks_prune(self):
         self.setup_ledger(mode="active")
