@@ -58,6 +58,30 @@ Do NOT force-stop a running scan while it is committing evidence;
 wait for it to complete. Merely disabling a scheduled task does not
 necessarily stop its already-running invocation.
 
+## Windows cutover-fixture repair (2026-10-25)
+
+The operator ran the initial 8 cutover tests. Five were blocked:
+- Several fixtures unexpectedly left SQLite WAL/SHM sidecars after
+  `v4.local_store._init` (which intentionally enables WAL); the
+  cutover guard correctly rejected them with
+  `SQLITE_JOURNAL_PRESENT_CLOSE_ALL_V4_READERS`. **Never weaken this
+  production guard.** The isolated fixtures now checkpoint, switch to
+  DELETE journal mode and assert the sidecars disappear before testing
+  valid cutovers. A separate test deliberately adds a WAL marker and
+  verifies that activation is refused without changing the source DB.
+- The stale-candidate test had inserted a `scan_runs` row without a
+  corresponding proof row; the separate full-history integrity guard
+  correctly rejected this input before the stale-candidate check.
+  The fixture now adds the proof and refreshes its simulated external
+  backup, so a stale candidate can be tested independently.
+- The external-volume test reached the sidecar guard before its
+  volume guard and is now reachable with a clean fixture.
+
+The revised cutover module now has **9 unit tests**. The patch is
+committed, but it **has not yet passed the user's Windows test suite**.
+Until it does, production switchover remains blocked. Prior 41-test
+success only proves archival/staging/retention modules, not cutover.
+
 ## Gate A — code pull, tests, strictly read-only inspection
 
 ```powershell
