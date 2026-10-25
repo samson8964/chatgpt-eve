@@ -98,8 +98,23 @@ def stage(root: Path, *, keep_runs=KEEP_RUNS) -> dict:
                 raise RuntimeError("LIVE_RUN_SET_CHANGED_RETRY_PREPARATION")
             retained=current[:keep_runs]
             with closing(sqlite3.connect(partial,timeout=30)) as dest:
+                # Incremental auto-vacuum must be enabled on an EMPTY DB,
+                # before _init creates tables, so later retention can reclaim
+                # freed pages without rebuilding 8+ GiB each maintenance.
+                dest.execute("PRAGMA auto_vacuum=INCREMENTAL")
+                if dest.execute("PRAGMA auto_vacuum").fetchone()[0]!=2:
+                    raise RuntimeError("HOT_STAGE_INCREMENTAL_VACUUM_UNAVAILABLE")
                 _init(dest)
                 dest.execute("PRAGMA foreign_keys=ON")
+                dest.execute(
+                    "CREATE TABLE v4_hot_policy ("
+                    " singleton INTEGER PRIMARY KEY CHECK (singleton=1),"
+                    " policy_version INTEGER NOT NULL,"
+                    " keep_runs INTEGER NOT NULL,"
+                    " active INTEGER NOT NULL CHECK (active IN (0,1)))")
+                dest.execute(
+                    "INSERT INTO v4_hot_policy VALUES (1,1,?,0)",
+                    (keep_runs,))
                 for row in source.execute(
                     "SELECT run_id,status,proof_count,proof_sha256,"
                     "report_json,audited_at FROM scan_runs"):
@@ -132,6 +147,11 @@ def stage(root: Path, *, keep_runs=KEEP_RUNS) -> dict:
                     raise RuntimeError("HOT_STAGE_TOTALS_MISMATCH")
                 if dest.execute("PRAGMA integrity_check").fetchone()[0]!="ok":
                     raise RuntimeError("HOT_STAGE_INTEGRITY_FAILED")
+                if dest.execute("PRAGMA auto_vacuum").fetchone()[0]!=2:
+                    raise RuntimeError("HOT_STAGE_VACUUM_MODE_CHANGED")
+                if dest.execute(
+                    "SELECT active,keep_runs FROM v4_hot_policy").fetchone()!=(0,keep_runs):
+                    raise RuntimeError("HOT_STAGE_POLICY_NOT_INACTIVE")
                 # Finalize as a self-contained, non-WAL artifact.
                 dest.execute("PRAGMA wal_checkpoint(TRUNCATE)")
                 mode=dest.execute("PRAGMA journal_mode=DELETE").fetchone()[0]
@@ -151,6 +171,8 @@ def stage(root: Path, *, keep_runs=KEEP_RUNS) -> dict:
             "source_runs":len(current),
             "cold_verified_runs":len(old),
             "hot_proof_rows":copied,
+            "incremental_auto_vacuum":True,
+            "hot_policy_active":False,
             "source_latest_run":current[0]["run_id"],
             "source_latest_audited_at":current[0]["audited_at"],
             "candidate_file":candidate.name,
