@@ -74,6 +74,11 @@ def preflight(root: Path, candidate: Path | None=None, *, verify_hash=False) -> 
         if db.execute("PRAGMA auto_vacuum").fetchone()[0]!=2:
             report["problems"].append("STAGE_AUTO_VACUUM_NOT_INCREMENTAL")
             return report
+        if not db.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' "
+            "AND name='v4_hot_policy'").fetchone():
+            report["problems"].append("STAGE_NEEDS_REBUILD_FOR_NEW_HOT_POLICY")
+            return report
         marker=db.execute(
             "SELECT policy_version,keep_runs,active FROM v4_hot_policy "
             "WHERE singleton=1").fetchone()
