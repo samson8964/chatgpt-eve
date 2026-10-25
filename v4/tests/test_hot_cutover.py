@@ -108,7 +108,9 @@ class CutoverTests(unittest.TestCase):
 
     def test_outdated_external_backup_rejected_without_swap(self):
         with closing(sqlite3.connect(self.external)) as db:
-            db.execute("DELETE FROM proof_versions LIMIT 1")
+            db.execute(
+                "DELETE FROM proof_versions WHERE run_id=?",
+                ("v4-guarded-000",))
             db.commit()
         with self.assertRaisesRegex(RuntimeError,
                                     "BACKUP_PROOF_COUNT_INCONSISTENT"):
