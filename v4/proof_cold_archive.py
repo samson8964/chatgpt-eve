@@ -14,6 +14,7 @@ import json
 import os
 import shutil
 import sqlite3
+import sys
 import tempfile
 from contextlib import closing
 from pathlib import Path
@@ -273,6 +274,10 @@ def main():
                  keep_runs=args.keep_runs,
                  limit=None if args.all else args.limit)
     print(json.dumps(result, ensure_ascii=False, indent=2))
+    # A batch with individually blocked archives must not be mistaken
+    # for successful export by the Windows deployment PowerShell guard.
+    if result["status"] == "PARTIAL_BLOCKED":
+        raise SystemExit(2)
 
 
 if __name__ == "__main__":
