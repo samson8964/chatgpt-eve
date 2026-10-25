@@ -115,10 +115,30 @@ def stage(root: Path, *, keep_runs=KEEP_RUNS) -> dict:
                 dest.execute(
                     "INSERT INTO v4_hot_policy VALUES (1,1,?,0)",
                     (keep_runs,))
+                dest.execute(
+                    "CREATE TABLE v4_cold_proofs ("
+                    " run_id TEXT PRIMARY KEY,"
+                    " archive_sha256 TEXT NOT NULL,"
+                    " raw_sha256 TEXT NOT NULL,"
+                    " proof_count INTEGER NOT NULL,"
+                    " archived_at TEXT NOT NULL,"
+                    " FOREIGN KEY(run_id) REFERENCES scan_runs(run_id))")
                 for row in source.execute(
                     "SELECT run_id,status,proof_count,proof_sha256,"
                     "report_json,audited_at FROM scan_runs"):
                     dest.execute("INSERT INTO scan_runs VALUES (?,?,?,?,?,?)",row)
+                # Preserve a lookup index for ALL cold-only runs. Their
+                # original scan_runs metadata stays in SQLite, detailed
+                # original proofs live in verified gzip archives.
+                for old_record in old:
+                    cold_manifest = (root/"cold-proof-archives"/
+                                     (old_record["run_id"]+".manifest.json"))
+                    payload = json.loads(cold_manifest.read_text(encoding="utf-8"))
+                    dest.execute(
+                        "INSERT INTO v4_cold_proofs VALUES (?,?,?,?,?)",
+                        (old_record["run_id"],payload["archive_sha256"],
+                         old_record["proof_sha256"],old_record["proof_count"],
+                         datetime.now(timezone.utc).isoformat()))
                 copied=0
                 for i,rec in enumerate(retained,start=1):
                     count=0
@@ -145,6 +165,8 @@ def stage(root: Path, *, keep_runs=KEEP_RUNS) -> dict:
                 runs=dest.execute("SELECT COUNT(*) FROM scan_runs").fetchone()[0]
                 if actual!=copied or runs!=len(current):
                     raise RuntimeError("HOT_STAGE_TOTALS_MISMATCH")
+                if dest.execute("SELECT COUNT(*) FROM v4_cold_proofs").fetchone()[0]!=len(old):
+                    raise RuntimeError("HOT_STAGE_COLD_INDEX_INCOMPLETE")
                 if dest.execute("PRAGMA integrity_check").fetchone()[0]!="ok":
                     raise RuntimeError("HOT_STAGE_INTEGRITY_FAILED")
                 if dest.execute("PRAGMA auto_vacuum").fetchone()[0]!=2:
@@ -171,6 +193,7 @@ def stage(root: Path, *, keep_runs=KEEP_RUNS) -> dict:
             "source_runs":len(current),
             "cold_verified_runs":len(old),
             "hot_proof_rows":copied,
+            "cold_indexed_runs":len(old),
             "incremental_auto_vacuum":True,
             "hot_policy_active":False,
             "source_latest_run":current[0]["run_id"],
