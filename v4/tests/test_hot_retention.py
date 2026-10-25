@@ -112,7 +112,7 @@ class HotRetentionTests(unittest.TestCase):
         # to preserve a valid byte-for-byte recovery source.
         body=(json.dumps({
             "instance":"market:000:001","reason":"TEST",
-            "status":"WATCH","extra":"x"*500000})+"\\n").encode()
+            "status":"WATCH","extra":"x"*500000})+"\n").encode()
         (self.root/"runs"/"0"/"all_proofs.jsonl").write_bytes(body)
         with closing(sqlite3.connect(self.dbfile)) as db:
             db.execute("UPDATE scan_runs SET proof_sha256=? WHERE run_id=?",
