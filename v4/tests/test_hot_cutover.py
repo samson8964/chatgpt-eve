@@ -64,7 +64,12 @@ class CutoverTests(unittest.TestCase):
             return db.execute(sql).fetchone()[0]
 
     def _activate(self):
+        # The compact fixture keeps its simulated "external" backup on the
+        # same temporary volume. Bypass ONLY the production Windows volume
+        # check for these algorithm/rollback tests; separately assert that
+        # the real Windows different-volume guard remains fail-closed.
         with patch("v4.hot_cutover._check_tasks_disabled"), \
+             patch("v4.hot_cutover.platform.system",return_value="Linux"), \
              patch("v4.hot_cutover.GIB",1):
             return activate(self.root,candidate=self.candidate,
                             external_backup=self.external,
@@ -118,6 +123,19 @@ class CutoverTests(unittest.TestCase):
         self.assertEqual(self._n(self.db,
                          "SELECT COUNT(*) FROM proof_versions"),25)
 
+    def test_windows_requires_separate_backup_volume(self):
+        # This is a real, essential production safety check and must not
+        # be bypassed outside of the isolated rollback unit fixtures.
+        with patch("v4.hot_cutover._check_tasks_disabled"), \
+             patch("v4.hot_cutover.platform.system",return_value="Windows"), \
+             patch("v4.hot_cutover.GIB",1):
+            with self.assertRaisesRegex(
+                    RuntimeError,"EXTERNAL_BACKUP_MUST_BE_ON_OTHER_VOLUME"):
+                activate(self.root,candidate=self.candidate,
+                         external_backup=self.external,acknowledgement=ACK)
+        self.assertEqual(self._n(
+            self.db,"SELECT COUNT(*) FROM proof_versions"),25)
+
     def test_stale_candidate_rejected_without_swap(self):
         with closing(sqlite3.connect(self.db)) as db:
             db.execute("INSERT INTO scan_runs VALUES (?,?,?,?,?,?)",
@@ -139,6 +157,7 @@ class CutoverTests(unittest.TestCase):
                 raise PermissionError("simulated locked candidate")
             return original(source,dest)
         with patch("v4.hot_cutover._check_tasks_disabled"), \
+             patch("v4.hot_cutover.platform.system",return_value="Linux"), \
              patch("v4.hot_cutover.GIB",1), \
              patch("v4.hot_cutover.os.replace",side_effect=flaky):
             with self.assertRaisesRegex(PermissionError,"locked"):
