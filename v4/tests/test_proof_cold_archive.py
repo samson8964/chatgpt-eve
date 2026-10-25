@@ -73,7 +73,11 @@ class ProofColdArchiveTests(unittest.TestCase):
         with patch("v4.proof_cold_archive.MIN_FREE_GIB",0):
             retry=run(self.root,apply=True,keep_runs=24,limit=1)
         self.assertEqual(retry["verified_existing"],1)
-        self.assertEqual(retry["archived_this_call"],0)
+        self.assertEqual(retry["archived_this_call"],1)
+        with patch("v4.proof_cold_archive.MIN_FREE_GIB",0):
+            again=run(self.root,apply=True,keep_runs=24,limit=1)
+        self.assertEqual(again["verified_existing"],2)
+        self.assertEqual(again["archived_this_call"],0)
 
     def test_corrupted_source_blocks_publication(self):
         record=self.records[0]
