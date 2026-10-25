@@ -206,7 +206,7 @@ class CutoverTests(unittest.TestCase):
     def test_windows_utf16_declaration_with_utf8_bytes(self):
         # Observed schtasks.exe /Query /XML behavior: declaration says
         # UTF-16 while the actual stdout has UTF-8-compatible bytes.
-        xml=('<?xml version="1.0" encoding="UTF-16"?>\\r\\n'
+        xml=('<?xml version="1.0" encoding="UTF-16"?>\r\n'
              '<Task xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">'
              '<Settings><Enabled>false</Enabled></Settings></Task>')
         with patch("v4.hot_cutover.subprocess.run") as fake:
