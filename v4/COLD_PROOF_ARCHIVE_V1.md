@@ -107,6 +107,32 @@ lossy summarized substitute), and its companion manifest is published
 last. Interrupted or inconsistent work fails closed with no source
 deletion.
 
+### 2026-10-25 Windows 1/40 test failure and correction
+
+The operator's Windows Python test showed that the 500 KiB overflow-page
+fixture archived and deleted one expired run correctly, but
+`vacuum_pages_reclaimed` was **1**, violating the test expectation
+that >20 SQLite pages be reclaimed. All other tests passed and the
+legacy production ledger returned `NOT_ENABLED`, `sqlite_modified=false`.
+The user did not activate any hot policy.
+
+According to the official SQLite PRAGMA specification,
+`incremental_vacuum(N)` is permitted to reclaim *up to* N pages,
+not necessarily N in one invocation. The maintenance helper now
+repeats the pragma while it observes real page reductions, bounded
+by requested page count and a 20-second time ceiling; it
+exposes `vacuum_freelist_before/after`,
+`vacuum_page_count_before/after`, `vacuum_passes` and
+`vacuum_incomplete` for diagnosis. The overflow-page test emits
+all these diagnostics on failure. An additional regression test
+simulates SQLite reclaiming just one page per PRAGMA call and checks
+that 40 pages are reclaimed over 40 bounded passes.
+
+The new helper was validated on a small synthetic SQLite sample
+where the one-page-per-call simulation reclaimed exactly 40 pages
+(`free_before=122,free_after=82`). It has NOT yet passed the
+user's Windows regression suite; do NOT cut over until it does.
+
 ## Stage A — pull and test (Windows PowerShell)
 
 ```powershell
