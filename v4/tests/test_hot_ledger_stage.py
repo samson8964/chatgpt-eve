@@ -88,6 +88,35 @@ class HotStageTests(unittest.TestCase):
         self.assertTrue(Path(result["manifest"]).exists())
         self.assertFalse(candidate.with_name(candidate.name+"-wal").exists())
 
+    def test_read_only_cutover_preflight_accepts_sealed_fresh_candidate(self):
+        from v4.hot_cutover_preflight import preflight
+        self._archive_oldest()
+        with patch("v4.hot_ledger_stage.MIN_FREE_GIB",0):
+            result=stage(self.root,keep_runs=24)
+        decision=preflight(self.root,Path(result["candidate_db"]),
+                           verify_hash=True)
+        self.assertEqual(decision["status"],
+                         "CANDIDATE_READY_FOR_CONTROLLED_MAINTENANCE")
+        self.assertTrue(decision["candidate_hash_rechecked"])
+        self.assertFalse(decision["cutover_performed"])
+        self.assertTrue(self.db.exists())
+
+    def test_read_only_cutover_preflight_blocks_poststage_new_scan(self):
+        from v4.hot_cutover_preflight import preflight
+        self._archive_oldest()
+        with patch("v4.hot_ledger_stage.MIN_FREE_GIB",0):
+            result=stage(self.root,keep_runs=24)
+        with closing(sqlite3.connect(self.db)) as db:
+            db.execute(
+                "INSERT INTO scan_runs VALUES (?,?,?,?,?,?)",
+                ("v4-new-scan","SHADOW_VERIFIED_OFFLINE",1,
+                 "testsha","{}", "2026-10-26T00:00:00Z"))
+            db.commit()
+        decision=preflight(self.root,Path(result["candidate_db"]))
+        self.assertEqual(decision["status"],"NOT_READY")
+        self.assertIn("STAGE_STALE_OR_LEDGER_METADATA_CHANGED",
+                      decision["problems"])
+
     def test_corrupt_cold_blocks_stage_and_preserves_source(self):
         record=self._archive_oldest()
         file=self.root/"cold-proof-archives"/(record["run_id"]+".jsonl.gz")
