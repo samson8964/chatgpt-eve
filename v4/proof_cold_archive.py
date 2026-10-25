@@ -264,11 +264,14 @@ def main():
     parser.add_argument("--apply", action="store_true",
                         help="Gzip and independently verify old raw proof runs")
     parser.add_argument("--limit", type=int, default=3)
+    parser.add_argument("--all", action="store_true",
+                        help="Process all older runs (potentially large/long)")
     args = parser.parse_args()
     if args.limit < 1:
         parser.error("--limit must be positive")
     result = run(args.data_root, apply=args.apply,
-                 keep_runs=args.keep_runs, limit=args.limit)
+                 keep_runs=args.keep_runs,
+                 limit=None if args.all else args.limit)
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 
