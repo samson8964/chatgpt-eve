@@ -93,7 +93,7 @@ def maintain(root: Path, *, apply=False, max_runs=DEFAULT_MAX_RUNS,
         if not apply:
             return result
         sources=source_index(root)
-        for row in reversed(eligible)[:max_runs]:
+        for row in list(reversed(eligible))[:max_runs]:
             if row["status"]!="SHADOW_VERIFIED_OFFLINE":
                 raise RuntimeError("UNVERIFIED_AGED_HOT_RUN")
             gzip_path,manifest_file=_archive_paths(root,row["run_id"])
