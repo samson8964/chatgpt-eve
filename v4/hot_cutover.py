@@ -44,10 +44,18 @@ def _task_disabled(task: str) -> bool:
         root=ET.fromstring(call.stdout)
     except ET.ParseError as exc:
         raise RuntimeError("SCHEDULED_TASK_XML_INVALID:"+task) from exc
-    for elem in root.iter():
-        if elem.tag.split("}")[-1] == "Enabled":
-            return (elem.text or "").strip().lower() == "false"
-    return False  # Absence of Enabled is not approval.
+    # Trigger <Enabled> can differ from overall task <Settings><Enabled>.
+    # Never mistake a disabled trigger for a disabled scheduled task.
+    settings = next(
+        (node for node in root.iter()
+         if node.tag.split("}")[-1] == "Settings"), None)
+    if settings is None:
+        return False
+    enabled = next(
+        (node for node in settings
+         if node.tag.split("}")[-1] == "Enabled"), None)
+    return (enabled is not None
+            and (enabled.text or "").strip().lower() == "false")
 
 
 def _db_connection(path: Path):
@@ -69,6 +77,17 @@ def _verified_independent_backup(root: Path, backup: Path) -> dict:
     if backup.stat().st_size < 1024:
         raise RuntimeError("EXTERNAL_BACKUP_TOO_SMALL")
     live=ledger_runs(root)
+    live_db=root/"sqlite"/"v4-shadow.sqlite3"
+    with closing(_db_connection(live_db)) as source_db:
+        live_proofs=source_db.execute(
+            "SELECT COUNT(*) FROM proof_versions").fetchone()[0]
+        live_policy=source_db.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' "
+            "AND name='v4_hot_policy'").fetchone()
+    if live_policy:
+        raise RuntimeError("SOURCE_ALREADY_CONTAINS_HOT_POLICY")
+    if live_proofs!=sum(r["proof_count"] for r in live):
+        raise RuntimeError("SOURCE_FULL_HISTORICAL_PROOFS_REQUIRED")
     with closing(_db_connection(backup)) as db:
         try:
             check=db.execute("PRAGMA integrity_check").fetchone()[0]
@@ -82,7 +101,7 @@ def _verified_independent_backup(root: Path, backup: Path) -> dict:
     keys=("run_id","status","proof_count","proof_sha256","audited_at")
     if check!="ok" or [dict(zip(keys,row)) for row in runs]!=live:
         raise RuntimeError("EXTERNAL_BACKUP_INVALID_OR_STALE")
-    if proofs < sum(r["proof_count"] for r in live[:72]):
+    if proofs!=live_proofs:
         raise RuntimeError("EXTERNAL_BACKUP_PROOF_COUNT_INCONSISTENT")
     return {"status":"VERIFIED_CURRENT_SEPARATE_VOLUME",
             "path":str(backup),"scan_runs":len(runs),
