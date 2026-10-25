@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 import sqlite3
+import time
 from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
@@ -22,6 +23,50 @@ from v4.proof_cold_archive import (
 
 DEFAULT_MAX_RUNS = 1
 MAX_VACUUM_PAGES = 25000
+MAX_VACUUM_SECONDS = 20
+
+
+def _reclaim_free_pages(db: sqlite3.Connection, *, limit: int,
+                        seconds: float = MAX_VACUUM_SECONDS) -> dict:
+    """Bounded incremental vacuum; trust observed pages, not PRAGMA(N) intent.
+
+    SQLite is allowed to release fewer than N pages on one invocation.
+    On some builds, a single cursor produces only one successful step.
+    Retry while there is *measured* progress, with both page and time caps.
+    """
+    before_free = int(db.execute("PRAGMA freelist_count").fetchone()[0])
+    before_pages = int(db.execute("PRAGMA page_count").fetchone()[0])
+    after_free, after_pages = before_free, before_pages
+    passes = 0
+    deadline = time.monotonic() + seconds
+    capped = min(before_free, limit)
+    while (limit > 0 and before_free - after_free < capped
+           and after_free > 0 and time.monotonic() < deadline):
+        remaining = capped - (before_free - after_free)
+        previous_free, previous_pages = after_free, after_pages
+        cursor = db.execute(f"PRAGMA incremental_vacuum({remaining})")
+        try:
+            # Complete every SQLite step. Cursor construction alone is
+            # insufficient on some Python/SQLite combinations.
+            for _ in cursor:
+                pass
+        finally:
+            cursor.close()
+        passes += 1
+        after_free = int(db.execute("PRAGMA freelist_count").fetchone()[0])
+        after_pages = int(db.execute("PRAGMA page_count").fetchone()[0])
+        if after_free >= previous_free and after_pages >= previous_pages:
+            break  # No forward progress: fail closed, never loop forever.
+    reclaimed = max(0, before_pages - after_pages)
+    return {
+        "vacuum_freelist_before": before_free,
+        "vacuum_freelist_after": after_free,
+        "vacuum_page_count_before": before_pages,
+        "vacuum_page_count_after": after_pages,
+        "vacuum_passes": passes,
+        "vacuum_pages_reclaimed": reclaimed,
+        "vacuum_incomplete": after_free > max(0, before_free - limit),
+    }
 
 
 def policy(root: Path) -> dict:
@@ -62,6 +107,9 @@ def maintain(root: Path, *, apply=False, max_runs=DEFAULT_MAX_RUNS,
         "policy":initial, "eligible_old_runs":0,
         "runs_pruned":0,"proof_rows_pruned":0,
         "archived_new_runs":0,"vacuum_pages_reclaimed":0,
+        "vacuum_freelist_before":0,"vacuum_freelist_after":0,
+        "vacuum_page_count_before":0,"vacuum_page_count_after":0,
+        "vacuum_passes":0,"vacuum_incomplete":False,
         "sqlite_modified":False,"original_runs_deleted":False,
         "error":None,
     }
@@ -160,15 +208,17 @@ def maintain(root: Path, *, apply=False, max_runs=DEFAULT_MAX_RUNS,
                 result["proof_rows_pruned"]+=cursor.rowcount
                 result["sqlite_modified"]=True
                 if max_vacuum_pages:
-                    free_before=db.execute("PRAGMA freelist_count").fetchone()[0]
-                    # SQLite exposes incremental_vacuum as a stepping
-                    # statement. sqlite3.execute(...) alone advances only
-                    # ONE page; exhaust the cursor to reclaim the full cap.
-                    for _ in db.execute(
-                            f"PRAGMA incremental_vacuum({max_vacuum_pages})"):
-                        pass
-                    free_after=db.execute("PRAGMA freelist_count").fetchone()[0]
-                    result["vacuum_pages_reclaimed"]+=max(0,free_before-free_after)
+                    # Capture actual reduction in SQLite's logical file pages.
+                    # Some SQLite builds reclaim fewer than requested pages
+                    # per invocation, so use bounded, observable retries.
+                    stats=_reclaim_free_pages(db,limit=max_vacuum_pages)
+                    result["vacuum_pages_reclaimed"]+=stats["vacuum_pages_reclaimed"]
+                    result["vacuum_freelist_before"]+=stats["vacuum_freelist_before"]
+                    result["vacuum_freelist_after"]+=stats["vacuum_freelist_after"]
+                    result["vacuum_page_count_before"]=stats["vacuum_page_count_before"]
+                    result["vacuum_page_count_after"]=stats["vacuum_page_count_after"]
+                    result["vacuum_passes"]+=stats["vacuum_passes"]
+                    result["vacuum_incomplete"] |= stats["vacuum_incomplete"]
             print("HOT_RUN_ARCHIVED_PRUNED",row["run_id"],
                   "proof_rows",cursor.rowcount,flush=True)
         result["status"]="PRUNED" if result["runs_pruned"] else "NOT_NEEDED"
