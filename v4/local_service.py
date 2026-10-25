@@ -124,6 +124,18 @@ def execute(root: Path, *, scanner=run, backup_fn=backup,
     return result
 
 
+def post_scan_hot_retention(root: Path) -> dict:
+    """Fail-open maintenance AFTER notification attempts; only activated
+    hot-policy databases may lose verified, cold-archived duplicate rows.
+    """
+    try:
+        from v4.hot_retention import maintain
+        return maintain(root,apply=True,max_runs=1)
+    except Exception as exc:
+        return {"status":"BLOCKED", "error_type":type(exc).__name__,
+                "scanner_and_mail_unchanged":True}
+
+
 def main() -> int:
     p=argparse.ArgumentParser(description="Silent Windows V4 scan and opt-in research email digests")
     p.add_argument("--data-root", type=Path, default=Path.home()/"EVE-V4-Data")
@@ -185,6 +197,13 @@ def main() -> int:
                                 else "UNCLASSIFIED")
                         print("GAME_REVIEW_MAIL_FAILED",type(game_exc).__name__,code,flush=True)
                         delivery_failure = True
+                    # Retention runs *after* both research delivery paths.
+                    # It cannot block opportunity push or change mail status.
+                    # Unmarked legacy hot DB always returns NOT_ENABLED.
+                    housekeeping=post_scan_hot_retention(root)
+                    print("HOT_PROOF_RETENTION",
+                          json.dumps(housekeeping,ensure_ascii=False),
+                          flush=True)
                     if delivery_failure:
                         return 3
                     return 0 if result.get("status") == "SHADOW_RECORDED" else 2
