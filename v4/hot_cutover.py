@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import locale
 import os
 import platform
 import shutil
@@ -33,16 +34,55 @@ ACK = "I_ACCEPT_V4_HOT_CUTOVER"
 GIB = 1024**3
 
 
+def _parse_task_xml(data: bytes) -> ET.Element:
+    """Interpret schtasks stdout despite its often incorrect XML encoding.
+
+    Some localized Windows versions emit UTF-8 or console/OEM code-page
+    *bytes* with an XML header claiming UTF-16. Passing those raw bytes
+    to ElementTree raises "encoding specified in XML declaration is
+    incorrect" even though the XML definition is otherwise well-formed.
+    Decode to Unicode and let ElementTree parse the resulting str.
+    """
+    if not data or len(data) > 8 * 1024 * 1024:
+        raise ValueError("TASK_XML_OUTPUT_EMPTY_OR_OVERSIZE")
+    candidates = ["utf-8-sig", "utf-16", "utf-16-le", "utf-16-be"]
+    try:
+        console = locale.getencoding()
+        if console:
+            candidates.append(console)
+    except (AttributeError, ValueError):
+        pass
+    # schtasks commonly returns an OEM-codepage representation on
+    # Chinese Windows even when Python was launched in UTF-8 mode.
+    candidates.extend(["mbcs", "cp936", "cp950", "cp932"])
+    try:
+        direct = ET.fromstring(data)
+        if direct.tag.split("}")[-1] == "Task":
+            return direct
+    except ET.ParseError:
+        pass
+    for encoding in dict.fromkeys(candidates):
+        try:
+            decoded = data.decode(encoding, errors="strict")
+            node = ET.fromstring(decoded)
+            if node.tag.split("}")[-1] == "Task":
+                return node
+        except (UnicodeError, LookupError, ET.ParseError):
+            continue
+    raise ValueError("TASK_XML_DECODE_OR_STRUCTURE_INVALID")
+
+
 def _task_disabled(task: str) -> bool:
-    """Query Windows task XML, insensitive to the host's display language."""
+    """Check overall Task Settings.Enabled without localized status text."""
     call=subprocess.run(
         ["schtasks.exe","/Query","/TN",task,"/XML"],
-        stdout=subprocess.PIPE,stderr=subprocess.PIPE,check=False)
+        stdout=subprocess.PIPE,stderr=subprocess.PIPE,check=False,
+        timeout=15)
     if call.returncode!=0:
         raise RuntimeError("SCHEDULED_TASK_NOT_READABLE:"+task)
     try:
-        root=ET.fromstring(call.stdout)
-    except ET.ParseError as exc:
+        root=_parse_task_xml(call.stdout)
+    except ValueError as exc:
         raise RuntimeError("SCHEDULED_TASK_XML_INVALID:"+task) from exc
     # Trigger <Enabled> can differ from overall task <Settings><Enabled>.
     # Never mistake a disabled trigger for a disabled scheduled task.
@@ -54,6 +94,7 @@ def _task_disabled(task: str) -> bool:
     enabled = next(
         (node for node in settings
          if node.tag.split("}")[-1] == "Enabled"), None)
+    # Missing/unknown Enabled is never accepted as proof of DISABLED.
     return (enabled is not None
             and (enabled.text or "").strip().lower() == "false")
 
