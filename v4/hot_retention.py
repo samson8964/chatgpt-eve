@@ -161,7 +161,12 @@ def maintain(root: Path, *, apply=False, max_runs=DEFAULT_MAX_RUNS,
                 result["sqlite_modified"]=True
                 if max_vacuum_pages:
                     free_before=db.execute("PRAGMA freelist_count").fetchone()[0]
-                    db.execute(f"PRAGMA incremental_vacuum({max_vacuum_pages})")
+                    # SQLite exposes incremental_vacuum as a stepping
+                    # statement. sqlite3.execute(...) alone advances only
+                    # ONE page; exhaust the cursor to reclaim the full cap.
+                    for _ in db.execute(
+                            f"PRAGMA incremental_vacuum({max_vacuum_pages})"):
+                        pass
                     free_after=db.execute("PRAGMA freelist_count").fetchone()[0]
                     result["vacuum_pages_reclaimed"]+=max(0,free_before-free_after)
             print("HOT_RUN_ARCHIVED_PRUNED",row["run_id"],
