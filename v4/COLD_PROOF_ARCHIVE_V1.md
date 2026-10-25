@@ -88,8 +88,10 @@ errors before deciding to perform one longer batch.
 Long-running disk I/O is expected. The exporter is resumable; invoking
 it again checks existing cold manifests against their on-disk gzip.
 It enforces >=30 GiB available free space before writing each new run.
-An incomplete source leads to `PARTIAL_BLOCKED` and **no source
-database deletion**. Do not run a second exporter concurrently.
+An incomplete source leads to `PARTIAL_BLOCKED` (CLI exit code 2)
+and **no source database deletion**. Do not run a second exporter
+concurrently. If archival is interrupted, running the same command again
+verifies completed archives before processing the remaining runs.
 
 ## Stage E — optional hot DB candidate, NEVER activated by this script
 
