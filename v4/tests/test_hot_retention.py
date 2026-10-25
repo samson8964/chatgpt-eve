@@ -106,6 +106,26 @@ class HotRetentionTests(unittest.TestCase):
             self.assertEqual(db.execute(
                 "PRAGMA integrity_check").fetchone()[0],"ok")
 
+    def test_incremental_vacuum_reclaims_multiple_pages_not_just_one(self):
+        self.setup_ledger(mode="active")
+        # A large old proof has overflow pages; the cold copy is updated
+        # to preserve a valid byte-for-byte recovery source.
+        body=(json.dumps({
+            "instance":"market:000:001","reason":"TEST",
+            "status":"WATCH","extra":"x"*500000})+"\\n").encode()
+        (self.root/"runs"/"0"/"all_proofs.jsonl").write_bytes(body)
+        with closing(sqlite3.connect(self.dbfile)) as db:
+            db.execute("UPDATE scan_runs SET proof_sha256=? WHERE run_id=?",
+                       (hashlib.sha256(body).hexdigest(),self.rows[0]))
+            db.execute("UPDATE proof_versions SET proof_json=? WHERE run_id=?",
+                       (body.decode().strip(),self.rows[0]))
+            db.commit()
+        with patch("v4.proof_cold_archive.MIN_FREE_GIB",0):
+            result=maintain(self.root,apply=True,max_vacuum_pages=1000)
+        self.assertEqual(result["runs_pruned"],1)
+        self.assertGreater(result["vacuum_pages_reclaimed"],20)
+        self.assertEqual(self.count(),25)
+
     def test_modified_raw_proof_blocks_prune(self):
         self.setup_ledger(mode="active")
         (self.root/"runs"/"0"/"all_proofs.jsonl").write_bytes(b"changed\n")
