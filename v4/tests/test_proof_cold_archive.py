@@ -1,7 +1,10 @@
 """Regression tests for non-destructive, lossless V4 cold proof archives."""
 import hashlib
+import io
 import json
 import sqlite3
+import sys
+from contextlib import redirect_stdout
 import tempfile
 import unittest
 from contextlib import closing
@@ -113,6 +116,18 @@ class ProofColdArchiveTests(unittest.TestCase):
         self.assertEqual(out["status"],"PARTIAL_BLOCKED")
         self.assertEqual(out["archived_this_call"],1)  # Next oldest is still available.
         self.assertEqual(len(ledger_runs(self.root)),26)
+
+    def test_cli_reports_nonzero_on_partial_blocked_export(self):
+        from v4.proof_cold_archive import main
+        with patch.object(sys, "argv", ["v4.proof_cold_archive",
+                                        "--apply", "--limit", "1"]), \
+             patch("v4.proof_cold_archive.run",
+                   return_value={"status":"PARTIAL_BLOCKED","failed":[
+                       {"run_id":"v4-test","reason":"MISSING"}]}), \
+             redirect_stdout(io.StringIO()):
+            with self.assertRaises(SystemExit) as exc:
+                main()
+        self.assertEqual(exc.exception.code,2)
 
     def test_source_coverage_requires_proven_complete_ledger(self):
         with self.assertRaisesRegex(ValueError,"KEEP_RUNS"):
