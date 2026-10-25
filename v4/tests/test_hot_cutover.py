@@ -49,6 +49,15 @@ class CutoverTests(unittest.TestCase):
                              (rid,f"market:fixture:{i:03}","WATCH","TEST",
                               raw.decode().strip()))
             conn.commit()
+            # _init intentionally uses WAL for real scans. The cutover
+            # requires a fully closed/checkpointed source with NO sidecars.
+            # Model that *clean maintenance state* explicitly in fixtures
+            # instead of bypassing the production sidecar safety guard.
+            conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            mode=conn.execute("PRAGMA journal_mode=DELETE").fetchone()[0]
+            self.assertEqual(mode.lower(),"delete")
+        self.assertFalse(self.db.with_name(self.db.name+"-wal").exists())
+        self.assertFalse(self.db.with_name(self.db.name+"-shm").exists())
         self.original_bytes=self.db.stat().st_size
         self.external=self.sandbox/"remote-backup.sqlite3"
         shutil.copyfile(self.db,self.external)
@@ -140,16 +149,24 @@ class CutoverTests(unittest.TestCase):
             self.db,"SELECT COUNT(*) FROM proof_versions"),25)
 
     def test_stale_candidate_rejected_without_swap(self):
+        # A real completed run has *both* metadata and its full proof set.
+        # The independent backup is updated to CURRENT, allowing the test
+        # to reach the intended stale-candidate safety check.
         with closing(sqlite3.connect(self.db)) as db:
             db.execute("INSERT INTO scan_runs VALUES (?,?,?,?,?,?)",
                        ("v4-post-stage","SHADOW_VERIFIED_OFFLINE",1,
                         "new-hash","{}","2026-10-26T00:00:00Z"))
+            db.execute(
+                "INSERT INTO proof_versions VALUES (?,?,?,?,?)",
+                ("v4-post-stage","market:new:001","WATCH","TEST",
+                 '{"instance":"market:new:001"}'))
             db.commit()
+        shutil.copyfile(self.db,self.external)
         with self.assertRaisesRegex(RuntimeError,
                                     "STAGED_CANDIDATE_NOT_READY"):
             self._activate()
         self.assertEqual(self._n(self.db,
-                         "SELECT COUNT(*) FROM proof_versions"),25)
+                         "SELECT COUNT(*) FROM proof_versions"),26)
 
     def test_failed_second_rename_rolls_back_immediately(self):
         original=os.replace
@@ -171,6 +188,20 @@ class CutoverTests(unittest.TestCase):
         self.assertTrue(self.db.exists())
         self.assertEqual(self._n(self.db,
                          "SELECT COUNT(*) FROM proof_versions"),25)
+
+    def test_real_live_sidecar_is_rejected_without_mutating(self):
+        # Even an empty WAL marker blocks promotion. It must never be
+        # silently discarded because SQLite may require its contents.
+        wal=self.db.with_name(self.db.name+"-wal")
+        wal.write_bytes(b"uncheckpointed-fixture")
+        try:
+            with self.assertRaisesRegex(
+                    RuntimeError,"SQLITE_JOURNAL_PRESENT_CLOSE_ALL_V4_READERS"):
+                self._activate()
+            self.assertEqual(self._n(
+                self.db,"SELECT COUNT(*) FROM proof_versions"),25)
+        finally:
+            wal.unlink(missing_ok=True)
 
     def test_task_enabled_flag_requires_settings_not_trigger(self):
         xml=b"""<Task xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
