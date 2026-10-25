@@ -75,6 +75,12 @@ class HotStageTests(unittest.TestCase):
                 db.execute("SELECT COUNT(*) FROM proof_versions").fetchone()[0],24)
             self.assertEqual(db.execute("PRAGMA integrity_check").fetchone()[0],"ok")
             self.assertEqual(db.execute("PRAGMA journal_mode").fetchone()[0],"delete")
+            self.assertEqual(db.execute("PRAGMA auto_vacuum").fetchone()[0],2)
+            self.assertEqual(db.execute(
+                "SELECT policy_version,keep_runs,active FROM v4_hot_policy"
+                ).fetchone(),(1,24,0))
+            self.assertEqual(db.execute(
+                "SELECT COUNT(*) FROM v4_cold_proofs").fetchone()[0],1)
         with closing(sqlite3.connect(self.db)) as original:
             self.assertEqual(original.execute(
                 "SELECT COUNT(*) FROM proof_versions").fetchone()[0],25)
