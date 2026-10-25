@@ -5,6 +5,42 @@ The earlier Windows **41 tests OK** covers cold archival / staging / retention,
 but does not establish that the newly introduced cutover script passes tests.
 Until confirmed, do not use `--apply`. Production SQLite remains unmodified.
 
+## Operator decision: retire duplicate standalone market opportunity lane
+
+On 2026-10-25, the operator chose to **stop scanning and sending**
+the `EVE V4 市场机会` notification while continuing the
+`V4捡漏待核` combined market-and-contract research notification.
+
+Verified in source:
+- `v4/opportunity_push.py` formats subject
+  `EVE V4 市场机会 ...`; the related Windows scheduled task is
+  `EVE-V4-Opportunity-Push`. **Keep DISABLED indefinitely.**
+- `v4/unified_review.py` formats subject
+  `V4捡漏待核 ...`; `EVE-V4-Shadow` generates/sends this
+  market+contract review. **Keep ENABLED** except for a brief,
+  explicitly coordinated database maintenance interval.
+- Do not alter EVE SSO, installed code, scanned evidence, Gmail
+  configuration, character recipients or the old market-opportunity
+  state. Disabling the scheduled task is reversible and does not
+  erase historical data.
+- These are separate local Windows tasks, not active ChatGPT cloud
+  task automations. GitHub repository changes alone cannot disable
+  an already-installed task on the user's Windows host.
+- Task disabling is not proof any currently running invocation has
+  finished; an in-flight scan or send can complete.
+- During future cutovers, leave `EVE-V4-Opportunity-Push` disabled
+  both before and after the window. Only re-enable
+  `EVE-V4-Shadow` once verified healthy. Do not unconditionally
+  enable both tasks as the earlier generic runbook instructed.
+
+**One-time operator-side action:**
+
+```powershell
+Disable-ScheduledTask -TaskName "EVE-V4-Opportunity-Push" -ErrorAction Stop
+Get-ScheduledTask -TaskName "EVE-V4-Opportunity-Push","EVE-V4-Shadow" |
+    Select-Object TaskName,State
+```
+
 ## Important process concurrency fact
 
 Both installed scheduled tasks use **the same**
@@ -17,7 +53,7 @@ Both installed scheduled tasks use **the same**
 **For a database switchover, temporarily disable BOTH tasks.** Otherwise
 the push task may fail with `ANOTHER_V4_LOCAL_SCAN_RUNNING`, or a shadow job
 may write during cutover. This is a limited, intentional notification pause;
-you MUST re-enable BOTH after activation or if any step is blocked.
+you MUST re-enable the retained **Shadow** task after activation or if any step is blocked; leave **Opportunity-Push** disabled by operator decision.
 Do NOT force-stop a running scan while it is committing evidence;
 wait for it to complete. Merely disabling a scheduled task does not
 necessarily stop its already-running invocation.
@@ -136,9 +172,9 @@ restore drill remain prerequisites to declaring migration complete.
 
 If any Gate B/C command fails without altering the active DB,
 after checking the source is still intact and no partial cutover rename
-occurred, re-enable BOTH tasks:
+occurred, re-enable only the retained Shadow task:
 `Enable-ScheduledTask -TaskName 'EVE-V4-Shadow'`
-`Enable-ScheduledTask -TaskName 'EVE-V4-Opportunity-Push'`.
+Do NOT re-enable `EVE-V4-Opportunity-Push`..
 Inspect `Get-ScheduledTask` and per-task logs.
 
 At no point does pulling this code automatically activate or prune
