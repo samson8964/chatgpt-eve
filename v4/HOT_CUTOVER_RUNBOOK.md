@@ -82,6 +82,32 @@ committed, but it **has not yet passed the user's Windows test suite**.
 Until it does, production switchover remains blocked. Prior 41-test
 success only proves archival/staging/retention modules, not cutover.
 
+## Windows read-only inspection fix (2026-10-25)
+
+The user verified **9/9 cutover unit tests OK**, while
+`python -m v4.hot_cutover` (read-only) reported:
+- `STAGE_MANIFEST_INVALID` for the original
+  `v4-shadow-hot-20261025T021742Z-4616.sqlite3`. This file predates
+  the new `incremental_auto_vacuum`, inactive `v4_hot_policy` and
+  historical cold-index changes. This is a **valid fail-closed outcome**;
+  rebuild a NEW stage only after a maintenance window is arranged.
+- `SCHEDULED_TASK_XML_INVALID` for both Windows scheduled tasks.
+  A real-world Windows schtasks.exe quirk is a UTF-16 XML declaration
+  emitted over non-UTF16 console/UTF-8 data bytes. The original parser
+  used `ET.fromstring(stdout_bytes)`, which fails. The updated parser
+  first tries direct bytes, then strict decoded Unicode paths
+  (UTF-8/UTF-16/Windows console encodings), validates the root is a
+  Task, and always reads the overall `Settings.Enabled` node.
+  Unreadable/unrecognized XML **still blocks a production cutover**.
+  Added 3 tests: UTF-16-declared UTF-8 bytes, GBK Chinese XML,
+  malformed XML/unknown Enabled. New expected test count **12**.
+  This fix has not yet been validated on the user's Windows host.
+
+No task or SQLite state has been changed as a result of these
+read-only diagnostics. In particular, the user-requested disabled
+`EVE-V4-Opportunity-Push` task must remain disabled. Do not run
+`hot_cutover --apply` based on a read-only inspection.
+
 ## Gate A — code pull, tests, strictly read-only inspection
 
 ```powershell
