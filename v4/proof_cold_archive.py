@@ -89,6 +89,8 @@ def _archive_paths(root: Path, run_id: str) -> tuple[Path, Path]:
 
 def verify_archive(root: Path, record: dict) -> dict:
     archive, manifest_file = _archive_paths(root, record["run_id"])
+    if archive.parent.is_symlink() or archive.is_symlink() or manifest_file.is_symlink():
+        raise RuntimeError("COLD_ARCHIVE_UNSAFE_SYMLINK")
     if not manifest_file.is_file() or not archive.is_file():
         raise RuntimeError("COLD_ARCHIVE_INCOMPLETE")
     data = json.loads(manifest_file.read_text(encoding="utf-8"))
@@ -123,6 +125,8 @@ def archive_one(root: Path, record: dict, source: Path) -> dict:
     if not source.is_file() or source.is_symlink():
         raise RuntimeError("RAW_PROOF_SOURCE_MISSING")
     archive.parent.mkdir(parents=True, exist_ok=True)
+    if archive.parent.is_symlink():
+        raise RuntimeError("COLD_ARCHIVE_FOLDER_UNSAFE")
     if shutil.disk_usage(root).free < MIN_FREE_GIB * (1024 ** 3):
         raise RuntimeError("INSUFFICIENT_DISK_FOR_COLD_ARCHIVE")
     before = source.stat()
@@ -218,24 +222,29 @@ def run(root: Path, *, apply=False, keep_runs=KEEP_RUNS,
               "raw_sources_deleted": False, "no_activation": True}
     if not apply:
         return output
-    processed = 0
-    # Oldest first; newest recent hot runs are never archived by this CLI.
+    new_attempts = 0
+    # Oldest first; existing verified archives do not consume new-run quota.
+    # This makes repeated --apply --limit 3 calls advance through history.
     for record in reversed(eligible):
-        if limit is not None and processed >= limit:
+        archive, manifest = _archive_paths(root, record["run_id"])
+        already = archive.exists() or manifest.exists()
+        if not already and limit is not None and new_attempts >= limit:
             break
         source = sources.get(record["run_id"])
-        if source is None:
+        if not already and source is None:
             output["failed"].append({"run_id":record["run_id"],
                                      "reason":"RAW_SOURCE_MISSING"})
             continue
-        processed += 1
+        if not already:
+            new_attempts += 1
         try:
-            result = archive_one(root, record, source)
+            result = (verify_archive(root, record) if already else
+                      archive_one(root, record, source))
             if result["status"] == "ARCHIVED_VERIFIED":
                 output["archived_this_call"] += 1
             else:
                 output["verified_existing"] += 1
-            print("COLD_RUN", processed, result["status"], record["run_id"],
+            print("COLD_RUN", result["status"], record["run_id"],
                   "compressed_bytes", result["compressed_bytes"], flush=True)
         except (OSError, ValueError, RuntimeError, sqlite3.DatabaseError) as exc:
             output["failed"].append({"run_id":record["run_id"],
