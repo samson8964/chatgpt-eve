@@ -11,6 +11,7 @@ import tempfile
 import unittest
 from contextlib import closing
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from v4.hot_cutover import ACK, _task_disabled, activate, inspect
@@ -69,7 +70,8 @@ class CutoverTests(unittest.TestCase):
         # check for these algorithm/rollback tests; separately assert that
         # the real Windows different-volume guard remains fail-closed.
         with patch("v4.hot_cutover._check_tasks_disabled"), \
-             patch("v4.hot_cutover.platform.system",return_value="Linux"), \
+             patch("v4.hot_cutover.platform",
+                   SimpleNamespace(system=lambda: "Linux")), \
              patch("v4.hot_cutover.GIB",1):
             return activate(self.root,candidate=self.candidate,
                             external_backup=self.external,
@@ -127,7 +129,8 @@ class CutoverTests(unittest.TestCase):
         # This is a real, essential production safety check and must not
         # be bypassed outside of the isolated rollback unit fixtures.
         with patch("v4.hot_cutover._check_tasks_disabled"), \
-             patch("v4.hot_cutover.platform.system",return_value="Windows"), \
+             patch("v4.hot_cutover.platform",
+                   SimpleNamespace(system=lambda: "Windows")), \
              patch("v4.hot_cutover.GIB",1):
             with self.assertRaisesRegex(
                     RuntimeError,"EXTERNAL_BACKUP_MUST_BE_ON_OTHER_VOLUME"):
@@ -157,7 +160,8 @@ class CutoverTests(unittest.TestCase):
                 raise PermissionError("simulated locked candidate")
             return original(source,dest)
         with patch("v4.hot_cutover._check_tasks_disabled"), \
-             patch("v4.hot_cutover.platform.system",return_value="Linux"), \
+             patch("v4.hot_cutover.platform",
+                   SimpleNamespace(system=lambda: "Linux")), \
              patch("v4.hot_cutover.GIB",1), \
              patch("v4.hot_cutover.os.replace",side_effect=flaky):
             with self.assertRaisesRegex(PermissionError,"locked"):
