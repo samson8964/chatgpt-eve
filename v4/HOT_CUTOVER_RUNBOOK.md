@@ -230,6 +230,63 @@ all be revalidated. Never delete `-wal` or `-shm` by hand. Resume ONLY
 will make the staged candidate/backup stale, so regenerate them after
 the final scanner pause.
 
+## 2026-10-26: guarded live WAL maintenance tool (NEW, NOT YET TESTED)
+
+Latest operator Windows tests: **19/19 passed** for the WAL-aware online
+backup and strict hot cutover. The previous 7.802 GiB hot-stage candidate
+passed hash preflight but a D: backup failed because of live
+`-wal`/`-shm`/journal sidecar. The source 28+ GiB SQLite was not
+promoted or deleted; Shadow returned Ready, Opportunity-Push Disabled.
+
+Added `v4.maintenance_checkpoint` to close the final gap. This action
+does **NOT** promote/rewrite/destroy a database. Default invocation is
+read-only: `python -m v4.maintenance_checkpoint`. Destructive `--apply`
+will fail closed unless it has an exact explicit ACK, TWO Disabled tasks,
+shared V4 scanner lock, and a CURRENT, full-integrity-checked SQLite backup
+on another Windows volume whose scan_run IDs, hashes, statuses, and proof
+row count match the WAL-aware live database. A stray `-journal` blocks it.
+
+If all pass, Python's SQLite API runs `PRAGMA wal_checkpoint(TRUNCATE)`
+and `PRAGMA journal_mode=DELETE` on the live database, closing all SQLite
+connections itself. It NEVER deletes `-wal`, `-shm`, or `-journal`
+by hand. A failed/busy checkpoint or lingering SQLite sidecar blocks
+the cutover; the external full backup remains intact. A source quick
+check, all scan metadata and the external backup match are revalidated.
+The old hot_cutover strict no-sidecar and candidate-hash gates remain.
+
+The new `v4.tests.test_maintenance_checkpoint` tests backup freshness,
+task state, ack, journal safety and SQLite shutdown. **They have not
+yet passed real Windows tests**, so test before applying:
+
+```powershell
+Set-Location "$HOME\EVE-V4-Code"
+git pull --ff-only
+if ($LASTEXITCODE -ne 0) { throw 'Pull failed' }
+$py = '.\.venv\Scripts\python.exe'
+& $py -m unittest -v v4.tests.test_maintenance_checkpoint v4.tests.test_external_backup v4.tests.test_hot_cutover
+if ($LASTEXITCODE -ne 0) { throw 'Maintenance tests failed' }
+& $py -m v4.maintenance_checkpoint
+```
+
+Subsequent maintenance-only example, AFTER all tasks are disabled and
+existing scans have completed, AFTER fresh cold archives and staging,
+AFTER a new full D: backup has returned `FULL_EXTERNAL_BACKUP_VERIFIED`:
+
+```powershell
+& $py -m v4.maintenance_checkpoint --apply `
+    --external-backup 'D:\V4-Safe-Backup\v4-shadow-full-<EXACT-TIMESTAMP>.sqlite3' `
+    --ack I_ACCEPT_V4_SQLITE_CHECKPOINT
+if ($LASTEXITCODE -ne 0) { throw 'Controlled SQLite checkpoint failed' }
+& $py -m v4.hot_cutover_preflight --verify-hash
+if ($LASTEXITCODE -ne 0) { throw 'Candidate not current' }
+```
+
+The above is **ONLY** a guarded SQLite checkpoint, NOT a production cutover;
+it leaves the old full database, new staged candidate, D: backup intact.
+If Shadow resumes scanning before actual hot_cutover `--apply`,
+the candidate and prior D: backup are likely STALE and must be regenerated
+under another paused maintenance window. Never bypass this check.
+
 ## Gate B — operator maintenance window (NOT automatic)
 
 1. Check no backup integrity check or shadow/push job currently running.
