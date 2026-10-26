@@ -19,7 +19,7 @@ from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path, PureWindowsPath
 
-from v4.hot_cutover import _check_tasks_disabled, _no_uncheckpointed_sidecars
+from v4.hot_cutover import _check_tasks_disabled
 from v4.local_run import exclusive_lock
 from v4.proof_cold_archive import ledger_runs
 
@@ -93,7 +93,10 @@ def create(root: Path, backup_dir: Path, *, now=None) -> dict:
     with exclusive_lock(root / "v4-local-shadow.lock"):
         _check_tasks_disabled()
         source = root / "sqlite" / "v4-shadow.sqlite3"
-        _no_uncheckpointed_sidecars(source)
+        # SQLite online backup includes committed WAL frames. The mere
+        # presence of -wal/-shm is NOT grounds to refuse a consistent backup;
+        # unlike cutover, this operation never renames the source database.
+        # SQLite itself must read WAL and enforce transaction consistency.
         before = ledger_runs(root)
         if not before or any(row["status"] != "SHADOW_VERIFIED_OFFLINE"
                              for row in before):
@@ -122,7 +125,8 @@ def create(root: Path, backup_dir: Path, *, now=None) -> dict:
                     copy_proofs = backup.execute(
                         "SELECT COUNT(*) FROM proof_versions").fetchone()[0]
             after = ledger_runs(root)
-            _no_uncheckpointed_sidecars(source)
+            # Verify copied records against the current logical SQLite view.
+            # Do NOT rely on parsing the bare .sqlite3 while WAL exists.
             if after != before or copy_runs != before or (
                     copy_proofs != sum(x["proof_count"] for x in before)):
                 raise RuntimeError("EXTERNAL_BACKUP_NOT_CURRENT_OR_INCOMPLETE")
