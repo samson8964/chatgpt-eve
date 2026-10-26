@@ -42,7 +42,7 @@ def send_capacity_alert(root: Path, health: dict, *, now=None,
     message["From"] = config["sender"]
     message["To"] = config["recipient"]
     message["Subject"] = ("【EVE V4 磁盘告警】" +
-                          ("扫描已暂停" if severity == "STOP"
+                          ("下一轮扫描将受阻" if severity == "STOP"
                            else "容量下降过快或剩余空间偏低"))
     free = health.get("free_gib")
     free_label = (f"{free:.2f} GiB" if isinstance(free, (int, float))
@@ -54,7 +54,7 @@ def send_capacity_alert(root: Path, health: dict, *, now=None,
         f"当前可用容量：{free_label}\n"
         f"过去一段时间可用容量日变化："
         f"{trend.get('daily_free_gib_change')} GiB/天\n"
-        "达到低于20 GiB时，Shadow会跳过新的采集。\n"
+        "低于20 GiB时，Shadow后续运行会跳过新的采集。\n"
         "本提醒不会清除历史数据，也不会重启已禁用的市场机会任务。\n"
         "请在本机运行 python -m v4.storage_governor 核对容量分类。\n"
     )
