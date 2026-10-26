@@ -60,6 +60,9 @@ def checkpoint(root: Path, *, external_backup: Path, acknowledgement: str) -> di
     _check_tasks_disabled()
     with exclusive_lock(root / "v4-local-shadow.lock"):
         _check_tasks_disabled()
+        journal = source.with_name(source.name + "-journal")
+        if journal.exists():
+            raise RuntimeError("ROLLBACK_JOURNAL_PRESENT_DO_NOT_TOUCH")
         # This uses read-only WAL-AWARE queries for the live source and
         # immutable read-only verification for the self-contained backup.
         # It checks EVERY scan-run record/hash and the total proof count,
@@ -67,9 +70,6 @@ def checkpoint(root: Path, *, external_backup: Path, acknowledgement: str) -> di
         verified = _verified_independent_backup(
             root, Path(external_backup))
         before = ledger_runs(root)
-        journal = source.with_name(source.name + "-journal")
-        if journal.exists():
-            raise RuntimeError("ROLLBACK_JOURNAL_PRESENT_DO_NOT_TOUCH")
         previous_sidecars = _sidecars(source)
         with closing(sqlite3.connect(source, timeout=30)) as db:
             db.execute("PRAGMA busy_timeout=30000")
