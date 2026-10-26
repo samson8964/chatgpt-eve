@@ -27,7 +27,7 @@ MAX_FILES = 500000
 def _files(root: Path) -> dict:
     counts = {}
     seen = 0
-    errors = []
+    errors = False
     if not root.exists():
         return {"total_bytes": 0, "files": 0, "categories": {},
                 "status": "ROOT_MISSING"}
@@ -35,10 +35,27 @@ def _files(root: Path) -> dict:
         return {"total_bytes": 0, "files": 0, "categories": {},
                 "status": "ROOT_UNSAFE"}
     total = 0
-    for base, dirs, files in os.walk(root, topdown=True, followlinks=False):
+    def walk_error(_):
+        nonlocal errors
+        errors = True
+
+    for base, dirs, files in os.walk(
+            root, topdown=True, followlinks=False, onerror=walk_error):
         here = Path(base)
-        # Skip symlinked subdirectories; a link can point outside the data root.
-        dirs[:] = [d for d in dirs if not (here / d).is_symlink()]
+        # Reject symlinked or redirected directories, including Windows
+        # junctions that do not report themselves as regular symlinks.
+        safe = []
+        for name in dirs:
+            child = here / name
+            try:
+                real = child.resolve()
+                if not child.is_symlink() and root in real.parents:
+                    safe.append(name)
+                else:
+                    errors = True
+            except OSError:
+                errors = True
+        dirs[:] = safe
         for filename in files:
             candidate = here / filename
             if candidate.is_symlink():
@@ -47,7 +64,7 @@ def _files(root: Path) -> dict:
                 size = candidate.stat().st_size
                 category = candidate.relative_to(root).parts[0]
             except (ValueError, OSError, IndexError):
-                errors.append("FILE_STAT_FAILED")
+                errors = True
                 continue
             counts[category] = counts.get(category, 0) + size
             total += size
@@ -103,7 +120,7 @@ def _growth(samples: list, free_now: int, now: datetime) -> dict:
 
 def report(root: Path, *, free_bytes: int | None = None,
            now: datetime | None = None) -> dict:
-    root = Path(root).resolve()
+    root = Path(root).absolute()
     now = now or datetime.now(timezone.utc)
     usage = shutil.disk_usage(root if root.is_dir() else root.parent)
     free = usage.free if free_bytes is None else free_bytes
@@ -145,7 +162,7 @@ def report(root: Path, *, free_bytes: int | None = None,
 def record(root: Path, *, free_bytes: int | None = None,
            now: datetime | None = None) -> dict:
     """Capture an observation; never modify anything except this bounded log."""
-    root = Path(root).resolve()
+    root = Path(root).absolute()
     now = now or datetime.now(timezone.utc)
     result = report(root, free_bytes=free_bytes, now=now)
     if not root.is_dir() or result["inventory_status"] != "COMPLETE":
