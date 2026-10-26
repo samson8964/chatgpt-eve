@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 
-from v4.local_service import storage_check, backup_due, execute
+from v4.local_service import storage_check, backup_due, execute, main
 from v4.structure_registry import STRUCTURES
 
 
@@ -19,6 +19,23 @@ class LocalServiceTests(unittest.TestCase):
             self.assertEqual(value["status"],"SKIPPED_LOW_DISK")
             self.assertEqual(called,[])
             self.assertFalse(value["mail_enabled"])
+
+    def test_no_old_opportunity_replayed_when_low_disk(self):
+        with tempfile.TemporaryDirectory() as td:
+            with patch("sys.argv", ["local_service", "--data-root", td]), \
+                 patch("v4.local_service.execute",
+                       return_value={"status": "SKIPPED_LOW_DISK",
+                                     "disk": {"free_gib": 9}}), \
+                 patch("v4.local_service._log_storage_health",
+                       return_value={"severity": "STOP"}), \
+                 patch("v4.research_mail.send_review") as gmail, \
+                 patch("v4.game_mail_review.send_review_to_game") as game:
+                exit_code = main()
+            self.assertEqual(exit_code, 4)
+            gmail.assert_not_called()
+            game.assert_not_called()
+            log = (Path(td) / "logs" / "shadow-task.log").read_text("utf-8")
+            self.assertIn("LOW_DISK_NO_CURRENT_RUN", log)
 
     def test_storage_capacity_boundary(self):
         self.assertFalse(storage_check(Path("."),free_bytes=19*1024**3)["enough_space"])
