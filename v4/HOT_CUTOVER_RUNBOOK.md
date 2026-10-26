@@ -1,9 +1,9 @@
 # V4 controlled SQLite hot/cold cutover — Windows-only runbook
 
-**Status as of 2026-10-25: tooling committed, NOT executed on user's Windows host.**
-The earlier Windows **41 tests OK** covers cold archival / staging / retention,
-but does not establish that the newly introduced cutover script passes tests.
-Until confirmed, do not use `--apply`. Production SQLite remains unmodified.
+**Status as of 2026-10-26: Windows cutover fixture tests 12/12 OK,
+actual production cutover NOT performed.** The former candidate is rejected
+with `STAGE_MANIFEST_INVALID`, and no independent current external backup
+has been verified. Do not run `hot_cutover --apply` yet.
 
 ## Operator decision: retire duplicate standalone market opportunity lane
 
@@ -77,10 +77,9 @@ The operator ran the initial 8 cutover tests. Five were blocked:
 - The external-volume test reached the sidecar guard before its
   volume guard and is now reachable with a clean fixture.
 
-The revised cutover module now has **9 unit tests**. The patch is
-committed, but it **has not yet passed the user's Windows test suite**.
-Until it does, production switchover remains blocked. Prior 41-test
-success only proves archival/staging/retention modules, not cutover.
+This is a historical note: the interim suite had 9 tests;
+the current 12-test suite **passed on the operator's Windows host**.
+Passing fixture tests alone does not permit a production cutover.
 
 ## Windows read-only inspection fix (2026-10-25)
 
@@ -101,7 +100,7 @@ The user verified **9/9 cutover unit tests OK**, while
   Unreadable/unrecognized XML **still blocks a production cutover**.
   Added 3 tests: UTF-16-declared UTF-8 bytes, GBK Chinese XML,
   malformed XML/unknown Enabled. New expected test count **12**.
-  This fix has not yet been validated on the user's Windows host.
+  This fix subsequently passed in the user's **12/12 Windows test run**.
 
 No task or SQLite state has been changed as a result of these
 read-only diagnostics. In particular, the user-requested disabled
@@ -190,8 +189,9 @@ shutdown between two rename operations requires manual recovery.
 
 After success: first run a small read-only audit and verify the latest
 `HOT_PROOF_RETENTION` record after resumed shadow scan; re-enable
-both tasks with `Enable-ScheduledTask` and confirm scheduler status
-and a fresh formal opportunity cycle. Observe real `vacuum_pages_reclaimed`
+**ONLY `EVE-V4-Shadow`** with `Enable-ScheduledTask` and confirm
+the combined review mail resumes. `EVE-V4-Opportunity-Push` MUST remain
+Disabled by operator decision. Observe real `vacuum_pages_reclaimed`
 and `vacuum_incomplete` before claiming long-run size is bounded.
 
 ## Disk consumption caveat
