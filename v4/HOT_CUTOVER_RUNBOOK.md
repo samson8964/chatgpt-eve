@@ -136,7 +136,7 @@ The new `python -m v4.external_backup --backup-dir D:\\V4-Safe-Backup`
 command is **READ-ONLY** and reports backup capacity. Its opt-in
 `--create` form demands BOTH `EVE-V4-Shadow` and
 `EVE-V4-Opportunity-Push` Disabled and the shared process lock available;
-it refuses SQLite WAL/SHM/journal sidecars, only writes a new full backup
+the online backup reads SQLite WAL safely, only writes a new full backup
 under the requested other volume and checks SQLite `integrity_check`,
 scan-run metadata and proof counts **before publishing** it. It will
 never overwrite a previous backup or delete evidence. The first Windows test run of the backup suite failed 5/6 fixture tests
@@ -190,6 +190,45 @@ and on a preparation failure with the live DB still intact, re-enable
 D: is a distinct logical volume. If C: and D: share one physical
 disk, D: alone does not protect against disk failure; also make an
 off-machine verified copy before considering any rollback deletion.
+
+## 2026-10-26: online backup WAL/SHM mismatch fixed (code only)
+
+The user's second real preparation produced a NEW 7.802 GiB hot candidate
+`v4-shadow-hot-20261026T132337Z-27552.sqlite3` with 279 scan run records,
+72 hot and 207 cold runs; SHA preflight returned
+`CANDIDATE_READY_FOR_CONTROLLED_MAINTENANCE`. The external backup
+`--create` was BLOCKED with
+`SQLITE_JOURNAL_PRESENT_CLOSE_ALL_V4_READERS` because the live production
+DB still had at least one SQLite journal/WAL sidecar; the maintenance
+PowerShell finally block restored Shadow task to Ready, with standalone
+Opportunity-Push remaining Disabled. **No production swap or D backup
+occurred.**
+
+SQLite `Connection.backup()` is WAL-aware and copies committed WAL
+transactions. Its earlier sidecar precheck was appropriate for destructive
+live DB rename, **not** for a read-only source online full backup. The
+patched `v4.external_backup` now performs the same gated no-writer,
+current-ledger and integrity verifications, while tolerating the SOURCE
+`-wal`/`-shm` files and NEVER manually deleting or renaming them.
+The DESTINATION is made self-contained by its own SQLite
+`wal_checkpoint(TRUNCATE)` and `journal_mode=DELETE`, closed,
+checked for sidecars, reopened with `immutable=1` and its integrity
+and proof count independently checked BEFORE publishing. The
+`v4.hot_cutover` strict source/candidate sidecar guard is UNCHANGED.
+
+The new WAL-aware backup regression uses a real committed WAL transaction
+and separately asserts that the unchanged cutover sidecar guard still
+rejects such a database. **Patch/tests not yet Windows-verified.**
+
+**Important: a successful online backup does NOT, by itself, permit
+hot cutover.** Before promoting a candidate in a controlled maintenance
+window, the live database must be cleanly checkpointed by SQLite itself
+and left in a fully self-contained state, with no active V4 writer or
+reader, then source, external backup and hot candidate preflight must
+all be revalidated. Never delete `-wal` or `-shm` by hand. Resume ONLY
+`EVE-V4-Shadow` on a blocked preparation. A subsequent Shadow scan
+will make the staged candidate/backup stale, so regenerate them after
+the final scanner pause.
 
 ## Gate B — operator maintenance window (NOT automatic)
 
