@@ -126,6 +126,66 @@ An old 7.782 GiB candidate created before policy/index changes is obsolete
 and MUST NOT be activated. A newly staged candidate can become stale
 whenever another hourly shadow scan finishes.
 
+## D-drive verified backup helper (2026-10-26)
+
+The latest real Windows storage inventory was: C: free **208.1 GiB**,
+D: free **868.2 GiB**, project root **155.199 GiB**. The hot policy
+still reports `NOT_CONFIGURED`; the old candidate is NOT_READY.
+
+The new `python -m v4.external_backup --backup-dir D:\\V4-Safe-Backup`
+command is **READ-ONLY** and reports backup capacity. Its opt-in
+`--create` form demands BOTH `EVE-V4-Shadow` and
+`EVE-V4-Opportunity-Push` Disabled and the shared process lock available;
+it refuses SQLite WAL/SHM/journal sidecars, only writes a new full backup
+under the requested other volume and checks SQLite `integrity_check`,
+scan-run metadata and proof counts **before publishing** it. It will
+never overwrite a previous backup or delete evidence. Backup code/tests
+have been committed but NOT yet Windows-tested, so the user must run
+`python -m unittest -v v4.tests.test_external_backup` before creating
+an actual backup.
+
+Example two-stage process, STOP AFTER backup+preflight and report the
+candidate/backup paths, DO NOT automatically `--apply`:
+
+```powershell
+# A: while V4-Shadow is ENABLED, read-only
+$py = '.\.venv\Scripts\python.exe'
+& $py -m unittest -v v4.tests.test_external_backup
+if ($LASTEXITCODE -ne 0) { throw 'External-backup tests FAILED' }
+& $py -m v4.external_backup --backup-dir 'D:\V4-Safe-Backup'
+
+# B: ADMINISTRATOR POWERSHELL, controlled maintenance
+Disable-ScheduledTask -TaskName 'EVE-V4-Shadow' -ErrorAction Stop
+$state = Get-ScheduledTask -TaskName 'EVE-V4-Shadow','EVE-V4-Opportunity-Push'
+$state | Select-Object TaskName,State
+if (@($state | Where-Object State -ne 'Disabled').Count -ne 0) {
+    throw 'Both jobs must be Disabled'
+}
+# Disabling does NOT interrupt already-running scans.
+# Check Windows process list; wait for jobs to FINISH normally.
+# NEVER delete -wal or -shm by hand.
+& $py -m v4.proof_cold_archive --apply --all
+if ($LASTEXITCODE -ne 0) { throw 'Cold archive incomplete' }
+& $py -m v4.hot_ledger_stage --stage
+if ($LASTEXITCODE -ne 0) { throw 'Stage failed' }
+& $py -m v4.hot_cutover_preflight --verify-hash
+if ($LASTEXITCODE -ne 0) { throw 'Candidate not current' }
+& $py -m v4.external_backup --backup-dir 'D:\V4-Safe-Backup' --create
+if ($LASTEXITCODE -ne 0) { throw 'External full backup failed' }
+# STOP and examine output; do not --apply in this step.
+```
+
+If Stage or backup is blocked by a sidecar, preserve the DB and
+sidecars, inspect active SQLite handles, and perform a controlled
+checkpoint only after all writers/readers are closed. Do not override
+fail-closed checks. Stop `EVE-V4-Shadow` as briefly as practical,
+and on a preparation failure with the live DB still intact, re-enable
+**only** `EVE-V4-Shadow` after checking nothing has been renamed.
+
+D: is a distinct logical volume. If C: and D: share one physical
+disk, D: alone does not protect against disk failure; also make an
+off-machine verified copy before considering any rollback deletion.
+
 ## Gate B — operator maintenance window (NOT automatic)
 
 1. Check no backup integrity check or shadow/push job currently running.
