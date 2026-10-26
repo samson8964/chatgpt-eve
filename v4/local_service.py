@@ -136,6 +136,32 @@ def post_scan_hot_retention(root: Path) -> dict:
                 "scanner_and_mail_unchanged":True}
 
 
+def post_cycle_storage_health(root: Path) -> dict:
+    """Best-effort capacity telemetry only. Never modify old evidence."""
+    try:
+        from v4.storage_governor import record
+        return record(root)
+    except Exception as exc:
+        return {"status": "BLOCKED", "error_type": type(exc).__name__,
+                "data_deleted": False}
+
+
+def _log_storage_health(root: Path, *, send_alert: bool = True) -> dict:
+    status = post_cycle_storage_health(root)
+    print("STORAGE_GOVERNOR",
+          json.dumps(status, ensure_ascii=False), flush=True)
+    if send_alert and status.get("severity") in ("WARNING", "STOP"):
+        try:
+            from v4.storage_alert import send_capacity_alert
+            outcome = send_capacity_alert(root, status)
+            print("STORAGE_CAPACITY_ALERT",
+                  json.dumps(outcome, ensure_ascii=False), flush=True)
+        except Exception as exc:
+            print("STORAGE_CAPACITY_ALERT_FAILED",
+                  type(exc).__name__, flush=True)
+    return status
+
+
 def main() -> int:
     p=argparse.ArgumentParser(description="Silent Windows V4 scan and opt-in research email digests")
     p.add_argument("--data-root", type=Path, default=Path.home()/"EVE-V4-Data")
@@ -150,10 +176,19 @@ def main() -> int:
                 try:
                     result=execute(root)
                     print("RESULT",json.dumps(result,ensure_ascii=False),flush=True)
+                    if result.get("status") == "SKIPPED_LOW_DISK":
+                        # The run has NO current evidence. Never call either
+                        # mailer with expected_run=None: it could re-send an
+                        # older opportunity digest as a fresh scan.
+                        _log_storage_health(root)
+                        print("RESEARCH_MAIL_SKIPPED LOW_DISK_NO_CURRENT_RUN",
+                              flush=True)
+                        return 4
                     if result.get("status") == "SKIPPED_UPSTREAM_STALE":
                         # A normal no-data cycle: never re-mail the previous
                         # completed scan or manufacture candidates from a
                         # delayed upstream snapshot.
+                        _log_storage_health(root)
                         print("RESEARCH_MAIL_SKIPPED UPSTREAM_SNAPSHOT_STALE",
                               flush=True)
                         return 0
@@ -204,6 +239,7 @@ def main() -> int:
                     print("HOT_PROOF_RETENTION",
                           json.dumps(housekeeping,ensure_ascii=False),
                           flush=True)
+                    _log_storage_health(root)
                     if delivery_failure:
                         return 3
                     return 0 if result.get("status") == "SHADOW_RECORDED" else 2
