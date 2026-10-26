@@ -139,9 +139,14 @@ command is **READ-ONLY** and reports backup capacity. Its opt-in
 it refuses SQLite WAL/SHM/journal sidecars, only writes a new full backup
 under the requested other volume and checks SQLite `integrity_check`,
 scan-run metadata and proof counts **before publishing** it. It will
-never overwrite a previous backup or delete evidence. Backup code/tests
-have been committed but NOT yet Windows-tested, so the user must run
-`python -m unittest -v v4.tests.test_external_backup` before creating
+never overwrite a previous backup or delete evidence. The first Windows test run of the backup suite failed 5/6 fixture tests
+because its simulated destination shared the source temp directory volume;
+the **real cross-volume production guard was correctly blocking**.
+Only the isolated test fixtures now mock the cross-volume check; a new
+independent Windows unit test explicitly proves that same-volume backup
+is rejected by the real check. Updated suite now contains **7 tests**.
+The updated seven-test suite has NOT yet been verified on Windows.
+Run `python -m unittest -v v4.tests.test_external_backup` before creating
 an actual backup.
 
 Example two-stage process, STOP AFTER backup+preflight and report the
