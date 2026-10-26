@@ -19,7 +19,7 @@ from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path, PureWindowsPath
 
-from v4.hot_cutover import _check_tasks_disabled
+from v4.hot_cutover import _check_tasks_disabled, _no_uncheckpointed_sidecars
 from v4.local_run import exclusive_lock
 from v4.proof_cold_archive import ledger_runs
 
@@ -124,6 +124,28 @@ def create(root: Path, backup_dir: Path, *, now=None) -> dict:
                         "FROM scan_runs ORDER BY audited_at DESC,run_id DESC")]
                     copy_proofs = backup.execute(
                         "SELECT COUNT(*) FROM proof_versions").fetchone()[0]
+                    # A backup of a WAL-mode database must be published as a
+                    # single self-contained SQLite file. Only checkpoint and
+                    # normalize the DESTINATION, never the live source.
+                    if backup.execute("PRAGMA journal_mode").fetchone()[0].lower() == "wal":
+                        ck = backup.execute(
+                            "PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
+                        if not ck or ck[0] != 0:
+                            raise RuntimeError("EXTERNAL_BACKUP_WAL_CHECKPOINT_FAILED")
+                    if backup.execute(
+                            "PRAGMA journal_mode=DELETE").fetchone()[0].lower() != "delete":
+                        raise RuntimeError("EXTERNAL_BACKUP_NOT_SELF_CONTAINED")
+            # Reject a copied DB that depends on transient WAL/SHM/journal.
+            _no_uncheckpointed_sidecars(partial)
+            with closing(sqlite3.connect(
+                    "file:" + partial.resolve().as_posix() + "?mode=ro&immutable=1",
+                    uri=True, timeout=30)) as immutable:
+                if immutable.execute(
+                        "PRAGMA integrity_check").fetchone()[0] != "ok":
+                    raise RuntimeError("EXTERNAL_BACKUP_STANDALONE_INTEGRITY_FAILED")
+                if immutable.execute(
+                        "SELECT COUNT(*) FROM proof_versions").fetchone()[0] != copy_proofs:
+                    raise RuntimeError("EXTERNAL_BACKUP_STANDALONE_PROOFS_MISMATCH")
             after = ledger_runs(root)
             # Verify copied records against the current logical SQLite view.
             # Do NOT rely on parsing the bare .sqlite3 while WAL exists.
