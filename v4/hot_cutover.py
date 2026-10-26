@@ -119,7 +119,13 @@ def _verified_independent_backup(root: Path, backup: Path) -> dict:
         raise RuntimeError("EXTERNAL_BACKUP_TOO_SMALL")
     live=ledger_runs(root)
     live_db=root/"sqlite"/"v4-shadow.sqlite3"
-    with closing(_db_connection(live_db)) as source_db:
+    # Read the LOGICAL live database including committed WAL frames.
+    # immutable=1 skips WAL and may falsely report a healthy full backup as
+    # stale during the pre-checkpoint maintenance phase. Promotion still
+    # requires _no_uncheckpointed_sidecars(live) before any rename.
+    with closing(sqlite3.connect(
+            "file:"+live_db.resolve().as_posix()+"?mode=ro",
+            uri=True,timeout=30)) as source_db:
         live_proofs=source_db.execute(
             "SELECT COUNT(*) FROM proof_versions").fetchone()[0]
         live_policy=source_db.execute(
