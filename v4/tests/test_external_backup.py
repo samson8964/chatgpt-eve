@@ -81,7 +81,7 @@ class ExternalBackupTests(unittest.TestCase):
                 "PRAGMA journal_mode=WAL").fetchone()[0].lower(), "wal")
             rid = "test-external-wal"
             raw = (json.dumps({"instance": "market:test:wal",
-                               "status": "WATCH", "reason": "TEST"}).encode() + bytes([10])
+                               "status": "WATCH", "reason": "TEST"}).encode() + bytes([10]))
             writer.execute("INSERT INTO scan_runs VALUES (?,?,?,?,?,?)",
                            (rid, "SHADOW_VERIFIED_OFFLINE", 1,
                             hashlib.sha256(raw).hexdigest(), "{}",
