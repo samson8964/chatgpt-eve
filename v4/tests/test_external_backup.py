@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 from v4.external_backup import create, inspect, require_different_volume
 from v4.local_store import _init
+from v4.hot_cutover import _no_uncheckpointed_sidecars
 
 
 class ExternalBackupTests(unittest.TestCase):
@@ -71,17 +72,39 @@ class ExternalBackupTests(unittest.TestCase):
                 "PRAGMA integrity_check").fetchone()[0], "ok")
         self.assertFalse(Path(str(result["path"]) + ".part").exists())
 
-    def test_no_uncheckpointed_wal_allowed(self):
-        bad = self.db.with_name(self.db.name + "-wal")
-        bad.write_bytes(b"fixture")
-        try:
+    def test_committed_wal_is_included_in_backup_but_blocks_cutover(self):
+        # A real WAL with committed rows is different from random bytes
+        # masquerading as a -wal file. Keep a connection open so both
+        # SQLite sidecars remain present during the online backup.
+        with closing(sqlite3.connect(self.db)) as writer:
+            self.assertEqual(writer.execute(
+                "PRAGMA journal_mode=WAL").fetchone()[0].lower(), "wal")
+            rid = "test-external-wal"
+            raw = (json.dumps({"instance": "market:test:wal",
+                               "status": "WATCH", "reason": "TEST"}) + "\\n").encode()
+            writer.execute("INSERT INTO scan_runs VALUES (?,?,?,?,?,?)",
+                           (rid, "SHADOW_VERIFIED_OFFLINE", 1,
+                            hashlib.sha256(raw).hexdigest(), "{}",
+                            "2026-10-26T01:00:00Z"))
+            writer.execute("INSERT INTO proof_versions VALUES (?,?,?,?,?)",
+                           (rid, "market:test:wal", "WATCH", "TEST",
+                            raw.decode().strip()))
+            writer.commit()
+            wal = self.db.with_name(self.db.name + "-wal")
+            self.assertTrue(wal.exists())
             with self.assertRaisesRegex(
                     RuntimeError, "SQLITE_JOURNAL_PRESENT_CLOSE_ALL_V4_READERS"):
-                self._create()
-        finally:
-            bad.unlink(missing_ok=True)
-        self.assertFalse(self.destination.exists() and
-                         any(self.destination.iterdir()))
+                _no_uncheckpointed_sidecars(self.db)
+            result = self._create()
+            self.assertEqual(result["status"], "FULL_EXTERNAL_BACKUP_VERIFIED")
+            self.assertEqual(result["scan_runs"], 4)
+            self.assertEqual(result["proof_rows"], 4)
+            with closing(sqlite3.connect(result["path"])) as copy:
+                self.assertEqual(copy.execute(
+                    "PRAGMA integrity_check").fetchone()[0], "ok")
+                self.assertEqual(copy.execute(
+                    "SELECT COUNT(*) FROM scan_runs").fetchone()[0], 4)
+            self.assertTrue(wal.exists())
 
     def test_refuses_overwrite_of_existing_snapshot(self):
         self._create()
