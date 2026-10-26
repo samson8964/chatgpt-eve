@@ -1,0 +1,159 @@
+"""Controlled, integrity-checked V4 pre-cutover FULL backup on another volume.
+
+No writes to the source SQLite, no scan, network, mail, or notification.
+Read-only inspection by default; --create explicitly writes a new verified
+backup on a DIFFERENT Windows volume. This is a maintenance-only tool:
+both EVE V4 scheduled tasks must be disabled and the shared scan lock free.
+
+Another Windows volume is not necessarily a different physical device.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import platform
+import shutil
+import sqlite3
+from contextlib import closing
+from datetime import datetime, timezone
+from pathlib import Path, PureWindowsPath
+
+from v4.hot_cutover import _check_tasks_disabled, _no_uncheckpointed_sidecars
+from v4.local_run import exclusive_lock
+from v4.proof_cold_archive import ledger_runs
+
+GIB = 1024 ** 3
+MIN_SLACK_GIB = 10
+
+
+def require_different_volume(root: Path, directory: Path) -> None:
+    """Drive test deliberately independent of process-host path semantics."""
+    if platform.system() == "Windows":
+        a = PureWindowsPath(str(root)).drive.lower()
+        b = PureWindowsPath(str(directory)).drive.lower()
+        if not a or not b or a == b:
+            raise RuntimeError("EXTERNAL_BACKUP_MUST_BE_ON_OTHER_VOLUME")
+    if root == directory or root in directory.parents:
+        raise RuntimeError("EXTERNAL_BACKUP_MUST_BE_OUTSIDE_DATA_ROOT")
+
+
+def _safe_directory(root: Path, directory: Path) -> None:
+    if directory.is_symlink() or directory.is_file():
+        raise RuntimeError("EXTERNAL_BACKUP_DIRECTORY_UNSAFE")
+    # Refuse redirection through an existing symlink/junction parent.
+    probe = directory
+    while probe != probe.parent:
+        if probe.exists() and (probe.is_symlink() or (
+                platform.system() == "Windows" and
+                str(probe.resolve()).lower() != str(probe.absolute()).lower())):
+            raise RuntimeError("EXTERNAL_BACKUP_REDIRECTED_DIRECTORY")
+        probe = probe.parent
+    require_different_volume(root, directory)
+
+
+def _available_space(directory: Path):
+    probe = directory
+    while not probe.exists() and probe != probe.parent:
+        probe = probe.parent
+    return shutil.disk_usage(probe).free
+
+
+def inspect(root: Path, backup_dir: Path) -> dict:
+    root = Path(root).resolve()
+    backup_dir = Path(backup_dir).absolute()
+    _safe_directory(root, backup_dir)
+    source = root / "sqlite" / "v4-shadow.sqlite3"
+    if not source.is_file() or source.is_symlink():
+        raise RuntimeError("SOURCE_SQLITE_MISSING_OR_UNSAFE")
+    free = _available_space(backup_dir)
+    needed = source.stat().st_size + MIN_SLACK_GIB * GIB
+    return {
+        "status": "READ_ONLY_EXTERNAL_BACKUP_INSPECTION",
+        "source_size_gib": round(source.stat().st_size / GIB, 3),
+        "destination_available_gib": round(free / GIB, 3),
+        "space_ready": free >= needed,
+        "volume_check": "DIFFERENT_VOLUME" if platform.system() == "Windows"
+                        else "NON_WINDOWS_TEST_ONLY",
+        "both_scheduled_tasks_must_be_disabled_before_create": True,
+        "created": False,
+        "source_modified": False,
+        "off_machine_copy_still_required": True,
+    }
+
+
+def create(root: Path, backup_dir: Path, *, now=None) -> dict:
+    root = Path(root).resolve()
+    directory = Path(backup_dir).absolute()
+    status = inspect(root, directory)
+    if not status["space_ready"]:
+        raise RuntimeError("INSUFFICIENT_EXTERNAL_BACKUP_FREE_SPACE")
+    # Time-of-check state is not authorization to mutate a live ledger.
+    _check_tasks_disabled()
+    with exclusive_lock(root / "v4-local-shadow.lock"):
+        _check_tasks_disabled()
+        source = root / "sqlite" / "v4-shadow.sqlite3"
+        _no_uncheckpointed_sidecars(source)
+        before = ledger_runs(root)
+        if not before or any(row["status"] != "SHADOW_VERIFIED_OFFLINE"
+                             for row in before):
+            raise RuntimeError("SOURCE_RUNS_NOT_ALL_VERIFIED")
+        moment = now or datetime.now(timezone.utc)
+        stamp = moment.strftime("%Y%m%dT%H%M%SZ")
+        directory.mkdir(parents=True, exist_ok=True)
+        _safe_directory(root, directory)
+        target = directory / ("v4-shadow-full-" + stamp + ".sqlite3")
+        partial = target.with_name(target.name + ".part")
+        if target.exists() or target.is_symlink() or partial.exists() or partial.is_symlink():
+            raise FileExistsError("EXTERNAL_BACKUP_TARGET_EXISTS")
+        try:
+            with closing(sqlite3.connect(
+                    "file:" + source.as_posix() + "?mode=ro",
+                    uri=True, timeout=30)) as live:
+                with closing(sqlite3.connect(partial, timeout=30)) as backup:
+                    live.backup(backup, pages=2048, sleep=0.1)
+                    if backup.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
+                        raise RuntimeError("EXTERNAL_BACKUP_INTEGRITY_FAILED")
+                    keys = ("run_id", "status", "proof_count",
+                            "proof_sha256", "audited_at")
+                    copy_runs = [dict(zip(keys, row)) for row in backup.execute(
+                        "SELECT run_id,status,proof_count,proof_sha256,audited_at "
+                        "FROM scan_runs ORDER BY audited_at DESC,run_id DESC")]
+                    copy_proofs = backup.execute(
+                        "SELECT COUNT(*) FROM proof_versions").fetchone()[0]
+            after = ledger_runs(root)
+            _no_uncheckpointed_sidecars(source)
+            if after != before or copy_runs != before or (
+                    copy_proofs != sum(x["proof_count"] for x in before)):
+                raise RuntimeError("EXTERNAL_BACKUP_NOT_CURRENT_OR_INCOMPLETE")
+            # Persist only after all audit checks completed successfully.
+            os.replace(partial, target)
+            return {
+                "status": "FULL_EXTERNAL_BACKUP_VERIFIED",
+                "path": str(target), "bytes": target.stat().st_size,
+                "sqlite_integrity": "ok", "scan_runs": len(copy_runs),
+                "proof_rows": copy_proofs,
+                "source_database_modified": False,
+                "off_machine_copy_still_required": True,
+            }
+        finally:
+            # Only this tool's OWN explicitly named temporary output is removed.
+            partial.unlink(missing_ok=True)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="V4 external pre-cutover full backup")
+    parser.add_argument("--data-root", type=Path,
+                        default=Path.home() / "EVE-V4-Data")
+    parser.add_argument("--backup-dir", type=Path, required=True)
+    parser.add_argument("--create", action="store_true",
+                        help="Explicitly create an external full SQLite backup")
+    args = parser.parse_args()
+    report = (create(args.data_root, args.backup_dir) if args.create
+              else inspect(args.data_root, args.backup_dir))
+    print(json.dumps(report, ensure_ascii=False, indent=2))
+
+
+if __name__ == "__main__":
+    main()
