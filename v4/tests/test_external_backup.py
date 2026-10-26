@@ -40,13 +40,19 @@ class ExternalBackupTests(unittest.TestCase):
             self.assertEqual(mode.lower(), "delete")
 
     def _create(self):
+        # Test fixtures put source and simulated external backup inside one
+        # TemporaryDirectory, hence on the SAME Windows volume. Bypass only
+        # this fixture-inapplicable gate. Its real Windows enforcement is
+        # separately tested below; production code is unchanged.
         with patch("v4.external_backup._check_tasks_disabled"), \
+             patch("v4.external_backup.require_different_volume"), \
              patch("v4.external_backup.MIN_SLACK_GIB", 0):
             return create(self.root, self.destination,
                           now=datetime(2026, 10, 26, 11, tzinfo=timezone.utc))
 
     def test_read_only_does_not_create_destination(self):
-        result = inspect(self.root, self.destination)
+        with patch("v4.external_backup.require_different_volume"):
+            result = inspect(self.root, self.destination)
         self.assertEqual(result["status"],
                          "READ_ONLY_EXTERNAL_BACKUP_INSPECTION")
         self.assertFalse(result["created"])
@@ -91,9 +97,19 @@ class ExternalBackupTests(unittest.TestCase):
                 require_different_volume(Path(r"C:\V4"),
                                          Path(r"C:\backup"))
 
+    def test_real_windows_inspect_rejects_same_volume(self):
+        # Unlike algorithm fixtures, this invokes the REAL guard, exercising
+        # the same-volume rejection reached by the user's original test run.
+        with patch("v4.external_backup.platform.system",
+                   return_value="Windows"):
+            with self.assertRaisesRegex(RuntimeError, "OTHER_VOLUME"):
+                inspect(self.root, self.destination)
+        self.assertFalse(self.destination.exists())
+
     def test_create_refuses_live_tasks(self):
         with patch("v4.external_backup._check_tasks_disabled",
                    side_effect=RuntimeError("TASK_NOT_DISABLED")), \
+             patch("v4.external_backup.require_different_volume"), \
              patch("v4.external_backup.MIN_SLACK_GIB", 0):
             with self.assertRaisesRegex(RuntimeError, "TASK_NOT_DISABLED"):
                 create(self.root, self.destination)
