@@ -332,6 +332,79 @@ and do not create production backups, checkpoint WAL or promote the hot
 candidate until tests pass and a separate controlled maintenance window
 is scheduled.
 
+## 2026-10-27: controlled one-window Windows cutover tool
+
+Operator returned **26/26 OK** on Windows after commit 91b1abfd.
+The following actual FULL D backup was created and fully validated:
+`D:\V4-Safe-Backup\v4-shadow-full-20261027T062015Z.sqlite3`,
+32,115,085,312 bytes, 294 scanned runs, 17,578,188 proof rows,
+SQLite integrity `ok`, source unmodified. The previous PowerShell
+`Start-Process -Wait` parent remained waiting after backup completion;
+a later checkpoint attempt left empty stdout/stderr logs. User safely
+read source WAL ledger: 294 runs and 17,578,188 proof rows, with
+`PRAGMA journal_mode=wal`, then manually re-enabled only
+`EVE-V4-Shadow`. `EVE-V4-Opportunity-Push` remains Disabled.
+**No real production hot cutover has occurred.**
+
+New committed `v4/CONTROLLED_HOT_CUTOVER.ps1` provides an end-to-end
+guarded maintenance window with direct Python native subprocesses,
+streamed backup/verification progress, and timestamped transcript
+`$HOME\EVE-V4-Data\logs\controlled-hot-cutover-*.log`.
+`v4/external_backup.py` now emits 30-second SQLite copy progress
+and clear integrity phase markers to stderr. `v4/hot_cutover.py`
+emits visible phase markers before expensive integrity checks.
+The script performs fixture acceptance tests before pausing,
+disables only Shadow (checks Push already Disabled), verifies no live V4
+scanner/backup/maintenance process, losslessly archives all older
+runs, stages a fresh 72-run candidate, SHA-preflights it, creates a NEW
+(current) full D: backup, WAL-checkpoints the source via SQLite after
+independently verifying that new backup, promotes via the existing
+rollback-protected `v4.hot_cutover` guards, then calls new
+`v4.cutover_verification` (readonly) to check the 72-run policy,
+all hot per-run proof counts, all historical cold-index rows and
+incremental auto-vacuum. It re-enables ONLY Shadow if everything passes.
+If a step before checkpoint fails, restores Shadow automatically.
+If checkpoint or promotion was attempted and then fails, leaves
+Shadow DISABLED for safe inspection; does not manually delete journal
+files, resume writes or restore potentially moved DB files.
+
+Default mode is preview (read-only):
+```powershell
+Set-Location "$HOME\EVE-V4-Code"
+git switch prep/v4-windows-local-migration-20261013
+git pull --ff-only
+& .\v4\CONTROLLED_HOT_CUTOVER.ps1
+```
+Explicit end-to-end apply, in ADMIN PowerShell, only after review:
+```powershell
+& .\v4\CONTROLLED_HOT_CUTOVER.ps1 -Apply -Ack I_ACCEPT_V4_HOT_CUTOVER
+```
+Alternatively launch from an administrator PowerShell using
+`powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\v4\CONTROLLED_HOT_CUTOVER.ps1 -Apply -Ack I_ACCEPT_V4_HOT_CUTOVER`
+if script policy otherwise prevents invocation.
+
+**Status: script committed, but NOT YET run or acceptance-tested on the
+user's Windows host.** Source `v4/tests/test_cutover_verification.py`
+adds 5 isolated DB tests. Previous 26 existing checkpoint, external
+backup and cutover tests passed on user's Windows; active-only hot
+retention tests (9) and new post-verification tests (5) are included in
+the script's automatic pre-maintenance test gate; expected total 40.
+If any test fails, no scheduler or production DB has yet been touched.
+
+**Physical storage caveat:** C: and D: may be on one physical disk.
+The new PowerShell prints `Get-Partition` physical DiskNumbers and
+warns if equal. A different volume and a full verified D backup plus
+untouched rollback SQLite are strong local recovery points, but they
+are NOT an off-machine backup. An independently tested restore/off-machine
+copy is still required to conclude disaster recoverability. The
+cutover does not delete the old DB or archived/raw sources, nor can it
+promise immediate total disk space savings.
+
+**Important:** since scans resumed after the 294-run backup, that
+backup is no longer guaranteed current. Never substitute it for the
+fresh D backup created INSIDE the paused window. Do not reenable
+`EVE-V4-Opportunity-Push`.
+
 ## Gate B — operator maintenance window (NOT automatic)
 
 1. Check no backup integrity check or shadow/push job currently running.
