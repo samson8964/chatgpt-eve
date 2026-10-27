@@ -287,6 +287,51 @@ If Shadow resumes scanning before actual hot_cutover `--apply`,
 the candidate and prior D: backup are likely STALE and must be regenerated
 under another paused maintenance window. Never bypass this check.
 
+## 2026-10-27: Windows checkpoint fixture platform-mock correction
+
+The user's **19 external-backup / cutover tests passed**. The first batch
+of **25 tests** including the six new checkpoint cases reported
+`FAILED (errors=2)`; the complete traceback provided for
+`test_verified_backup_allows_sqlite_controlled_checkpoint`
+pinpointed `ModuleNotFoundError: No module named 'fcntl'` from
+`v4.local_run.exclusive_lock`. This was a TEST MOCK issue:
+
+`patch("v4.hot_cutover.platform.system", return_value="Linux")`
+overwrote the shared Python `platform` module function, so the actual
+Windows exclusive file-lock path incorrectly selected POSIX `fcntl`.
+Real Windows Python normally uses `msvcrt`.
+
+Commit `91b1abfd` changes **ONLY the isolated test fixture** to
+`patch("v4.hot_cutover.platform", SimpleNamespace(system=lambda: "Linux"))`,
+matching the existing proven `test_hot_cutover` technique. A new test
+asserts the real host platform remains unchanged in
+`v4.local_run.exclusive_lock`. No production lock, SQLite, backup,
+WAL or cutover safety check was changed. The new checkpoint module now
+has **7 tests**; combined test count should be **26**.
+**This fix is committed but has NOT yet passed user Windows testing.**
+
+To verify without touching production:
+```powershell
+Set-Location "$HOME\EVE-V4-Code"
+git pull --ff-only
+if ($LASTEXITCODE -ne 0) { throw 'Git update failed' }
+$py = (Resolve-Path '.\.venv\Scripts\python.exe').Path
+$err = Join-Path $env:TEMP 'v4-checkpoint-retest-stderr.txt'
+$out = Join-Path $env:TEMP 'v4-checkpoint-retest-stdout.txt'
+$p = Start-Process -FilePath $py -Wait -PassThru -NoNewWindow `
+    -ArgumentList @('-m','unittest','-v',
+        'v4.tests.test_maintenance_checkpoint',
+        'v4.tests.test_external_backup','v4.tests.test_hot_cutover') `
+    -RedirectStandardError $err -RedirectStandardOutput $out
+Get-Content $err -Tail 120
+"TEST_EXIT_CODE: $($p.ExitCode)"
+```
+
+Keep `EVE-V4-Shadow` running, `EVE-V4-Opportunity-Push` Disabled,
+and do not create production backups, checkpoint WAL or promote the hot
+candidate until tests pass and a separate controlled maintenance window
+is scheduled.
+
 ## Gate B — operator maintenance window (NOT automatic)
 
 1. Check no backup integrity check or shadow/push job currently running.
