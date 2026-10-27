@@ -19,6 +19,7 @@ import platform
 import shutil
 import sqlite3
 import subprocess
+import sys
 import uuid
 import xml.etree.ElementTree as ET
 from contextlib import closing
@@ -135,6 +136,8 @@ def _verified_independent_backup(root: Path, backup: Path) -> dict:
         raise RuntimeError("SOURCE_ALREADY_CONTAINS_HOT_POLICY")
     if live_proofs!=sum(r["proof_count"] for r in live):
         raise RuntimeError("SOURCE_FULL_HISTORICAL_PROOFS_REQUIRED")
+    print("CUTOVER_BACKUP_FULL_INTEGRITY_CHECK_START", backup,
+          flush=True, file=sys.stderr)
     with closing(_db_connection(backup)) as db:
         try:
             check=db.execute("PRAGMA integrity_check").fetchone()[0]
@@ -146,6 +149,8 @@ def _verified_independent_backup(root: Path, backup: Path) -> dict:
         except sqlite3.DatabaseError as exc:
             raise RuntimeError("EXTERNAL_BACKUP_NOT_VALID_SQLITE") from exc
     keys=("run_id","status","proof_count","proof_sha256","audited_at")
+    print("CUTOVER_BACKUP_INTEGRITY_DONE_COMPARE_SCAN_RUNS",
+          flush=True, file=sys.stderr)
     if check!="ok" or [dict(zip(keys,row)) for row in runs]!=live:
         raise RuntimeError("EXTERNAL_BACKUP_INVALID_OR_STALE")
     if proofs!=live_proofs:
@@ -242,6 +247,8 @@ def _promote(root: Path, candidate: Path, backup: Path) -> dict:
                 raise RuntimeError("STAGED_POLICY_UNSAFE")
             db.execute("UPDATE v4_hot_policy SET active=1 WHERE singleton=1")
             db.commit()
+            print("CUTOVER_STAGED_COPY_INTEGRITY_CHECK_START",
+                  flush=True, file=sys.stderr)
             if db.execute("PRAGMA integrity_check").fetchone()[0]!="ok":
                 raise RuntimeError("ACTIVATED_COPY_INTEGRITY_FAILED")
             if db.execute("PRAGMA auto_vacuum").fetchone()[0]!=2:
@@ -252,6 +259,8 @@ def _promote(root: Path, candidate: Path, backup: Path) -> dict:
         _check_tasks_disabled()
         _fresh_candidate(root,staged)
         _no_uncheckpointed_sidecars(live)
+        print("CUTOVER_ALL_GATES_PASSED_SWAP_START", flush=True,
+              file=sys.stderr)
         os.replace(live,old)
         original_moved=True
         os.replace(temporary,live)
