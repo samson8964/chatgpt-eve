@@ -15,6 +15,8 @@ import os
 import platform
 import shutil
 import sqlite3
+import sys
+import time
 from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path, PureWindowsPath
@@ -110,13 +112,33 @@ def create(root: Path, backup_dir: Path, *, now=None) -> dict:
         if target.exists() or target.is_symlink() or partial.exists() or partial.is_symlink():
             raise FileExistsError("EXTERNAL_BACKUP_TARGET_EXISTS")
         try:
+            # Progress diagnostics: SQLite online copy and its subsequent
+            # integrity check may each run for many minutes on a 30+ GiB DB.
+            # Never log sensitive source rows or credentials.
+            last_report = [time.monotonic() - 60.0]
+            def progress(status: int, remaining: int, total: int) -> None:
+                now_tick = time.monotonic()
+                if remaining == 0 or now_tick - last_report[0] >= 30.0:
+                    completed = max(0, total - remaining)
+                    percent = round(completed * 100.0 / total, 1) if total else 100.0
+                    print("BACKUP_COPY_PROGRESS", str(percent) + "%",
+                          completed, "of", total, "pages", flush=True,
+                          file=sys.stderr)
+                    last_report[0] = now_tick
+            print("BACKUP_COPY_START", source.stat().st_size, "bytes",
+                  flush=True, file=sys.stderr)
             with closing(sqlite3.connect(
                     "file:" + source.as_posix() + "?mode=ro",
                     uri=True, timeout=30)) as live:
                 with closing(sqlite3.connect(partial, timeout=30)) as backup:
-                    live.backup(backup, pages=2048, sleep=0.1)
+                    live.backup(backup, pages=2048, sleep=0.1,
+                                progress=progress)
+                    print("BACKUP_COPY_DONE_INTEGRITY_START",
+                          flush=True, file=sys.stderr)
                     if backup.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
                         raise RuntimeError("EXTERNAL_BACKUP_INTEGRITY_FAILED")
+                    print("BACKUP_INTEGRITY_OK_VERIFYING_LEDGER",
+                          flush=True, file=sys.stderr)
                     keys = ("run_id", "status", "proof_count",
                             "proof_sha256", "audited_at")
                     copy_runs = [dict(zip(keys, row)) for row in backup.execute(
@@ -154,6 +176,8 @@ def create(root: Path, backup_dir: Path, *, now=None) -> dict:
                 raise RuntimeError("EXTERNAL_BACKUP_NOT_CURRENT_OR_INCOMPLETE")
             # Persist only after all audit checks completed successfully.
             os.replace(partial, target)
+            print("BACKUP_VERIFIED_PUBLISHED", target, flush=True,
+                  file=sys.stderr)
             return {
                 "status": "FULL_EXTERNAL_BACKUP_VERIFIED",
                 "path": str(target), "bytes": target.stat().st_size,
