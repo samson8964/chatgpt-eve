@@ -101,6 +101,19 @@ if (Test-Path -LiteralPath ($Source + '-journal')) {
     throw 'SQLITE_ROLLBACK_JOURNAL_PRESENT_INSPECT_BEFORE_MAINTENANCE'
 }
 Assert-NoV4Activity
+# Cross-volume backup is a program gate, but C: and D: can share one disk.
+# Report the hardware risk explicitly; this is NOT an off-machine restore.
+try {
+    $cDisk = (Get-Partition -DriveLetter C -ErrorAction Stop).DiskNumber
+    $dDisk = (Get-Partition -DriveLetter D -ErrorAction Stop).DiskNumber
+    Say "STORAGE_DISK_MAP: C=Disk$cDisk D=Disk$dDisk"
+    if ($cDisk -eq $dDisk) {
+        Write-Warning 'C and D share a physical disk. A separate offline/off-machine recovery copy is still required.'
+    }
+}
+catch {
+    Say 'PHYSICAL_DISK_LAYOUT_UNVERIFIED: off-machine recovery copy remains required.'
+}
 
 $stamp = [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssZ')
 $LogDir = Join-Path $DataRoot 'logs'
