@@ -1,11 +1,13 @@
 """Isolated WAL maintenance tests. Never reach installed Windows tasks or data."""
 import hashlib
 import json
+import platform
 import sqlite3
 import tempfile
 import unittest
 from contextlib import closing
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from v4.local_store import _init
@@ -14,6 +16,7 @@ from v4.maintenance_checkpoint import ACK, checkpoint, inspect
 
 class MaintenanceCheckpointTests(unittest.TestCase):
     def setUp(self):
+        self.host_os = platform.system()
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         self.root = Path(tmp.name) / "data"
@@ -53,7 +56,12 @@ class MaintenanceCheckpointTests(unittest.TestCase):
         # tempfile volume. Simulate only the required separate-volume
         # condition here; real Windows enforcement has a separate test.
         with patch("v4.maintenance_checkpoint._check_tasks_disabled"), \
-             patch("v4.hot_cutover.platform.system", return_value="Linux"):
+             patch("v4.hot_cutover.platform",
+                   SimpleNamespace(system=lambda: "Linux")):
+            # Replacing only the hot_cutover module binding must NOT alter
+            # platform.system() as seen by local_run.exclusive_lock; Windows
+            # must keep msvcrt and never attempt to import Linux fcntl.
+            self.assertEqual(platform.system(), self.host_os)
             return checkpoint(
                 self.root, external_backup=self.backup, acknowledgement=ACK)
 
@@ -65,6 +73,16 @@ class MaintenanceCheckpointTests(unittest.TestCase):
         self.assertFalse(result["checkpoint_performed"])
         self.assertFalse(result["source_modified"])
         self.assertEqual(self.db.stat().st_size, before)
+
+    def test_mocked_hot_cutover_platform_keeps_real_lock_platform(self):
+        # Regression for ModuleNotFoundError('fcntl') from patching the
+        # shared platform.system function instead of the module binding.
+        host = platform.system()
+        with patch("v4.hot_cutover.platform",
+                   SimpleNamespace(system=lambda: "Linux")):
+            self.assertEqual(platform.system(), host)
+            from v4 import local_run
+            self.assertEqual(local_run.platform.system(), host)
 
     def test_verified_backup_allows_sqlite_controlled_checkpoint(self):
         output = self._apply()
