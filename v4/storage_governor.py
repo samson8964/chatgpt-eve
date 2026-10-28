@@ -10,6 +10,7 @@ import argparse
 import json
 import os
 import shutil
+import stat
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
@@ -31,9 +32,13 @@ def _files(root: Path) -> dict:
     if not root.exists():
         return {"total_bytes": 0, "files": 0, "categories": {},
                 "status": "ROOT_MISSING"}
-    if root.is_symlink() or not root.is_dir():
+    root_attributes = getattr(root.stat(follow_symlinks=False),
+                              "st_file_attributes", 0)
+    if (root.is_symlink() or not root.is_dir() or
+            root_attributes & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0)):
         return {"total_bytes": 0, "files": 0, "categories": {},
                 "status": "ROOT_UNSAFE"}
+    canonical_root = root.resolve()
     total = 0
     def walk_error(_):
         nonlocal errors
@@ -49,7 +54,11 @@ def _files(root: Path) -> dict:
             child = here / name
             try:
                 real = child.resolve()
-                if not child.is_symlink() and root in real.parents:
+                attrs = getattr(child.stat(follow_symlinks=False),
+                                "st_file_attributes", 0)
+                redirected = child.is_symlink() or bool(
+                    attrs & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0))
+                if not redirected and canonical_root in real.parents:
                     safe.append(name)
                 else:
                     errors = True
