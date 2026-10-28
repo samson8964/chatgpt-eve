@@ -13,7 +13,7 @@ from pathlib import Path
 from v4.engine import Policy
 from v4.contract_content_policy import eligible_contract_research, CRYSTAL_SHARE_BASIS
 
-SCHEMA = 1
+SCHEMA = 2
 JITA = 60003760
 INDEX = Path("mail-review/opportunity-first-seen.json")
 
@@ -113,74 +113,94 @@ def _discovered_key(proof: dict) -> str | None:
     return None
 
 
+
 def _load_index(path: Path) -> dict:
+    """V2 indexes only the current successful 72-run window.
+
+    Migrate a legacy lifetime index by rebuilding from the current window;
+    the old entries never influence fresh first-seen dates.
+    """
+    empty = {"schema": 2, "last_run": "", "run_keys": {}}
     if not path.is_file():
-        return {"schema": SCHEMA, "last_run": "", "seen": {}}
+        return empty
     try:
         obj = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
         raise RuntimeError("V4_DISCOVERY_INDEX_INVALID") from exc
-    if (not isinstance(obj, dict) or obj.get("schema") != SCHEMA or
+    if not isinstance(obj, dict):
+        raise RuntimeError("V4_DISCOVERY_INDEX_INVALID")
+    if obj.get("schema") == 1:
+        if not isinstance(obj.get("seen"), dict):
+            raise RuntimeError("V4_DISCOVERY_INDEX_INVALID")
+        return empty
+    runs = obj.get("run_keys")
+    if (obj.get("schema") != 2 or not isinstance(runs, dict) or
             not isinstance(obj.get("last_run"), str) or
-            not isinstance(obj.get("seen"), dict) or
-            not all(isinstance(k, str) and isinstance(v, str)
-                    for k, v in obj["seen"].items())):
+            not all(isinstance(k, str) and isinstance(v, list) and
+                        all(isinstance(item, str) for item in v)
+                        for k, v in runs.items())):
         raise RuntimeError("V4_DISCOVERY_INDEX_INVALID")
     return obj
 
 
 def first_seen(root: Path, current_run: str) -> dict[str, str]:
-    """Incrementally replay saved run proofs, then persist earliest timestamps.
+    """Earliest qualified appearance within the latest 72 completed runs.
 
-    The first invocation backfills existing completed runs; later invocations
-    read only newer runs. A failure never overwrites original market evidence.
-    Two mail channels share this same per-run ordering/first-seen timestamp.
+    The initial V1->V2 migration parses only the current 72 complete runs;
+    subsequent calls parse only an unseen run, without lifetime accumulation.
     """
     root = Path(root)
     path = root / INDEX
-    record = _load_index(path)
-    seen = record["seen"]
-    last_run = record["last_run"]
-    folders = sorted((root / "runs").iterdir())
-    changed = False
-    for folder in folders:
-        if not folder.is_dir() or not (last_run < folder.name <= current_run):
-            continue
-        moment = _run_time(folder.name)
-        if moment is None:
+    previous = _load_index(path)
+    folders = []
+    for folder in (root / "runs").iterdir():
+        if (not folder.is_dir() or folder.is_symlink() or
+                folder.name > current_run):
             continue
         manifest = folder / "manifest.json"
         proofs = folder / "all_proofs.jsonl"
-        if not manifest.is_file() or not proofs.is_file():
+        if (manifest.is_symlink() or proofs.is_symlink() or
+                not manifest.is_file() or not proofs.is_file()):
             continue
         try:
             status = json.loads(manifest.read_text(encoding="utf-8")).get("status")
-        except (OSError, ValueError):
+        except (OSError, ValueError) as exc:
+            raise RuntimeError("V4_DISCOVERY_MANIFEST_INVALID") from exc
+        if status == "SHADOW_RECORDED" and _run_time(folder.name) is not None:
+            folders.append(folder)
+    folders = sorted(folders, key=lambda folder: folder.name)[-72:]
+    prior = previous["run_keys"]
+    kept = {}
+    for folder in folders:
+        if folder.name in prior:
+            kept[folder.name] = prior[folder.name]
             continue
-        if status != "SHADOW_RECORDED":
-            continue
-        with proofs.open(encoding="utf-8") as stream:
+        keys = set()
+        with (folder / "all_proofs.jsonl").open(encoding="utf-8") as stream:
             for line in stream:
                 if not line.strip():
                     continue
                 proof = json.loads(line)
-                # Skip non-market/non-contract rows before deeper inspection.
-                if proof.get("kind") not in ("market", "contract", "blueprint_manufacturing"):
+                if proof.get("kind") not in (
+                        "market", "contract", "blueprint_manufacturing"):
                     continue
                 key = _discovered_key(proof)
-                if key is not None and key not in seen:
-                    seen[key] = moment
-                    changed = True
-        last_run = folder.name
-        changed = True
-    if changed:
+                if key is not None:
+                    keys.add(key)
+        kept[folder.name] = sorted(keys)
+    seen = {}
+    for name, keys in sorted(kept.items()):
+        moment = _run_time(name)
+        for key in keys:
+            seen.setdefault(key, moment)
+    update = {"schema": 2, "last_run": current_run, "run_keys": kept}
+    if update != previous:
         path.parent.mkdir(parents=True, exist_ok=True)
         temp = path.with_suffix(".json.part")
         try:
-            temp.write_text(json.dumps({"schema": SCHEMA, "last_run": last_run,
-                                        "seen": seen}, ensure_ascii=False,
-                                       separators=(",", ":"), sort_keys=True),
-                            encoding="utf-8")
+            temp.write_text(json.dumps(
+                update, ensure_ascii=False, separators=(",", ":"),
+                sort_keys=True), encoding="utf-8")
             os.replace(temp, path)
         finally:
             temp.unlink(missing_ok=True)
