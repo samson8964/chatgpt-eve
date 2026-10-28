@@ -11,6 +11,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import sqlite3
 import stat
 from contextlib import closing
@@ -173,14 +174,37 @@ def _require_activation(root: Path) -> None:
         raise RuntimeError("ROLLING72_BACKUP_NOT_ON_OTHER_VOLUME")
 
 
-def activate(root: Path, *, backup: Path) -> dict:
-    """Explicit one-time acknowledgement, after independent full backup.
 
-    A matching snapshot is mandatory; never automatically enabled by git pull.
-    """
-    root, backup = Path(root).resolve(), Path(backup).resolve()
+def _require_maintenance_window() -> None:
+    """Refuse activation while either scheduled task can start another scan."""
     if os.name != "nt":
         raise RuntimeError("ROLLING72_ACTIVATION_ONLY_ON_WINDOWS")
+    script = (
+        "$ErrorActionPreference = 'Stop'; "
+        "foreach ($n in @('EVE-V4-Shadow','EVE-V4-Opportunity-Push')) { "
+        "$t = Get-ScheduledTask -TaskName $n -ErrorAction Stop; "
+        "if ($t.State -ne 'Disabled') { exit 12 } "
+        "}; exit 0"
+    )
+    try:
+        result = subprocess.run(
+            ["powershell.exe", "-NoProfile", "-NonInteractive",
+             "-Command", script], timeout=30, check=False,
+            capture_output=True)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise RuntimeError("ROLLING72_TASK_STATUS_UNAVAILABLE") from exc
+    if result.returncode:
+        raise RuntimeError("ROLLING72_BOTH_SCHEDULED_TASKS_MUST_BE_DISABLED")
+
+
+def activate(root: Path, *, backup: Path) -> dict:
+    """Opt-in only after verifying an independent up-to-date SQLite snapshot.
+
+    Both tasks must be disabled, and the shared scanner lock must be held.
+    Never turn on deletion implicitly during a git pull.
+    """
+    root, backup = Path(root).resolve(), Path(backup).resolve()
+    _require_maintenance_window()
     if (not backup.is_file() or not _safe(backup, backup.parent) or
             os.path.splitdrive(str(root))[0].lower() ==
             os.path.splitdrive(str(backup))[0].lower()):
@@ -188,32 +212,36 @@ def activate(root: Path, *, backup: Path) -> dict:
     if (root / POLICY).exists():
         raise RuntimeError("ROLLING72_ALREADY_CONFIGURED")
     source = root / "sqlite" / "v4-shadow.sqlite3"
-    with closing(sqlite3.connect("file:" + backup.as_posix() +
-                                 "?mode=ro&immutable=1", uri=True)) as check:
-        if check.execute("PRAGMA integrity_check").fetchone() != ("ok",):
-            raise RuntimeError("ROLLING72_BACKUP_INTEGRITY_FAILED")
-        if not _table(check, "scan_runs"):
-            raise RuntimeError("ROLLING72_BACKUP_SCHEMA_INVALID")
-        backup_latest = check.execute(
-            "SELECT run_id FROM scan_runs ORDER BY audited_at DESC,run_id DESC LIMIT 1"
-        ).fetchone()
-    with closing(sqlite3.connect("file:" + source.as_posix() + "?mode=ro",
-                                 uri=True)) as live:
-        live_latest = live.execute(
-            "SELECT run_id FROM scan_runs ORDER BY audited_at DESC,run_id DESC LIMIT 1"
-        ).fetchone()
-    if not backup_latest or backup_latest != live_latest:
-        raise RuntimeError("ROLLING72_BACKUP_NOT_CURRENT")
-    record = dict(schema=1, token=TOKEN, backed_up=True,
-                  backup=str(backup), activated_at=datetime.now(timezone.utc).isoformat(),
-                  backup_latest_run=backup_latest[0])
-    policy = root / POLICY
-    policy.parent.mkdir(parents=True, exist_ok=True)
-    with policy.open("x", encoding="utf-8") as fp:
-        json.dump(record, fp, indent=2)
+    with exclusive_lock(root / "v4-local-shadow.lock"):
+        _require_maintenance_window()
+        with closing(sqlite3.connect(
+                "file:" + backup.as_posix() + "?mode=ro&immutable=1",
+                uri=True, timeout=30)) as check:
+            if check.execute("PRAGMA integrity_check").fetchone() != ("ok",):
+                raise RuntimeError("ROLLING72_BACKUP_INTEGRITY_FAILED")
+            if not _table(check, "scan_runs"):
+                raise RuntimeError("ROLLING72_BACKUP_SCHEMA_INVALID")
+            backup_latest = check.execute(
+                "SELECT run_id,proof_count,proof_sha256 FROM scan_runs "
+                "ORDER BY audited_at DESC,run_id DESC LIMIT 1").fetchone()
+        with closing(sqlite3.connect(
+                "file:" + source.as_posix() + "?mode=ro",
+                uri=True, timeout=30)) as live:
+            latest = live.execute(
+                "SELECT run_id,proof_count,proof_sha256 FROM scan_runs "
+                "ORDER BY audited_at DESC,run_id DESC LIMIT 1").fetchone()
+        if not backup_latest or backup_latest != latest:
+            raise RuntimeError("ROLLING72_BACKUP_NOT_CURRENT")
+        record = dict(schema=1, token=TOKEN, backed_up=True,
+                      backup=str(backup),
+                      activated_at=datetime.now(timezone.utc).isoformat(),
+                      backup_latest_run=backup_latest[0])
+        policy = root / POLICY
+        policy.parent.mkdir(parents=True, exist_ok=True)
+        with policy.open("x", encoding="utf-8") as fp:
+            json.dump(record, fp, indent=2)
     return dict(status="ROLLING72_ACTIVATED", backup=str(backup),
                 automatic_delete_now_allowed=True)
-
 
 
 def _purge_auxiliary(root: Path, run_id: str, folder_name: str) -> int:
