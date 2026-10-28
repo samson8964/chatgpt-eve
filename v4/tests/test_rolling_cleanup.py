@@ -140,6 +140,51 @@ class CleanupTests(unittest.TestCase):
         self.assertEqual(result["deleted"], 0)
         self.assertEqual(self.sql_counts(), (73, 73))
 
+    def test_expired_cold_archive_and_receipts_are_reclaimed(self):
+        first = self.add(0)
+        for i in range(1, 73):
+            self.add(i)
+        cold = self.root / "cold-proof-archives"
+        cold.mkdir()
+        archive = cold / "run-0000.jsonl.gz"
+        manifest = cold / "run-0000.manifest.json"
+        archive.write_bytes(b"compressed evidence")
+        manifest.write_text(json.dumps({"run_id": "run-0000"}))
+        for folder_name in ("receipts", "eve-receipts"):
+            folder = self.root / "mail-review" / folder_name
+            folder.mkdir(parents=True)
+            path = folder / (first.name + ".json")
+            path.write_text(json.dumps({"run": first.name}))
+        with patch.object(mod, "_require_activation"):
+            out = mod.cleanup(self.root, apply=True)
+        self.assertGreater(out["reclaimed_bytes"], 0)
+        self.assertFalse(archive.exists())
+        self.assertFalse(manifest.exists())
+        self.assertFalse(first.exists())
+        self.assertFalse((self.root / "mail-review" / "receipts" /
+                          (first.name + ".json")).exists())
+        self.assertEqual(self.sql_counts(), (72, 72))
+
+    def test_unmatched_cold_manifest_fails_closed_and_journals(self):
+        self.add_many()
+        cold = self.root / "cold-proof-archives"
+        cold.mkdir()
+        (cold / "run-0000.manifest.json").write_text(
+            json.dumps({"run_id": "someone-else"}))
+        with patch.object(mod, "_require_activation"):
+            with self.assertRaisesRegex(RuntimeError, "COLD_MANIFEST_MISMATCH"):
+                mod.cleanup(self.root, apply=True)
+        with closing(sqlite3.connect(self.db_path)) as db:
+            self.assertEqual(db.execute(
+                "SELECT COUNT(*) FROM rolling72_pending").fetchone()[0], 1)
+
+    def test_maintenance_tasks_must_be_disabled_to_activate(self):
+        with patch.object(mod.os, "name", "nt"):
+            with patch.object(mod.subprocess, "run") as run:
+                run.return_value.returncode = 12
+                with self.assertRaisesRegex(RuntimeError, "MUST_BE_DISABLED"):
+                    mod._require_maintenance_window()
+
     def test_invalid_max_runs_fails(self):
         with self.assertRaisesRegex(ValueError, "MAX_RUNS"):
             mod.cleanup(self.root, apply=True, max_runs=100)
