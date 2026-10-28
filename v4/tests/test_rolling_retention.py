@@ -3,6 +3,7 @@ import json
 import sqlite3
 import tempfile
 import unittest
+from contextlib import closing
 from pathlib import Path
 
 from v4.rolling_retention import inspect
@@ -16,7 +17,7 @@ class RollingRetentionInventoryTests(unittest.TestCase):
         (self.root / "sqlite").mkdir()
         (self.root / "runs").mkdir()
         self.database = self.root / "sqlite" / "v4-shadow.sqlite3"
-        with sqlite3.connect(self.database) as db:
+        with closing(sqlite3.connect(self.database)) as db:
             db.execute("CREATE TABLE scan_runs (run_id TEXT PRIMARY KEY,"
                        "status TEXT, audited_at TEXT)")
             db.execute("CREATE TABLE proof_versions "
@@ -39,7 +40,7 @@ class RollingRetentionInventoryTests(unittest.TestCase):
             "coverage_gate": "INPUT_LANES_REPORTED_COMPLETE_NOT_LIVE_VERIFIED",
             "failed_structure_lanes": {},
         }), encoding="utf-8")
-        with sqlite3.connect(self.database) as db:
+        with closing(sqlite3.connect(self.database)) as db:
             db.execute("INSERT INTO scan_runs VALUES (?,?,?)",
                        (run_id,
                         "SHADOW_VERIFIED_OFFLINE" if success else "FAILED",
@@ -111,7 +112,7 @@ class RollingRetentionInventoryTests(unittest.TestCase):
                       out["old_run_samples"][0]["blockers"])
 
     def test_unmapped_old_sqlite_is_not_guessed_into_purge(self):
-        with sqlite3.connect(self.database) as db:
+        with closing(sqlite3.connect(self.database)) as db:
             db.execute("INSERT INTO scan_runs VALUES (?,?,?)",
                        ("old-missing", "SHADOW_VERIFIED_OFFLINE", "000"))
             db.commit()
