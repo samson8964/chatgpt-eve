@@ -136,6 +136,25 @@ def post_scan_hot_retention(root: Path) -> dict:
                 "scanner_and_mail_unchanged":True}
 
 
+
+def post_scan_rolling_cleanup(root: Path) -> dict:
+    """Execute at most two old-run purges after mail, ONLY when activated.
+
+    A git pull cannot activate deletion; config requires a verified backup.
+    Any failure affects maintenance only; scanner and delivery remain intact.
+    """
+    try:
+        from v4.rolling_cleanup import POLICY, _json, TOKEN, cleanup
+        token = _json(root / POLICY)
+        if not token or token.get("token") != TOKEN:
+            return {"status": "NOT_ACTIVATED", "deleted": 0}
+        return cleanup(root, apply=True, max_runs=2)
+    except Exception as exc:
+        return {"status": "BLOCKED", "error_type": type(exc).__name__,
+                "data_deleted_status": "UNVERIFIED", "mail_unchanged": True}
+
+
+
 def post_cycle_storage_health(root: Path) -> dict:
     """Best-effort capacity telemetry only. Never modify old evidence."""
     try:
@@ -239,6 +258,13 @@ def main() -> int:
                     print("HOT_PROOF_RETENTION",
                           json.dumps(housekeeping,ensure_ascii=False),
                           flush=True)
+                    # File + SQLite rolling lifecycle. Never on degraded scans,
+                    # and never before both independent delivery attempts.
+                    if result.get("status") == "SHADOW_RECORDED":
+                        rolling = post_scan_rolling_cleanup(root)
+                        print("ROLLING72_CLEANUP",
+                              json.dumps(rolling, ensure_ascii=False),
+                              flush=True)
                     _log_storage_health(root)
                     if delivery_failure:
                         return 3
