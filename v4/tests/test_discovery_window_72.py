@@ -2,6 +2,7 @@
 import json
 import tempfile
 import unittest
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from v4.discovery_history import first_seen, market_key, INDEX
@@ -20,7 +21,8 @@ def lead(item_id):
 
 
 def run_folder(root, n, rows):
-    folder = root / "runs" / ("20261028T%06dZ-%08d" % (n, n))
+    stamp = (datetime(2026, 10, 28, tzinfo=timezone.utc) + timedelta(minutes=n)).strftime("%Y%m%dT%H%M%SZ")
+    folder = root / "runs" / ("%s-%08d" % (stamp, n))
     folder.mkdir(parents=True)
     (folder / "manifest.json").write_text(
         json.dumps({"status": "SHADOW_RECORDED"}), encoding="utf-8")
@@ -43,7 +45,7 @@ class WindowDiscoveryTests(unittest.TestCase):
         newest = run_folder(self.root, 72, [lead(34), lead(35)])
         seen = first_seen(self.root, newest.name)
         key = market_key(lead(34))
-        self.assertEqual(seen[key], "2026-10-28T00:00:72Z")
+        self.assertEqual(seen[key], "2026-10-28T01:12:00Z")
         index = json.loads((self.root / INDEX).read_text("utf-8"))
         self.assertEqual(index["schema"], 2)
         self.assertEqual(len(index["run_keys"]), 72)
@@ -64,7 +66,7 @@ class WindowDiscoveryTests(unittest.TestCase):
         folder = run_folder(self.root, 1, [lead(34)])
         seen = first_seen(self.root, folder.name)
         self.assertEqual(seen[market_key(lead(34))],
-                         "2026-10-28T00:00:01Z")
+                         "2026-10-28T00:01:00Z")
         self.assertEqual(json.loads(path.read_text("utf-8"))["schema"], 2)
 
     def test_bad_v2_index_refuses_to_silently_overwrite(self):
