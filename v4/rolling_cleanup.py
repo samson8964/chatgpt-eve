@@ -215,10 +215,59 @@ def activate(root: Path, *, backup: Path) -> dict:
                 automatic_delete_now_allowed=True)
 
 
-def _remove_pending(db, root, run_id, folder_name) -> bool:
+
+def _purge_auxiliary(root: Path, run_id: str, folder_name: str) -> int:
+    """Purge only old-run cold artifacts and receipts, by exact verified names.
+
+    Resumable: archive is removed first, manifest last; missing archive with a
+    valid manifest means previous partial completion. Unknown archive without
+    a manifest is not guessed safe.
+    """
+    freed = 0
+    cold = root / "cold-proof-archives"
+    if cold.exists():
+        if not _safe(cold, root, directory=True):
+            raise RuntimeError("ROLLING72_COLD_DIRECTORY_UNSAFE")
+        manifest = cold / (run_id + ".manifest.json")
+        archive = cold / (run_id + ".jsonl.gz")
+        if not _safe(manifest, root) or not _safe(archive, root):
+            raise RuntimeError("ROLLING72_COLD_ARTIFACT_UNSAFE")
+        if manifest.exists():
+            data = _json(manifest)
+            if not data or data.get("run_id") != run_id:
+                raise RuntimeError("ROLLING72_COLD_MANIFEST_MISMATCH")
+            if archive.exists():
+                freed += archive.stat().st_size
+                archive.unlink()
+            freed += manifest.stat().st_size
+            manifest.unlink()
+        elif archive.exists():
+            raise RuntimeError("ROLLING72_ORPHAN_COLD_ARCHIVE")
+    for relative in ("mail-review/receipts", "mail-review/eve-receipts"):
+        directory = root / relative
+        if not directory.exists():
+            continue
+        if not _safe(directory, root, directory=True):
+            raise RuntimeError("ROLLING72_RECEIPT_DIRECTORY_UNSAFE")
+        for path in directory.iterdir():
+            if not re.fullmatch(re.escape(folder_name) + r"(?:-\d+)?\.json",
+                                path.name):
+                continue
+            if not _safe(path, root):
+                raise RuntimeError("ROLLING72_RECEIPT_UNSAFE")
+            receipt = _json(path)
+            if not receipt or receipt.get("run") != folder_name:
+                raise RuntimeError("ROLLING72_RECEIPT_MISMATCH")
+            freed += path.stat().st_size
+            path.unlink()
+    return freed
+
+
+def _remove_pending(db, root, run_id, folder_name) -> int:
     path = root / "runs" / folder_name
     if not RUN_DIR.fullmatch(folder_name) or not _safe(path, root / "runs"):
         raise RuntimeError("ROLLING72_PENDING_PATH_INVALID")
+    freed = 0
     if path.exists():
         if not _safe_tree(path, root / "runs"):
             raise RuntimeError("ROLLING72_PENDING_TREE_UNSAFE")
@@ -226,10 +275,14 @@ def _remove_pending(db, root, run_id, folder_name) -> bool:
         detail = _json(path / "deep_shadow.json")
         if not detail or detail.get("run_id") != run_id:
             raise RuntimeError("ROLLING72_PENDING_RUN_MISMATCH")
+        for base, dirs, files in os.walk(path, followlinks=False):
+            for name in files:
+                freed += (Path(base) / name).stat().st_size
         shutil.rmtree(path)
+    freed += _purge_auxiliary(root, run_id, folder_name)
     db.execute("DELETE FROM rolling72_pending WHERE run_id=?", (run_id,))
     db.commit()
-    return True
+    return freed
 
 
 def cleanup(root: Path, *, apply=False, max_runs=MAX_PER_CYCLE) -> dict:
@@ -243,7 +296,8 @@ def cleanup(root: Path, *, apply=False, max_runs=MAX_PER_CYCLE) -> dict:
     with exclusive_lock(root / "v4-local-shadow.lock"):
         _require_activation(root)
         out = {"status": "NOT_NEEDED", "deleted": 0,
-               "sqlite_modified": False, "raw_folders_deleted": 0, "blocked": 0}
+               "sqlite_modified": False, "raw_folders_deleted": 0,
+               "reclaimed_bytes": 0, "blocked": 0}
         dbfile = root / "sqlite" / "v4-shadow.sqlite3"
         with closing(sqlite3.connect(dbfile, timeout=30)) as db:
             db.execute("PRAGMA busy_timeout=30000")
@@ -253,7 +307,7 @@ def cleanup(root: Path, *, apply=False, max_runs=MAX_PER_CYCLE) -> dict:
                        "created_at TEXT NOT NULL)")
             db.commit()
             for run_id, folder_name in _pending(db):
-                _remove_pending(db, root, run_id, folder_name)
+                out["reclaimed_bytes"] += _remove_pending(db, root, run_id, folder_name)
                 out["raw_folders_deleted"] += 1
             rows, warnings = _history(root, db)
             if warnings:
@@ -291,7 +345,7 @@ def cleanup(root: Path, *, apply=False, max_runs=MAX_PER_CYCLE) -> dict:
                     raise
                 out["sqlite_modified"] = True
                 out["deleted"] += 1
-                _remove_pending(db, root, run_id, name)
+                out["reclaimed_bytes"] += _remove_pending(db, root, run_id, name)
                 out["raw_folders_deleted"] += 1
             if out["deleted"]:
                 out["status"] = "CLEANED"
