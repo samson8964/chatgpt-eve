@@ -14,6 +14,7 @@ import json
 import os
 import platform
 import shutil
+import stat
 import sqlite3
 import sys
 import time
@@ -46,10 +47,14 @@ def _safe_directory(root: Path, directory: Path) -> None:
     # Refuse redirection through an existing symlink/junction parent.
     probe = directory
     while probe != probe.parent:
-        if probe.exists() and (probe.is_symlink() or (
-                platform.system() == "Windows" and
-                str(probe.resolve()).lower() != str(probe.absolute()).lower())):
-            raise RuntimeError("EXTERNAL_BACKUP_REDIRECTED_DIRECTORY")
+        if probe.exists():
+            attributes = getattr(probe.stat(follow_symlinks=False),
+                                 "st_file_attributes", 0)
+            is_reparse = bool(attributes & getattr(
+                stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0))
+            if probe.is_symlink() or (
+                    platform.system() == "Windows" and is_reparse):
+                raise RuntimeError("EXTERNAL_BACKUP_REDIRECTED_DIRECTORY")
         probe = probe.parent
     require_different_volume(root, directory)
 
