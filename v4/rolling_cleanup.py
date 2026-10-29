@@ -197,7 +197,8 @@ def _require_maintenance_window() -> None:
         raise RuntimeError("ROLLING72_BOTH_SCHEDULED_TASKS_MUST_BE_DISABLED")
 
 
-def activate(root: Path, *, backup: Path) -> dict:
+def activate(root: Path, *, backup: Path,
+             accept_quick_verified: bool = False) -> dict:
     """Opt-in only after verifying an independent up-to-date SQLite snapshot.
 
     Both tasks must be disabled, and the shared scanner lock must be held.
@@ -214,16 +215,45 @@ def activate(root: Path, *, backup: Path) -> dict:
     source = root / "sqlite" / "v4-shadow.sqlite3"
     with exclusive_lock(root / "v4-local-shadow.lock"):
         _require_maintenance_window()
+        # FAST receipt is an opt-in, explicitly lower-coverage alternative.
+        # Hash protects the exact verified standalone database against
+        # subsequent partial copy / accidental replacement.
+        verify_kind = "full"
+        fast_receipt = backup.with_name(backup.name + ".verified.json")
+        if accept_quick_verified:
+            receipt = _json(fast_receipt)
+            if (not receipt or receipt.get("schema") != 1 or
+                    receipt.get("verification") != "quick" or
+                    not isinstance(receipt.get("backup_sha256"), str) or
+                    receipt.get("backup_bytes") != backup.stat().st_size or
+                    not isinstance(receipt.get("latest_run_id"), str)):
+                raise RuntimeError("ROLLING72_FAST_BACKUP_RECEIPT_INVALID")
+            from v4.external_backup import _sha256
+            if _sha256(backup) != receipt["backup_sha256"]:
+                raise RuntimeError("ROLLING72_FAST_BACKUP_HASH_MISMATCH")
+            verify_kind = "quick"
         with closing(sqlite3.connect(
                 "file:" + backup.as_posix() + "?mode=ro&immutable=1",
                 uri=True, timeout=30)) as check:
-            if check.execute("PRAGMA integrity_check").fetchone() != ("ok",):
+            if check.execute("PRAGMA " + (
+                    "integrity_check" if verify_kind == "full" else
+                    "quick_check")).fetchone() != ("ok",):
                 raise RuntimeError("ROLLING72_BACKUP_INTEGRITY_FAILED")
-            if not _table(check, "scan_runs"):
+            if not _table(check, "scan_runs") or not _table(
+                    check, "proof_versions"):
                 raise RuntimeError("ROLLING72_BACKUP_SCHEMA_INVALID")
             backup_latest = check.execute(
                 "SELECT run_id,proof_count,proof_sha256 FROM scan_runs "
                 "ORDER BY audited_at DESC,run_id DESC LIMIT 1").fetchone()
+            backup_count = check.execute(
+                "SELECT COUNT(*) FROM scan_runs").fetchone()[0]
+            proof_count = check.execute(
+                "SELECT COUNT(*) FROM proof_versions").fetchone()[0]
+            if verify_kind == "quick" and (
+                    receipt["latest_run_id"] != backup_latest[0] or
+                    receipt.get("scan_runs") != backup_count or
+                    receipt.get("proof_rows") != proof_count):
+                raise RuntimeError("ROLLING72_FAST_BACKUP_LEDGER_MISMATCH")
         with closing(sqlite3.connect(
                 "file:" + source.as_posix() + "?mode=ro",
                 uri=True, timeout=30)) as live:
@@ -234,6 +264,7 @@ def activate(root: Path, *, backup: Path) -> dict:
             raise RuntimeError("ROLLING72_BACKUP_NOT_CURRENT")
         record = dict(schema=1, token=TOKEN, backed_up=True,
                       backup=str(backup),
+                      backup_verification=verify_kind,
                       activated_at=datetime.now(timezone.utc).isoformat(),
                       backup_latest_run=backup_latest[0])
         policy = root / POLICY
@@ -241,6 +272,7 @@ def activate(root: Path, *, backup: Path) -> dict:
         with policy.open("x", encoding="utf-8") as fp:
             json.dump(record, fp, indent=2)
     return dict(status="ROLLING72_ACTIVATED", backup=str(backup),
+                backup_verification=verify_kind,
                 automatic_delete_now_allowed=True)
 
 
@@ -390,10 +422,14 @@ def main():
     group = p.add_mutually_exclusive_group()
     group.add_argument("--activate-with-backup", type=Path)
     group.add_argument("--apply", action="store_true")
+    p.add_argument("--accept-quick-verified-backup", action="store_true",
+                   help="Explicitly accept quick_check verification scope "
+                        "(does not verify UNIQUE or index/table consistency)")
     p.add_argument("--max-runs", type=int, default=MAX_PER_CYCLE)
     a = p.parse_args()
     if a.activate_with_backup:
-        result = activate(a.data_root, backup=a.activate_with_backup)
+        result = activate(a.data_root, backup=a.activate_with_backup,
+                          accept_quick_verified=a.accept_quick_verified_backup)
     else:
         result = cleanup(a.data_root, apply=a.apply, max_runs=a.max_runs)
     print(json.dumps(result, ensure_ascii=False, indent=2))
