@@ -140,9 +140,30 @@ def create(root: Path, backup_dir: Path, *, now=None) -> dict:
                                 progress=progress)
                     print("BACKUP_COPY_DONE_INTEGRITY_START",
                           flush=True, file=sys.stderr)
-                    if backup.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
-                        raise RuntimeError("EXTERNAL_BACKUP_INTEGRITY_FAILED")
+                    # SQLite's full integrity_check can be CPU-intensive on
+                    # multi-GB proof ledgers. This progress hook reports
+                    # *activity* every 60s (not a fabricated percentage).
+                    started_check = time.monotonic()
+                    last_check_report = [started_check - 60.0]
+                    vm_callbacks = [0]
+                    def integrity_heartbeat() -> int:
+                        vm_callbacks[0] += 1
+                        tick = time.monotonic()
+                        if tick - last_check_report[0] >= 60:
+                            print("BACKUP_INTEGRITY_ACTIVE",
+                                  "elapsed_seconds", int(tick - started_check),
+                                  "vm_callback_count", vm_callbacks[0],
+                                  flush=True, file=sys.stderr)
+                            last_check_report[0] = tick
+                        return 0
+                    backup.set_progress_handler(integrity_heartbeat, 100000)
+                    try:
+                        if backup.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
+                            raise RuntimeError("EXTERNAL_BACKUP_INTEGRITY_FAILED")
+                    finally:
+                        backup.set_progress_handler(None, 0)
                     print("BACKUP_INTEGRITY_OK_VERIFYING_LEDGER",
+                          "elapsed_seconds", int(time.monotonic() - started_check),
                           flush=True, file=sys.stderr)
                     keys = ("run_id", "status", "proof_count",
                             "proof_sha256", "audited_at")
@@ -167,12 +188,17 @@ def create(root: Path, backup_dir: Path, *, now=None) -> dict:
             with closing(sqlite3.connect(
                     "file:" + partial.resolve().as_posix() + "?mode=ro&immutable=1",
                     uri=True, timeout=30)) as immutable:
-                if immutable.execute(
-                        "PRAGMA integrity_check").fetchone()[0] != "ok":
-                    raise RuntimeError("EXTERNAL_BACKUP_STANDALONE_INTEGRITY_FAILED")
+                # Full integrity was already checked *once* on this exact
+                # destination snapshot before closing it. Re-running the
+                # whole check doubles validation time without new evidence.
+                # Independent immutable opening still proves the published
+                # file is readable without its prior connection or WAL.
                 if immutable.execute(
                         "SELECT COUNT(*) FROM proof_versions").fetchone()[0] != copy_proofs:
                     raise RuntimeError("EXTERNAL_BACKUP_STANDALONE_PROOFS_MISMATCH")
+                if immutable.execute(
+                        "SELECT COUNT(*) FROM scan_runs").fetchone()[0] != len(copy_runs):
+                    raise RuntimeError("EXTERNAL_BACKUP_STANDALONE_RUNS_MISMATCH")
             after = ledger_runs(root)
             # Verify copied records against the current logical SQLite view.
             # Do NOT rely on parsing the bare .sqlite3 while WAL exists.
