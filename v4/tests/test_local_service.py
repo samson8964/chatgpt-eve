@@ -68,6 +68,37 @@ class LocalServiceTests(unittest.TestCase):
             self.assertFalse(result["mail_enabled"])
 
 
+    def test_external_backup_mode_does_not_block_mail_path(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            calls = []
+            def scan(r):
+                calls.append("scan")
+                return {
+                    "status": "SHADOW_RECORDED", "mail_enabled": False,
+                    "run_folder": str(r / "runs" / "current"),
+                    "coverage_gate": "INPUT_LANES_REPORTED_COMPLETE_NOT_LIVE_VERIFIED",
+                    "structure_health": {
+                        name: {"status": "COMPLETE", "pages": 1,
+                               "pages_fetched": 1} for name in STRUCTURES
+                    }
+                }
+            def must_not_backup(_):
+                raise AssertionError("hourly scan must never run daily backup")
+            with patch("v4.local_service.storage_check",
+                       return_value={"free_gib": 300, "enough_space": True}):
+                result = execute(root, scanner=scan, backup_fn=must_not_backup,
+                                 backup_mode="external")
+            self.assertEqual(calls, ["scan"])
+            self.assertEqual(result["status"], "SHADOW_RECORDED")
+            self.assertEqual(result["backup"], "EXTERNAL_DAILY_TASK")
+
+    def test_invalid_backup_mode_is_rejected_before_scan(self):
+        with tempfile.TemporaryDirectory() as td:
+            with self.assertRaisesRegex(ValueError, "INVALID_DAILY_BACKUP_MODE"):
+                execute(Path(td), scanner=lambda _: self.fail("scanner called"),
+                        backup_mode="unprotected")
+
     def test_partial_scan_is_not_reported_successful(self):
         with tempfile.TemporaryDirectory() as td:
             root=Path(td)
