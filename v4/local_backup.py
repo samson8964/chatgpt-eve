@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import sqlite3
+import time
 from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
@@ -25,10 +26,40 @@ def backup(data_root: Path) -> dict:
     try:
         with closing(sqlite3.connect(f"file:{source.as_posix()}?mode=ro",uri=True)) as original:
             with closing(sqlite3.connect(partial)) as target:
-                original.backup(target)
-                result=target.execute("PRAGMA integrity_check").fetchone()[0]
+                start=time.monotonic()
+                last=[start-60]
+                def on_copy(_status, remaining, total):
+                    tick=time.monotonic()
+                    if tick-last[0]>=30 or remaining==0:
+                        percent=round((total-remaining)*100/total,1) if total else 100
+                        print("DAILY_BACKUP_COPY_PROGRESS",str(percent)+"%",
+                              "elapsed_seconds",int(tick-start),flush=True)
+                        last[0]=tick
+                print("DAILY_BACKUP_COPY_START", source.stat().st_size, "bytes",flush=True)
+                original.backup(target,pages=2048,sleep=0.1,progress=on_copy)
+                print("DAILY_BACKUP_INTEGRITY_START",flush=True)
+                integrity_start=time.monotonic()
+                last_integrity=[integrity_start-60]
+                callbacks=[0]
+                def on_integrity():
+                    callbacks[0]+=1
+                    tick=time.monotonic()
+                    if tick-last_integrity[0]>=60:
+                        print("DAILY_BACKUP_INTEGRITY_ACTIVE",
+                              "elapsed_seconds",int(tick-integrity_start),
+                              "vm_callback_count",callbacks[0],flush=True)
+                        last_integrity[0]=tick
+                    return 0
+                target.set_progress_handler(on_integrity,100000)
+                try:
+                    result=target.execute("PRAGMA integrity_check").fetchone()[0]
+                finally:
+                    target.set_progress_handler(None,0)
                 if result!="ok":
                     raise RuntimeError("BACKUP_INTEGRITY_FAILED:"+str(result))
+                print("DAILY_BACKUP_INTEGRITY_OK",
+                      "elapsed_seconds",int(time.monotonic()-integrity_start),
+                      flush=True)
                 proofs=target.execute("SELECT COUNT(*) FROM proof_versions").fetchone()[0]
                 runs=target.execute("SELECT COUNT(*) FROM scan_runs").fetchone()[0]
         os.replace(partial,destination)
