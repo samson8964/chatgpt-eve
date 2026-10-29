@@ -21,11 +21,28 @@ from pathlib import Path
 
 from v4.local_backup import backup
 from v4.local_run import exclusive_lock
-from v4.local_service import backup_due
 from v4.storage_retention import rotate_backups
 
 GIB = 1024 ** 3
 REQUIRED_FREE_SLACK_GIB = 20
+
+
+def scheduled_day_due(root: Path, now: datetime) -> bool:
+    """One verified local backup per machine-local calendar day, not 24h elapsed.
+
+    A backup manually created at 09:46 must not suppress the next scheduled
+    03:45 backup on the following local date. Use local dates to agree with the
+    Windows Task Scheduler's daily local trigger.
+    """
+    backups = root / "backups"
+    latest = max(backups.glob("v4-shadow-*.sqlite3"),
+                 key=lambda p: p.stat().st_mtime,
+                 default=None) if backups.exists() else None
+    if latest is None:
+        return True
+    latest_local_date = datetime.fromtimestamp(
+        latest.stat().st_mtime, tz=timezone.utc).astimezone().date()
+    return latest_local_date < now.astimezone().date()
 
 
 def perform(data_root: Path, *, backup_fn=backup,
@@ -38,7 +55,7 @@ def perform(data_root: Path, *, backup_fn=backup,
     # Independent backup-only mutex prevents duplicate daily copies.
     # It does not block hourly scans or mail.
     with exclusive_lock(root / "v4-daily-backup-job.lock"):
-        if not backup_due(root, now_fn()):
+        if not scheduled_day_due(root, now_fn()):
             return {"status": "NOT_DUE", "backup_created": False}
         free = shutil.disk_usage(root).free
         needed = source.stat().st_size + REQUIRED_FREE_SLACK_GIB * GIB
