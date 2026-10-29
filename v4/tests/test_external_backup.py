@@ -106,6 +106,30 @@ class ExternalBackupTests(unittest.TestCase):
                     "SELECT COUNT(*) FROM scan_runs").fetchone()[0], 4)
             self.assertTrue(wal.exists())
 
+    def test_explicit_quick_backup_has_distinct_status_and_sha256_receipt(self):
+        with patch("v4.external_backup._check_tasks_disabled"), \
+             patch("v4.external_backup.require_different_volume"), \
+             patch("v4.external_backup.MIN_SLACK_GIB", 0):
+            result = create(self.root, self.destination,
+                            now=datetime(2026, 10, 26, 11, tzinfo=timezone.utc),
+                            verification="quick")
+        self.assertEqual(result["status"], "QUICK_EXTERNAL_BACKUP_VERIFIED")
+        self.assertEqual(result["sqlite_integrity"], "quick_check_ok")
+        self.assertEqual(result["verification_scope"], "quick")
+        receipt = Path(result["verified_receipt"])
+        self.assertTrue(receipt.is_file())
+        saved = json.loads(receipt.read_text("utf-8"))
+        self.assertEqual(saved["verification"], "quick")
+        self.assertEqual(saved["scan_runs"], 3)
+        self.assertEqual(saved["proof_rows"], 3)
+        self.assertEqual(saved["backup_sha256"],
+                         hashlib.sha256(Path(result["path"]).read_bytes()).hexdigest())
+
+    def test_invalid_verification_mode_never_creates_file(self):
+        with self.assertRaisesRegex(ValueError, "INVALID_EXTERNAL_BACKUP"):
+            create(self.root, self.destination, verification="unsafe")
+        self.assertFalse(self.destination.exists())
+
     def test_refuses_overwrite_of_existing_snapshot(self):
         self._create()
         with self.assertRaisesRegex(FileExistsError,
