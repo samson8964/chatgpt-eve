@@ -110,7 +110,13 @@ def execute(root: Path, *, scanner=run, backup_fn=backup,
               "sqlite_unique_proofs":scan.get("sqlite_unique_proofs"),
               "backup": "NOT_DUE","mail_enabled": False,"disk":disk}
     if backup_due(root,now_fn()):
+        print("DAILY_BACKUP_DUE_BEFORE_MAIL",
+              "reason=24h_backup_interval", flush=True)
         backed = backup_fn(root)
+        print("DAILY_BACKUP_VERIFIED",
+              "scan_runs", backed.get("scan_runs"),
+              "proof_versions", backed.get("proof_versions"),
+              flush=True)
         if backed.get("sqlite_integrity") != "ok":
             raise RuntimeError("BACKUP_INTEGRITY_NOT_OK")
         result["backup"] = "COMPLETE"
