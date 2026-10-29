@@ -50,6 +50,8 @@ class LocalServiceTests(unittest.TestCase):
                 return {"status":"SHADOW_RECORDED","mail_enabled":False,
                         "run_folder":str(r/"runs"/"now"),"sqlite_unique_proofs":31931,
                         "coverage_gate":"INPUT_LANES_REPORTED_COMPLETE_NOT_LIVE_VERIFIED",
+                        "npc_trade_hub_health":{"amarr":{"status":"BOTH_SIDES_PRESENT_IN_PUBLIC_SNAPSHOT",
+                                                         "active_orders":120}},
                         "structure_health":{name:{"status":"COMPLETE","pages":1,"pages_fetched":1}
                                             for name in STRUCTURES}}
             def save(r):
@@ -61,6 +63,8 @@ class LocalServiceTests(unittest.TestCase):
             self.assertEqual(calls,["scan","backup"])
             self.assertEqual(result["status"],"SHADOW_RECORDED")
             self.assertEqual(result["backup_proofs"],31931)
+            self.assertEqual(result["npc_trade_hub_health"]["amarr"]["active_orders"],120)
+            self.assertEqual(set(result["structure_station_names"]), set(STRUCTURES))
             self.assertFalse(result["mail_enabled"])
 
 
