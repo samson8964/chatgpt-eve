@@ -44,8 +44,11 @@ def backup_due(root: Path, now: datetime) -> bool:
 
 
 def execute(root: Path, *, scanner=run, backup_fn=backup,
-            now_fn=lambda: datetime.now(timezone.utc)) -> dict:
+            now_fn=lambda: datetime.now(timezone.utc),
+            backup_mode: str = "inline") -> dict:
     """Run in foreground for testability; scheduler redirects all output."""
+    if backup_mode not in ("inline", "external"):
+        raise ValueError("INVALID_DAILY_BACKUP_MODE")
     disk = storage_check(root)
     if not disk["enough_space"]:
         return {"status": "SKIPPED_LOW_DISK", "disk": disk, "mail_enabled": False}
@@ -109,7 +112,11 @@ def execute(root: Path, *, scanner=run, backup_fn=backup,
               },
               "sqlite_unique_proofs":scan.get("sqlite_unique_proofs"),
               "backup": "NOT_DUE","mail_enabled": False,"disk":disk}
-    if backup_due(root,now_fn()):
+    if backup_mode == "external":
+        # Only opt in after a real, independently scheduled daily backup
+        # task exists. No hidden background worker or backup attempt here.
+        result["backup"] = "EXTERNAL_DAILY_TASK"
+    elif backup_due(root,now_fn()):
         print("DAILY_BACKUP_DUE_BEFORE_MAIL",
               "reason=24h_backup_interval", flush=True)
         backed = backup_fn(root)
@@ -198,6 +205,10 @@ def _log_storage_health(root: Path, *, send_alert: bool = True) -> dict:
 def main() -> int:
     p=argparse.ArgumentParser(description="Silent Windows V4 scan and opt-in research email digests")
     p.add_argument("--data-root", type=Path, default=Path.home()/"EVE-V4-Data")
+    p.add_argument("--backup-mode", choices=("inline", "external"),
+                   default="inline",
+                   help="external requires a separately installed daily backup "
+                        "Windows task; otherwise retain legacy inline backup")
     args=p.parse_args()
     root=args.data_root.resolve()
     logs=root/"logs"
@@ -207,7 +218,7 @@ def main() -> int:
             with redirect_stdout(log), redirect_stderr(log):
                 print("START",datetime.now(timezone.utc).isoformat(),flush=True)
                 try:
-                    result=execute(root)
+                    result=execute(root, backup_mode=args.backup_mode)
                     print("RESULT",json.dumps(result,ensure_ascii=False),flush=True)
                     if result.get("status") == "SKIPPED_LOW_DISK":
                         # The run has NO current evidence. Never call either
