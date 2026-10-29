@@ -249,7 +249,7 @@ def create(root: Path, backup_dir: Path, *, now=None,
                 "status": ("FULL_EXTERNAL_BACKUP_VERIFIED" if verification == "full"
                            else "QUICK_EXTERNAL_BACKUP_VERIFIED"),
                 "path": str(target), "bytes": target.stat().st_size,
-                "sqlite_integrity": ("full_check_ok" if verification == "full"
+                "sqlite_integrity": ("ok" if verification == "full"
                                      else "quick_check_ok"),
                 "verification_scope": verification,
                 "verified_receipt": (str(verified) if verification == "quick" else None),
