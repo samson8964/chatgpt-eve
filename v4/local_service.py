@@ -16,7 +16,7 @@ from pathlib import Path
 
 from v4.local_backup import backup
 from v4.local_run import run
-from v4.structure_registry import STRUCTURES
+from v4.structure_registry import STRUCTURES, LANE_TO_LABEL
 
 MIN_FREE_GIB = 20
 BACKUP_AFTER_HOURS = 24
@@ -87,6 +87,8 @@ def execute(root: Path, *, scanner=run, backup_fn=backup,
                                   for lane in STRUCTURES},
               "structure_order_counts":{lane:(lanes.get(lane) or {}).get("orders")
                                         for lane in STRUCTURES},
+              "structure_station_names":{lane:LANE_TO_LABEL.get(lane, lane)
+                                          for lane in STRUCTURES},
               # NPC hub quotes are in the public market archive, not
               # separately ESI-paginated structure books. Never label
               # public snapshot presence as independently live verified.
