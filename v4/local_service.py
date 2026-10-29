@@ -85,6 +85,12 @@ def execute(root: Path, *, scanner=run, backup_fn=backup,
               "zero_remaining_structure_orders":scan.get("zero_remaining_structure_orders"),
               "structure_status":{lane:(lanes.get(lane) or {}).get("status", "MISSING")
                                   for lane in STRUCTURES},
+              "structure_order_counts":{lane:(lanes.get(lane) or {}).get("orders")
+                                        for lane in STRUCTURES},
+              # NPC hub quotes are in the public market archive, not
+              # separately ESI-paginated structure books. Never label
+              # public snapshot presence as independently live verified.
+              "npc_trade_hub_health":scan.get("npc_trade_hub_health") or {},
               # Only fixed diagnostic codes/counters, never worker HTTP bodies
               # or authentication secrets. Make the failure actionable.
               "failed_structure_diagnostics":{
