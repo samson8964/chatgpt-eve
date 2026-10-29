@@ -185,6 +185,44 @@ class CleanupTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, "MUST_BE_DISABLED"):
                     mod._require_maintenance_window()
 
+    def test_fast_activation_requires_verified_receipt_and_matching_sha(self):
+        import hashlib
+        source = self.add(0)
+        external = Path(self.tmp.name) / "external"
+        external.mkdir()
+        copy = external / "verified.sqlite3"
+        with closing(sqlite3.connect(self.db_path)) as live, \
+             closing(sqlite3.connect(copy)) as dst:
+            live.backup(dst)
+        # Test-only logical drive simulation. Production enforces real
+        # separate Windows volumes and the disabled scheduler tasks.
+        def drives(path):
+            return ("D:", path) if "external" in str(path) else ("C:", path)
+        with patch.object(mod, "_require_maintenance_window"), \
+             patch.object(mod.os.path, "splitdrive", side_effect=drives):
+            with self.assertRaisesRegex(RuntimeError, "FAST_BACKUP_RECEIPT_INVALID"):
+                mod.activate(self.root, backup=copy, accept_quick_verified=True)
+            sha = hashlib.sha256(copy.read_bytes()).hexdigest()
+            receipt = copy.with_name(copy.name + ".verified.json")
+            receipt.write_text(json.dumps({
+                "schema": 1, "verification": "quick",
+                "backup_sha256": "0" * 64,
+                "backup_bytes": copy.stat().st_size,
+                "latest_run_id": "run-0000",
+                "scan_runs": 1, "proof_rows": 1,
+            }), encoding="utf-8")
+            with self.assertRaisesRegex(RuntimeError, "FAST_BACKUP_HASH_MISMATCH"):
+                mod.activate(self.root, backup=copy, accept_quick_verified=True)
+            data = json.loads(receipt.read_text("utf-8"))
+            data["backup_sha256"] = sha
+            receipt.write_text(json.dumps(data), encoding="utf-8")
+            result = mod.activate(self.root, backup=copy,
+                                  accept_quick_verified=True)
+        self.assertEqual(result["status"], "ROLLING72_ACTIVATED")
+        self.assertEqual(result["backup_verification"], "quick")
+        self.assertTrue((self.root / mod.POLICY).is_file())
+        self.assertTrue(source.exists())
+
     def test_invalid_max_runs_fails(self):
         with self.assertRaisesRegex(ValueError, "MAX_RUNS"):
             mod.cleanup(self.root, apply=True, max_runs=100)
