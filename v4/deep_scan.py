@@ -23,6 +23,7 @@ import requests
 from v4.engine import Order, Policy, contract_proof, market_proof, profitable_trade, quarantine_snapshot_candidate, parse_orders_with_quarantine
 from v4.catalog import ensure_catalog, blueprint_instance_kind
 from v4.market_depth import STATIONS, top_price_levels, station_sell_census
+from v4.npc_hub_health import from_orders as npc_hub_snapshot
 from v4.structure_registry import STRUCTURES
 from v4.market_execution import gross_depth_upper_bound
 from v4.sources import market_dataframe, contract_dataframes
@@ -126,6 +127,7 @@ def run(market_path,contract_path,output,api_key=''):
     needed={'order_id','type_id','location_id','price','volume_remain','is_buy_order'}
     if needed-present: raise RuntimeError('order_fields_missing')
     public_orders,public_inactive=to_orders(raw_market.to_dict('records'),source='PUBLIC')
+    npc_trade_hub_health = npc_hub_snapshot(public_orders)
     authorized_orders,structure_inactive=to_orders(structures,source='STRUCTURE')
     # Every snapshot row is either an actionable order, an audited non-actionable
     # zero-remaining order, or an invalid quarantined input.
@@ -367,6 +369,7 @@ def run(market_path,contract_path,output,api_key=''):
        market_prefilter_basis='TWO_SIDED_MATCHED_DEPTH_GROSS_MARGIN_BEFORE_FEES',
        market_execution_basis='OPTIMIZED_MATCHED_QUANTITY_AND_VWAP',
        market_station_sell_census=station_census,
+       npc_trade_hub_health=npc_trade_hub_health,
        market_top5_price_definition='UNWEIGHTED_MEAN_OF_DISTINCT_PRICE_LEVELS',
        market_proofs_examined=sum(p.get('kind')=='market' for p in proofs),
        contract_cash_known_location=len(cash_contracts),
