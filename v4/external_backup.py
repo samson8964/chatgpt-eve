@@ -10,6 +10,7 @@ Another Windows volume is not necessarily a different physical device.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import platform
@@ -89,7 +90,19 @@ def inspect(root: Path, backup_dir: Path) -> dict:
     }
 
 
-def create(root: Path, backup_dir: Path, *, now=None) -> dict:
+def _sha256(path: Path) -> str:
+    """Verify the independent, immutable snapshot's exact file identity."""
+    h = hashlib.sha256()
+    with path.open("rb") as stream:
+        while block := stream.read(4 * 1024 * 1024):
+            h.update(block)
+    return h.hexdigest()
+
+
+def create(root: Path, backup_dir: Path, *, now=None,
+           verification: str = "full") -> dict:
+    if verification not in ("full", "quick"):
+        raise ValueError("INVALID_EXTERNAL_BACKUP_VERIFICATION_MODE")
     root = Path(root).resolve()
     directory = Path(backup_dir).absolute()
     status = inspect(root, directory)
@@ -114,7 +127,10 @@ def create(root: Path, backup_dir: Path, *, now=None) -> dict:
         _safe_directory(root, directory)
         target = directory / ("v4-shadow-full-" + stamp + ".sqlite3")
         partial = target.with_name(target.name + ".part")
-        if target.exists() or target.is_symlink() or partial.exists() or partial.is_symlink():
+        verified = target.with_name(target.name + ".verified.json")
+        if (target.exists() or target.is_symlink() or
+                partial.exists() or partial.is_symlink() or
+                verified.exists() or verified.is_symlink()):
             raise FileExistsError("EXTERNAL_BACKUP_TARGET_EXISTS")
         try:
             # Progress diagnostics: SQLite online copy and its subsequent
@@ -138,7 +154,10 @@ def create(root: Path, backup_dir: Path, *, now=None) -> dict:
                 with closing(sqlite3.connect(partial, timeout=30)) as backup:
                     live.backup(backup, pages=2048, sleep=0.1,
                                 progress=progress)
+                    check_sql = ("PRAGMA integrity_check" if verification == "full"
+                                 else "PRAGMA quick_check")
                     print("BACKUP_COPY_DONE_INTEGRITY_START",
+                          "mode", verification.upper(),
                           flush=True, file=sys.stderr)
                     # SQLite's full integrity_check can be CPU-intensive on
                     # multi-GB proof ledgers. This progress hook reports
@@ -158,11 +177,12 @@ def create(root: Path, backup_dir: Path, *, now=None) -> dict:
                         return 0
                     backup.set_progress_handler(integrity_heartbeat, 100000)
                     try:
-                        if backup.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
+                        if backup.execute(check_sql).fetchone()[0] != "ok":
                             raise RuntimeError("EXTERNAL_BACKUP_INTEGRITY_FAILED")
                     finally:
                         backup.set_progress_handler(None, 0)
                     print("BACKUP_INTEGRITY_OK_VERIFYING_LEDGER",
+                          "mode", verification.upper(),
                           "elapsed_seconds", int(time.monotonic() - started_check),
                           flush=True, file=sys.stderr)
                     keys = ("run_id", "status", "proof_count",
@@ -207,13 +227,33 @@ def create(root: Path, backup_dir: Path, *, now=None) -> dict:
                 raise RuntimeError("EXTERNAL_BACKUP_NOT_CURRENT_OR_INCOMPLETE")
             # Persist only after all audit checks completed successfully.
             os.replace(partial, target)
+            # The quick path is explicitly less exhaustive: it does NOT
+            # verify UNIQUE/index contents. Pin the verified file hash so
+            # activation can reject any modified, incomplete snapshot.
+            if verification == "quick":
+                print("BACKUP_SHA256_START", flush=True, file=sys.stderr)
+                receipt = {
+                    "schema": 1, "verification": "quick",
+                    "backup_sha256": _sha256(target),
+                    "backup_bytes": target.stat().st_size,
+                    "latest_run_id": before[0]["run_id"],
+                    "scan_runs": len(copy_runs),
+                    "proof_rows": copy_proofs,
+                    "verified_at": datetime.now(timezone.utc).isoformat()
+                }
+                with verified.open("x", encoding="utf-8") as handle:
+                    json.dump(receipt, handle, indent=2)
             print("BACKUP_VERIFIED_PUBLISHED", target, flush=True,
                   file=sys.stderr)
             return {
-                "status": "FULL_EXTERNAL_BACKUP_VERIFIED",
+                "status": ("FULL_EXTERNAL_BACKUP_VERIFIED" if verification == "full"
+                           else "QUICK_EXTERNAL_BACKUP_VERIFIED"),
                 "path": str(target), "bytes": target.stat().st_size,
-                "sqlite_integrity": "ok", "scan_runs": len(copy_runs),
-                "proof_rows": copy_proofs,
+                "sqlite_integrity": ("full_check_ok" if verification == "full"
+                                     else "quick_check_ok"),
+                "verification_scope": verification,
+                "verified_receipt": (str(verified) if verification == "quick" else None),
+                "scan_runs": len(copy_runs), "proof_rows": copy_proofs,
                 "source_database_modified": False,
                 "off_machine_copy_still_required": True,
             }
@@ -230,8 +270,13 @@ def main() -> None:
     parser.add_argument("--backup-dir", type=Path, required=True)
     parser.add_argument("--create", action="store_true",
                         help="Explicitly create an external full SQLite backup")
+    parser.add_argument("--verification", choices=("full", "quick"),
+                        default="full",
+                        help="full=exhaustive SQLite index check; quick=bounded O(N) "
+                             "structure check plus audited ledger and SHA256")
     args = parser.parse_args()
-    report = (create(args.data_root, args.backup_dir) if args.create
+    report = (create(args.data_root, args.backup_dir,
+                     verification=args.verification) if args.create
               else inspect(args.data_root, args.backup_dir))
     print(json.dumps(report, ensure_ascii=False, indent=2))
 
