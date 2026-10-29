@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -69,7 +70,17 @@ def run(output: Path, data_dir: Path, *, max_market_age_h: float=2,
     report = dict(run_id=run_id, started_at=datetime.now(timezone.utc).isoformat(),
                   version='V4-initial-readonly', sources={}, overall='FAILED',
                   live_mail_allowed=False, execution_proof_complete=False)
+    started = time.monotonic()
+    last = [started]
+    def stage(name: str) -> None:
+        """Emit cheap, sanitized progress markers in the per-run full_scan.log."""
+        now_tick = time.monotonic()
+        print("FULL_SCAN_STAGE", name,
+              "delta_seconds", round(now_tick - last[0], 2),
+              "elapsed_seconds", round(now_tick - started, 2), flush=True)
+        last[0] = now_tick
     try:
+        stage("ADVERTISED_INDEX_START")
         # Verify BOTH advertised snapshot timestamps before downloading any
         # files. A delayed publisher is a safe, expected skip; not a crash.
         # Never download stale data or mix one fresh and one stale generation.
@@ -90,6 +101,7 @@ def run(output: Path, data_dir: Path, *, max_market_age_h: float=2,
                     last_modified=exc.last_modified)
             except Exception as exc:
                 report['sources'][name]=dict(status='FAILED',error=str(exc))
+        stage("ADVERTISED_INDEX_DONE")
         outcomes={name:record['status'] for name,record in report['sources'].items()}
         if 'FAILED' in outcomes.values():
             report['overall']='FAILED_SOURCE_COVERAGE'
@@ -100,19 +112,27 @@ def run(output: Path, data_dir: Path, *, max_market_age_h: float=2,
             report['next_action']='WAIT_FOR_PUBLISHER_AND_RECHECK_NEXT_SCHEDULE'
             return report
         for name,index,limit,suffix in required:
+            stage("DOWNLOAD_" + name.upper() + "_START")
             try:
                 report['sources'][name]=download_fresh(
                     available[name],data_dir/(name+suffix))
                 report['sources'][name]['status']='COMPLETE'
+                stage("DOWNLOAD_" + name.upper() + "_VERIFIED")
             except Exception as exc:
                 report['sources'][name]=dict(
                     available[name],status='FAILED',error=str(exc))
         if any(row['status'] != 'COMPLETE' for row in report['sources'].values()):
             report['overall']='FAILED_SOURCE_COVERAGE'
             return report
+        stage("MARKET_PARSE_START")
         market = market_dataframe(Path(report['sources']['market_orders']['local_file']))
+        stage("MARKET_PARSE_DONE")
+        stage("CONTRACT_PARSE_START")
         contracts,items=contract_dataframes(Path(report['sources']['public_contracts']['local_file']))
+        stage("CONTRACT_PARSE_DONE")
+        stage("UNIVERSE_GROUPING_START")
         report['market']=naive_upper_bound_universe(market)
+        stage("UNIVERSE_GROUPING_DONE")
         report['contracts']={'contract_rows_total':int(len(contracts)),
             'contract_ids_distinct':int(contracts['contract_id'].nunique()),
             'contract_item_rows_total':int(len(items)),
@@ -121,8 +141,10 @@ def run(output: Path, data_dir: Path, *, max_market_age_h: float=2,
         # Full source *ingestion* completed. V4 transaction proof and market
         # instance keys not yet generated; do not call this "fully operational".
         report['overall']='CENSUS_COMPLETE_PROOFS_NOT_READY'
+        stage("CENSUS_COMPLETE")
         return report
     except Exception as exc:
+        stage("FAILED_VALIDATION_" + type(exc).__name__)
         report['overall']='FAILED_VALIDATION'
         report['error']=str(exc)
         return report
