@@ -158,6 +158,7 @@ def run(data_root: Path) -> dict:
                     (detail.get("reason_counts") or {}).items(),
                     key=lambda item:-item[1])[:5]),
                 "structure_health":coverage,
+                "npc_trade_hub_health":detail.get("npc_trade_hub_health", {}),
                 "coverage_gate":"PARTIAL_UNVERIFIED" if lanes_failed or detail.get("source_input_integrity") != "ALL_PARSED"
                                 else "INPUT_LANES_REPORTED_COMPLETE_NOT_LIVE_VERIFIED",
                 "failed_structure_lanes":lanes_failed,
