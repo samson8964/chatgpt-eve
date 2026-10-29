@@ -3,7 +3,7 @@
 param([string]$DataRoot='C:\Users\mike\EVE-V4-Data')
 $ErrorActionPreference='Stop'
 $root=[System.IO.Path]::GetFullPath($DataRoot)
-function H([string]$name){Write-Host ([Environment]::NewLine+'=== '+$name+' ===')}
+function Write-V4AuditSection([string]$name){Write-Host ([Environment]::NewLine+'=== '+$name+' ===')}
 function ReadTask([string]$name){
  try{
   $task=Get-ScheduledTask -TaskName $name -ErrorAction Stop
@@ -16,10 +16,10 @@ function GetMarker($lines,[string]$prefix){
  if(-not $line){return $null}
  try{$line.Substring($prefix.Length+1)|ConvertFrom-Json -ErrorAction Stop}catch{return $null}
 }
-H '1 TASKS'
+Write-V4AuditSection '1 TASKS'
 $tasks=@((ReadTask 'EVE-V4-Shadow'),(ReadTask 'EVE-V4-Daily-Backup'),(ReadTask 'EVE-V4-Opportunity-Push'))
 $tasks|Format-Table -AutoSize
-H '2 LAST SCAN CYCLE'
+Write-V4AuditSection '2 LAST SCAN CYCLE'
 $log=Join-Path $root 'logs\shadow-task.log'
 $lines=@()
 if(Test-Path -LiteralPath $log){$lines=@(Get-Content -LiteralPath $log -Encoding UTF8 -Tail 800)}
@@ -58,7 +58,7 @@ if($tasks[0].State -eq 'Running'){
  elseif(-not $res){Write-Host 'LIKELY_STAGE: scanning or persisting'}
  else{Write-Host 'LIKELY_STAGE: check subsequent task result and maintenance'}
 }
-H '3 GAME RECEIPTS'
+Write-V4AuditSection '3 GAME RECEIPTS'
 if($res -and $res.run_folder_name){
  $folder=Join-Path $root 'mail-review\eve-receipts'
  $receipts=@(Get-ChildItem -LiteralPath $folder -Filter ($res.run_folder_name+'*.json') -File -ErrorAction SilentlyContinue)
@@ -70,7 +70,7 @@ if($res -and $res.run_folder_name){
   }catch{Write-Host "UNREADABLE_RECEIPT: $($f.Name)"}
  }
 }else{Write-Host 'NO_COMPLETED_RUN'}
-H '4 SEPARATE FORMAL OPPORTUNITY REPORT'
+Write-V4AuditSection '4 SEPARATE FORMAL OPPORTUNITY REPORT'
 Write-Host "FORMAL_TASK: $($tasks[2].State)"
 $opDir=Join-Path $root 'opportunity-push'
 $latest=Get-ChildItem -LiteralPath $opDir -Filter '*.json' -File -ErrorAction SilentlyContinue|Where-Object {$_.Name -ne 'state.json'}|Sort-Object LastWriteTime -Descending|Select-Object -First 1
@@ -81,7 +81,7 @@ if($latest){
  }catch{Write-Host "FORMAL_REPORT: invalid JSON, file=$($latest.Name)"}
 }else{Write-Host 'FORMAL_REPORT: NOT_FOUND'}
 if($tasks[2].State -eq 'Disabled'){Write-Host 'NOTE: formal report stays stale while the independent opportunity task remains disabled'}
-H '5 PYTHON PROCESS ACTIVITY IN 8 SEC'
+Write-V4AuditSection '5 PYTHON PROCESS ACTIVITY IN 8 SEC'
 $before=@{}
 $ps=@(Get-CimInstance Win32_Process -Filter "Name='python.exe' OR Name='pythonw.exe'" -ErrorAction SilentlyContinue)
 foreach($item in $ps){
@@ -101,7 +101,7 @@ foreach($item in $ps){
  }
 }
 $rows|Format-Table -AutoSize
-H '6 DATABASE AND BACKUP'
+Write-V4AuditSection '6 DATABASE AND BACKUP'
 $db=Join-Path $root 'sqlite\v4-shadow.sqlite3'
 foreach($path in @($db,($db+'-wal'),($db+'-shm'))){
  if(Test-Path -LiteralPath $path){
