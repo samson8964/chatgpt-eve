@@ -12,6 +12,7 @@ import os
 import platform
 import subprocess
 import sys
+import time
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -75,12 +76,23 @@ def _step(name: str, commands: list[str], run_dir: Path, cwd: Path,
           *, env: dict[str, str] | None = None):
     output = run_dir / (name + ".log")
     print(name + ": starting; log=" + str(output), flush=True)
-    with output.open("w", encoding="utf-8") as log:
-        proc = subprocess.run(commands, cwd=cwd, stdout=log, stderr=subprocess.STDOUT,
-                              timeout=80*60, check=False, env=env)
+    limit_seconds = 25*60 if name == "full_scan" else 80*60
+    started = time.monotonic()
+    try:
+        with output.open("w", encoding="utf-8") as log:
+            proc = subprocess.run(commands, cwd=cwd, stdout=log,
+                                  stderr=subprocess.STDOUT,
+                                  timeout=limit_seconds, check=False, env=env)
+    except subprocess.TimeoutExpired:
+        print(name + ": TIMED_OUT",
+              "limit_seconds", limit_seconds,
+              "elapsed_seconds", round(time.monotonic()-started, 1),
+              "stage_log", str(output), flush=True)
+        raise
     if proc.returncode:
         raise RuntimeError(name + "_FAILED:" + str(proc.returncode) + "; see " + str(output))
-    print(name + ": completed", flush=True)
+    print(name + ": completed",
+          "elapsed_seconds", round(time.monotonic()-started, 1), flush=True)
 
 
 def run(data_root: Path) -> dict:
@@ -136,7 +148,11 @@ def run(data_root: Path) -> dict:
                                      "--contracts",str(raw / "public_contracts.tar.bz2"),
                                      "--output",str(deep)],run_dir,repo,
                   env=deep_scan_environment())
+            print("sqlite_persist: starting", flush=True)
+            persist_started = time.monotonic()
             audit = persist(database, deep, proofs)
+            print("sqlite_persist: completed", "elapsed_seconds",
+                  round(time.monotonic()-persist_started,1), flush=True)
             full = json.loads(report.read_text(encoding="utf-8"))
             detail = json.loads(deep.read_text(encoding="utf-8"))
             coverage = detail.get("structure_health",{})
