@@ -55,7 +55,7 @@ foreach ($name in @('EVE-V4-Shadow', 'EVE-V4-Daily-Backup', 'EVE-V4-Opportunity-
         $roots += $root
         $taskRows += [pscustomobject]@{
             Task=$name;State=[string]$task.State;Module=$module;
-            DataRoot=$root;LastCode=if($taskInfo){$taskInfo.LastTaskResult}else{'?'}
+            DataRoot=$root;LastCode=$(if($taskInfo){$taskInfo.LastTaskResult}else{'?'})
         }
     }
 }
