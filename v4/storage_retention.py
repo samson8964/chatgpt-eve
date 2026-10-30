@@ -11,6 +11,7 @@ import json
 import re
 import sqlite3
 from contextlib import closing
+from datetime import datetime, timezone
 from pathlib import Path
 
 from v4.local_run import exclusive_lock
@@ -40,6 +41,38 @@ def _meta(files: list[Path]) -> list[tuple[str, int, int]]:
     return [(p.name, p.stat().st_size, p.stat().st_mtime_ns) for p in files]
 
 
+def _backup_local_day(path: Path, *, tz=None):
+    """Calendar day of a UTC-stamped backup in the scheduler's local zone.
+
+    Daily Windows backups use the machine-local calendar. Use the backup's
+    immutable UTC filename stamp instead of mutable filesystem mtime.
+    """
+    if not BACKUP_NAME.fullmatch(path.name):
+        raise RuntimeError("BACKUP_NAME_INVALID")
+    stamp = path.name[len("v4-shadow-"):-len(".sqlite3")]
+    try:
+        created_utc = datetime.strptime(stamp, "%Y%m%dT%H%M%SZ").replace(
+            tzinfo=timezone.utc)
+    except ValueError:
+        raise RuntimeError("BACKUP_NAME_DATE_INVALID") from None
+    return created_utc.astimezone(tz).date()
+
+
+def _select_retention(files: list[Path]) -> tuple[list[Path], list[Path]]:
+    """Prefer newest per local day, and block pruning until 3 days exist."""
+    retain: list[Path] = []
+    old: list[Path] = []
+    seen_days = set()
+    for path in files:
+        day = _backup_local_day(path)
+        if len(retain) < KEEP and day not in seen_days:
+            retain.append(path)
+            seen_days.add(day)
+        else:
+            old.append(path)
+    return retain, old
+
+
 def _check_sqlite(path: Path) -> None:
     """Read-only structural check; source is immutable during retention."""
     uri = "file:" + path.resolve().as_posix() + "?mode=ro&immutable=1"
@@ -59,7 +92,7 @@ def _check_sqlite(path: Path) -> None:
 
 def rotate_backups(data_root: Path, *, apply: bool = False,
                    expected_newest: Path | None = None) -> dict:
-    """Keep latest 3 distinct-day valid backups; fail closed before unlink.
+    """Keep latest 3 distinct local-day valid backups; fail closed before unlink.
 
     Call after backup() returned sqlite_integrity='ok'. The strict expected
     newest check is used by automatic post-backup retention. CLI defaults
@@ -71,8 +104,7 @@ def rotate_backups(data_root: Path, *, apply: bool = False,
     with exclusive_lock(root / "v4-backup-retention.lock"):
         files = _backups(root)
         records = _meta(files)
-        retain = files[:KEEP]
-        old = files[KEEP:]
+        retain, old = _select_retention(files)
         bytes_old = sum(p.stat().st_size for p in old)
         result = {
             "status": "DRY_RUN" if not apply else "NOT_NEEDED",
@@ -87,10 +119,9 @@ def rotate_backups(data_root: Path, *, apply: bool = False,
                 raise RuntimeError("NEW_BACKUP_NOT_LATEST")
         if len(files) <= KEEP or not apply:
             return result
-        # Avoid deleting historical restore points when all recent copies
-        # were accidentally created on the same calendar day.
-        days = {BACKUP_NAME.fullmatch(p.name).group(1) for p in retain}
-        if len(days) != KEEP:
+        # Do not prune unless three distinct machine-local calendar days
+        # have validated representatives, even if extra same-day files exist.
+        if len(retain) != KEEP:
             return {**result, "status": "BLOCKED_RECENT_DAYS_NOT_DISTINCT"}
         # All kept local restore points must pass basic structural checks.
         # A newly created backup has ALREADY passed full integrity_check in
