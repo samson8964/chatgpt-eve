@@ -1,0 +1,302 @@
+# EVE V4 Windows 本地迁移：2026-10-14 实施前清单（准备稿）
+
+> 状态：PREPARED_NOT_DEPLOYED。2026-10-13 仅审阅/提交计划与只读预检脚本。**不安装、不迁移数据库、不建立定时任务、不恢复 V3、不发送邮件。** 用户批准明天（北京时间 2026-10-14）处理迁移。与现有 Draft PR #53 独立，不能把准备工作当作生产部署。
+
+## 目标与边界
+
+- 本地 Windows 机器承接 EVE V4 的采集、计算、SQLite、运行调度和历史研究数据；GitHub 继续做代码版本及 CI；现有 Cloudflare ESI 授权/桥接暂时保留，不主动迁移或暴露授权。
+- **全量市场必须每次重新扫描**；CSV/SQLite 历史不能作为跳过已见商品或订单的采集过滤条件。SQLite 历史仅用于通过所有验证后的订单/合同实例去重，以及保留每次审计。
+- **邮件全程 OFF**，直到直接 ESI 订单和合同验证、共享买单容量、真实税费/运费/ACL、7 天回放、连续至少 72 小时影子、每 2 小时合并发送及单机运行恢复全部验收。V3 保持停用。
+
+## 已实际核查的 GitHub 事实（以 2026-10-13 main da2daf69 为基准）
+
+| 组件 | 当前代码/状态 | 本地迁移影响 |
+|---|---|---|
+| `v4/full_scan.py` | EVE Ref 市场订单/公开合同索引，每轮新鲜下载、全面普查；默认 `--data-dir /tmp/v4-market` | Windows 必须显式传入本地数据目录，不能直接沿用 Linux 默认 |
+| `v4/deep_scan.py` | 读取市场 `market_orders.csv.bz2`、合同 `public_contracts.tar.bz2`，访问结构市场需 `EVE_MARKET_API_KEY` | Windows 使用与 full_scan 完全一致的绝对路径；Cloudflare ESI bridge 暂不变 |
+| `v4/catalog.py` | EVE Ref 类型/蓝图静态字典，默认 `.cache/v4/reference/catalog.json.gz` | 首次下载网络、缓存持久位置/周度刷新需确认 |
+| `v4/state.py` | 已有单写者本地 `sqlite3` Ledger，WAL / busy_timeout=30000；表 scan_runs、proof_versions、outbox | **仅是原型**：proof 插入用 INSERT OR REPLACE，返回输入行数并不能证明独立唯一行数；缺事务安全发送认领和 live MAIL 闸门，不得直接作为生产发信账本 |
+| `v4/ingest.py` | 专门向 Cloudflare V4 Durable Object 写审核记录 | 本地运行应新增独立 adapter 而非把云端写库路径硬套 SQLite |
+| `v4/engine.py` | 订单级盈利计算、深度与压力测试；快照派生 MAIL 会隔离成 WATCH | 暂不修改算法或阈值；订单在发信前仍需直接 ESI 验证 |
+| `v4/audit_artifact.py` | Draft PR #53 中新增的离线审核唯一 ID、原因计数、状态、SHA256 | 明天合并前另行核实 PR CI，或以同等严格标准在本地复用 |
+| `.github/workflows/v4-market-heartbeat.yml` | 每两小时 cron `23 */2 * * *`；Cloudflare SQL 因免费配额设为 `paused_free_tier`；影子记录存短期 Artifact | 本地调度单独启用并验证连续性；避免 GitHub 影子与本地重复抢占 API；切换前不自动关闭云端 |
+| `requirements.txt` | pandas==2.3.3、numpy==2.5.3、requests==2.34.2 | 本地使用 Python 3.11 独立 venv，包安装和版本兼容性必须先实际测试，不能假定已通过 |
+| V3 | V3 完全停止；CSV/JSON 去重状态保存于 `results/state/` | 只读保存、导出必要已发历史作通知基线；绝不恢复旧邮件任务 |
+
+## 数据存储分层
+
+1. SQLite **主要状态数据库**（推荐本地单进程写者，WAL）：`scan_runs`、`source_coverage`、`proof_versions`、`orders_last_seen`、`candidate_instances`、`delivery_outbox`、`delivery_attempts`；每轮 `run_id`、唯一复合键及全量行数/状态桶计数。新的 schema 迁移需版本号、幂等和可回滚验证，不能直接把现有 `state.py` 称为生产就绪。
+2. 压缩市场源快照：先保留原始 `.csv.bz2` 和 `.tar.bz2` 的内容校验、索引源时间及运行 ID；之后可使用 Parquet 冷存储（选型待测）。**保存原始数据与留存策略要靠磁盘实测**，不要凭 160 万订单数猜大小。
+3. 研究审核结果：JSONL+SHA256 原样留档，同时写 SQLite 的 proof/候选索引；读取时比较 `len(proof_jsonl)`、文件内唯一 ID 数、SQLite `COUNT(DISTINCT instance)`、各状态/原因计数，发现差异立即判本轮不可用。
+4. 本地数据库原生在线备份使用 SQLite `connection.backup()`，不可直接复制仍在 WAL 写入中的 `.db` 当作可靠备份；每日备份、每周异盘副本、至少执行一次恢复演练。
+5. 所有授权只从进程环境或本地秘密存储读取。严禁写入 `.env` 到 Git，严禁将 Token、Cookies、ESI、机器路径包含用户名的预检输出提交为公共 GitHub Artifact。
+
+## 本地目标目录（仅设计，实际磁盘待明日确定）
+
+```
+<EVE_V4_ROOT>/
+  code/         # git checkout, not the real database
+  data/incoming/ # 下载中/最新源快照
+  data/history/  # 按 UTC run_id/年月日分层归档
+  data/sqlite/v4.sqlite3
+  data/audit/    # proofs、manifest、hash
+  logs/          # 轮次、错误、耗时、失败原因
+  backup/        # 在线数据库备份；另需异盘副本
+```
+
+数据库、源快照与秘密文件均置于 Git 工作树之外；不使用 `results/state` 的旧 V3 CSV 当作实时全局写入中心。
+
+## 明日执行顺序（每一步给出可核验证据）
+
+- **P0 环境只读预检**：从仓库根目录执行 `py -3.11 -m v4.local_preflight`（若 py launcher 选择失败改用当前可用 Python）。检查 Windows、Python、内置 SQLite、git、可用存储空间、pandas/numpy/requests 是否可导入；脚本不写盘、不联网、不读取/打印任何令牌。根据真实输出选择目标盘与数据目录，磁盘空间门槛应在量测实际快照压缩比后确定。
+- **P0 单独工作树与 venv**：隔离 V3/V4、安装依赖并锁定验证版本，不改 Cloudflare/GitHub 主线。
+- **P0 本地扫描**：显式传入 `--data-dir` / `--market` / `--contracts` / `--output` Windows 路径；每次生成独立 `run_id`、源 SHA256、扫描覆盖报告、原因直方图，邮件 OFF。
+- **P0 SQLite 初始化/回填**：先仅影子导入，专用事务、唯一键、批量写入/复读验证；同一 run_id 同一 proof 身份内容冲突应拒绝，重复提交相同内容幂等；不可使原型 INSERT OR REPLACE 隐藏差异。
+- **P0 完整性对照**：同一输入数据比对 GitHub shadow 和本地输出，抽查 source/结构可访问、source freshness、缺失项、proof 数、重复订单 ID、买卖盘口深度、内存占用、运行时长。
+- **P1 计划任务与守护**：Windows Task Scheduler 2h 一轮；无黑框交互、非重叠单实例、重启自动恢复、错过轮次重跑、执行超时/网络失败记录；仅运行 shadow，失败不覆写上轮成功。
+- **P1 发送前最终闸门**：ESI live、权限/税运、数量匹配、共享买盘、同机会身份去重、发送后回执以及不确定状态；7 日历史回放与至少 72 小时影子。仅用户审核正式放行后才启用 2h digest。
+- **切换/回退**：本地扫描和备份连续达标后，保留云端代码但停用冗余扫描；若本地失败，恢复只读云端 shadow 而非恢复 V3 邮件。单独审计对比最终邮件放行。
+- **验收报告**：每轮给出命令/commit/run_id/源快照时间、耗时、row counts（真实 SQL count）、状态直方图、failed lane、是否发送邮件、是否需要用户操作。未现场测得的项目填 `NOT_VERIFIED`。
+
+## 已落实的迁移代码与本机第一次操作（2026-10-14）
+
+准备分支 `prep/v4-windows-local-migration-20261013` 新增：
+- `v4/local_preflight.py`：只读检查环境，不联网、不写文件、不读取令牌。
+- `v4/local_store.py`：独立单机 SQLite 影子账本，事务插入全部 proof，按 (run_id, instance) 唯一，重复 run 只接受相同源文件，原始 proof 计数、每个状态/拒绝原因、SQLite SQL COUNT 对账；只允许 WATCH/RESEARCH，**没有邮件发送代码**。
+- `v4/local_run.py`：明确 `--execute-shadow` 才采集，每次都新拉 EVE Ref 快照并生成独立运行文件夹，数据库于 Git 工作树外，进程锁阻止重复扫描；若建筑授权不可读则标记 PARTIAL_UNVERIFIED，禁止误报完整覆盖。
+- `v4/local_backup.py`：SQLite backup() 原生在线备份并检查 PRAGMA integrity_check；另需异盘备份。
+- `v4/tests/test_local_store.py`、`test_local_runner.py`：验证正确入库、失败回滚、幂等、非法 MAIL 拒绝与重叠执行阻断。
+
+**Windows PowerShell 初次执行（建议管理员无需提权）**，独立于现有商采工作区，使用浅克隆+稀疏检出减小仓库体积：
+
+```powershell
+$repo = Join-Path $HOME 'EVE-V4-Code'
+if (Test-Path $repo) { throw "路径已存在，为避免覆盖，请人工确认：$repo" }
+git clone --depth 1 --filter=blob:none --sparse --single-branch --branch prep/v4-windows-local-migration-20261013 https://github.com/samson8964/chatgpt-eve.git "$repo"
+Set-Location $repo
+git sparse-checkout set v4 docs
+py -3.11 -m v4.local_preflight
+```
+
+预检输出的 `python_311_or_newer`、`windows`、`git_found` 和磁盘剩余量应正常。`missing_dependencies` 此时可为非空（venv 未安装），这不是安装失败。确认磁盘充足后：
+
+```powershell
+py -3.11 -m venv .venv
+$python = Join-Path (Get-Location) '.venv\Scripts\python.exe'
+& $python -m pip install --upgrade pip
+& $python -m pip install -r requirements.txt
+& $python -m unittest discover -s v4/tests -v
+& $python -m v4.local_preflight
+```
+
+**第一次完整影子采集和 SQLite 入库**（建议先确保目录所在盘空间足够；默认 Windows 用户目录 `EVE-V4-Data`）：
+
+```powershell
+& $python -m v4.local_run --execute-shadow --data-root "$HOME\EVE-V4-Data"
+```
+
+首次扫描需要读取网络数据与现有授权桥。没有 `EVE_MARKET_API_KEY` 时建筑来源将会 FAILED、被标为 PARTIAL_UNVERIFIED，但**仍可先验证公开市场影子采集**。不要将密钥发送到聊天/公共仓库。扫描完成输出每轮目录、SQLite COUNT、coverage_gate；若失败读取对应 run 目录下 `full_scan.log` 或 `deep_scan.log`。**不要立即安装 Windows 计划任务**，须先实测首次完整影子扫描。
+
+首次影子成功后的在线备份：
+
+```powershell
+& $python -m v4.local_backup --data-root "$HOME\EVE-V4-Data"
+```
+
+没有本地远程终端/屏幕授权时，聊天端不能直接安装到用户 Windows：以上操作必须在主机 PowerShell 执行并回传无敏感信息的预检与扫描状态。PR 不合并主线、不部署 V3/V4 邮件；正式邮件放行另需用户批准。
+
+
+## 今日无需用户操作；明日仅需配合
+
+1. 电脑开机并确保网络/代理可正常访问 EVE Ref、Cloudflare 的现有授权桥；不要发送 API 密钥到聊天。
+2. 在电脑终端运行一次 `py -3.11 -m v4.local_preflight` 并反馈**脱敏**的检测结论（磁盘容量、Python/SQLite/包状态即可）。
+3. 明天确定保存数据库的盘符及是否允许计划任务在登录后自动运行；本计划不代替你的实际授权和机器端部署。
+
+## 严格不做
+
+- 不恢复 V3、不开正式邮件；不将 Draft PR #53 当作主线。
+- 不要求向公有仓库泄露 ESI 授权；不在 GitHub Actions/Cloudflare 恢复付费 SQL 操作。
+- 不在未验证真实订单成交条件时宣称盈利或已完成正式 V4 上线。
+
+## 2026-10-14 本机第一次反馈：Python 3.11 NumPy 依赖阻塞的实际修正
+
+主机预检 Python 3.11.9、SQLite 3.45.1、Git+Codex 就绪、C盘剩余374.11 GiB，但 `numpy`/`pandas`/`requests` 全部缺失，`unittest` 反馈三处导入错误。根因之一已核实为旧版 `requirements.txt` 硬编码 `numpy==2.5.3`，而 PyPI 官方元数据该版要求 Python >=3.12；3.11安装因此失败。修复后依赖规格：Python<3.12 时 numpy==2.4.3，Python>=3.12 时 numpy==2.5.3；pandas==2.3.3、requests==2.34.2。CI进一步在3.11与3.12分别执行 `pip install -r requirements.txt` 防止再出现同类差错。
+
+**已经 clone 的本机 PowerShell 修复命令（仅修改独立 .venv）：**
+
+```powershell
+$repo = Join-Path $HOME 'EVE-V4-Code'
+Set-Location $repo
+git pull --ff-only
+$python = Join-Path $repo '.venv\Scripts\python.exe'
+& $python -m pip install -r requirements.txt
+if ($LASTEXITCODE -ne 0) { throw "安装失败，请保留 pip 错误输出（脱敏后反馈）" }
+& $python -m v4.local_preflight
+& $python -m unittest discover -s v4/tests -v
+```
+
+必须以 `ready_to_attempt_shadow: true` 且测试 OK 为准，不因原来测试抛的错误而直接开始全量市场采集。若 pip 依旧失败，请先根据完整错误判断是代理、证书、镜像源还是解释器路径，**不要**全局关闭 TLS 校验或安装无来源包；不必升级 Python。
+
+## 2026-10-14 本地主机首次真实扫描已成功：接下来先保全+定位部分缺口
+
+用户已实测本地主机状态：
+- `SHADOW_RECORDED`：本机完成 V4 影子采集、分析与本地 SQLite 提交。
+- `CENSUS_COMPLETE_PROOFS_NOT_READY`：全量市场普查完成但逐单 ESI 兑现门禁未就绪。
+- `source_market_orders=1584996`、`sqlite_unique_proofs=31931`；这是订单数与深验凭证/审核记录数，口径不同，**不能**推断剩余订单被跳过。
+- `coverage_gate=PARTIAL_UNVERIFIED`：结构市场某来源 FAILED，或原始订单隔离 `source_input_integrity != ALL_PARSED`；需看实际 `structure_health` 和无效单数才能分辨。
+- `mail_enabled=False`：无邮件、无正式放行。
+
+在已有机器 PowerShell 上，不需要重新扫描：
+```powershell
+Set-Location (Join-Path $HOME 'EVE-V4-Code')
+git pull --ff-only
+if ($LASTEXITCODE -ne 0) { throw "Git更新失败" }
+$python = Join-Path (Get-Location) '.venv\Scripts\python.exe'
+$dataRoot = Join-Path $HOME 'EVE-V4-Data'
+& $python -m v4.local_backup --data-root $dataRoot
+if ($LASTEXITCODE -ne 0) { throw "备份校验失败" }
+& $python -m v4.local_status --data-root $dataRoot
+if ($LASTEXITCODE -ne 0) { throw "诊断失败" }
+```
+
+`local_status` **只读**、不展示机器个人目录，不访问授权 Token 或联网：回报三个建筑来源健康和失败原因、数据完整性/隔离数量、报告proof与SQL唯一行是否一致、snapshot年龄/状态、模型候选/正式候选、拒绝原因前12项；`local_backup` 使用 SQLite 原生 online backup 并校验完整性，不能替代异盘副本。提供脱敏的 `local_status` JSON 即可决定是密钥缺失/HTTP403/源行异常等下一修复优先级。
+
+本轮只能认为**本机单次 shadow 通过**，不能说长期定时运行、72h影子或正式MAIL已完成。安全门禁沿用既有用户批准的全市场每次重新扫描+两小时汇总，不恢复 V3。
+
+
+## 2026-10-14 本地 SQLite 31,931 记录验收与影子调度准备
+
+用户回传 `sqlite_integrity=ok`、`sqlite_run_row=SHADOW_VERIFIED_OFFLINE`、`sqlite_unique_proofs=31931`、`sqlite_count_matches_report=true`、`sqlite_status_counts={RESEARCH:20715,WATCH:11216}`。数据库结构与内容数量对账已经通过。其他拒绝原因包括 `PARTIAL_CASH_FLOOR_RESEARCH=10310`、`BELOW_GATE_OR_STRESS=900`、`INVALID_PRICE=230`、`NO_PROFITABLE_MATCHED_DEPTH=135`、`LIVE_ORDER_AND_CONTRACT_NOT_REVALIDATED=6`、`SOURCE_ORDER_INVALID=1`、`UNKNOWN_VOLUME_OR_ITEM=1`，这些类别属于策略/行情/验证结果，不是 SQLite 写入失败。
+
+**重要：** 用户目前只提供了 `local_status` 的末尾片段，缺 `structure_health`、`invalid_public_orders` 和 `source_input_integrity`。因此不能推定 4-H/C-J/O4T 哪条访问失败，或把某个可能的 missing_api_key 当作已知事实。先用以下只读命令回报安全诊断，不重新采集或暴露 token：
+
+```powershell
+Set-Location (Join-Path $HOME 'EVE-V4-Code')
+$python = Join-Path (Get-Location) '.venv\Scripts\python.exe'
+$root = Join-Path $HOME 'EVE-V4-Data'
+$diag = & $python -m v4.local_status --data-root $root | ConvertFrom-Json
+$diag | Select-Object run_status,coverage_gate,source_input_integrity,rejected_input_orders,invalid_public_orders,invalid_structure_orders,model_candidates,formal_candidates,sqlite_count_matches_report | Format-List
+$diag.structure_health | ConvertTo-Json -Depth 4
+```
+
+**本地两小时计划任务仍需主机端登记，尚未实际安装**。准备了 `v4/local_service.py`（`pythonw.exe` 无黑窗，私有 `logs/shadow-task.log`、磁盘可用空间低于20GiB拒绝扫描，每轮重新拉取完整快照，成功后每24小时在线备份一次，邮件OFF）和 `v4/install_windows_task.ps1`（12个每天固定时段触发点，00:23、02:23、…22:23，北京本地时间；两小时调度、IgnoreNew、85分钟上限，当前登录用户 Interactive、最小权限、不覆盖已存在同名任务）。
+
+只有用户确认剩余覆盖缺口和最新CI后，才由用户在主机 PowerShell 执行下列登记。**默认不登记**，未提供 `-Install` 仅检查计划；用户没运行就不可宣称定时部署：
+
+```powershell
+Set-Location (Join-Path $HOME 'EVE-V4-Code')
+git pull --ff-only
+& .\v4\install_windows_task.ps1
+# 确认审核后才运行：
+# & .\v4\install_windows_task.ps1 -Install
+```
+
+本任务仅在当前 Windows 用户保持已登录（可锁屏）时运行；注销用户或机器休眠将导致错过轮次。V3仍停，V4正式MAIL仍禁，Cloudflare/GitHub现有影子未切换。
+
+
+## 2026-10-14 玩家建筑缺口已诊断：三条线路均未取得本地 bridge key
+
+用户本机 `local_status` 已证实：
+
+- `four_h` / `cj` / `o4t` 全部 `FAILED: missing_api_key`，**不是**HTTP403（尚未向这些线路发起带密钥请求），不可称鉴权失败或站点ACL不开放。
+- 原始公开输入 `PARTIAL_QUARANTINED`，仅 `rejected_input_orders=1` / `invalid_public_orders=1` / `invalid_structure_orders=0`；那条异常记录有专门 `SOURCE_ORDER_INVALID` proof，审计没有静默跳过。
+- `model_candidates=6`、`formal_candidates=0`；模型候选仍非 ESI 实时可成交机会。
+- SQLite唯一proof数31931、RESEARCH20715/WATCH11216、`integrity=ok` / `count_matches_report=true`；数据持久化不是本轮阻塞。
+
+### 在 Windows 凭据库中保存**原有** Cloudflare bridge API key
+
+用户需取得先前自己配置的现有 `EVE_MAIL_API_KEY` 原值（GitHub Actions Secrets 不能直接回显原值）。**不要发给任何聊天、命令行参数或 GitHub**；这不是 ESI refresh token、GitHub Personal Access Token 或 OAuth 授权码。如原值已遗失，后续须单独协调安全轮换 Worker 与 GitHub Secret，不要擅自生成随机值后声称可访问。
+
+```powershell
+Set-Location (Join-Path $HOME 'EVE-V4-Code')
+git pull --ff-only
+if ($LASTEXITCODE -ne 0) { throw "代码更新失败" }
+$python = Join-Path (Get-Location) '.venv\Scripts\python.exe'
+& $python -m pip install -r requirements.txt
+if ($LASTEXITCODE -ne 0) { throw "依赖安装失败" }
+& $python -m v4.local_bridge_auth --set
+& $python -m v4.local_bridge_auth --status
+& $python -m v4.local_bridge_probe
+```
+
+`--set` 使用隐藏输入（`getpass`）并调用 Windows 当前用户的 Credential Manager 存储；其他进程不会从命令行/仓库/PowerShell历史看到这个密钥。无需机器管理员权限。凭据不进入 SQLite、日志和提交。之后 `local_run` 只在`v4.deep_scan`子进程的临时环境内注入此凭据；本机`pythonw`影子计划任务以同一已登录用户身份执行时也可读取。命令 `local_bridge_probe` 仅对 three structures 每条请求**第一页**；`PAGE1_OK`只代表第一页可读，真实完整扫描仍需校验全部页数。
+
+如果 `probe` 为`MISSING_KEY`：尚无存储；若 `ACCESS_DENIED` / `HTTP_FAILURE`，按各 profile 的具体状态定位。**不要仅凭密钥存在就把 coverage_gate 从 PARTIAL_UNVERIFIED 改为 COMPLETE。**
+
+保留公开市场异常订单隔离审计，即使三处第一屏访问修复也不代表此前 `PARTIAL_QUARANTINED` 可忽略。正式 V4 邮件仍关闭；本地定时任务只有实际 `-Install` 才注册。
+
+
+## 2026-10-14 本地主机真实全量扫描：三座建筑分页网络断线（WinError 10054）
+
+用户本机完成在线 SQLite 备份 `backups/v4-shadow-20261014T060131Z.sqlite3`，`sqlite_integrity=ok`、`scan_runs=1`、`proof_versions=31931`；备份仍需异机副本。
+
+随后第二次 `python -m v4.local_run --execute-shadow` 实际运行了完整公开市场和 deep_scan，`run_folder=20261014T060131Z-2922a48e`。本轮 `SHADOW_RECORDED`，`source_market_orders=1584527`，`deep_public_orders=1584522`，`sqlite_unique_proofs=31942`，`sqlite_integrity=ok`，`sqlite_count_matches_report=True`，`model_candidates=6`，`formal_candidates=0`，邮件关闭。**不是市场覆盖完全成功**：4-H/C-J/O4T 三者均 FAILED，错误是 `ConnectionError` / Windows `ConnectionResetError(10054)`（远端强制断开现有连接），`authorized_structure_orders_parsed=0`，`source_input_integrity=PARTIAL_QUARANTINED`，`coverage_gate=PARTIAL_UNVERIFIED`。先前本机 key 以及 Cloudflare Worker 部署与3个第一页访问验证均成功（34+54+8=96页作为当时页数），所以这次不能擅自归因为API凭据失效，也不能谎称完成结构市场采集。公开 market raw 与 deep parsed 差5条，请使用最新 diag `invalid_public_orders` 进一步核实，不自动忽略 quarantines。
+
+**实际代码修复**（isolated PR#54，V3和正式V4 MAIL始终不动）：
+- `v4/structure_transport.py`：每页结构市场请求最多5次尝试；网络中断/超时及HTTP408/425/429/5xx按上限退避和随机抖动重试；分页之间轻微间隔以降低短时间突发请求；401/403等非暂时性失败不盲目重试。每页校验结构ID、页号和报告总页数，失败后标记具体`reason`/`failed_page`/`pages_fetched`/`transient_retries`，永远不把未完成分页的结构市场订单当作成功纳入。
+- `v4/deep_scan.py` 改为统一调用重试传输层；`v4/local_status.py` 展示安全的分页失败诊断（不输出密钥）。
+- `v4/local_structure_pages.py` 增加只读全结构分页探测（先不需要再下载158万公开订单，不写SQL、没有发邮件）；若某条lane仍失败，exit code 2但输出其他lane诊断。安全回归 `v4/tests/test_structure_transport.py` 覆盖WinError10054单页恢复、429限流恢复、单页重试耗尽后整lane失败不混用部分订单、403不重试、分页漂移、完整顺序及没有API key拒绝请求。
+- 本机复测建议：
+```powershell
+Set-Location (Join-Path $HOME 'EVE-V4-Code')
+git pull --ff-only
+if ($LASTEXITCODE -ne 0) { throw '更新失败' }
+$python=Join-Path (Get-Location) '.venv\Scripts\python.exe'
+& $python -m v4.local_structure_pages
+```
+优先获得三条 `status=COMPLETE` 与 `ALL_STRUCTURE_PAGES_COMPLETE`；如仍发生重试耗尽或分页变化，依据最新`failed_page`判断网络出口/VPN代理与数据滚动变化，不开启计划任务正式运行。只有结构页诊断通过后才重新运行完整fresh `v4.local_run --execute-shadow` 并审计 SQLite。注意首次三个第一页成功与后续完整分页成功是两种独立验证。生产实时买卖挂单/合同重新校验仍未实现。
+
+
+## 2026-10-14 本地全市场+结构市场联合影子扫描成功，允许启动两小时无人值守验收
+
+用户实测最新版联合扫描 `v4.local_run --execute-shadow` 输出：
+- `run_status=SHADOW_RECORDED`；`coverage_gate=INPUT_LANES_REPORTED_COMPLETE_NOT_LIVE_VERIFIED`，`raw_market_orders=1583690`。
+- 私人建筑订单 `authorized_structure_orders_parsed=94240`。4-H `33639/34页`、C-J `53280/54页`、O4T `7321/8页`，三lane全部COMPLETE、96/96页、各lane `transient_retries=0`。
+- `invalid_public_orders=0`，`invalid_structure_orders=0`；`sqlite_unique_proofs=32900`，`sqlite_integrity=ok`，`sqlite_count_matches_report=True`。`model_candidates=15` 但 `formal_candidates=0`，说明候选仍缺正式实时成交可行性校验，不代表可以发信。
+- 新配置仍然 `mail_enabled=false`，`ready_for_production=false`。通过的只是**快照输入与本地数据库**完整性，不是逐笔实时可交易验证。
+
+已加固无人值守切换：
+1. `v4/install_windows_task.ps1` 在试运行和实际安装前读取本地只读诊断；仅当最新 `SHADOW_RECORDED`、完整三建筑、`ALL_PARSED`、SQLite `ok` 与独立证明数量一致、且MAIL OFF时才继续。已存在计划任务则拒绝覆盖，默认只做 dry run。
+2. `v4/local_service.py` 实际调度时检查三个建筑 `COMPLETE` 并确认页数匹配与 `coverage_gate` 完整；遇到部分覆盖即 `DEGRADED_PARTIAL_COVERAGE`，日志记录状态、退出码2，但仍安全保存已抓的数据并按原日备份策略执行；不再把 `SHADOW_RECORDED` 的部分覆盖当作健康成功。
+3. Windows计划仍按每天0:23、2:23……22:23用户本地时间执行，`pythonw.exe` 无窗口，只有当前Windows账户保持登录时触发；失败不会弹黑框，需检查本地 `logs/shadow-task.log` 和 Task Scheduler LastTaskResult。若磁盘剩余不足20GiB则跳过。单任务最长85分钟，不重叠。
+4. 先运行无 `-Install` 的模拟校验，随后才明确执行 `-Install`，然后查询 `Get-ScheduledTask -TaskName EVE-V4-Shadow` 与下一次调度。代码测试通过**不代表用户已在本机注册任务**；需要用户回传真实注册输出与首次定时轮运行证明。
+
+建议本地命令：
+```powershell
+Set-Location (Join-Path $HOME 'EVE-V4-Code')
+git pull --ff-only
+if ($LASTEXITCODE -ne 0) { throw 'git pull失败' }
+$taskScript=Join-Path (Get-Location) 'v4\install_windows_task.ps1'
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File $taskScript
+if ($LASTEXITCODE -ne 0) { throw 'dry-run失败' }
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File $taskScript -Install
+if ($LASTEXITCODE -ne 0) { throw '注册失败' }
+Get-ScheduledTask -TaskName 'EVE-V4-Shadow'
+Get-ScheduledTaskInfo -TaskName 'EVE-V4-Shadow' | Select-Object NextRunTime,LastRunTime,LastTaskResult
+```
+
+
+## 2026-10-14 V4后台首次定时任务真实运行：四条公开市场订单隔离
+
+用户 `EVE-V4-Shadow` 手动触发后台运行后，任务从Running回到Ready，`LastTaskResult=2`，下次按计划16:23。独立`full_scan`和`deep_scan`均完成，三结构`four_h/cj/o4t=COMPLETE`，`sqlite_unique_proofs=32877`，空闲磁盘360.62GiB、备份不应重复（NOT_DUE）、MAIL OFF。用户随后读取同一个本机存档的`v4.local_status`，确证`authorized_structure_orders_parsed=94310`、`invalid_public_orders=4`、`invalid_structure_orders=0`、`rejected_input_orders=4`、`source_input_integrity=PARTIAL_QUARANTINED`，SQLite integrity OK、计数一致。故此轮降级告警不是建筑缺页/网络/凭据，而是只有**四条公开市场订单被原始字段验证器隔离**。在查明原因之前不得静默忽略4个证明或将coverage_gate改成完全成功。此前已经在后台`v4.local_service`将这些与建筑真正不完整独立分类`DEGRADED_INPUT_QUARANTINE`，仍保留非零退出码。模型候选信号15条仍无实时验证；`ITEM_CLASSIFICATION_UNVERIFIED_OR_BLUEPRINT=20336`体现合同标的类型判别仍是正式提醒大障碍，不能以修复4条公开订单代替完善出清验证。
+
+现在新增`v4/local_invalid_order_audit.py`：离线只读检查指定runs文件夹的`all_proofs.jsonl`中SOURCE_ORDER_INVALID，并用原`source/market_orders.csv.bz2`按存档行号读取**有限个**原始公开订单列来判断字段和解析失败原因（不读Windows密钥、不打网络、不写SQLite、不发信）。本例固定诊断 `--run-folder 20261014T071050Z-cdc71ff3`，但后续可缺省用最近一轮。命令：
+```powershell
+Set-Location (Join-Path $HOME 'EVE-V4-Code')
+git pull --ff-only
+$python=Join-Path (Get-Location) '.venv\Scripts\python.exe'
+& $python -m v4.local_invalid_order_audit --data-root (Join-Path $HOME 'EVE-V4-Data') --run-folder 20261014T071050Z-cdc71ff3
+```
+工具应报告 `invalid_public_proofs_found=4` 且 `proof_count_matches_report=true` 和4条 `error_type/error_detail/source_fields`，用户回传后再修复具体parser或标记上游原始异常。目前尚未获得真实4条字段明细，不能猜测是NaN或负价。此项离线诊断已有CI：Windows Python3.11 #38529391933 69/69单元测试通过；Ubuntu3.11和3.12通过。
+
+
+## 2026-10-14 四条“异常”订单已离线溯源为剩余数量0，V4分类修正
+
+用户运行 `v4.local_invalid_order_audit --run-folder 20261014T071050Z-cdc71ff3`，`invalid_public_proofs_found=4`、`proof_count_matches_report=true`。原始字段一致：四个公开卖单（Jita/Amarr，均`range=region`）`volume_remain=0`，其他已展示字段为正常正值；订单ID分别为7444436938、7436840858、7444608479、7444607654；相应order_id/type_id/price也都有审计证据。此前 `Order.parse` 一律拒绝`remaining<=0`，并把它们归为`SOURCE_ORDER_INVALID`，造成 `PARTIAL_QUARANTINED` 及Windows后台任务exit2，尽管市场建筑全部COMPLETE与SQLite对账ok。技术结论：零剩余不具备可交易数量，**不应作为可执行买卖量、也不应被误判为损坏输入**；不能改数量为1或关闭其余数据校验。
+
+已实际修复并提交独立 Draft PR#54 分支 `prep/v4-windows-local-migration-20261013`：
+- `v4/engine.py`：`parse_orders_with_quarantine` 对严格等于0且其余字段通过`Order.parse`其他验证的快照订单产生状态RESEARCH的审计proof：`kind=input_non_actionable`、`reason=SOURCE_ORDER_ZERO_REMAINING`。它们不会进入Order/买卖深度簿。负数、分数数量、坏价格、空字段仍保留`SOURCE_ORDER_INVALID`及源完整性告警。严格`Order.parse`入口保持不变。
+- `v4/deep_scan.py`：将源行分类成可执行订单、零剩余非可执行证明、真正异常证明，三类均计入原始快照行数守恒。新报告包括`zero_remaining_public_orders`、`zero_remaining_structure_orders`、`non_actionable_zero_remaining_orders`及原始行数。零剩余证明写入同一all_proofs.jsonl和本地SQLite，不改变原扫描的SHA审计；只有**真正异常行**触发`PARTIAL_QUARANTINED`。audit `reason_counts`与证明记录数一致。
+- `v4/local_run.py`, `v4/local_status.py`, `v4/local_service.py`：将新两类“非可交易零剩余订单”计数显示在长期manifest、只读diag及无人值守日志，保持邮件关闭。
+- 回归：`v4/tests/test_engine.py`新增一个可用0量订单及非法零量/负数/小数数量案例；`v4/tests/test_non_actionable_orders.py`用伪造离线DataFrame贯穿`deep_scan.run`，验证无误报、其余错误仍隔离及报告证明数量匹配。CI验证见PR流水线。
+- 下一阶段：用户本机 `git pull --ff-only` 后，无需重注册Windows EVE-V4-Shadow计划任务；下个时刻（用户此前设置16:23）自动按新代码运行。如果当次仍出现数据异常，根据新`invalid_public_orders`、`zero_remaining_public_orders`及`coverage_gate`区分；不保证源数据永不新增其他异常。过去历史`PARTIAL_QUARANTINED`记录保持原样，不会自动重写过去的SQLite proof。

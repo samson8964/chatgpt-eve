@@ -1,0 +1,182 @@
+"""Source-backed, strictly non-actionable contract review from the latest local V4 scan.
+
+Never invent prices or claim live ESI verification. This module has no network,
+SMTP, OAuth, or Windows credential access and does not modify scan evidence.
+"""
+from __future__ import annotations
+
+import json
+import math
+from collections import Counter
+from v4.engine import Policy
+from v4.ship_alert_exclusions import load_policy_for_run, POLICY_NAME
+from v4.mail_volume import contract_volume
+from v4.contract_content_policy import eligible_contract_research, CRYSTAL_SHARE_BASIS, CONTRACT_MIN_NET_ISK
+from datetime import datetime, timezone
+from pathlib import Path
+
+MAX_CANDIDATES = 12
+
+
+def _safe_float(value):
+    try:
+        number = float(value)
+        return number if math.isfinite(number) else None
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+
+def _load_json(path: Path) -> dict:
+    value = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(value, dict):
+        raise ValueError("INVALID_V4_REPORT")
+    return value
+
+
+def make_review(root: Path, *, limit: int = MAX_CANDIDATES) -> dict:
+    root = Path(root).resolve()
+    runs = root / "runs"
+    folders = sorted((p for p in runs.iterdir() if p.is_dir()), reverse=True)
+    finished = None
+    for folder in folders:
+        manifest = _load_json(folder / "manifest.json")
+        if manifest.get("status") == "SHADOW_RECORDED":
+            finished = (folder, manifest)
+            break
+    if finished is None:
+        raise RuntimeError("NO_COMPLETED_V4_SHADOW_RUN")
+    folder, manifest = finished
+    deep = _load_json(folder / "deep_shadow.json")
+    if deep.get("status") != "SHADOW_ONLY_NO_LIVE_ALERTS":
+        raise RuntimeError("NOT_A_SHADOW_AUDIT")
+    # Previous runs used the prohibited same-location valuation model.
+    # Never re-mail old estimates after switching to Jita 4-4.
+    if deep.get("contract_pricing_basis") != "JITA_4_4_BUY_DEPTH_SNAPSHOT":
+        raise RuntimeError("REVIEW_REQUIRES_NEW_JITA_4_4_VALUATION_SCAN")
+    if manifest.get("mail_enabled") is not False or manifest.get("ready_for_production") is not False:
+        raise RuntimeError("UNSAFE_SCAN_MAIL_STATUS")
+    exclude_policy=load_policy_for_run(deep)
+    excluded_ship_leads=0
+    partial_mode=(deep.get("contract_partial_valuation_basis") ==
+                  "JITA_CREDITED_REGULAR_BUY_DEPTH_IGNORED_CARGO_ZERO")
+    count = Counter()
+    leads = []
+    observed = 0
+    proof_path = folder / "all_proofs.jsonl"
+    with proof_path.open(encoding="utf-8") as stream:
+        for line in stream:
+            if not line.strip():
+                continue
+            proof = json.loads(line)
+            if proof.get("kind") != "contract":
+                continue
+            observed += 1
+            count[str(proof.get("reason") or "UNSPECIFIED")] += 1
+            cid = proof.get("contract_id")
+            profit = _safe_float(proof.get("net_profit"))
+            roi = _safe_float(proof.get("roi"))
+            stress = _safe_float(proof.get("stress_profit"))
+            cost = _safe_float(proof.get("cost"))
+            if not isinstance(cid, int) or cid <= 0:
+                continue
+            if (proof.get("valuation_basis") != "JITA_4_4_BUY_DEPTH_SNAPSHOT_NOT_LIVE"
+                    or proof.get("valuation_location_id") != 60003760
+                    or proof.get("destination_location") != 60003760):
+                continue
+            # Only candidates whose ordinary items have already passed the
+            # complete snapshot buy-depth/value calculation may be listed.
+            if not eligible_contract_research(
+                    net_profit=profit, roi=roi, stress=stress, cost=cost,
+                    crystal_share=proof.get("energy_crystal_value_share"),
+                    category_required=(
+                        deep.get("contract_crystal_screen_basis")==CRYSTAL_SHARE_BASIS),
+                    partial_mode=partial_mode):
+                continue
+            reason = str(proof.get("reason") or "")
+            if reason not in ("LIVE_ORDER_AND_CONTRACT_NOT_REVALIDATED",
+                              "BELOW_GATE_OR_STRESS"):
+                continue
+            if proof.get("status") == "MAIL":
+                raise RuntimeError("UNSAFE_FORMAL_PROOF_IN_SHADOW")
+            included = proof.get("included_items")
+            if not isinstance(included, dict) or not included:
+                continue
+            try:
+                safe_items=all(str(k).isdigit() and int(v)>0
+                               for k,v in included.items())
+            except (ValueError,TypeError,OverflowError):
+                safe_items=False
+            if not safe_items:
+                continue
+            if exclude_policy is not None and exclude_policy.blocks_contract(included):
+                excluded_ship_leads+=1
+                continue
+            credited=proof.get("credited_items") if partial_mode else included
+            volumes=contract_volume(proof,included,credited)
+            leads.append({
+                "contract_id": cid,
+                **volumes,
+                "contract_price": _safe_float(proof.get("contract_price")),
+                "investment": cost,
+                "haul_estimate_isk": _safe_float(proof.get("haul_cost_estimate_isk")),
+                "valuation_location_id": 60003760,
+                "valuation_basis": "JITA_4_4_BUY_DEPTH_SNAPSHOT_NOT_LIVE",
+                "haul_route_verified": False,
+                "net_profit_snapshot": profit,
+                "roi_snapshot": roi,
+                "stress_profit_snapshot": stress,
+                "included_items": included,
+                "credited_items": credited,
+                "ignored_types_count": proof.get("ignored_types_count") if partial_mode else 0,
+                "partial_liquidation_basis":proof.get("partial_liquidation_basis") if partial_mode else None,
+                "source_location": proof.get("source_location"),
+                "source_security_band": proof.get("source_security_band"),
+                "source_station_name": proof.get("source_station_name"),
+                "haul_model": proof.get("haul_model"),
+                "expires_at": str(proof.get("expires_at") or ""),
+                "reason": reason,
+                "review_tier": ("MODEL_CANDIDATE" if proof.get("model_candidate") is True
+                                else "BELOW_FORMAL_THRESHOLD"),
+                "live_verified": False,
+                "actionable": False,
+            })
+    expected = int(deep.get("contract_approved_locations_examined",
+                            deep.get("contract_jita_examined")) or 0)
+    if observed > expected:
+        raise RuntimeError("CONTRACT_PROOF_COUNT_EXCEEDS_JITA_CONTRACTS")
+    leads.sort(key=lambda row: (
+        row["review_tier"] != "MODEL_CANDIDATE",
+        -row["net_profit_snapshot"], -row["roi_snapshot"], row["contract_id"]))
+    return {
+        "report_type": "V4_CONTRACT_REVIEW_ONLY",
+        "run_folder": folder.name,
+        "finished_at": manifest.get("finished_at"),
+        "coverage_gate": manifest.get("coverage_gate"),
+        "source_input_integrity": manifest.get("source_input_integrity"),
+        "structure_health": {k:(v or {}).get("status") for k,v in
+                             (manifest.get("structure_health") or {}).items()},
+        "sqlite_unique_proofs": manifest.get("sqlite_unique_proofs"),
+        "contract_approved_locations_examined": expected,
+        "npc_catalog_status": deep.get("npc_catalog_status"),
+        "npc_catalog_highsec_stations": deep.get("npc_catalog_highsec_stations"),
+        "npc_catalog_lowsec_stations": deep.get("npc_catalog_lowsec_stations"),
+        "npc_contracts_approved_for_deep_analysis": deep.get("npc_contracts_approved_for_deep_analysis"),
+        "contract_jita_examined": int(deep.get("contract_jita_examined") or 0),
+        "contract_pricing_basis": deep["contract_pricing_basis"],
+        "contract_min_net_profit_isk": CONTRACT_MIN_NET_ISK,
+        "contract_partial_mode":partial_mode,
+        "contract_crystal_screen_basis": deep.get("contract_crystal_screen_basis"),
+        "contract_proofs_audited": observed,
+        "contract_rejection_reasons": dict(count.most_common(12)),
+        "excluded_capital_freighter_contract_leads": excluded_ship_leads,
+        "ship_exclusion_policy": POLICY_NAME if exclude_policy else "LEGACY_FIXTURE_NO_CATALOG",
+        "research_leads_total": len(leads),
+        # Unified 10-per-category digest must sort the COMPLETE set by discovery
+        # before truncating it; legacy independent callers retain their limit.
+        "research_leads": leads if limit is None else leads[:max(0, min(int(limit), 50))],
+        "formal_verified_contracts": 0,
+        "live_orders_rechecked": False,
+        "live_contract_rechecked": False,
+        "warning": "Snapshot research only; never place an order based on this email.",
+        "mail_enabled_in_scanner": False,
+    }

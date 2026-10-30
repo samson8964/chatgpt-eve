@@ -51,6 +51,16 @@ jobs:
             --config cloudflare/wrangler.jsonc \
             --strict
 
+      - name: Sync EVE API key to the existing Cloudflare Worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${EVE_MAIL_API_KEY:-}" || { echo 'EVE_MAIL_API_KEY not configured'; exit 2; }
+          # The exact same secret is used by existing GitHub tasks and by the
+          # Cloudflare Worker as MAIL_API_KEY. Nothing is printed to logs.
+          printf '%s' "$EVE_MAIL_API_KEY" | npx --yes wrangler@latest secret put MAIL_API_KEY \
+            --config cloudflare/wrangler.jsonc
+
       - name: Sync GitHub dispatch token to Worker
         if: env.EVE_DISPATCH_TOKEN != ''
         shell: bash
