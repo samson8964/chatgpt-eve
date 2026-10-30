@@ -3,12 +3,13 @@ from __future__ import annotations
 
 import sqlite3
 from contextlib import closing
+from datetime import date, timedelta, timezone
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from v4.storage_retention import rotate_backups
+from v4.storage_retention import _backup_local_day, rotate_backups
 
 
 def valid_backup(folder: Path, stamp: str, *, valid: bool = True) -> Path:
@@ -70,13 +71,48 @@ class LocalBackupRetentionTests(unittest.TestCase):
             rotate_backups(self.root, apply=True)
         self.assertTrue(all(p.exists() for p in paths))
 
-    def test_no_prune_when_three_latest_created_same_day(self):
-        self.create(5)
-        for hour in ("140000", "150000"):
-            valid_backup(self.folder, "20261021T" + hour + "Z")
+    def test_duplicate_day_falls_back_to_three_distinct_days(self):
+        regular = self.create(5)
+        same_day = [valid_backup(self.folder, "20261021T" + hour + "Z")
+                    for hour in ("140000", "150000")]
         report = rotate_backups(self.root, apply=True)
+        self.assertEqual(report["status"], "ROTATED")
+        self.assertEqual(report["deleted"], 4)
+        self.assertTrue(all(p.exists() for p in [regular[2], regular[3], same_day[1]]))
+        self.assertFalse(any(p.exists() for p in [regular[0], regular[1],
+                                                 regular[4], same_day[0]]))
+
+    def test_fewer_than_three_local_dates_blocks_all_pruning(self):
+        paths = [valid_backup(self.folder, stamp) for stamp in (
+            "20261029T130000Z", "20261029T140000Z",
+            "20261029T150000Z", "20261030T010000Z")]
+        with patch("v4.storage_retention._backup_local_day",
+                   side_effect=lambda p: _backup_local_day(
+                       p, tz=timezone(timedelta(hours=8)))):
+            report = rotate_backups(self.root, apply=True)
         self.assertEqual(report["status"], "BLOCKED_RECENT_DAYS_NOT_DISTINCT")
         self.assertEqual(report["deleted"], 0)
+        self.assertTrue(all(p.exists() for p in paths))
+
+    def test_utc_boundary_keeps_three_machine_local_days(self):
+        local = timezone(timedelta(hours=8))
+        # These file UTC stamps represent October 27,28,29,30 in China.
+        old = valid_backup(self.folder, "20261026T172651Z")
+        oct28 = valid_backup(self.folder, "20261027T182705Z")
+        oct29 = valid_backup(self.folder, "20261029T012706Z")
+        oct30 = valid_backup(self.folder, "20261029T194501Z")
+        self.assertEqual(_backup_local_day(oct30, tz=local),
+                         date(2026, 10, 30))
+        self.assertEqual(_backup_local_day(oct29, tz=local),
+                         date(2026, 10, 29))
+        with patch("v4.storage_retention._backup_local_day",
+                   side_effect=lambda p: _backup_local_day(p, tz=local)):
+            report = rotate_backups(self.root, apply=True,
+                                    expected_newest=oct30)
+        self.assertEqual(report["status"], "ROTATED")
+        self.assertEqual(report["deleted"], 1)
+        self.assertTrue(all(p.exists() for p in (oct30, oct29, oct28)))
+        self.assertFalse(old.exists())
 
     def test_guard_against_unexpected_newest_backup(self):
         paths = self.create(5)
