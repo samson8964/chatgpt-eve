@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="EVE AI 工具中心：统一打开药物制造计算器、查看 GitHub Actions 扫描任务、运行状态和历史工具。">
+<title>EVE AI 工具中心 · 入口看板</title>
+<style>
+:root{color-scheme:dark;--bg:#090f19;--panel:#101c2b;--panel2:#172639;--text:#e9f2ff;--muted:#a0b3c8;--line:#2a425c;--blue:#64c5ef;--mint:#77e2b1;--gold:#eec980;--red:#e3a0a2}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;font:15px/1.65 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;background:radial-gradient(1100px 650px at 5% -15%,#164059,transparent 65%),radial-gradient(850px 650px at 95% -10%,#24234d,transparent 70%),var(--bg);color:var(--text)}
+a{color:inherit}button,input{font:inherit}button{cursor:pointer}.wrap{max-width:1180px;margin:auto;padding:30px 22px 80px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:28px;flex-wrap:wrap}.brand{display:flex;align-items:center;gap:12px;font-weight:750;letter-spacing:.02em}.logo{height:42px;width:42px;border-radius:12px;border:1px solid #316c89;background:linear-gradient(140deg,#194b60,#19314b);display:grid;place-items:center;font-size:22px}.links{display:flex;gap:16px;flex-wrap:wrap}.links a{font-size:13px;color:var(--muted);text-decoration:none}.links a:hover{color:var(--text)}
+.kicker{text-transform:uppercase;letter-spacing:.18em;font-size:12px;color:var(--blue);font-weight:750;margin:0 0 8px}.hero{display:grid;grid-template-columns:1.25fr .75fr;gap:18px;margin:12px 0 28px}.hero-main,.hero-side,.notice,.card{background:linear-gradient(145deg,rgba(25,42,62,.95),rgba(13,24,38,.98));border:1px solid var(--line);border-radius:18px}.hero-main{padding:30px}.hero-side{padding:25px;display:flex;flex-direction:column;justify-content:space-between;gap:18px}h1{font-size:clamp(28px,4.8vw,44px);line-height:1.22;letter-spacing:-.03em;margin:0 0 16px}h2{font-size:20px;margin:0}.lead{color:#b9cce0;max-width:730px;margin:0 0 25px}.hero-actions,.actions,.filter-pills{display:flex;gap:10px;flex-wrap:wrap}.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid #34627f;color:var(--text);text-decoration:none;padding:11px 16px;border-radius:10px;background:#1b3e55;line-height:1.35;font-weight:650;transition:background .15s,border-color .15s}.btn:hover,.btn:focus-visible{background:#24566e;border-color:#5eafd1;outline:none}.btn.light{background:#255a67;border-color:#387b88}.btn.secondary{background:#17283b;border-color:#314960}.btn.small{font-size:13px;padding:9px 12px}.stats{display:grid;grid-template-columns:1fr 1fr;gap:12px}.stat{background:#112238;border:1px solid #263f57;border-radius:12px;padding:15px}.stat b{display:block;font-size:24px;line-height:1.25}.stat span{font-size:12px;color:var(--muted)}.subtle{font-size:12px;color:var(--muted);margin:0}.status-note{display:flex;gap:10px;align-items:flex-start;color:#b5c6d9;font-size:13px}
+.section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin:28px 0 15px}.section-head p{color:var(--muted);font-size:13px;margin:3px 0 0}
+.control{display:flex;gap:13px;align-items:center;flex-wrap:wrap;background:rgba(14,28,44,.68);border:1px solid #284057;padding:15px;border-radius:14px;margin-bottom:18px}.search{flex:1 1 230px;min-width:180px;background:#091623;border:1px solid #37506b;border-radius:10px;padding:11px 13px;color:var(--text);outline:none}.search:focus{border-color:var(--blue)}.filter-pills button{border:1px solid #35506a;background:transparent;color:#aec3d7;border-radius:999px;padding:8px 13px;font-size:13px}.filter-pills button[aria-pressed="true"]{background:#1f4759;border-color:#5ca6c0;color:#effaff}.count{font-size:12px;color:var(--muted);white-space:nowrap}
+.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px}.card{padding:20px;display:flex;flex-direction:column;min-height:236px}.card:hover{border-color:#47718c}.card-top{display:flex;justify-content:space-between;align-items:start;gap:10px}.card-icon{display:grid;place-items:center;height:39px;width:39px;border-radius:10px;background:#213a51;border:1px solid #36536c;font-size:22px}.tag{display:inline-flex;border:1px solid #44566b;border-radius:99px;font-size:11px;padding:4px 9px;color:#c5d1df;white-space:nowrap;line-height:1.35}.tag.live{color:#a1f3ce;border-color:#356b5e;background:#12342d}.tag.manual{color:#a9dcff;border-color:#365d79;background:#152c42}.tag.limited,.tag.experimental{color:#f3d392;border-color:#796044;background:#352b1d}.tag.retired,.tag.warning{color:#d6b3b3;border-color:#6c4850;background:#322126}
+.card h3{font-size:18px;margin:15px 0 4px;line-height:1.35}.card .desc{color:#adbfce;font-size:13px;margin:0 0 13px}.card .detail{font-size:12px;color:#8fb0c6;margin:0 0 17px}.card .actions{margin-top:auto}.card .actions a{flex:1 1 auto;text-align:center;min-width:90px}
+.notice{padding:20px 23px;margin-top:25px}.notice h2{font-size:17px;margin:0 0 7px}.notice p{font-size:13px;color:#adbecf;margin:7px 0}footer{margin-top:35px;padding-top:18px;border-top:1px solid #24394d;color:#8da3b7;font-size:12px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}footer a{color:#bbd9eb}.hidden{display:none!important}
+:focus-visible{outline:2px solid #79d8ff;outline-offset:3px}
+@media(max-width:980px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.hero{grid-template-columns:1fr}.hero-side{flex-direction:row;align-items:center}.hero-side .stats{min-width:235px}}
+@media(max-width:620px){.wrap{padding:17px 13px 48px}.hero-main{padding:22px}.hero-side{padding:19px;display:block}.hero-side .stats{margin-bottom:15px}.cards{grid-template-columns:1fr}.card{min-height:210px}.control{align-items:stretch}.search{flex-basis:100%}.filter-pills{gap:6px}.filter-pills button{padding:7px 10px}.section-head{align-items:start}.links{gap:10px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand"><div class="logo" aria-hidden="true">✦</div><span>EVE · AI 工具中心</span></div>
+    <nav class="links" aria-label="常用链接">
+      <a href="../">药物计算器</a>
+      <a href="https://github.com/samson8964/chatgpt-eve/actions" target="_blank" rel="noopener noreferrer">GitHub Actions ↗</a>
+      <a href="https://github.com/samson8964/chatgpt-eve" target="_blank" rel="noopener noreferrer">源代码仓库 ↗</a>
+    </nav>
+  </header>
+  <main>
+    <section class="hero" aria-label="工具中心介绍">
+      <div class="hero-main">
+        <p class="kicker">EVE ONLINE · TOOL WORKSPACE</p>
+        <h1>工具集中管理<br>打开即用，状态清楚</h1>
+        <p class="lead">在一个页面找到我们制作的网页计算器、市场扫描与合同分析任务。网页工具直接使用；后台任务进入 GitHub Actions 查看或手动操作，避免误触发。</p>
+        <div class="hero-actions">
+          <a class="btn light" href="../">立即使用药物计算器 <span aria-hidden="true">↗</span></a>
+          <a class="btn secondary" href="#tools">浏览全部工具 ↓</a>
+        </div>
+      </div>
+      <aside class="hero-side">
+        <div>
+          <p class="kicker">发布状态</p>
+          <h2>工具台 V1</h2>
+          <p class="subtle">状态按 2026-11-02 仓库配置及 Actions 记录核查，不是实时心跳。</p>
+        </div>
+        <div class="stats">
+          <div class="stat"><b id="toolCount">12</b><span>收录工具入口</span></div>
+          <div class="stat"><b id="webCount">1</b><span>可直接使用的网页</span></div>
+        </div>
+      </aside>
+    </section>
+    <section id="tools" aria-labelledby="toolsHeading">
+      <div class="section-head">
+        <div><h2 id="toolsHeading">工具目录</h2><p>根据用途和核验状态筛选。蓝色是可手动调用的工作流，不代表正在运行。</p></div>
+        <span class="count" id="resultsCount" aria-live="polite"></span>
+      </div>
+      <div class="control">
+        <input id="q" class="search" type="search" autocomplete="off" placeholder="搜索：药物 / V4 / 合同 / 气体…" aria-label="搜索工具">
+        <div class="filter-pills" aria-label="分类筛选" id="filters" role="group">
+          <button type="button" data-filter="all" aria-pressed="true">全部</button>
+          <button type="button" data-filter="web" aria-pressed="false">网页应用</button>
+          <button type="button" data-filter="scanner" aria-pressed="false">扫描程序</button>
+          <button type="button" data-filter="research" aria-pressed="false">研究校验</button>
+          <button type="button" data-filter="archive" aria-pressed="false">已归档</button>
+        </div>
+      </div>
+      <div class="cards" id="cards" aria-live="polite"></div>
+      <p class="hidden" id="empty" style="text-align:center;color:#adbfce;padding:28px">没有匹配的工具。换个关键词再试。</p>
+    </section>
+    <section class="notice" aria-labelledby="usageHead">
+      <h2 id="usageHead">怎么使用这个看板？</h2>
+      <p>① <strong>网页应用</strong>：点击“打开计算器”，直接进入交互页面，手机也可用。</p>
+      <p>② <strong>GitHub Actions</strong>：点击“查看工作流”，登录 GitHub 后由你自行决定是否点击 <em>Run workflow</em>。这里只是跳转入口，不会自动启动任务。</p>
+      <p>③ <strong>限制/归档</strong>：黄色卡片通常处于试验、只读或停写状态；红色归档任务不可当成生产扫描。仓库里出现工作流文件，不代表程序已正常部署或当前具备运行配额。</p>
+      <p>④ <strong>本地 V4 Runner</strong>：本工具台不直接控制你的电脑或本地计划任务。要实现安全的一键远程运行，需要单独授权的服务，本版没有安装。</p>
+    </section>
+  </main>
+  <footer>
+    <span>个人 EVE 工具入口 · 页面不存储 GitHub Token，也不触发扫描</span>
+    <span>源代码：<a href="https://github.com/samson8964/chatgpt-eve/tree/gh-pages/tools" target="_blank" rel="noopener noreferrer">gh-pages/tools</a> · 状态核对：2026-11-02</span>
+  </footer>
+</div>
+<script>
+"use strict";
+const base="https://github.com/samson8964/chatgpt-eve/";
+const workflow=function(name){return base+"actions/workflows/"+name+".yml"};
+const tools=[
+ {id:"calculator",title:"药物制造材料计算器",icon:"⚗",type:"web",state:"live",desc:"8类药物的标准、加强、超强生产配方；按批次计算原料、中间体、成本、利润和 ROI。",detail:"完整静态网页 · 已独立发布，不需要 GitHub 登录。",actions:[["打开计算器","../"],["源码",base+"blob/gh-pages/index.html"]]},
+ {id:"v4shadow",title:"V4 市场与合同影子扫描",icon:"◈",type:"scanner",state:"limited",desc:"读取全市场与合同快照，运行深度分析并保存影子结果。",detail:"11月2日最近一次 Actions 成功；SQL 写入暂停、不发送游戏邮件，非正式机会推送。",actions:[["查看工作流",workflow("v4-market-heartbeat")],["最近成功记录",base+"actions/runs/41422590677"]]},
+ {id:"gas",title:"压缩气体套利扫描",icon:"◉",type:"scanner",state:"manual",desc:"评估吉他压缩气体解压后的可执行价差与成本，生成 CSV 和 Markdown 报告。",detail:"配置有 workflow_dispatch；能否成功取决于当前配额、依赖和市场接口。",actions:[["查看工作流",workflow("compressed-gas-arbitrage")],["查看源码",base+"blob/main/compressed_gas_decompression_arbitrage.py"]]},
+ {id:"4hmarket",title:"4-H → 吉他市场扫描",icon:"⌁",type:"scanner",state:"manual",desc:"查找 4-H 结构市场与吉他买单之间的直接收购机会。",detail:"仓库配置支持手动启动；结果属于市场快照而非成交承诺。",actions:[["查看工作流",workflow("four-h-market-scan")],["查看源码",base+"blob/main/structure_market_arbitrage.py"]]},
+ {id:"4hcontracts",title:"4-H 合同捡漏扫描",icon:"▣",type:"scanner",state:"manual",desc:"分析 4-H 合同报价与物品价值，生成结果报告与附件。",detail:"配置支持手动启动，未在本次操作中实际重跑。",actions:[["查看工作流",workflow("four-h-contract-scan")],["查看源码",base+"blob/main/four_h_contract_scanner.py"]]},
+ {id:"highvalue",title:"高价值合同扫描验证",icon:"⌕",type:"scanner",state:"manual",desc:"执行高价值合同机会筛选验证，输出验证日志和结果附件。",detail:"验证工作流，并非保证有效的生产推送系统。",actions:[["查看工作流",workflow("high-value-contract-scan")],["查看源码",base+"blob/main/high_value_contract_scanner.py"]]},
+ {id:"v4ci",title:"V4 自动化测试套件",icon:"✓",type:"research",state:"manual",desc:"检查 V4 代码及单元测试，方便修改后确认基本功能是否正常。",detail:"手动可触发；测试通过不等于真实机会扫描已生效。",actions:[["查看工作流",workflow("v4-ci")],["查看测试代码",base+"tree/main/v4/tests"]]},
+ {id:"bpcv2",title:"BPC V2 全流程试验",icon:"▤",type:"research",state:"experimental",desc:"运行旧版 BPC 制造套利全链路试验，包含合同核验与输出附件。",detail:"属于旧版本试验，工作流签出 opportunity-engine-v2 分支；不作为现行 V4 生产任务。",actions:[["查看试验工作流",workflow("bpc-v2-trial")],["查看工作流源码",base+"blob/main/.github/workflows/bpc-v2-trial.yml"]]},
+ {id:"v4reliability",title:"V4 可靠性检查",icon:"◎",type:"research",state:"warning",desc:"执行 V4 可靠性与回归测试，帮助排查代码变更风险。",detail:"10月30日多次运行出现失败记录；需要先查看日志，不标为健康运行。",actions:[["查看工作流",workflow("reliability-ci")],["失败记录",base+"actions/runs/41066184041"]]},
+ {id:"oldbooster",title:"旧增效剂蓝图监控",icon:"⚗",type:"archive",state:"retired",desc:"曾经扫描八种超强增效剂 BPC 的合同与制造利润。",detail:"booster-monitor.yml 明确 RETIRED，任务条件恒为 false。网页源码仅供参考。",actions:[["查看归档配置",workflow("booster-monitor")],["历史源码",base+"tree/main/booster-monitor"]]},
+ {id:"v3fast",title:"旧 V3 FAST 扫描",icon:"◈",type:"archive",state:"retired",desc:"旧版快速捡漏入口，已被后续 V4 体系替代。",detail:"scan.yml 已标记 RETIRED，工作流不会实际执行扫描。",actions:[["查看归档工作流",workflow("scan")]]},
+ {id:"v3bpc",title:"旧 V3 BPC 深度扫描",icon:"▦",type:"archive",state:"retired",desc:"旧版蓝图合同深度分析入口，仅供历史审计和参考。",detail:"v3-bpc-deep.yml 已标记 RETIRED，工作流不会实际运行。",actions:[["查看归档工作流",workflow("v3-bpc-deep")]]}
+];
+const states={live:["可直接使用","live"],manual:["支持手动运行","manual"],limited:["限制模式","limited"],experimental:["试验版本","experimental"],warning:["有失败记录","warning"],retired:["已归档停用","retired"]};
+let selected="all";
+const el=function(tag,className,txt){const n=document.createElement(tag);if(className)n.className=className;if(txt!==undefined)n.textContent=txt;return n};
+const cards=document.getElementById("cards"),q=document.getElementById("q");
+function render(){
+ const term=q.value.trim().toLowerCase();
+ const matches=tools.filter(t=>(selected==="all"||t.type===selected)&&(!term||(t.title+" "+t.desc+" "+t.detail+" "+t.id).toLowerCase().includes(term)));
+ cards.replaceChildren();
+ matches.forEach(t=>{
+   const card=el("article","card");const top=el("div","card-top"),icon=el("span","card-icon",t.icon),tag=el("span","tag "+states[t.state][1],states[t.state][0]);icon.setAttribute("aria-hidden","true");top.append(icon,tag);card.append(top,el("h3","",t.title),el("p","desc",t.desc),el("p","detail",t.detail));
+   const actions=el("div","actions");t.actions.forEach((a,i)=>{const link=el("a","btn small "+(i?"secondary":""),a[0]+" ↗");link.href=a[1];if(/^https:/.test(a[1])){link.target="_blank";link.rel="noopener noreferrer";}actions.append(link)});
+   card.append(actions);cards.append(card);
+ });
+ document.getElementById("resultsCount").textContent="显示 "+matches.length+" / "+tools.length+" 个";
+ document.getElementById("empty").classList.toggle("hidden",matches.length>0);
+}
+document.querySelectorAll("#filters button").forEach(b=>b.addEventListener("click",()=>{selected=b.dataset.filter;document.querySelectorAll("#filters button").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));render()}));
+q.addEventListener("input",render);
+document.getElementById("toolCount").textContent=tools.length;
+document.getElementById("webCount").textContent=tools.filter(t=>t.type==="web"&&t.state==="live").length;
+render();
+</script>
+</body>
+</html>
