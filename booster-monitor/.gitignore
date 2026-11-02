@@ -1,7 +1,0 @@
-data/
-cloud-data/
-__pycache__/
-*.bin
-*.sqlite*
-*.log
-.env

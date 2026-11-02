@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EVE · 药物制造材料计算器｜独立离线版</title>
+<style>
+:root {color-scheme:dark;--bg:#090f19;--panel:#121d2c;--panel2:#172739;--border:#294158;--muted:#93aec5;--text:#eff7ff;--cyan:#66e5e9;--lime:#9be9bb;--amber:#ffcb77;--red:#ff9f99;--blue:#81aeff}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 16% -5%,#173d53 0,transparent 37%),radial-gradient(circle at 100% 0%,#15253b 0,transparent 38%),var(--bg);color:var(--text);font:14px/1.6 system-ui,-apple-system,"Microsoft Yahei","PingFang SC",sans-serif} button,input,select{font:inherit}button{cursor:pointer}header{padding:30px 0 18px}.container{width:min(1320px,calc(100% - 36px));margin:auto}.eyebrow{color:var(--cyan);font-weight:700;font-size:12px;letter-spacing:.15em}h1{font-size:clamp(27px,4vw,41px);letter-spacing:-.04em;margin:5px 0 6px;line-height:1.15}h1 span{color:var(--cyan)}h2{font-size:17px;margin:0 0 14px}p{margin:0}.sub{color:var(--muted);font-size:13px}.headrow,.flex{display:flex;align-items:center;justify-content:space-between;gap:14px}.headrow{align-items:end}.flag{display:inline-flex;align-items:center;border:1px solid #346878;border-radius:99px;background:#153746;color:#b8f9f3;font-size:12px;padding:5px 11px;white-space:nowrap}.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:22px 0}.stat{background:linear-gradient(135deg,#1a2a3f,#101b2a);border:1px solid var(--border);border-radius:13px;padding:15px 17px}.stat .label{font-size:12px;color:var(--muted)}.stat strong{display:block;font-size:clamp(19px,2.4vw,28px);line-height:1.35;margin-top:5px;font-variant-numeric:tabular-nums}.stat small{display:block;color:var(--muted);margin-top:1px;font-size:11px}.accent{color:var(--cyan)}.green{color:var(--lime)}.red{color:var(--red)}.amber{color:var(--amber)}.layout{display:grid;grid-template-columns:345px minmax(0,1fr);gap:16px;align-items:start}.panel{background:linear-gradient(160deg,#162435,#101927);border:1px solid var(--border);border-radius:14px;box-shadow:0 10px 30px #0002;padding:20px;margin-bottom:16px}.sticky{position:sticky;top:16px}.field{margin:0 0 16px}.field label{display:block;color:#c9d9ea;font-size:12px;margin-bottom:7px}.field input,.field select,.tinyInput{width:100%;border-radius:8px;border:1px solid #385169;background:#0c1724;color:var(--text);min-height:39px;padding:8px 10px;outline:0}.field input:focus,.field select:focus,.tinyInput:focus{border-color:var(--cyan);box-shadow:0 0 0 2px #66e5e91e}.field small{display:block;color:var(--muted);font-size:11px;margin-top:4px}.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}.controls{display:flex;gap:8px;flex-wrap:wrap}.btn{background:#163b4c;color:#c9fbff;border:1px solid #3b8891;border-radius:9px;padding:9px 13px;font-weight:600}.btn:hover{background:#255568}.btn.secondary{background:#172434;color:#d8e9f6;border-color:#395066}.btn[disabled]{opacity:.45;cursor:not-allowed}.notice{border:1px solid #3a4b5b;background:#132233;border-radius:10px;padding:11px 13px;color:#bdd0df;font-size:12px}.section-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}.section-head h2{margin:0}.tag{display:inline-block;color:var(--cyan);font-size:11px;border:1px solid #356178;border-radius:6px;padding:2px 8px}.tablewrap{overflow:auto;width:100%}table{width:100%;border-collapse:collapse;min-width:620px}th{text-align:left;color:var(--muted);font-size:12px;font-weight:600;border-bottom:1px solid var(--border);padding:9px 10px}td{border-bottom:1px solid #253748;padding:11px 10px;vertical-align:middle}tbody tr:hover{background:#16283a}tbody tr:last-child td{border-bottom:0}.num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}.itemname{font-weight:600}.itemid{display:block;font-size:11px;color:#6687a2}.hint{color:var(--muted);font-size:12px}.pill{padding:3px 8px;border-radius:8px;background:#20394b;color:#b3dcff;font-size:11px}.pill.m{background:#28413e;color:var(--lime)}.step{display:flex;align-items:center;gap:9px;flex-wrap:wrap;border-radius:10px;background:#0e1b2b;padding:12px;margin-bottom:12px}.node{background:#20344a;border:1px solid #34516b;border-radius:8px;padding:7px 11px;color:#d5e7f7;font-size:12px}.node.primary{border-color:#4b8d92;color:var(--cyan)}.arrow{color:var(--muted);font-size:19px}.tinyInput{max-width:130px;min-height:32px;padding:5px 8px;text-align:right}.row-note{font-size:11px;color:var(--muted)}.price-state{color:var(--amber);font-size:12px}.bottom{padding:14px 0 38px;color:var(--muted);font-size:12px}.file-tip{margin-top:10px}a{color:var(--cyan)}.nowrap{white-space:nowrap}
+@media(max-width:1000px){.layout{grid-template-columns:1fr}.sticky{position:static}.cards{grid-template-columns:repeat(2,1fr)}}@media(max-width:580px){.cards{gap:8px}.stat{padding:12px}.headrow{align-items:start;flex-direction:column}.two{grid-template-columns:1fr 1fr}.container{width:min(100% - 24px,1320px)}.panel{padding:15px}.stat strong{font-size:19px}header{padding-top:20px}}
+@media print{body{background:#fff;color:#111}.panel,.stat{background:#fff;box-shadow:none;color:#111;border-color:#ccc}.sub,.hint,.bottom{color:#444}.sticky{position:static}.layout{display:block}.btn{display:none}table{color:#111}}
+</style>
+</head>
+<body>
+<div class="container">
+<header class="headrow">
+ <div><div class="eyebrow">EVE ONLINE / BIOCHEMICAL MANUFACTURING</div><h1>药物制造<span>材料计算器</span></h1><p class="sub">我们自己的独立网页 · 依据旧项目真实配方重建 · 中文材料 · 无需网络、账号或 Python</p></div>
+ <span class="flag">● 离线可用 · 数据内置</span>
+</header>
+<div class="cards">
+ <div class="stat"><span class="label">计划产出</span><strong id="statUnits">50</strong><small>个成品增效剂</small></div>
+ <div class="stat"><span class="label">需要生产工序</span><strong id="statSteps">—</strong><small>按同类型反应合并</small></div>
+ <div class="stat"><span class="label">原料采购种类</span><strong id="statItems">—</strong><small>已合并重复材料</small></div>
+ <div class="stat"><span class="label">预计净利润</span><strong id="statProfit">待报价</strong><small>输入市场价格后自动计算</small></div>
+</div>
+<div class="layout">
+ <aside>
+  <div class="panel sticky">
+   <h2>生产计划</h2>
+   <div class="field"><label for="tier">药物级别</label><select id="tier"><option value="3" selected>超强型（Strong）</option><option value="2">加强型（Improved）</option><option value="1">标准型（Standard）</option></select></div>
+   <div class="field"><label for="family">药物品种</label><select id="family"></select></div>
+   <div class="two">
+    <div class="field"><label for="runs">最终产出数量 / 蓝图流程</label><input id="runs" type="number" min="1" max="1000000" step="1" value="50" /></div>
+    <div class="field"><label for="mode">材料展开范围</label><select id="mode"><option value="target" selected>从本级反应开始</option><option value="improved">加强及以上自制</option><option value="all">全链自制（买气体）</option><option value="final">只制造成药</option></select></div>
+   </div>
+   <div class="notice" id="modeExplain">先购买上游纯增效剂，再制造本级的纯增效剂，最后进行成药制造。默认不从气体开始。</div>
+   <h2 style="margin-top:22px">经济测算 <span class="tag">可选</span></h2>
+   <div class="field"><label for="salePrice">每个成品预计售价（ISK）</label><input id="salePrice" type="number" min="0" step="any" placeholder="手动填入，非实时行情"/></div>
+   <div class="two">
+    <div class="field"><label for="bpCost">本批蓝图成本（ISK）</label><input id="bpCost" type="number" min="0" step="any" value="0"/></div>
+    <div class="field"><label for="jobCost">生产/反应等额外成本（ISK）</label><input id="jobCost" type="number" min="0" step="any" value="0"/></div>
+   </div>
+   <div class="field"><label for="saleFee">成品销售税费（%）</label><input id="saleFee" type="number" min="0" max="100" step="0.1" value="5" /></div>
+   <div class="controls"><button class="btn" id="exportCsv">导出采购清单 CSV</button><button class="btn secondary" id="printBtn">打印 / 存 PDF</button><button class="btn secondary" id="resetBtn">重置报价</button></div>
+   <p class="hint file-tip">填写过的材料单价会尝试自动保存在当前浏览器本地。没有网络行情时不会虚构吉他价格。</p>
+  </div>
+ </aside>
+ <main>
+  <section class="panel">
+   <div class="section-head"><h2>生产链概览</h2><span class="tag" id="recipeSource">来源：旧仓库 booster-monitor/recipes.json</span></div>
+   <div class="step" id="flow"></div><p class="hint" id="flowTip"></p>
+  </section>
+  <section class="panel">
+   <div class="section-head"><h2>需要采购的材料</h2><span class="tag" id="materialsCount">—</span></div>
+   <div class="notice" style="margin-bottom:12px">同一物品在多条反应链中的需求会合并。输入单价后自动计算该批采购成本；所有反应按完整批次向上取整。</div>
+   <div class="tablewrap"><table><thead><tr><th>材料名称</th><th class="num">采购数量</th><th class="num">单价（ISK，可填写）</th><th class="num">合计（ISK）</th></tr></thead><tbody id="materialsBody"></tbody></table></div>
+   <div class="flex" style="margin-top:14px;flex-wrap:wrap"><span class="price-state" id="priceStatus"></span><strong>材料费用：<span class="accent" id="materialTotal">—</span></strong></div>
+  </section>
+  <section class="panel">
+   <div class="section-head"><h2>分工序反应 / 制造明细</h2><span class="tag" id="operationsCount">—</span></div>
+   <div class="tablewrap"><table><thead><tr><th>工序 / 产出</th><th>类型</th><th class="num">需求量</th><th class="num">完整批次</th><th class="num">实际生产</th><th class="num">剩余</th></tr></thead><tbody id="operationsBody"></tbody></table></div>
+  </section>
+  <section class="panel">
+   <div class="section-head"><h2>利润与成本核算</h2><span class="tag">手动行情，不自动抓价</span></div>
+   <div class="tablewrap"><table style="min-width:450px"><tbody>
+    <tr><td>成品销售收入（税前）</td><td class="num" id="sumGross">—</td></tr>
+    <tr><td>销售税费</td><td class="num" id="sumFee">—</td></tr>
+    <tr><td>原材料采购成本</td><td class="num" id="sumMat">—</td></tr>
+    <tr><td>蓝图成本</td><td class="num" id="sumBp">—</td></tr>
+    <tr><td>生产 / 反应 / 建筑等费用</td><td class="num" id="sumJob">—</td></tr>
+    <tr><td><b>预计净利润</b></td><td class="num"><b id="sumProfit">待填写材料及成品报价</b></td></tr>
+    <tr><td><b>预计投入回报率 ROI</b></td><td class="num"><b id="sumROI">—</b></td></tr>
+   </tbody></table></div>
+   <p class="hint" style="margin-top:12px">未填写某种原料单价时，利润和 ROI 不会给出误导性的数字。该模型不自动叠加蓝图 ME、建筑材料效率、技能、燃料折扣及真实安装费；请将实际费用填入额外成本，ME 不为0时需按游戏制造界面复核实际用量。</p>
+  </section>
+ </main>
+</div>
+<footer class="bottom"><p>配方依据：我们 GitHub 项目 <a href="https://github.com/samson8964/chatgpt-eve/blob/main/booster-monitor/recipes.json" target="_blank" rel="noopener noreferrer">booster-monitor/recipes.json</a>；核心拆解方法参照 <a href="https://github.com/samson8964/chatgpt-eve/blob/main/booster-monitor/core.py" target="_blank" rel="noopener noreferrer">core.py / Planner</a>。这是重新整理的可运行离线计算器，不宣称是此前未找到的原始网页文件。数据使用仓库配方快照；游戏更新后请复核。</p></footer>
+</div>
+<script>
+'use strict';
+// 24种成药制造：从仓库 recipes.json 核实。字段 = 成药物品ID|名称|中间体ID|每流程中间体需求
+const DRUG_TEXT=`
+9950|标准型蓝色药丸增效体|25237|17
+10155|加强型蓝色药丸增效体|25241|13
+10156|超强型蓝色药丸增效体|25283|11
+9947|标准型撞击感增效体|25242|17
+10151|加强型撞击感增效体|25335|13
+10152|超强型撞击感增效体|25342|11
+10164|标准型梦呓增效体|25334|17
+10165|加强型梦呓增效体|25341|13
+10166|超强型梦呓增效体|25348|11
+15460|标准型疯癫增效体|25252|17
+15461|加强型疯癫增效体|25339|13
+15462|超强型疯癫增效体|25346|11
+15463|标准型思维冲击增效体|25332|17
+15464|加强型思维冲击增效体|25338|13
+15465|超强型思维冲击增效体|25345|11
+15466|标准型坠落感增效体|25330|17
+15477|加强型坠落感增效体|25336|13
+15478|超强型坠落感增效体|25343|11
+15457|标准型X—本能增效体|25333|17
+15458|加强型X—本能增效体|25340|13
+15459|超强型X—本能增效体|25347|11
+15479|标准型游离感增效体|25331|17
+15480|加强型游离感增效体|25337|13
+25349|超强型游离感增效体|25344|11`;
+// 24种纯增效剂反应：字段 = 产物ID|产物名|每批产出|材料ID:每批用量（逗号分隔）
+const REACTION_TEXT=`
+25237|纯标准型蓝色药丸增效体|15|4051:5,3645:20,25268:20
+25241|纯加强型蓝色药丸增效体|12|4051:5,25237:15,25242:15,3683:20
+25242|纯标准型撞击感增效体|15|4051:5,3645:20,25273:20
+25252|纯标准型疯癫增效体|15|4247:5,3645:20,25277:20
+25283|纯超强型蓝色药丸增效体|12|4051:5,25241:12,25332:15,3773:20
+25330|纯标准型坠落感增效体|15|4312:5,3645:20,25274:20
+25331|纯标准型游离感增效体|15|4312:5,3645:20,25275:20
+25332|纯标准型思维冲击增效体|15|4247:5,3645:20,25276:20
+25333|纯标准型X—本能增效体|15|4246:5,3645:20,25278:20
+25334|纯标准型梦呓增效体|15|4246:5,3645:20,25279:20
+25335|纯加强型撞击感增效体|12|4051:5,25237:15,25242:15,9850:20
+25336|纯加强型坠落感增效体|12|4312:5,25330:15,25331:15,3683:20
+25337|纯加强型游离感增效体|12|4312:5,25330:15,25331:15,9850:20
+25338|纯加强型思维冲击增效体|12|4247:5,25252:15,25332:15,3683:20
+25339|纯加强型疯癫增效体|12|4247:5,25252:15,25332:15,9850:20
+25340|纯加强型X—本能增效体|12|4246:5,25333:15,25334:15,3683:20
+25341|纯加强型梦呓增效体|12|4246:5,25333:15,25334:15,9850:20
+25342|纯超强型撞击感增效体|12|4051:5,25335:12,25252:15,3773:20
+25343|纯超强型坠落感增效体|12|4312:5,25336:12,25333:15,3773:20
+25344|纯超强型游离感增效体|12|4312:5,25337:12,25334:15,3773:20
+25345|纯超强型思维冲击增效体|12|4247:5,25338:12,25242:15,3773:20
+25346|纯超强型疯癫增效体|12|4247:5,25339:12,25237:15,3773:20
+25347|纯超强型X—本能增效体|12|4246:5,25340:12,25331:15,3773:20
+25348|纯超强型梦呓增效体|12|4246:5,25341:12,25330:15,3773:20`;
+const MATERIAL_NAMES={40:'超噬矿（Megacyte）',4051:'氮燃料块',4247:'氦燃料块',4246:'氢燃料块',4312:'氧燃料块',3645:'水',3683:'氧',3773:'盐酸',9850:'幽灵酒',25268:'琥珀丝胶溶质',25273:'金色丝胶溶质',25277:'石灰丝胶溶质',25274:'鲜绿丝胶溶质',25275:'灰绿丝胶溶质',25276:'铜绿丝胶溶质',25278:'赤红丝胶溶质',25279:'天蓝丝胶溶质'};
+const recipes = new Map(), names={...MATERIAL_NAMES};
+const tierByName=name=>name.includes('超强型')?3:name.includes('加强型')?2:name.includes('标准型')?1:0;
+const drugs=DRUG_TEXT.trim().split('\n').map(line=>{const [id,name,pure,qty]=line.split('|');const item={id:+id,name,tier:tierByName(name),pure:+pure};names[id]=name;recipes.set(+id,{id:+id,name,qty:1,kind:'manufacturing',tier:item.tier,materials:[[40,8],[+pure,+qty]]});return item});
+REACTION_TEXT.trim().split('\n').forEach(line=>{const [id,name,qty,input]=line.split('|'); names[id]=name;recipes.set(+id,{id:+id,name,qty:+qty,kind:'reaction',tier:tierByName(name),materials:input.split(',').map(x=>x.split(':').map(Number))});});
+const families=['蓝色药丸','撞击感','坠落感','游离感','疯癫','思维冲击','X—本能','梦呓'];
+const $=id=>document.getElementById(id);const fmt=n=>Number(n).toLocaleString('zh-CN',{maximumFractionDigits:2});const isk=n=>Number.isFinite(n)?fmt(n)+' ISK':'—';
+const esc=s=>String(s).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+const saved=(()=>{try{return JSON.parse(localStorage.getItem('eve_booster_calculator_prices_v1')||'{}')}catch{return {}}})();
+const prices=saved.prices&&typeof saved.prices==='object'?saved.prices:{};let current=null;
+const getDrug=()=>drugs.find(x=>x.tier===Number($('tier').value)&&x.name.endsWith($('family').value+'增效体'));
+const depthMemo=new Map();function depth(id){if(depthMemo.has(id))return depthMemo.get(id);const r=recipes.get(id); if(!r)return 0;const v=1+Math.max(0,...r.materials.map(m=>depth(m[0])));depthMemo.set(id,v);return v;}
+function makeDecision(rec,chosenTier,mode){if(rec.kind==='manufacturing')return true;if(mode==='all')return true;if(mode==='final')return false;if(mode==='target')return rec.tier===chosenTier;if(mode==='improved')return rec.tier>=2||chosenTier===1;return false;}
+function plan(){const target=getDrug();if(!target)return null;const count=Math.max(1,Math.min(1000000,Math.floor(Number($('runs').value)||1)));const mode=$('mode').value;const demand=new Map([[target.id,count]]);const operations=[];const sorted=[...recipes.values()].sort((a,b)=>depth(b.id)-depth(a.id));
+ for(const rec of sorted){const wanted=demand.get(rec.id)||0;if(!wanted||!makeDecision(rec,target.tier,mode))continue;demand.delete(rec.id);const cycles=Math.ceil(wanted/rec.qty),made=cycles*rec.qty;operations.push({...rec,wanted,cycles,made,spare:made-wanted});for(const [id,n] of rec.materials)demand.set(id,(demand.get(id)||0)+cycles*n);}
+ const purchases=[...demand].map(([id,qty])=>({id,name:names[id]||('物品 '+id),qty})).sort((a,b)=>a.name.localeCompare(b.name,'zh-CN'));return {target,count,mode,operations,purchases};}
+function remember(){try{localStorage.setItem('eve_booster_calculator_prices_v1',JSON.stringify({prices}))}catch{}}
+function render(){current=plan();if(!current)return;const p=current;
+ $('statUnits').textContent=fmt(p.count);$('statSteps').textContent=fmt(p.operations.length);$('statItems').textContent=fmt(p.purchases.length);
+ $('modeExplain').textContent=({target:'本级纯增效剂自行反应；更早的纯增效剂直接购买。适合你跳过采气、从后段开始制药。',improved:'加强和超强级纯增效剂自制；标准级纯增效剂直接购买。',all:'完整展开标准、加强、超强反应；只购买气体溶质、燃料、辅料和矿物。',final:'所有纯增效剂直接购买；只负责最终制造成药。'})[p.mode];
+ let labels=p.mode==='all'?['购买气体及基础材料','标准级反应','加强级反应','超强级反应','成药制造']:p.mode==='improved'?['购买标准纯增效剂及辅料','加强级反应','超强级反应','成药制造']:p.mode==='target'?['购买上游中间体及辅料',p.target.tier===1?'标准级反应':p.target.tier===2?'加强级反应':'超强级反应','成药制造']:['购买对应纯增效剂','成药制造'];labels=labels.filter(x=>x!=='超强级反应'||p.target.tier===3).filter(x=>x!=='加强级反应'||p.target.tier>=2);$('flow').innerHTML=labels.map((x,i)=>`<span class="node ${i===labels.length-1?'primary':''}">${esc(x)}</span>${i<labels.length-1?'<span class="arrow">›</span>':''}`).join('');
+ $('flowTip').textContent=`正在计算：${p.target.name} × ${fmt(p.count)}；反应输出按整批向上取整，剩余材料单独显示。`;
+ $('materialsCount').textContent=p.purchases.length+' 种采购材料';$('operationsCount').textContent=p.operations.length+' 道工序';
+ $('materialsBody').innerHTML=p.purchases.map(x=>`<tr><td><span class="itemname">${esc(x.name)}</span><span class="itemid">Type ID ${x.id}</span></td><td class="num">${fmt(x.qty)}</td><td class="num"><input class="tinyInput priceInput" aria-label="${esc(x.name)} 单价" type="number" min="0" step="any" data-id="${x.id}" value="${prices[x.id]??''}" placeholder="未报价" /></td><td class="num subtotal" data-id="${x.id}">—</td></tr>`).join('');
+ $('operationsBody').innerHTML=p.operations.map(x=>`<tr><td><span class="itemname">${esc(x.name)}</span><span class="itemid">Type ID ${x.id}</span></td><td><span class="pill ${x.kind==='manufacturing'?'m':''}">${x.kind==='manufacturing'?'最终制造':'生化反应'}</span><span class="itemid">每批产 ${fmt(x.qty)}</span></td><td class="num">${fmt(x.wanted)}</td><td class="num">${fmt(x.cycles)}</td><td class="num">${fmt(x.made)}</td><td class="num ${x.spare?'amber':''}">${fmt(x.spare)}</td></tr>`).join('');
+ $('materialsBody').querySelectorAll('.priceInput').forEach(inp=>inp.addEventListener('input',()=>{const id=inp.dataset.id; if(inp.value.trim()==='')delete prices[id];else prices[id]=Number(inp.value);remember();updateCost()}));updateCost();}
+function updateCost(){if(!current)return;let mat=0,missing=0;for(const x of current.purchases){const v=prices[x.id];const has=v!==undefined&&v!==null&&Number.isFinite(+v)&&+v>=0;const s=document.querySelector(`.subtotal[data-id="${x.id}"]`);if(!has){missing++;if(s)s.textContent='待报价';continue;}const n=x.qty*Number(v);mat+=n;if(s)s.textContent=isk(n);}
+ $('materialTotal').textContent=missing?'已报价部分 '+isk(mat):isk(mat);$('priceStatus').textContent=missing?`还有 ${missing} 种材料未报价；利润暂不计算。`:'已填齐全部采购材料的单价。';
+ const raw=$('salePrice').value;const haveSale=raw.trim()!==''&&Number.isFinite(+raw)&&+raw>=0;const gross=haveSale?current.count*(+raw):NaN;
+ const feeRate=Math.min(100,Math.max(0,Number($('saleFee').value)||0))/100;const fee=gross*feeRate;
+ const bp=Math.max(0,Number($('bpCost').value)||0),job=Math.max(0,Number($('jobCost').value)||0);const valid=missing===0&&haveSale;
+ const net=valid?gross-fee-mat-bp-job:NaN;const investment=mat+bp+job;const roi=valid&&investment>0?net/investment*100:NaN;
+ $('statProfit').textContent=valid?((net>=0?'+':'')+fmt(net/1e8)+'亿'):'待报价';$('statProfit').className=valid?(net>=0?'green':'red'):'';
+ $('sumGross').textContent=haveSale?isk(gross):'待填成品售价';$('sumFee').textContent=haveSale?isk(fee):'—';$('sumMat').textContent=missing?'待填齐 '+missing+' 种材料':isk(mat);$('sumBp').textContent=isk(bp);$('sumJob').textContent=isk(job);$('sumProfit').textContent=valid?isk(net):'待填写材料及成品报价';$('sumProfit').className=valid?(net>=0?'green':'red'):'';$('sumROI').textContent=Number.isFinite(roi)?fmt(roi)+'%':'—';}
+function csvExport(){if(!current)return;const p=current;const lines=[['类型','物品/工序','物品ID','需求或采购数','反应批次数','实际产出','剩余','手动单价ISK','总成本ISK'],...p.purchases.map(x=>['采购',x.name,x.id,x.qty,'','','',prices[x.id]??'',prices[x.id]===undefined?'':x.qty*prices[x.id]]),...p.operations.map(x=>['制造',x.name,x.id,x.wanted,x.cycles,x.made,x.spare,'',''])];const csv='\ufeff'+lines.map(row=>row.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\r\n');const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));const link=document.createElement('a');link.href=url;link.download='EVE_药物材料_'+p.target.name+'_'+p.count+'个.csv';document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);}
+function init(){families.forEach(name=>$('family').add(new Option(name,name)));$('family').value='蓝色药丸';['tier','family','runs','mode'].forEach(id=>$(id).addEventListener('change',render));$('runs').addEventListener('input',()=>{if(+$('runs').value>0)render()});['salePrice','bpCost','jobCost','saleFee'].forEach(id=>$(id).addEventListener('input',updateCost));$('exportCsv').addEventListener('click',csvExport);$('printBtn').addEventListener('click',()=>window.print());$('resetBtn').addEventListener('click',()=>{for(const id of Object.keys(prices))delete prices[id];remember();$('salePrice').value='';$('bpCost').value='0';$('jobCost').value='0';render()});render();}
+window.EVECalculatorTest={recipes,drugs,plan,depth};document.addEventListener('DOMContentLoaded',init);
+</script>
+</body>
+</html>
