@@ -18,8 +18,8 @@ except ImportError:
 @unittest.skipUnless(pd is not None and deep_run is not None,
                      "requires pandas for complete deep-scan integration")
 class StationDepthIntegration(unittest.TestCase):
-    def test_four_h_all_skus_o4t_no_jita_and_five_real_levels(self):
-        h = 1053970513596
+    def test_cj_all_skus_o4t_no_jita_and_five_real_levels(self):
+        h = 1049588174021
         o = 1040804972352
         jita = 60003760
         source = []
@@ -41,8 +41,7 @@ class StationDepthIntegration(unittest.TestCase):
              "is_buy_order":False,"price":3e6,"volume_remain":20},
         ])
         health={
-            "four_h":{"status":"COMPLETE","location":h,"orders":7},
-            "cj":{"status":"COMPLETE","location":1049588174021,"orders":0},
+            "cj":{"status":"COMPLETE","location":h,"orders":7},
             "o4t":{"status":"COMPLETE","location":o,"orders":2},
         }
         contracts = pd.DataFrame(columns=["contract_id","type","start_location_id","price"])
@@ -70,10 +69,10 @@ class StationDepthIntegration(unittest.TestCase):
             ):
                 report=deep_run(root/"market",root/"contract",deep,api_key="")
             a=report["market_station_sell_census"]
-            self.assertEqual(a["4-H"]["active_sell_type_ids"],1)
-            self.assertEqual(a["4-H"]["active_sell_orders"],7)
-            self.assertEqual(a["4-H"]["sell_types_with_jita_buy"],1)
-            self.assertEqual(a["4-H"]["sell_types_optimistic_gate_passed"],1)
+            self.assertEqual(a["C-J"]["active_sell_type_ids"],1)
+            self.assertEqual(a["C-J"]["active_sell_orders"],7)
+            self.assertEqual(a["C-J"]["sell_types_with_jita_buy"],1)
+            self.assertEqual(a["C-J"]["sell_types_optimistic_gate_passed"],1)
             self.assertEqual(a["O4T"]["active_sell_type_ids"],2)
             self.assertEqual(a["O4T"]["sell_types_with_jita_buy"],1)
             self.assertEqual(a["O4T"]["sell_types_without_jita_buy"],1)
@@ -114,7 +113,7 @@ class StationDepthIntegration(unittest.TestCase):
             self.assertIn("吉买5档均0.08亿",mail)
             from v4.market_station_audit import summarize
             historical=summarize(root)
-            self.assertEqual(historical["stations"]["4-H"]["active_sell_type_ids"],1)
+            self.assertEqual(historical["stations"]["C-J"]["active_sell_type_ids"],1)
             self.assertEqual(historical["stations"]["O4T"]["active_sell_type_ids"],2)
 
 
