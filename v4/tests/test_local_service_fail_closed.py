@@ -24,11 +24,8 @@ class FailClosedTests(unittest.TestCase):
                 "coverage_gate": "PARTIAL_UNVERIFIED",
                 "source_input_integrity": "ALL_PARSED",
                 "structure_health": {
-                    "four_h": {"status": "FAILED", "reason": "NONRETRYABLE_REQUEST",
-                               "failed_page": 1, "pages_fetched": 0},
-                    "cj": {"status": "FAILED", "reason": "TRANSIENT_EXHAUSTED",
-                           "failed_page": 2, "pages_fetched": 1,
-                           "transient_retries": 4},
+                    "cj": {"status": "FAILED", "reason": "NONRETRYABLE_REQUEST",
+                           "failed_page": 1, "pages_fetched": 0},
                     "o4t": {"status": "COMPLETE", "pages": 1, "pages_fetched": 1}
                 },
             }
@@ -38,9 +35,10 @@ class FailClosedTests(unittest.TestCase):
                  patch("v4.local_service.backup_due", return_value=False):
                 result = execute(Path(td), scanner=scan)
         self.assertEqual(result["status"], "DEGRADED_PARTIAL_COVERAGE")
-        self.assertEqual(result["failed_structure_diagnostics"]["four_h"]["reason"],
+        self.assertEqual(result["failed_structure_diagnostics"]["cj"]["reason"],
                          "NONRETRYABLE_REQUEST")
-        self.assertEqual(result["failed_structure_diagnostics"]["cj"]["failed_page"], 2)
+        self.assertEqual(result["failed_structure_diagnostics"]["cj"]["failed_page"], 1)
+        self.assertNotIn("four_h", result["failed_structure_diagnostics"])
         self.assertNotIn("o4t", result["failed_structure_diagnostics"])
 
     def test_incomplete_digest_subject_is_explicit_outage_not_zero_profit(self):
@@ -50,7 +48,7 @@ class FailClosedTests(unittest.TestCase):
             "coverage_gate": "PARTIAL_UNVERIFIED",
             "source_input_integrity": "ALL_PARSED",
             "structure_health": {
-                "four_h": "FAILED", "cj": "FAILED", "o4t": "COMPLETE"
+                "cj": "FAILED", "o4t": "COMPLETE"
             },
             "market_research_leads": [{"type_id": 1}],
         }
@@ -60,7 +58,7 @@ class FailClosedTests(unittest.TestCase):
         self.assertEqual(subject, html_subject)
         self.assertEqual(subject, game_subject)
         self.assertIn("V4采集故障", subject)
-        self.assertIn("4-H", subject)
+        self.assertNotIn("4-H", subject)
         self.assertIn("C-J", subject)
         self.assertNotIn("市场0", subject)
         self.assertIn("机会判断已暂停", subject)
@@ -74,10 +72,10 @@ class FailClosedTests(unittest.TestCase):
         degraded = {
             "status": "DEGRADED_PARTIAL_COVERAGE",
             "run_folder_name": "20261020T152301Z-fixture",
-            "structure_status": {k: "FAILED" for k in ("four_h", "cj", "o4t")},
+            "structure_status": {k: "FAILED" for k in ("cj", "o4t")},
             "failed_structure_diagnostics": {
                 k: {"reason": "NONRETRYABLE_REQUEST"}
-                for k in ("four_h", "cj", "o4t")
+                for k in ("cj", "o4t")
             }
         }
         with tempfile.TemporaryDirectory() as td:
