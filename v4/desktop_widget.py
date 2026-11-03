@@ -203,7 +203,7 @@ class DesktopWidget:
 
         self.previous_label = self._label(shell, "上一轮：读取中", 9, "white")
         self.previous_label.pack(anchor="w", padx=14, pady=(9, 2))
-        self.structures_label = self._label(shell, "4-H —    C-J —    O4T —", 9, "muted")
+        self.structures_label = self._label(shell, "C-J —    O4T —    4-H（已停用）", 9, "muted")
         self.structures_label.pack(anchor="w", padx=14, pady=(1, 1))
         self.fourth_label = self._label(shell, "74L2-U：读取配置中", 9, "muted")
         self.fourth_label.pack(anchor="w", padx=14, pady=(1, 3))
@@ -232,7 +232,7 @@ class DesktopWidget:
 
         footer = tk.Frame(shell, bg=COLORS["panel"], height=26)
         footer.pack(side="bottom", fill="x")
-        self.refresh_label = self._label(footer, "只读 · 四站/机会监控 · 3秒刷新", 8, "muted",
+        self.refresh_label = self._label(footer, "只读 · 已授权站点/机会监控 · 3秒刷新", 8, "muted",
                                          bg="panel")
         self.refresh_label.pack(side="left", padx=(10, 0), pady=5)
         self._button(footer, "查看日志", self.open_log, width=7, bg="panel").pack(
@@ -395,10 +395,11 @@ class DesktopWidget:
             states = info["structures"]
             self.structures_label.configure(text="    ".join(
                 f"{label} {_station_symbol(states.get(name, 'UNKNOWN'))}"
-                for name, label in (("four_h", "4-H"), ("cj", "C-J"), ("o4t", "O4T"))))
+                for name, label in (("cj", "C-J"), ("o4t", "O4T")))
+                + "    4-H（已退出扫描）")
             if info["banestar_enabled"]:
                 fourth = states.get("banestar", "UNKNOWN")
-                tail = (" · 等待首次四站扫描" if fourth == "PENDING_FIRST_RUN"
+                tail = (" · 等待首次授权范围扫描" if fourth == "PENDING_FIRST_RUN"
                         else " · 采集完整" if fourth == "COMPLETE"
                         else " · 采集异常/缺失")
                 self.fourth_label.configure(
