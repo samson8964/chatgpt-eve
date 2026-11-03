@@ -1,4 +1,4 @@
-"""Read-only four-station V4 desktop monitoring adapter.
+"""Read-only authorized-structure V4 desktop monitoring adapter.
 
 Uses only local files written by existing scheduled tasks. Never touches
 the Worker, API keys, EVE SSO, order data, or mail transmission.
@@ -122,7 +122,7 @@ def read_opportunity(root: Path, lanes: tuple[str, ...],
 def read_station_scope(root: Path, *, current: dict, completed: dict,
                        completed_folder: str | None,
                        latest_result: dict, runs: list[Path]) -> dict:
-    """Never let a historical green 3-station run validate a new fourth lane."""
+    """Never let a historical green run validate newly enabled BANESTAR."""
     activated_at = _activation_time(root)
     enabled = activated_at is not None
     lanes = BASE_NAMES + ((BANESTAR,) if enabled else ())
