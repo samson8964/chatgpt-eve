@@ -1,6 +1,7 @@
-"""Single authoritative V4 player-structure registry with staged 74L2-U enrollment.
+"""Single authoritative V4 private-structure registry; 4-H retired after access loss.
 
-Default approved structures are unchanged. BANESTAR can be activated ONLY by
+After the user revoked the 4-H scope (2026-11-03), it is deliberately absent.
+BANESTAR can be activated ONLY by
 an explicit local, exact-match sentinel file after first-page and full-book
 access have passed. All independent scheduled Python processes read the same
 file at startup; no new SSO profile or Cloudflare deployment is needed.
@@ -10,10 +11,11 @@ from __future__ import annotations
 from pathlib import Path
 
 BASE_LANES = (
-    ("four_h", "4-H", 1053970513596, "main"),
     ("cj", "C-J", 1049588174021, "cj"),
     ("o4t", "O4T", 1040804972352, "dc"),
 )
+# Kept as an explicit exclusion, never queried or counted as required coverage.
+RETIRED_LANES = {"four_h": ("4-H", 1053970513596, "ACCESS_REVOKED")}
 BANESTAR_LANE = ("banestar", "74L2-U", 1050474463169, "banestar")
 ENABLE_FILE = Path.home() / "EVE-V4-Data" / "config" / "banestar-market.enabled"
 ENABLE_CONTENT = "APPROVED_1050474463169"
