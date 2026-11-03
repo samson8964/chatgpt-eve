@@ -46,7 +46,7 @@ class StationFunnelAuditTests(unittest.TestCase):
             (folder/"all_proofs.jsonl").write_text(
                 "".join(json.dumps(row)+"\n" for row in rows),encoding="utf-8")
             result=run_one(folder)
-            self.assertEqual(result["stations"]["C-J"]["deep_proofs"],1)
+            self.assertEqual(result["stations"]["C-J"]["deep_proofs"],2)
             self.assertEqual(result["stations"]["C-J"]["normal_gates_pass_but_stress_fails"],1)
             self.assertEqual(result["stations"]["O4T"]["rejection_reasons"],
                              {"NO_PROFITABLE_MATCHED_DEPTH":1})
