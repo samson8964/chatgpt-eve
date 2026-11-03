@@ -27,7 +27,7 @@ class V4DesktopMonitorTests(unittest.TestCase):
             "zero_remaining_public_orders":4,
             "structure_health":{
                 name:{"status":"COMPLETE","pages":1,"pages_fetched":1}
-                for name in ("four_h","cj","o4t")}}),encoding="utf-8")
+                for name in ("cj","o4t")}}),encoding="utf-8")
         (prior/"deep_shadow.json").write_text(json.dumps({
             "model_candidates":15
         }),encoding="utf-8")
@@ -51,7 +51,7 @@ class V4DesktopMonitorTests(unittest.TestCase):
         self.assertEqual(got["model_candidates"],15)
         self.assertEqual(got["zero_remaining_public_orders"],4)
         self.assertEqual(got["structures"],
-                         {"four_h":"COMPLETE","cj":"COMPLETE","o4t":"COMPLETE"})
+                         {"cj":"COMPLETE","o4t":"COMPLETE"})
         self.assertTrue(got["read_only"])
         self.assertFalse(got["mail_enabled"])
         self.assertEqual(human_clock("2026-10-14T16:23:00")[-5:],"16:23")
