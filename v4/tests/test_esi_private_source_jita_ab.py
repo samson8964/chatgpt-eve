@@ -36,12 +36,10 @@ def books(price_a,price_b):
 
 
 def input_private():
-    rows=[record(11,STRUCTURES["4-H"],False,1_000_000),
-          record(12,STRUCTURES["4-H"],True,900_000)]
+    rows=[record(11,STRUCTURES["C-J"],False,1_000_000),
+          record(12,STRUCTURES["C-J"],True,900_000)]
     health={
-        "four_h":{"status":"COMPLETE","orders":2,"pages":1,
-                  "location":STRUCTURES["4-H"]},
-        "cj":{"status":"COMPLETE","orders":0,"pages":1,
+        "cj":{"status":"COMPLETE","orders":2,"pages":1,
               "location":STRUCTURES["C-J"]},
         "o4t":{"status":"COMPLETE","orders":0,"pages":1,
                "location":STRUCTURES["O4T"]},
@@ -82,8 +80,8 @@ class PrivateSourceABTests(unittest.TestCase):
                                  Catalog(),lambda s,d,v:10_000_000)
         self.assertEqual(counts["PREFILTER_PASSED"],1)
         self.assertEqual(counts_old["PREFILTER_PASSED"],1)
-        p=esi["4-H:34"]
-        q=ref["4-H:34"]
+        p=esi["C-J:34"]
+        q=ref["C-J:34"]
         self.assertTrue(p["hypothetical_model_pass"])
         self.assertFalse(q["hypothetical_model_pass"])
         self.assertGreater(p["net_profit_isk"],q["net_profit_isk"])
@@ -132,7 +130,7 @@ class PrivateSourceABTests(unittest.TestCase):
             self.assertNotIn("SENSITIVE_BRIDGE_RESPONSE",doc)
             self.assertNotIn('"order_id": 11',doc)
             self.assertNotIn('"order_id": 12',doc)
-            self.assertIn("4-H:34",doc)
+            self.assertIn("C-J:34",doc)
 
     def test_fresh_verified_jita_archive_enforces_age_and_full_region(self):
         with tempfile.TemporaryDirectory() as td:
@@ -159,7 +157,7 @@ class PrivateSourceABTests(unittest.TestCase):
             with gzip.open(target/"regions"/"10000002.jsonl.gz",
                            "wt",encoding="utf-8") as fh:
                 for order in (record(81,JITA,True,12e6),
-                              record(82,STRUCTURES["4-H"],False,1e6)):
+                              record(82,STRUCTURES["C-J"],False,1e6)):
                     order["region_id"]=10000002
                     order["volume_total"]=order["volume_remain"]
                     fh.write(json.dumps(order)+"\n")
