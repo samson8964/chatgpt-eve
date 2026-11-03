@@ -35,6 +35,31 @@ class StructureTransportTests(unittest.TestCase):
         self.assertEqual(health["four_h"]["pages_fetched"],3)
         self.assertEqual(health["cj"]["orders"],2)
 
+    def test_production_scope_never_requests_retired_four_h(self):
+        from v4.structure_registry import STRUCTURES as LIVE, RETIRED_LANES
+        self.assertNotIn("four_h", LIVE)
+        self.assertIn("four_h", RETIRED_LANES)
+        expected = {entry[0] for entry in LIVE.values()}
+        forbidden = RETIRED_LANES["four_h"][1]
+        self.assertNotIn(forbidden, expected)
+        calls = []
+        def fetch(url, params, headers, timeout):
+            lid = params["structure_id"]
+            calls.append(lid)
+            self.assertIn(lid, expected)
+            self.assertNotEqual(lid, forbidden)
+            return {"ok":True, "structure_id":lid, "page":1,
+                    "pages":1, "orders":[]}, {}
+        orders, health = all_structure_orders(
+            "unit-test-key", structures=LIVE,
+            worker="https://worker.invalid", fetch=fetch,
+            sleep=lambda _:None, jitter=lambda:0.0,
+            page_attempts=1, pace_seconds=0)
+        self.assertEqual(orders, [])
+        self.assertEqual(set(health), set(LIVE))
+        self.assertEqual(set(calls), expected)
+        self.assertTrue(all(h["status"] == "COMPLETE" for h in health.values()))
+
     def test_windows_10054_transient_single_page_recovered(self):
         calls={}
         def fetch(url,params,headers,timeout):
