@@ -58,7 +58,9 @@ class BanestarEnrollmentTests(unittest.TestCase):
                 self.assertFalse(registry.banestar_enabled())
                 p.write_text(registry.ENABLE_CONTENT, encoding="utf8")
                 self.assertTrue(registry.banestar_enabled())
-            self.assertEqual(len(registry.BASE_LANES), 3)
+            self.assertEqual(len(registry.BASE_LANES), 2)
+            self.assertNotIn("four_h", registry.STRUCTURES)
+            self.assertNotIn("4-H", registry.STATIONS)
             self.assertEqual(registry.BANESTAR_LANE[2], BANESTAR)
             self.assertEqual(registry.BANESTAR_LANE[3], "banestar")
 
