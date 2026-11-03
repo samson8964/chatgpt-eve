@@ -6,7 +6,7 @@ from pathlib import Path
 
 from v4.station_funnel_audit import gates, run_one
 
-FOUR_H = 1053970513596
+C_J = 1049588174021
 CJ = 1049588174021
 O4T = 1040804972352
 
@@ -30,11 +30,11 @@ class StationFunnelAuditTests(unittest.TestCase):
             (folder/"deep_shadow.json").write_text(json.dumps({
                 "market_execution_basis": "OPTIMIZED_MATCHED_QUANTITY_AND_VWAP",
                 "market_station_sell_census": {
-                    "4-H":{"active_sell_type_ids":5000,"sell_types_optimistic_gate_passed":1},
+                    "C-J":{"active_sell_type_ids":5000,"sell_types_optimistic_gate_passed":1},
                     "O4T":{"active_sell_type_ids":2200,"sell_types_optimistic_gate_passed":1}}}),
                 encoding="utf-8")
             rows = [
-                {"kind":"market","source_location":FOUR_H, "type_id":13,
+                {"kind":"market","source_location":C_J, "type_id":13,
                  "reason":"BELOW_GATE_OR_STRESS", "profit":90_000_000,
                  "roi":.15,"density":5000, "stress_profit":30_000_000},
                 {"kind":"market","source_location":O4T,"type_id":14,
@@ -42,16 +42,16 @@ class StationFunnelAuditTests(unittest.TestCase):
                 {"kind":"market","source_location":CJ,"type_id":15,
                  "model_candidate":True,"reason":"LIVE_ORDER_AND_CONTRACT_NOT_REVALIDATED",
                  "profit": 80_000_000, "stress_profit":60_000_000},
-                {"kind":"contract","source_location":FOUR_H,"reason":"BELOW_GATE_OR_STRESS"}]
+                {"kind":"contract","source_location":C_J,"reason":"BELOW_GATE_OR_STRESS"}]
             (folder/"all_proofs.jsonl").write_text(
                 "".join(json.dumps(row)+"\n" for row in rows),encoding="utf-8")
             result=run_one(folder)
-            self.assertEqual(result["stations"]["4-H"]["deep_proofs"],1)
-            self.assertEqual(result["stations"]["4-H"]["normal_gates_pass_but_stress_fails"],1)
+            self.assertEqual(result["stations"]["C-J"]["deep_proofs"],1)
+            self.assertEqual(result["stations"]["C-J"]["normal_gates_pass_but_stress_fails"],1)
             self.assertEqual(result["stations"]["O4T"]["rejection_reasons"],
                              {"NO_PROFITABLE_MATCHED_DEPTH":1})
             self.assertEqual(len(result["stations"]["C-J"]["model_candidates"]),1)
-            self.assertEqual(result["stations"]["4-H"]["census"]["active_sell_type_ids"],5000)
+            self.assertEqual(result["stations"]["C-J"]["census"]["active_sell_type_ids"],5000)
 
 if __name__=="__main__":
     unittest.main()
