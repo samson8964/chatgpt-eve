@@ -107,8 +107,7 @@ class LocalServiceTests(unittest.TestCase):
                 return {"status":"SHADOW_RECORDED","mail_enabled":False,
                         "run_folder":str(r/"runs"/"now"),"sqlite_unique_proofs":100,
                         "coverage_gate":"PARTIAL_UNVERIFIED",
-                        "structure_health":{"four_h":{"status":"FAILED"},
-                                            "cj":{"status":"COMPLETE","pages":54,"pages_fetched":54},
+                        "structure_health":{"cj":{"status":"FAILED"},
                                             "o4t":{"status":"COMPLETE","pages":8,"pages_fetched":8}}}
             def save(r):
                 recorded.append("backup")
@@ -117,7 +116,7 @@ class LocalServiceTests(unittest.TestCase):
                        return_value={"free_gib":300,"enough_space":True}):
                 result=execute(root,scanner=scan,backup_fn=save)
             self.assertEqual(result["status"],"DEGRADED_PARTIAL_COVERAGE")
-            self.assertEqual(result["structure_status"]["four_h"],"FAILED")
+            self.assertEqual(result["structure_status"]["cj"],"FAILED")
             self.assertEqual(recorded,["backup"])
             self.assertFalse(result["mail_enabled"])
 
