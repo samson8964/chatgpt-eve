@@ -203,7 +203,7 @@ class LocalStaleSkipTests(unittest.TestCase):
             self.assertEqual(info["last_completed_folder"],old.name)
             self.assertEqual(info["market_examined"],120)
             self.assertEqual(info["contract_examined"],43000)
-            self.assertEqual(info["structures"]["four_h"],"COMPLETE")
+            self.assertEqual(info["structures"]["cj"],"COMPLETE")
             self.assertEqual(_status_style(info["status"]),
                              ("上游数据尚未更新","amber"))
 
