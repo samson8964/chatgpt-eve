@@ -16,7 +16,7 @@ def order(*, lid, typ, price, buy=False, remaining=50, ident=1):
 
 class MarketDepthTests(unittest.TestCase):
     def test_same_price_orders_count_as_one_level(self):
-        asks=[order(lid=STATIONS["4-H"],typ=34,price=p,ident=i)
+        asks=[order(lid=STATIONS["C-J"],typ=34,price=p,ident=i)
               for i,p in enumerate((2e6,1e6,1e6,3e6,4e6,5e6,6e6),1)]
         bids=[order(lid=60003760,typ=34,price=p,buy=True,ident=i)
               for i,p in enumerate((8e6,8e6,10e6,9e6,7e6,6e6),20)]
@@ -39,7 +39,7 @@ class MarketDepthTests(unittest.TestCase):
         self.assertEqual(top_price_levels([],buy=True)["group_count"],0)
 
     def test_all_station_sells_counted_even_when_no_jita_bid(self):
-        h=STATIONS["4-H"]
+        h=STATIONS["C-J"]
         o=STATIONS["O4T"]
         books={
             (h,34,False):[order(lid=h,typ=34,price=2e6,remaining=100)],
@@ -53,10 +53,10 @@ class MarketDepthTests(unittest.TestCase):
             (60003760,37,True):[order(lid=60003760,typ=37,price=4e6,buy=True)],
         }
         result=station_sell_census(books)
-        self.assertEqual(result["4-H"]["active_sell_type_ids"],2)
-        self.assertEqual(result["4-H"]["sell_types_with_jita_buy"],2)
-        self.assertEqual(result["4-H"]["sell_types_best_price_crossed"],1)
-        self.assertEqual(result["4-H"]["sell_types_optimistic_gate_passed"],1)
+        self.assertEqual(result["C-J"]["active_sell_type_ids"],2)
+        self.assertEqual(result["C-J"]["sell_types_with_jita_buy"],2)
+        self.assertEqual(result["C-J"]["sell_types_best_price_crossed"],1)
+        self.assertEqual(result["C-J"]["sell_types_optimistic_gate_passed"],1)
         self.assertEqual(result["O4T"]["active_sell_type_ids"],2)
         self.assertEqual(result["O4T"]["all_active_type_ids"],3)
         self.assertEqual(result["O4T"]["active_buy_type_ids"],2)
@@ -73,16 +73,15 @@ class MarketDepthTests(unittest.TestCase):
                 '{"status":"SHADOW_RECORDED"}',encoding="utf-8")
             (folder/"deep_shadow.json").write_text(json.dumps({
                 "structure_health":{
-                    "four_h":{"status":"COMPLETE","orders":392},
-                    "cj":{"status":"COMPLETE","orders":400},
+                    "cj":{"status":"COMPLETE","orders":392},
                     "o4t":{"status":"COMPLETE","orders":91}}}),encoding="utf-8")
             (folder/"all_proofs.jsonl").write_text(json.dumps({
-                "kind":"market","source_location":STATIONS["4-H"],
+                "kind":"market","source_location":STATIONS["C-J"],
                 "model_candidate":True})+"\n",encoding="utf-8")
             output=summarize(Path(td))
-            self.assertIsNone(output["stations"]["4-H"]["active_sell_type_ids"])
-            self.assertEqual(output["stations"]["4-H"]["total_structure_orders"],392)
-            self.assertEqual(output["stations"]["4-H"]["full_depth_market_pairs_evaluated"],1)
+            self.assertIsNone(output["stations"]["C-J"]["active_sell_type_ids"])
+            self.assertEqual(output["stations"]["C-J"]["total_structure_orders"],392)
+            self.assertEqual(output["stations"]["C-J"]["full_depth_market_pairs_evaluated"],1)
             self.assertEqual(output["stations"]["O4T"]["total_structure_orders"],91)
             self.assertEqual(output["stations"]["O4T"]["full_depth_market_pairs_evaluated"],0)
             self.assertEqual(output["limitations"],
@@ -96,11 +95,10 @@ class MarketDepthTests(unittest.TestCase):
                 '{"status":"SHADOW_RECORDED"}',encoding="utf-8")
             (folder/"deep_shadow.json").write_text(json.dumps({
                 "structure_health":{
-                    "four_h":{"status":"COMPLETE","orders":456},
-                    "o4t":{"status":"COMPLETE","orders":190},
-                    "cj":{"status":"COMPLETE","orders":0}},
+                    "cj":{"status":"COMPLETE","orders":456},
+                    "o4t":{"status":"COMPLETE","orders":190}},
                 "market_station_sell_census":{
-                    "4-H":{"active_sell_type_ids":234,"active_sell_orders":456,
+                    "C-J":{"active_sell_type_ids":234,"active_sell_orders":456,
                            "sell_types_with_jita_buy":201,
                            "sell_types_without_jita_buy":33,
                            "sell_types_best_price_crossed":19,
@@ -113,9 +111,9 @@ class MarketDepthTests(unittest.TestCase):
                 }}),encoding="utf-8")
             (folder/"all_proofs.jsonl").write_text("",encoding="utf-8")
             result=summarize(Path(td))
-            self.assertEqual(result["stations"]["4-H"]["active_sell_type_ids"],234)
-            self.assertEqual(result["stations"]["4-H"]["sell_types_with_jita_buy"],201)
-            self.assertTrue(result["stations"]["4-H"]["historical_type_count_complete"])
+            self.assertEqual(result["stations"]["C-J"]["active_sell_type_ids"],234)
+            self.assertEqual(result["stations"]["C-J"]["sell_types_with_jita_buy"],201)
+            self.assertTrue(result["stations"]["C-J"]["historical_type_count_complete"])
             self.assertIsNone(result["limitations"])
 
 
