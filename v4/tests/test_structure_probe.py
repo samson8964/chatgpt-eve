@@ -28,7 +28,7 @@ class FakeResponse:
 class StructureProbeTests(unittest.TestCase):
     KEY = "A" * 48
 
-    def test_three_profile_codes_no_secrets_or_body_logged(self):
+    def test_authorized_profile_codes_no_secrets_or_body_logged(self):
         results = {"main": 403, "cj": 401, "dc": 404}
         count = []
         def get(url, **kw):
@@ -38,8 +38,8 @@ class StructureProbeTests(unittest.TestCase):
             self.assertEqual(kw["params"]["page"], 1)
             return FakeResponse(results[kw["params"]["auth_profile"]])
         report = probe(key=self.KEY, get=get)
-        self.assertEqual(len(count), 3)
-        self.assertEqual(report["profiles"]["four_h"]["http_status"], 403)
+        self.assertEqual(len(count), 2)
+        self.assertNotIn("four_h", report["profiles"])
         self.assertEqual(report["profiles"]["cj"]["http_status"], 401)
         self.assertEqual(report["profiles"]["o4t"]["http_status"], 404)
         self.assertNotIn(self.KEY, str(report))
