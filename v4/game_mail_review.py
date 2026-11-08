@@ -28,7 +28,7 @@ SETTINGS_FILE = Path("config/eve_game_mail_review.json")
 RECEIPTS = Path("mail-review/eve-receipts")
 # Recipient identity established by user-visible EVE API success AND inbox check.
 ALLOWED_RECIPIENTS = {"MikeChong": 2124493042}
-USER_APPROVED = ("MikeChong", "LadyBaBa")
+USER_APPROVED = ("MikeChong", "LadyBaBa", "Abr Hunter")
 EXPECTED_SENDER_ID = 2124679425
 
 
@@ -157,6 +157,64 @@ def add_recipient(root: Path, *, recipient: str = "LadyBaBa",
             "recipient":recipient, "recipient_id":ident,
             "recipients":[row["name"] for row in recipients],
             "formal_alerts_enabled":False}
+
+
+
+def replace_retired_recipient(root: Path, *, recipient: str = "Abr Hunter",
+                              session=None, resolver=None) -> dict:
+    """Migrate the discontinued LadyBaBa destination to the new owned character.
+
+    This is a config-only change: no game mail, OAuth change, scan, or secrets.
+    A public ESI exact-name resolution must succeed before touching the file.
+    Both old recipient receipts and MikeChong receipts remain untouched.
+    """
+    if recipient != "Abr Hunter":
+        raise ValueError("EVE_MAIL_REPLACEMENT_NOT_ALLOWED")
+    root = Path(root)
+    existing = read_settings(root)
+    if existing is None:
+        raise GameMailTestError("V4_GAME_MAIL_NOT_ENABLED")
+    rows = list(existing["recipients"])
+    if not any(row["name"] == "MikeChong" for row in rows):
+        raise GameMailTestError("V4_GAME_MAIL_MIKECHONG_MISSING")
+    if any(row["name"] == recipient for row in rows):
+        return {"status": "V4_GAME_RECIPIENT_ALREADY_REPLACED",
+                "recipient": recipient,
+                "recipients": [row["name"] for row in rows], "sent": False}
+    if any(row["name"] not in ("MikeChong", "LadyBaBa") for row in rows):
+        raise GameMailTestError("V4_GAME_MAIL_UNEXPECTED_RECIPIENT")
+    if resolver is not None:
+        ident = resolver(recipient)
+    else:
+        if session is None:
+            from requests import Session
+            session = Session()
+        ident = _resolve_recipient(recipient, session)
+    if isinstance(ident, bool) or not isinstance(ident, int) or ident <= 0:
+        raise GameMailTestError("EVE_MAIL_RECIPIENT_ID_INVALID")
+    if ident in {row["id"] for row in rows}:
+        raise GameMailTestError("EVE_MAIL_RECIPIENT_ID_COLLISION")
+    retired_present = any(row["name"] == "LadyBaBa" for row in rows)
+    if not retired_present and len(rows) >= 2:
+        raise GameMailTestError("V4_GAME_MAIL_RECIPIENT_CAP_REACHED")
+    updated = [
+        {"name": recipient, "id": ident}
+        if row["name"] == "LadyBaBa" else row
+        for row in rows
+    ]
+    if not retired_present:
+        updated.append({"name": recipient, "id": ident})
+    _write_atomic(root / SETTINGS_FILE, {
+        "schema": 2, "enabled": True, "mode": "V4_RESEARCH_ONLY",
+        "sender": EXPECTED_SENDER, "recipients": updated,
+        "valuation_location_id": 60003760,
+    })
+    return {"status": "V4_GAME_RETIRED_RECIPIENT_REPLACED" if retired_present
+            else "V4_GAME_NEW_RECIPIENT_ADDED",
+            "replaced": "LadyBaBa" if retired_present else None,
+            "recipient": recipient, "recipient_id": ident,
+            "recipients": [row["name"] for row in updated],
+            "sent": False, "formal_alerts_enabled": False}
 
 
 def compact_digest(review: dict) -> tuple[str, str]:
@@ -300,17 +358,22 @@ def main() -> None:
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--enable", action="store_true")
     group.add_argument("--add-recipient", action="store_true")
+    group.add_argument("--replace-recipient", action="store_true",
+                       help="Replace discontinued LadyBaBa recipient with Abr Hunter")
     group.add_argument("--disable", action="store_true")
     group.add_argument("--send-now", action="store_true")
     group.add_argument("--status", action="store_true")
     parser.add_argument("--data-root", type=Path, default=Path.home()/"EVE-V4-Data")
-    parser.add_argument("--recipient", choices=USER_APPROVED, default="MikeChong")
+    parser.add_argument("--recipient", choices=USER_APPROVED, default=None)
     args = parser.parse_args()
     try:
         if args.enable:
-            result = enable(args.data_root, recipient=args.recipient)
+            result = enable(args.data_root, recipient=args.recipient or "MikeChong")
         elif args.add_recipient:
-            result = add_recipient(args.data_root, recipient=args.recipient)
+            result = add_recipient(args.data_root, recipient=args.recipient or "LadyBaBa")
+        elif args.replace_recipient:
+            result = replace_retired_recipient(
+                args.data_root, recipient=args.recipient or "Abr Hunter")
         elif args.disable:
             result = disable(args.data_root)
         elif args.status:
