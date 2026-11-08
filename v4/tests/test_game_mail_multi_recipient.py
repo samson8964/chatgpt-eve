@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from v4.game_mail_review import (
-    add_recipient, enable, read_settings, send_review_to_game,
+    add_recipient, replace_retired_recipient, enable, read_settings, send_review_to_game,
     GameMailTestError, EXPECTED_SENDER_ID, ALLOWED_RECIPIENTS,
 )
 
@@ -168,6 +168,83 @@ class TwoRecipientTests(unittest.TestCase):
             self.assertEqual(second["recipients"]["MikeChong"]["status"],
                              "V4_GAME_RESEARCH_MAIL_ALREADY_SENT")
             self.assertTrue(second["recipients"]["LadyBaBa"]["sent"])
+
+
+    def test_migrate_retired_lady_to_abr_preserves_mike_and_receipts(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            enable(root)
+            add_recipient(root, recipient="LadyBaBa", resolver=lambda _: 987654321)
+            prior = root / "mail-review" / "eve-receipts" / (
+                review()["run_folder"] + "-987654321.json")
+            prior.parent.mkdir(parents=True)
+            prior.write_text('{"recipient":"LadyBaBa","sent":true}', encoding="utf-8")
+            captured = []
+            result = replace_retired_recipient(
+                root, resolver=lambda name: (
+                    captured.append(name) or 2124888999))
+            self.assertEqual(captured, ["Abr Hunter"])
+            self.assertEqual(result["status"], "V4_GAME_RETIRED_RECIPIENT_REPLACED")
+            self.assertFalse(result["sent"])
+            self.assertEqual([r["name"] for r in read_settings(root)["recipients"]],
+                             ["MikeChong", "Abr Hunter"])
+            self.assertEqual(read_settings(root)["recipients"][1]["id"], 2124888999)
+            self.assertTrue(prior.exists())
+            self.assertEqual(replace_retired_recipient(root)["status"],
+                             "V4_GAME_RECIPIENT_ALREADY_REPLACED")
+
+            network = Transport()
+            with patch("v4.game_mail_review.make_review", return_value=review()):
+                sent = send_review_to_game(root, session=network,
+                                           get_key=lambda:self.SECRET)
+            ids = [c[2]["json"]["recipient_id"] for c in network.calls
+                   if c[1].endswith("/api/send-mail")]
+            self.assertEqual(ids, [ALLOWED_RECIPIENTS["MikeChong"], 2124888999])
+            self.assertEqual(sent["recipient_failure_count"], 0)
+            self.assertEqual(prior.read_text("utf-8"),
+                             '{"recipient":"LadyBaBa","sent":true}')
+            abr_receipt = root / "mail-review" / "eve-receipts" / (
+                review()["run_folder"] + "-2124888999.json")
+            self.assertTrue(abr_receipt.is_file())
+
+    def test_migrate_fails_closed_and_preserves_config(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            enable(root)
+            add_recipient(root, recipient="LadyBaBa", resolver=lambda _:987654321)
+            cfg = root / "config" / "eve_game_mail_review.json"
+            before = cfg.read_bytes()
+            for resolver in (
+                lambda name: 0,
+                lambda name: 987654321,
+                lambda name: (_ for _ in ()).throw(
+                    GameMailTestError("ESI_CHARACTER_NOT_FOUND")),
+            ):
+                with self.assertRaises(GameMailTestError):
+                    replace_retired_recipient(root, resolver=resolver)
+                self.assertEqual(cfg.read_bytes(), before)
+            with self.assertRaisesRegex(ValueError, "REPLACEMENT_NOT_ALLOWED"):
+                replace_retired_recipient(root, recipient="Other")
+            self.assertEqual(cfg.read_bytes(), before)
+
+    def test_migrate_exact_name_via_public_esi_and_mike_only_setup(self):
+        class FakeESI:
+            def request(self, method, url, **kwargs):
+                self.called = (method, url, kwargs)
+                return Response(200, {"characters":[
+                    {"name":"Abr Hunter","id":2124888999}]})
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            with self.assertRaisesRegex(GameMailTestError, "NOT_ENABLED"):
+                replace_retired_recipient(root, resolver=lambda _:2124888999)
+            enable(root)
+            esi = FakeESI()
+            result = replace_retired_recipient(root, session=esi)
+            self.assertEqual(result["status"],"V4_GAME_NEW_RECIPIENT_ADDED")
+            self.assertEqual(result["recipients"],["MikeChong","Abr Hunter"])
+            self.assertIn("/universe/ids/",esi.called[1])
+            self.assertEqual(esi.called[2]["json"], ["Abr Hunter"])
+            self.assertNotIn("Authorization",esi.called[2]["headers"])
 
     def test_invalid_sender_id_or_recipient_id_is_rejected(self):
         with tempfile.TemporaryDirectory() as temp:
