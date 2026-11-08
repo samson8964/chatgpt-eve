@@ -1,3 +1,80 @@
+## 2026-11-08: Replace retired LadyBaBa with Abr Hunter (Imperium access)
+
+The user retired the LadyBaBa character and enrolled **Abr Hunter** in the Imperium.
+Keep **MikeChong** as game-mail recipient; retire LadyBaBa as the second
+destination. Two independent pieces of configuration are involved:
+
+1. **O4T-Z5 private structure market read identity** is the Worker `dc`
+   auth profile, not the mail recipient. In
+   `cloudflare/worker.js` the O4T lane uses `auth_profile=dc` and
+   `/auth-dc` with scope `esi-markets.structure_markets.v1`. The source
+   documents O4T-Z5 as the structure link supplied by LadyBaBa. Existing
+   `cj`, `banestar`, and retired `four_h` scope are NOT affected.
+   The **actual currently authorized role is only verifiable on the live
+   Worker status page**, not from repository source.
+
+   - User opens
+     https://eve-contract-opener.99617224.workers.dev/
+     to inspect "DC影子市场授权" character name.
+   - If the stored character is the retired LadyBaBa, user explicitly opens
+     https://eve-contract-opener.99617224.workers.dev/auth-dc
+     in their own browser, selects **Abr Hunter** in EVE SSO and grants the
+     structure market permission. No secrets or tokens go through chat.
+     Do **NOT** click `/logout-dc` first (that would remove the working
+     credential before replacement).
+   - Status page must show `Abr Hunter` next to DC. This confirms saved
+     identity, *not* actual O4T market permission. Check an authenticated
+     O4T page-1 request using the existing Windows key and then full-page
+     coverage in the following scan.
+
+2. **V4 EVE in-game research digest recipient** is a separate Windows
+   config. The user-approved replacement is `Abr Hunter` for
+   `LadyBaBa`; do not change the sender `LadyGuaGua` or the
+   `MikeChong` recipient, Gmail, market economics, or formal alerts.
+   A new `--replace-recipient` command resolves Abr Hunter's **exact
+   numeric character ID via CCP public ESI** before an atomic write.
+   It migrates schema 2 (MikeChong + LadyBaBa), or adds Abr Hunter to a
+   MikeChong-only configuration, but does *not* activate a disabled channel.
+   Existing receipts stay on disk; future sends are keyed by the new
+   exact recipient ID and will not be sent to LadyBaBa.
+
+Once the Windows scheduled task is **not Running**, from the SAME
+Windows user session as `EVE-V4-Shadow`:
+
+```powershell
+$repo = Join-Path $HOME 'EVE-V4-Code'
+$task = Get-ScheduledTask -TaskName 'EVE-V4-Shadow'
+if ($task.State -eq 'Running') { throw 'Scan is running; do not update now' }
+git -C $repo pull --ff-only
+if ($LASTEXITCODE -ne 0) { throw 'Git pull failed; config unchanged' }
+Push-Location $repo
+try {
+    & .\.venv\Scripts\python.exe -m v4.game_mail_review --replace-recipient --recipient "Abr Hunter"
+    if ($LASTEXITCODE -ne 0) { throw 'Recipient migration did not succeed' }
+    & .\.venv\Scripts\python.exe -m v4.game_mail_review --status
+    if ($LASTEXITCODE -ne 0) { throw 'Recipient status check failed' }
+    & .\.venv\Scripts\python.exe -m v4.local_bridge_probe
+    if ($LASTEXITCODE -ne 0) { throw 'Structure access check failed' }
+} finally { Pop-Location }
+```
+
+Expected: `recipients=["MikeChong","Abr Hunter"]`; `structures.o4t.status=PAGE1_OK`.
+`PAGE1_OK` is NOT proof that later pages are complete. There is no
+`--send-now` in the migration because that would re-mail the most recent
+run. The next independently completed scheduled shadow run should show
+`o4t=COMPLETE` with `pages_fetched=pages`, and future EVE game-mail
+receipts should use Abr Hunter's numeric ESI ID. If mail is currently
+disabled, the migration refuses to turn it on: report that status and
+confirm with the user before doing any enablement.
+
+The local GitHub prep branch may not be the Windows checkout branch:
+run `git -C $repo branch --show-current` and compare with
+`prep/v4-windows-local-migration-20261013` before assuming pull has
+updated the code. Never discard uncommitted local changes or force-switch
+branches just to apply this migration.
+
+---
+
 ## 2026-10-14 addition: LadyBaBa receives all future V4 EVE game-mail digests
 
 **User explicitly requested** EVE game-mail alerts also go to LadyBaBa.
