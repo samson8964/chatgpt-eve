@@ -1,6 +1,7 @@
 import unittest
 import sys
 from v4.local_bridge_probe import probe
+from v4.structure_registry import STRUCTURES
 from v4.local_bridge_auth import valid_bridge_key
 
 class BridgeProbeTests(unittest.TestCase):
@@ -22,7 +23,8 @@ class BridgeProbeTests(unittest.TestCase):
             raise AssertionError("No network allowed")
         check=probe(fetch=fail,env={})
         self.assertEqual(check["probe_result"],"MISSING_KEY")
-        self.assertEqual(set(check["structures"]),{"four_h","cj","o4t"})
+        self.assertEqual(set(check["structures"]), set(STRUCTURES))
+        self.assertNotIn("four_h", check["structures"])
         self.assertFalse(check["mail_enabled"])
 
 if __name__=="__main__":
