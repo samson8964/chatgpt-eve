@@ -37,12 +37,20 @@ def _log_events(log_text: str) -> dict:
     starts = [i for i, line in enumerate(lines) if line.startswith("START ")]
     recent = lines[starts[-1]:] if starts else []
     results = []
+    game_mails = []
     for line in lines:
         if line.startswith("RESULT "):
             try:
                 r = json.loads(line[7:])
                 if isinstance(r, dict):
                     results.append(r)
+            except ValueError:
+                pass
+        if line.startswith("GAME_REVIEW_MAIL "):
+            try:
+                report = json.loads(line[len("GAME_REVIEW_MAIL "):])
+                if isinstance(report, dict) and isinstance(report.get("recipients"), dict):
+                    game_mails.append(report)
             except ValueError:
                 pass
     completed = next((line[7:] for line in reversed(recent)
@@ -63,6 +71,7 @@ def _log_events(log_text: str) -> dict:
         elif line.startswith("FAILED "):
             phase = "执行异常"
     return {"phase": phase, "last_result": latest_result,
+            "last_game_mail": game_mails[-1] if game_mails else {},
             "last_failed": completed, "start_line":
             next((line[6:] for line in recent if line.startswith("START ")), None),
             "last_section_has_result": any(line.startswith("RESULT ") for line in recent),
@@ -168,6 +177,48 @@ def read_snapshot(data_root: Path, task: dict | None = None) -> dict:
     # deployment, even when older manifests say SHADOW_RECORDED.
     metrics_valid = (not scope["scope_enabled"] or
                      scope_status == "COMPLETE")
+
+    # Private / NPC contract-source counts are delivered by the *same* full
+    # shadow scan. Never derive a green result from earlier or probe-only data.
+    contract_census = deep.get("contract_station_summary") if metrics_valid else None
+    if not isinstance(contract_census, dict):
+        contract_census = None
+    npc_source = completed.get("npc_trade_hub_health") if metrics_valid else None
+    npc_hubs = {}
+    if isinstance(npc_source, dict):
+        for name, station_id in (("amarr", 60008494), ("dodixie", 60011866)):
+            row = npc_source.get(name)
+            if (isinstance(row, dict) and row.get("station_id") == station_id
+                and row.get("status") == "BOTH_SIDES_PRESENT_IN_PUBLIC_SNAPSHOT"
+                and all(type(row.get(k)) is int and row[k] >= 0
+                        for k in ("active_orders", "active_buy_orders",
+                                  "active_sell_orders"))
+                and row["active_orders"] == row["active_buy_orders"]
+                                             + row["active_sell_orders"]):
+                npc_hubs[name] = {
+                    "status": "PUBLIC_SNAPSHOT_BOTH_SIDES",
+                    "active_orders": row["active_orders"],
+                    "active_buy_orders": row["active_buy_orders"],
+                    "active_sell_orders": row["active_sell_orders"],
+                }
+    raw_mail_settings = _json_file(root / "config" / "eve_game_mail_review.json")
+    configured_recipients = [
+        row.get("name") for row in raw_mail_settings.get("recipients", [])
+        if isinstance(row, dict) and isinstance(row.get("name"), str)
+    ] if isinstance(raw_mail_settings.get("recipients"), list) else (
+        [raw_mail_settings["recipient"]]
+        if isinstance(raw_mail_settings.get("recipient"), str) else [])
+    last_game_mail = event.get("last_game_mail") or {}
+    latest_mail_confirmed = bool(
+        completed_folder and last_game_mail.get("run_folder_name") == completed_folder
+        and (runs and runs[0].name == completed_folder)
+    )
+    sent_recipient_names = []
+    if latest_mail_confirmed:
+        sent_recipient_names = [
+            name for name, detail in last_game_mail["recipients"].items()
+            if isinstance(detail, dict) and detail.get("sent") is True
+        ]
     return {
         "status": status,
         "task_state": task_state,
@@ -189,6 +240,14 @@ def read_snapshot(data_root: Path, task: dict | None = None) -> dict:
         "active_lanes": list(scope["active_lanes"]),
         "scan_scope_status": scope_status,
         "opportunity": scope["opportunity"],
+        "contract_station_summary": contract_census,
+        "npc_trade_hubs": npc_hubs,
+        "game_mail_configured_recipients": configured_recipients,
+        "game_mail_latest_submitted": sent_recipient_names,
+        "game_mail_latest_matched": latest_mail_confirmed,
+        "game_mail_hunter_and_mike_configured": (
+            set(configured_recipients) == {"MikeChong", "Arb Hunter"}
+        ),
         "model_candidates": deep.get("model_candidates") if metrics_valid else None,
         "market_examined": deep.get("market_proofs_examined") if metrics_valid else None,
         "contract_examined": (deep.get("contract_approved_locations_examined")
