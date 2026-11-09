@@ -222,7 +222,7 @@ class DesktopWidget:
         root.configure(bg=COLORS["line"])
         root.attributes("-topmost", True)
         root.resizable(False, False)
-        w, h = 392, 424
+        w, h = 392, 446
         x = max(0, root.winfo_screenwidth() - w - 26)
         root.geometry(f"{w}x{h}+{x}+60")
         tkfont = ("Microsoft YaHei UI", 9)
@@ -254,7 +254,9 @@ class DesktopWidget:
         self.structures_label = self._label(shell, "读取采集站点范围…", 9, "muted")
         self.structures_label.pack(anchor="w", padx=14, pady=(1, 1))
         self.fourth_label = self._label(shell, "等待站点采集状态…", 9, "muted")
-        self.fourth_label.pack(anchor="w", padx=14, pady=(1, 3))
+        self.fourth_label.pack(anchor="w", padx=14, pady=(1, 2))
+        self.private_label = self._label(shell, "建筑市场：等待本轮数据", 9, "muted")
+        self.private_label.pack(anchor="w", padx=14, pady=(1, 3))
         self.metrics_label = self._label(shell, "审核记录 --  |  候选 --", 9, "muted")
         self.metrics_label.pack(anchor="w", padx=14, pady=(1, 4))
         self.next_label = self._label(shell, "下次自动：--", 9, "white")
@@ -447,6 +449,17 @@ class DesktopWidget:
                 text=row2,
                 fg=COLORS["green" if scope_ok else "amber"
                           if info.get("scan_scope_name") != "BASE" else "muted"])
+            private_orders = info.get("private_market_orders")
+            private_pages = info.get("private_market_pages")
+            if scope_ok and private_orders is not None and private_pages is not None:
+                private_text = (f"建筑市场 {_format_int(private_orders)} 单 · "
+                                f"{_format_int(private_pages)} 页已验证")
+            else:
+                private_text = "建筑市场：等待当前站点范围的完整扫描"
+            self.private_label.configure(
+                text=private_text, fg=COLORS["green" if
+                                             scope_ok and private_orders is not None
+                                             else "amber"])
             evidence = _format_int(info["proofs"])
             models = _format_int(info["model_candidates"])
             market = _format_int(info["market_examined"])
