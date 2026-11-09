@@ -166,6 +166,24 @@ class HunterWidgetTests(unittest.TestCase):
         detail=_opportunity_text(snap["opportunity"],True,hunter_enabled=True)[1]
         self.assertIn("等待同范围完整报告",detail)
 
+    def test_opportunity_five_scope_requires_every_reported_page(self):
+        marker=self.activate()
+        p=self.root/"opportunity-push"/"five.json"
+        health={
+            lane:{"status":"COMPLETE","pages":2,"pages_fetched":2}
+            for lane in LANES
+        }
+        health["ualx"]["pages_fetched"]=1
+        p.write_text(json.dumps({
+            "status":"OPPORTUNITY_NOTIFICATION_CYCLE_COMPLETE",
+            "authenticated_structure_health": health,
+            "qualified_model_leads":19,
+        }), encoding="utf8")
+        os.utime(p,(marker.stat().st_mtime+10,marker.stat().st_mtime+10))
+        snapshot=read_snapshot(self.root,{"state":"Ready"})
+        self.assertEqual(snapshot["opportunity"]["status"],"INCOMPLETE_COVERAGE")
+        self.assertIsNone(snapshot["opportunity"]["qualified_model_leads"])
+
     def test_no_opportunity_data_is_not_claimed_zero(self):
         self.activate()
         snap=read_snapshot(self.root,{"state":"Ready"})
