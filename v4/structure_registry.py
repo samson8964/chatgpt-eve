@@ -28,8 +28,25 @@ HUNTER_FIVE_LANES = (
 HUNTER_ENABLE_FILE = Path.home() / "EVE-V4-Data" / "config" / "hunter-five-station.enabled"
 HUNTER_ENABLE_CONTENT = "VERIFIED_ARB_HUNTER_1048663825563_1046664001931"
 
+# User-provided in-game Upwell showinfo link, 2026-11-10. Never infer an ID.
+# Keep this sixth station out of scheduled jobs until Arb Hunter's DC profile
+# has completed a separate, full-pagination read and an exact opt-in marker.
+HY_RWO_LANE = ("hy_rwo", "HY-RWO", 1049633275448, "dc")
+HY_RWO_ENABLE_FILE = Path.home() / "EVE-V4-Data" / "config" / "hunter-hy-rwo.enabled"
+HY_RWO_ENABLE_CONTENT = "VERIFIED_ARB_HUNTER_1049633275448"
+
 ENABLE_FILE = Path.home() / "EVE-V4-Data" / "config" / "banestar-market.enabled"
 ENABLE_CONTENT = "APPROVED_1050474463169"
+
+
+def hy_rwo_enabled() -> bool:
+    """This flag is meaningful ONLY on top of the existing Hunter five mode."""
+    try:
+        return (hunter_enabled() and HY_RWO_ENABLE_FILE.is_file()
+                and HY_RWO_ENABLE_FILE.read_text(encoding="utf-8").strip()
+                == HY_RWO_ENABLE_CONTENT)
+    except (OSError, UnicodeError):
+        return False
 
 
 def banestar_enabled() -> bool:
@@ -51,8 +68,11 @@ def hunter_enabled() -> bool:
 
 # Legacy C-J/O4T/BANESTAR auth stays untouched unless the exact user-approved
 # all-five mode is explicitly activated after a successful live probe.
-ACTIVE_LANES = (HUNTER_FIVE_LANES if hunter_enabled() else
-                BASE_LANES + ((BANESTAR_LANE,) if banestar_enabled() else ()))
+ACTIVE_LANES = (
+    HUNTER_FIVE_LANES + ((HY_RWO_LANE,) if hy_rwo_enabled() else ())
+    if hunter_enabled()
+    else BASE_LANES + ((BANESTAR_LANE,) if banestar_enabled() else ())
+)
 STRUCTURES = {lane: (location, profile)
               for lane, _, location, profile in ACTIVE_LANES}
 STATIONS = {label: location
