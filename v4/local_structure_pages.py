@@ -1,4 +1,4 @@
-"""Standalone read-only full pagination audit of all 3 EVE player structures.
+"""Standalone read-only full pagination audit of enabled EVE private structures.
 
 Uses the same retrying transport as V4 deep_scan. Never downloads public
 market contracts, never writes SQL, and never sends mail.
@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 
 from v4.local_run import deep_scan_environment
+from v4.structure_registry import STRUCTURES
 
 
 def diagnose() -> dict:
@@ -17,7 +18,10 @@ def diagnose() -> dict:
         return {"status":"MISSING_LOCAL_CREDENTIAL","structures":{},
                 "mail_enabled":False,"full_market_scan":False}
     orders, health=all_structure_orders(token)
-    complete=len(health)==3 and all(h.get("status")=="COMPLETE" for h in health.values())
+    complete=(set(health) == set(STRUCTURES)
+              and all(h.get("status")=="COMPLETE" and
+                      h.get("pages_fetched")==h.get("pages")
+                      for h in health.values()))
     return {"status":"ALL_STRUCTURE_PAGES_COMPLETE" if complete else "PARTIAL_STRUCTURE_READ",
             "structures": {key: {field: val for field,val in row.items()
                                  if field in ("status","reason","pages","pages_fetched",
