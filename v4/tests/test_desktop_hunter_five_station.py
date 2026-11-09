@@ -250,14 +250,14 @@ class HunterWidgetTests(unittest.TestCase):
         folder="20261109T010000Z-new"
         self.write_run(folder,mtime=marker.stat().st_mtime+100)
         log=root/"logs"/"shadow-task.log"
-        log.write_text('START 2026-11-09T01:00:00+00:00\\n'
-          +'RESULT {"status":"SHADOW_RECORDED","run_folder_name":"'+folder+'"}\\n'
+        log.write_text('START 2026-11-09T01:00:00+00:00\n'
+          +'RESULT {"status":"SHADOW_RECORDED","run_folder_name":"'+folder+'"}\n'
           +'GAME_REVIEW_MAIL '+json.dumps({
                "status":"V4_GAME_RESEARCH_MAIL_BATCH_SENT",
                "run_folder_name":folder,
                "recipients":{
                    "MikeChong":{"sent":True},"LadyBaBa":{"sent":True}}})
-          +'\\n',encoding="utf8")
+          +'\n',encoding="utf8")
         snap=read_snapshot(root,{"state":"Ready","last_result":0})
         a,b=_game_mail_lines(snap)
         self.assertIn("LadyBaBa",a)
