@@ -183,11 +183,11 @@ class TwoRecipientTests(unittest.TestCase):
             result = replace_retired_recipient(
                 root, resolver=lambda name: (
                     captured.append(name) or 2124888999))
-            self.assertEqual(captured, ["Abr Hunter"])
+            self.assertEqual(captured, ["Arb Hunter"])
             self.assertEqual(result["status"], "V4_GAME_RETIRED_RECIPIENT_REPLACED")
             self.assertFalse(result["sent"])
             self.assertEqual([r["name"] for r in read_settings(root)["recipients"]],
-                             ["MikeChong", "Abr Hunter"])
+                             ["MikeChong", "Arb Hunter"])
             self.assertEqual(read_settings(root)["recipients"][1]["id"], 2124888999)
             self.assertTrue(prior.exists())
             self.assertEqual(replace_retired_recipient(root)["status"],
@@ -232,7 +232,7 @@ class TwoRecipientTests(unittest.TestCase):
             def request(self, method, url, **kwargs):
                 self.called = (method, url, kwargs)
                 return Response(200, {"characters":[
-                    {"name":"Abr Hunter","id":2124888999}]})
+                    {"name":"Arb Hunter","id":2124888999}]})
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             with self.assertRaisesRegex(GameMailTestError, "NOT_ENABLED"):
@@ -241,9 +241,9 @@ class TwoRecipientTests(unittest.TestCase):
             esi = FakeESI()
             result = replace_retired_recipient(root, session=esi)
             self.assertEqual(result["status"],"V4_GAME_NEW_RECIPIENT_ADDED")
-            self.assertEqual(result["recipients"],["MikeChong","Abr Hunter"])
+            self.assertEqual(result["recipients"],["MikeChong","Arb Hunter"])
             self.assertIn("/universe/ids/",esi.called[1])
-            self.assertEqual(esi.called[2]["json"], ["Abr Hunter"])
+            self.assertEqual(esi.called[2]["json"], ["Arb Hunter"])
             self.assertNotIn("Authorization",esi.called[2]["headers"])
 
     def test_invalid_sender_id_or_recipient_id_is_rejected(self):
