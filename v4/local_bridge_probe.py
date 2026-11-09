@@ -25,7 +25,7 @@ def probe(*, fetch: Callable | None = None, env: dict[str, str] | None = None) -
                 "structures": {name: {"status": "NOT_TESTED_MISSING_KEY"}
                                for name in STRUCTURES}}
     # Only a real authenticated request needs pandas-heavy deep-scan imports.
-    from v4.deep_scan import STRUCTURES, WORKER
+    from v4.deep_scan import WORKER
     results = {}
     for name, (structure_id, profile) in STRUCTURES.items():
         try:
