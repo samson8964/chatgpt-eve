@@ -149,8 +149,6 @@ def add_recipient(root: Path, *, recipient: str = "LadyBaBa",
         ident = _resolve_recipient(recipient, session)
     if isinstance(ident, bool) or not isinstance(ident, int) or ident <= 0:
         raise GameMailTestError("EVE_MAIL_RECIPIENT_ID_INVALID")
-    if ident != HUNTER_CHARACTER_ID:
-        raise GameMailTestError("V4_GAME_MAIL_HUNTER_ID_MISMATCH")
     if recipient == "Arb Hunter" and ident != HUNTER_CHARACTER_ID:
         raise GameMailTestError("V4_GAME_MAIL_HUNTER_ID_MISMATCH")
     recipients.append({"name":recipient, "id":ident})
@@ -200,6 +198,8 @@ def replace_retired_recipient(root: Path, *, recipient: str = "Arb Hunter",
         ident = _resolve_recipient(recipient, session)
     if isinstance(ident, bool) or not isinstance(ident, int) or ident <= 0:
         raise GameMailTestError("EVE_MAIL_RECIPIENT_ID_INVALID")
+    if ident != HUNTER_CHARACTER_ID:
+        raise GameMailTestError("V4_GAME_MAIL_HUNTER_ID_MISMATCH")
     if ident in {row["id"] for row in rows}:
         raise GameMailTestError("EVE_MAIL_RECIPIENT_ID_COLLISION")
     retired_present = any(row["name"] == "LadyBaBa" for row in rows)
