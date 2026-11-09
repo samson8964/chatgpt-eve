@@ -1,149 +1,84 @@
-# EVE V4 | Hunter five private-structure procurement scout | 2026-11-09
+# EVE V4｜Arb Hunter 五站采购扫描｜2026-11-09
 
-## Scope and status
+## 目标与精确建筑ID
 
-The user supplied a screenshot of six locations. **Jita is excluded**.
-Read-only procurement targets, in screenshot order:
+用户提供游戏内 UALX-3 原生 showinfo 链接：
+`Arb Hunter > <url=showinfo:35834//1046664001931>UALX-3 - Mothership Bellicose (BC Piggy)</url>`。
+该信息确认了精确建筑ID `1046664001931`，无须再人工指定结构ID。
 
-| Lane | Screenshot station | Exact structure ID | Provenance | Screenshot route count |
-| --- | --- | --- | --- | --- |
-| banestar | 74L2-U - BANESTAR - BALLS DEEP EDITION | 1050474463169 | Existing V4 registry | 33 |
-| cj | C-J6MT - 1st Taj Mahgoon | 1049588174021 | Existing V4 registry | 72 |
-| o4t | O4T-Z5 - Dracarys. Prime | 1040804972352 | Existing V4 registry | 0 |
-| r_arkn | R-ARKN - BIG MOM | 1048663825563 | Public EveSynapse structure directory; requires ESI validation | 1 |
-| ualx | UALX-3 - Mothership Bellicose | **unknown** | The screenshot contains the name, not the structure ID | 29 |
+仅扫描以下五个玩家建筑（不将 Jita 4-4 算作此五站的采购来源）：
 
-These 33/72/0/1/29 numbers are **route counts on the source
-screenshot**, not market orders, monthly trading volume, or purchasable
-opportunities. The precise Upwell ID for UALX must be supplied from an
-in-game structure showinfo link or otherwise verified source. Do not
-substitute the solar-system ID (30004807).
+| lane | 私人建筑 | structure_id | auth_profile |
+| --- | --- | --- | --- |
+| banestar | 74L2-U - BANESTAR - BALLS DEEP EDITION | 1050474463169 | dc (Arb Hunter) |
+| cj | C-J6MT - 1st Taj Mahgoon | 1049588174021 | dc (Arb Hunter) |
+| o4t | O4T-Z5 - Dracarys. Prime | 1040804972352 | dc (Arb Hunter) |
+| r_arkn | R-ARKN - BIG MOM | 1048663825563 | dc (Arb Hunter) |
+| ualx | UALX-3 - Mothership Bellicose (BC Piggy) | 1046664001931 | dc (Arb Hunter) |
 
-The user now writes "Arb Hunter"; on 2026-11-08 they called the new
-character "Abr Hunter". The diagnostic requires **exact authorization
-identity** and fails closed if the Worker stored name differs. Do not
-silently treat these spellings as equal.
+前3个ID来自当前 V4 authoritative structure registry；R-ARKN 来自 EveSynapse 公开结构信息（实际访问仍须ESI认证核验）；UALX 来自用户本人EVE showinfo链接。图片的“路线数”不是订单数或成交额。
 
-## Auth architecture
+用户确认 **DC影子市场授权成功**，但这只表示 EVE SSO callback 接受了授权，不代表五站市场实际 ESI 200；程序仍需核实 `dc` 返回的角色确实是 `Arb Hunter`。
 
-The current Cloudflare Worker already supports an independent `dc`
-SSO token with scope `esi-markets.structure_markets.v1`.
-CCP's ESI structure-market endpoint permits a single authorized
-character to read every structure to which it has market access:
-`GET /latest/markets/structures/{structure_id}/?page=...`.
-It is **not necessary to create five EVE SSO authorizations**.
-One `/auth-dc` authorization can service the five read-only requests,
-subject to live structure ACL checks.
+## 安全架构与部署状态
 
-Stage 1 deliberately reuses the **existing** `dc` profile and introduces
-no Worker changes/redeploy. Existing V4 production `cj`, `dc`,
-`banestar` source registry and mail sender remain unchanged.
-Do not change `/auth-cj`, `/auth-banestar`, or `/auth-mail`, and
-do not click any `/logout-*` routes.
+GitHub准备分支 `prep/v4-windows-local-migration-20261013`：
+- `v4/structure_registry.py` 设定五个精确ID和 `HUNTER_FIVE_LANES`。默认仍使用旧C-J、O4T和条件性BANESTAR配置（四H已退役）。
+- `v4/hunter_purchase_probe.py` 通过同一Worker `auth_profile=dc` 核实 Arb Hunter ESI角色身份，直接对五个固定建筑逐站只读抓第一页，`--full` 时抓完整分页，报告真实订单数。
+- `--full --activate-on-success` 为**单次显式切换命令**：仅当五个建筑都 `COMPLETE` 且页数完整、角色精确匹配时，原子写入本机私有启用哨兵 `%USERPROFILE%\\EVE-V4-Data\\config\\hunter-five-station.enabled`，令下一轮 **V4 Shadow 研究扫描**统一通过 Arb Hunter `dc` 授权抓五站。
+- 这不会修改 Cloudflare Worker 的其它角色凭据、GitHub secret、Windows计划任务、MAIL正式推送、用户现有SQLite历史数据，且不执行购买/下单。
+- 新建哨兵的存在本身并不等于下一轮已成功；必须检查下轮 `structure_health` 五站全部 `COMPLETE`、`pages_fetched == pages`。
+- 默认旧 BANESTAR `banestar` profile在正式的五站模式启用后停止被使用，但其KV保存的授权不会被删除；取消五站模式可回退原有范围。
 
-## Operator handoff 1: EVE login (requires user)
+## Windows执行（一次性五站验收+安全启用）
 
-Visit the existing deployed
-https://eve-contract-opener.99617224.workers.dev/auth-dc
-and authorize the correct **exact** Hunter EVE pilot with
-`esi-markets.structure_markets.v1`.
-The SSO callback should show the selected pilot name and the Worker
-main status page should show the same pilot in "DC影子市场授权".
-This replaces the old `dc` identity only; old LadyBaBa is retired.
-It does not authorize any automatic trading.
-
-The public status page cannot be read from this environment; this step
-must be verified in the user's browser.
-
-## Operator handoff 2: Windows one-page safe preflight
-
-Only use the authorized existing V4 Windows user profile with its
-Windows Credential Manager bridge key. Do not paste an API key/token into
-chat or scripts.
+用运行 `EVE-V4-Shadow` 计划任务的 Windows 用户登录。不可在任务 Running 时更新代码；也不要把bridge key / EVE SSO令牌贴到聊天。
 
 ```powershell
 $repo = Join-Path $HOME 'EVE-V4-Code'
-if ((Get-ScheduledTask -TaskName 'EVE-V4-Shadow').State -eq 'Running') {
-    throw 'Scheduled scanner currently Running: do not update checkout'
-}
+$task = Get-ScheduledTask -TaskName 'EVE-V4-Shadow' -ErrorAction Stop
+if ($task.State -eq 'Running') { throw '扫描正在运行，禁止在此时修改配置' }
 $branch = git -C $repo branch --show-current
 if ($branch -ne 'prep/v4-windows-local-migration-20261013') {
-    throw "Unexpected branch: $branch"
+    throw "分支不符：$branch；不自动切换或覆盖本地代码"
 }
 git -C $repo pull --ff-only
-if ($LASTEXITCODE -ne 0) { throw 'Git pull failed' }
+if ($LASTEXITCODE -ne 0) { throw 'git pull失败，不修改配置' }
 Push-Location $repo
 try {
-  & .\.venv\Scripts\python.exe -m v4.hunter_purchase_probe --expected-name "Arb Hunter"
-} finally {
-  Pop-Location
-}
+    & .\.venv\Scripts\python.exe -m v4.hunter_purchase_probe --expected-name "Arb Hunter" --full --activate-on-success
+    if ($LASTEXITCODE -ne 0) { throw '五站权限/分页验收失败，未启用新扫描模式' }
+} finally { Pop-Location }
 ```
 
-If the actual pilot is **Abr Hunter**, change only the
-`--expected-name` value to the exact EVE name confirmed at the SSO
-callback. Do not reuse a misleading name.
+成功时返回：
+- `authorized_character: Arb Hunter`，且有正整数 `authorized_character_id`
+- `banestar/cj/o4t/r_arkn/ualx` 全部 `status: COMPLETE`
+- 每站 `pages_fetched == pages_reported`，提供 `orders_count`
+- `activation.status: HUNTER_FIVE_STATIONS_ENABLED_FOR_NEXT_V4_RUN`
 
-Expected first-run result:
-- `authorized_character` is the exact user-owned Hunter character.
-- `banestar`, `cj`, `o4t`, `r_arkn` each report `PAGE1_OK`.
-- `ualx` reports `NEEDS_EXACT_STRUCTURE_ID` until supplied.
-- `purchase_enabled=false`, `orders_saved=false`,
-  `production_registry_changed=false`.
+若任一站 `HTTP_FAILURE`（401/403等）、`FULL_PAGINATION_FAILED`、`INVALID_PAGE_COUNT`，或角色名错为 `Abr Hunter`，整体验收失败，**不会创建新哨兵**。如果此前已经激活过五站模式，不会自动清除上一次已成功的哨兵。
 
-`PAGE1_OK` means the Worker/ESI returned a valid page of orders, not
-that every page can be retrieved or any item is worth buying. A market
-may legitimately have 0 orders.
+因用户已要求一次性配置，**不用再单独输入 `--ualx-id`**，也不用先运行四站再补UALX。
 
-## Operator handoff 3: UALX exact structure ID and full pagination
+## 下一轮结果验收
 
-Have the user copy the in-game showinfo link of the exact
-`UALX-3 - Mothership Bellicose` Keepstar, often formatted
-`<url=showinfo:<type_id>//<structure_id>>...` (the structure ID is the
-large 13-digit integer after `//`). Do not infer this from screenshot.
+切换成功后，不触发额外并行扫描，保持既有 `EVE-V4-Shadow` 计划任务。在下一次正常扫描结束后检查：
+- 五站 `structure_status` 均 `COMPLETE`
+- `structure_order_counts` 五站数量和总数
+- `coverage_gate`、`source_input_integrity`、SQLite 对账、市场候选的来源站及 Jita 买单价值依据
+- 正式邮件推送 `EVE-V4-Opportunity-Push` 仍 Disabled，采购仍需用户游戏内操作。
 
-Then execute a five-station **first-page** check:
+真实交易购买需要另行授权，市场读取 scope 并不能自动下单。
+
+## 安全回退
+
+如果新模式下一轮发现明显问题，等待 Shadow 不在 Running 后，仅删除新模式的精确哨兵文件，下一次新启动的扫描进程会自动使用以前的 registry 默认配置，旧授权及历史数据不丢失。
 
 ```powershell
-& .\.venv\Scripts\python.exe -m v4.hunter_purchase_probe --expected-name "Arb Hunter" --ualx-id <EXACT_UPWELL_STRUCTURE_ID>
+$task = Get-ScheduledTask -TaskName 'EVE-V4-Shadow'
+if ($task.State -eq 'Running') { throw '等待扫描结束再回退' }
+Remove-Item (Join-Path $HOME 'EVE-V4-Data/config/hunter-five-station.enabled') -ErrorAction Stop
 ```
 
-Only after **all five report** `PAGE1_OK`, run:
-
-```powershell
-& .\.venv\Scripts\python.exe -m v4.hunter_purchase_probe --expected-name "Arb Hunter" --ualx-id <EXACT_UPWELL_STRUCTURE_ID> --full
-```
-
-Expected `FULL_PAGES_COMPLETE`; each station returns
-`pages_fetched==pages_reported`. No orders are persisted, no trading
-and no mail is sent. `--full` may take substantially longer than page 1.
-
-If 401/403 occurs, inspect identity, bridge key vs OAuth, actual in-game
-market permission and whether the structure has changed owner/ACL.
-A status 200 with incomplete pages is not an accepted completed scan.
-
-## Stage 2 after successful user evidence (not yet deployed)
-
-Only after validated exact UALX ID, real Hunter identity, and complete
-five-station pages:
-
-1. Add and gate R-ARKN and UALX lanes in the single V4 structure registry.
-2. Decide whether existing three source profiles remain or migrate to
-   `dc` *after* verified no loss of access.
-3. Reuse existing V4 market-to-Jita buy-depth valuation, cash floor
-   50M ISK, ROI ≥10%, and 2,000 ISK/m³ policy, while preserving
-   stress-test, freshness, partial-coverage and no-live-execution safeguards.
-4. Run exactly one shadow scan first and reconcile each lane's pages,
-   order count, and source integrity. Do not automatically enable
-   `EVE-V4-Opportunity-Push`.
-5. Record the state and results in Airtable; no change to the approved
-   project's final goal or major architecture is implied by this read-only
-   coverage expansion.
-
-The V4 opportunity engine is a *scanner and research* workflow: ESI
-market-read access cannot buy or accept a trade for the pilot.
-
-References:
-- CCP ESI structure markets: https://docs.esi.evetech.net/docs/scenarios/structure_markets.html
-- CCP EVE SSO: https://developers.eveonline.com/docs/services/sso/
-- Public R-ARKN listing: https://evesynapse.app/structure/?structure=1048663825563
+**状态边界**：GitHub源码准备及CI测试不等于Windows本地已git pull、五站已实测或已正式启用。务必以用户机器的五站 `COMPLETE` 和后续 Shadow 真实结果为准。
