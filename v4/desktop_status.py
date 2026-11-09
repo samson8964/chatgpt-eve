@@ -150,10 +150,10 @@ def read_snapshot(data_root: Path, task: dict | None = None) -> dict:
             completed.get("coverage_gate") ==
             "INPUT_LANES_REPORTED_COMPLETE_NOT_LIVE_VERIFIED"
             else "PARTIAL_UNVERIFIED" if completed else "NO_HISTORY")
-    # The legacy status derives from latest logs and may still be green for
-    # the old three-station scope. Never imply four-station completion from it.
+    # A status-only task log may be green for the PREVIOUS authorized scope.
+    # Never mistake it for a complete five-station scan.
     scope_status = scope["scan_scope_status"]
-    if scope["banestar_enabled"]:
+    if scope["scope_enabled"]:
         if scope_status == "WAITING_NEW_SCOPE":
             if status in ("SHADOW_RECORDED", "NO_HISTORY"):
                 status = "WAITING_NEW_SCOPE"
@@ -164,10 +164,9 @@ def read_snapshot(data_root: Path, task: dict | None = None) -> dict:
                 status = "DEGRADED_PARTIAL_COVERAGE"
             if last_result_status == "SHADOW_RECORDED":
                 last_result_status = "DEGRADED_PARTIAL_COVERAGE"
-    # Quantities from the previous three-lane success are not four-lane
-    # measurements; suppress them while the newly approved scope is pending
-    # or incomplete.
-    metrics_valid = (not scope["banestar_enabled"] or
+    # Never attribute old-scope metrics to the active Hunter five-station
+    # deployment, even when older manifests say SHADOW_RECORDED.
+    metrics_valid = (not scope["scope_enabled"] or
                      scope_status == "COMPLETE")
     return {
         "status": status,
@@ -182,6 +181,9 @@ def read_snapshot(data_root: Path, task: dict | None = None) -> dict:
         "structures": sources,
         "structure_labels": scope["labels"],
         "banestar_enabled": scope["banestar_enabled"],
+        "hunter_enabled": scope["hunter_enabled"],
+        "scan_scope_name": scope["scope_name"],
+        "active_lanes": list(scope["active_lanes"]),
         "scan_scope_status": scope_status,
         "opportunity": scope["opportunity"],
         "model_candidates": deep.get("model_candidates") if metrics_valid else None,
