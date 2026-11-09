@@ -10,7 +10,8 @@ from pathlib import Path
 
 from v4.desktop_status import read_snapshot
 from v4.desktop_widget import (_structure_lines, _opportunity_text,
-                               _contract_source_lines, _npc_market_line,\n                               _game_mail_lines)
+                               _contract_source_lines, _npc_market_line,
+                               _game_mail_lines)
 from v4.structure_registry import HUNTER_ENABLE_CONTENT, HUNTER_FIVE_LANES
 
 LANES = tuple(row[0] for row in HUNTER_FIVE_LANES)
