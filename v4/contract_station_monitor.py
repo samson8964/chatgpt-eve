@@ -19,7 +19,7 @@ NPC_HUBS = (
 def station_contract_summary(source_locations, proofs, *, structures=None) -> dict:
     """Summarize already-scoped cash contracts and audited proof outcomes.
 
-    Uses the exact active five-station registry; counts do not grant
+    Uses the exact active structure registry (five or six stations); counts do not grant
     additional structure or NPC authorization and do not scan again.
     """
     structures = STRUCTURES if structures is None else structures
