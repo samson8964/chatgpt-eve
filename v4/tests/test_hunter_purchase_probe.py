@@ -2,12 +2,16 @@
 from __future__ import annotations
 
 import json
+import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 from v4.hunter_purchase_probe import (
     KNOWN, _dc_character, probe, station_catalog,
+    activate_verified_hunter_mode,
 )
+from v4 import structure_registry as registry
 
 
 class Response:
@@ -53,10 +57,12 @@ class HunterProbeTests(unittest.TestCase):
         stations = station_catalog()
         self.assertEqual(len(stations), 5)
         self.assertEqual(stations[-1][0], "ualx")
-        self.assertIsNone(stations[-1][2])
+        self.assertEqual(stations[-1], (
+            "ualx", "UALX-3 - Mothership Bellicose (BC Piggy)", 1046664001931))
         self.assertEqual(
             {x[2] for x in KNOWN},
-            {1050474463169, 1049588174021, 1040804972352, 1048663825563},
+            {1050474463169, 1049588174021, 1040804972352,
+             1048663825563, 1046664001931},
         )
         self.assertNotIn(1053970513596, {x[2] for x in KNOWN})
         self.assertNotIn(60003760, {x[2] for x in KNOWN})
@@ -71,28 +77,26 @@ class HunterProbeTests(unittest.TestCase):
         self.assertEqual(_dc_character("<p>DC影子市场授权：尚未授权</p>"),
                          (None, None))
 
-    def test_default_four_access_checks_and_missing_ualx_never_guess(self):
+    def test_default_five_access_checks_include_user_supplied_ualx(self):
         fake = FakeRequests()
         result = probe(expected_name="Arb Hunter", session=fake,
                        get_key=lambda: self.KEY)
-        self.assertEqual(result["status"], "PENDING_UALX_ID")
-        self.assertEqual(result["stations"]["ualx"]["status"],
-                         "NEEDS_EXACT_STRUCTURE_ID")
-        self.assertEqual(len(fake.calls), 5)  # health and four markets
+        self.assertEqual(result["status"], "FIVE_FIRST_PAGES_OK")
+        self.assertEqual(result["stations"]["ualx"]["status"], "PAGE1_OK")
+        self.assertEqual(len(fake.calls), 6)  # health and five markets
         self.assertTrue(all(row["status"] == "PAGE1_OK"
-                            for k, row in result["stations"].items()
-                            if k != "ualx"))
+                            for row in result["stations"].values()))
         self.assertFalse(result["purchase_enabled"])
         self.assertFalse(result["orders_saved"])
         self.assertFalse(result["production_registry_changed"])
 
     def test_all_five_exact_ids(self):
         fake = FakeRequests()
-        result = probe(expected_name="Arb Hunter", ualx_id=1051234567890,
+        result = probe(expected_name="Arb Hunter",
                        session=fake, get_key=lambda:self.KEY)
         self.assertEqual(result["status"], "FIVE_FIRST_PAGES_OK")
         self.assertEqual(len(fake.calls), 6)
-        self.assertEqual(result["stations"]["ualx"]["structure_id"], 1051234567890)
+        self.assertEqual(result["stations"]["ualx"]["structure_id"], 1046664001931)
         self.assertEqual(
             {call[1]["params"]["auth_profile"]
              for call in fake.calls if "params" in call[1]},
@@ -101,7 +105,7 @@ class HunterProbeTests(unittest.TestCase):
 
     def test_complete_full_pagination_is_read_only(self):
         fake = FakeRequests(full_pages=3)
-        result = probe(expected_name="Arb Hunter", ualx_id=1051234567890,
+        result = probe(expected_name="Arb Hunter",
                        full=True, session=fake, get_key=lambda:self.KEY,
                        sleep=lambda _:None)
         self.assertEqual(result["status"], "FULL_PAGES_COMPLETE")
@@ -131,11 +135,58 @@ class HunterProbeTests(unittest.TestCase):
         self.assertEqual(result["stations"]["cj"]["status"], "PAGE1_OK")
         self.assertNotIn(self.KEY, json.dumps(result))
 
-    def test_invalid_ualx_id_cannot_inject_duplicate(self):
-        for invalid in (1053970513596 - 1000000000000, 0, -1, True,
-                        1049588174021, "1051234567890"):
+    def test_exact_registry_consistency_and_no_duplicate_ids(self):
+        actual = [(lane, sid, profile) for lane, label, sid, profile
+                  in registry.HUNTER_FIVE_LANES]
+        self.assertEqual(
+            [(lane, sid) for lane, _, sid in KNOWN],
+            [(lane, sid) for lane, sid, _ in actual])
+        self.assertEqual({profile for _, _, profile in actual}, {"dc"})
+        self.assertEqual(len({sid for _, sid, _ in actual}), 5)
+        self.assertFalse("four_h" in {lane for lane, _, _ in actual})
+
+    def test_full_success_can_atomically_enable_five_lane_mode(self):
+        fake = FakeRequests(full_pages=2)
+        result = probe(expected_name="Arb Hunter", full=True, session=fake,
+                       get_key=lambda:self.KEY, sleep=lambda _:None)
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / "hunter-five-station.enabled"
+            with patch.object(registry, "HUNTER_ENABLE_FILE", p):
+                self.assertFalse(registry.hunter_enabled())
+                activation = activate_verified_hunter_mode(result, path=p)
+                self.assertTrue(activation["enabled"])
+                self.assertFalse(activation["formal_opportunity_push_changed"])
+                self.assertEqual(activation["orders_purchased"], 0)
+                self.assertEqual(p.read_text("utf-8"),
+                                 registry.HUNTER_ENABLE_CONTENT)
+                self.assertTrue(registry.hunter_enabled())
+
+    def test_failed_or_partial_scope_does_not_write_enable_marker(self):
+        fake = FakeRequests(fail_station=1048663825563)
+        result = probe(expected_name="Arb Hunter", full=True, session=fake,
+                       get_key=lambda:self.KEY, sleep=lambda _:None)
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / "hunter-five-station.enabled"
+            with self.assertRaisesRegex(ValueError, "VERIFICATION_NOT_COMPLETE"):
+                activate_verified_hunter_mode(result, path=p)
+            self.assertFalse(p.exists())
+            fake_success = FakeRequests(full_pages=1)
+            page1 = probe(expected_name="Arb Hunter", session=fake_success,
+                          get_key=lambda:self.KEY)
             with self.assertRaises(ValueError):
-                station_catalog(invalid)
+                activate_verified_hunter_mode(page1, path=p)
+            self.assertFalse(p.exists())
+
+    def test_wrong_hunter_spelling_never_activates(self):
+        fake = FakeRequests(name="Abr Hunter", full_pages=1)
+        result = probe(expected_name="Arb Hunter", full=True, session=fake,
+                       get_key=lambda:self.KEY, sleep=lambda _:None)
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / "hunter-five-station.enabled"
+            with self.assertRaises(ValueError):
+                activate_verified_hunter_mode(result, path=p)
+            self.assertFalse(p.exists())
+
 
 
 if __name__ == "__main__":
