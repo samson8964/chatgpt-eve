@@ -28,7 +28,7 @@ SETTINGS_FILE = Path("config/eve_game_mail_review.json")
 RECEIPTS = Path("mail-review/eve-receipts")
 # Recipient identity established by user-visible EVE API success AND inbox check.
 ALLOWED_RECIPIENTS = {"MikeChong": 2124493042}
-USER_APPROVED = ("MikeChong", "LadyBaBa", "Abr Hunter")
+USER_APPROVED = ("MikeChong", "LadyBaBa", "Arb Hunter")
 EXPECTED_SENDER_ID = 2124679425
 
 
@@ -160,7 +160,7 @@ def add_recipient(root: Path, *, recipient: str = "LadyBaBa",
 
 
 
-def replace_retired_recipient(root: Path, *, recipient: str = "Abr Hunter",
+def replace_retired_recipient(root: Path, *, recipient: str = "Arb Hunter",
                               session=None, resolver=None) -> dict:
     """Migrate the discontinued LadyBaBa destination to the new owned character.
 
@@ -168,7 +168,7 @@ def replace_retired_recipient(root: Path, *, recipient: str = "Abr Hunter",
     A public ESI exact-name resolution must succeed before touching the file.
     Both old recipient receipts and MikeChong receipts remain untouched.
     """
-    if recipient != "Abr Hunter":
+    if recipient != "Arb Hunter":
         raise ValueError("EVE_MAIL_REPLACEMENT_NOT_ALLOWED")
     root = Path(root)
     existing = read_settings(root)
@@ -359,7 +359,7 @@ def main() -> None:
     group.add_argument("--enable", action="store_true")
     group.add_argument("--add-recipient", action="store_true")
     group.add_argument("--replace-recipient", action="store_true",
-                       help="Replace discontinued LadyBaBa recipient with Abr Hunter")
+                       help="Replace discontinued LadyBaBa recipient with Arb Hunter")
     group.add_argument("--disable", action="store_true")
     group.add_argument("--send-now", action="store_true")
     group.add_argument("--status", action="store_true")
@@ -373,7 +373,7 @@ def main() -> None:
             result = add_recipient(args.data_root, recipient=args.recipient or "LadyBaBa")
         elif args.replace_recipient:
             result = replace_retired_recipient(
-                args.data_root, recipient=args.recipient or "Abr Hunter")
+                args.data_root, recipient=args.recipient or "Arb Hunter")
         elif args.disable:
             result = disable(args.data_root)
         elif args.status:
