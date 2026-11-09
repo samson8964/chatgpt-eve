@@ -9,11 +9,14 @@ import json
 import time
 from pathlib import Path
 
-from v4.structure_registry import BASE_LANES, BANESTAR_LANE, ENABLE_CONTENT
+from v4.structure_registry import (
+    BASE_LANES, BANESTAR_LANE, ENABLE_CONTENT,
+    HUNTER_FIVE_LANES, HUNTER_ENABLE_CONTENT,
+)
 
 BASE_NAMES = tuple(row[0] for row in BASE_LANES)
 BANESTAR = BANESTAR_LANE[0]
-LABELS = {row[0]: row[1] for row in BASE_LANES + (BANESTAR_LANE,)}
+LABELS = {row[0]: row[1] for row in BASE_LANES + (BANESTAR_LANE,) + HUNTER_FIVE_LANES}
 
 
 def _json(path: Path) -> dict:
@@ -39,6 +42,35 @@ def _activation_time(root: Path) -> float | None:
     except (OSError, UnicodeError):
         pass
     return None
+
+
+
+def _hunter_activation_time(root: Path) -> float | None:
+    path = root / "config" / "hunter-five-station.enabled"
+    try:
+        if path.read_text(encoding="utf-8").strip() == HUNTER_ENABLE_CONTENT:
+            return path.stat().st_mtime
+    except (OSError, UnicodeError):
+        pass
+    return None
+
+
+def _scan_scope(root: Path) -> dict:
+    """Use only exact local sentinels; a past green report never selects scope."""
+    hunter = _hunter_activation_time(root)
+    if hunter is not None:
+        lanes = tuple(row[0] for row in HUNTER_FIVE_LANES)
+        return {"name": "HUNTER_FIVE", "lanes": lanes,
+                "activated_at": hunter, "enabled": True,
+                "hunter_enabled": True, "banestar_enabled": True}
+    banestar = _activation_time(root)
+    if banestar is not None:
+        return {"name": "BANESTAR", "lanes": BASE_NAMES + (BANESTAR,),
+                "activated_at": banestar, "enabled": True,
+                "hunter_enabled": False, "banestar_enabled": True}
+    return {"name": "BASE", "lanes": BASE_NAMES,
+            "activated_at": None, "enabled": False,
+            "hunter_enabled": False, "banestar_enabled": False}
 
 
 def _mail_status(value, channel: str) -> str:
@@ -98,9 +130,14 @@ def read_opportunity(root: Path, lanes: tuple[str, ...],
             by_station = {}
         # _evaluate(...) labels by STATIONS (human-facing name), while
         # authenticated_structure_health uses the internal "banestar" lane.
-        station = by_station.get(LABELS[BANESTAR], {}) if activated_at is not None else None
+        station = by_station.get(LABELS[BANESTAR], {}) if (
+            activated_at is not None and BANESTAR in lanes) else None
         if station is not None and not isinstance(station, dict):
             station = None
+        station_summaries = {
+            lane: by_station.get(LABELS[lane])
+            for lane in lanes if isinstance(by_station.get(LABELS[lane]), dict)
+        }
         count = report.get("qualified_model_leads")
         if type(count) is not int or count < 0:
             count = None
@@ -113,6 +150,7 @@ def read_opportunity(root: Path, lanes: tuple[str, ...],
             "reported_at": report.get("finished_at"),
             "qualified_model_leads": count,
             "station": station,
+            "station_summaries": station_summaries,
             "game_mail": _mail_status(channels.get("game"), "game"),
             "gmail": _mail_status(channels.get("gmail"), "gmail"),
         }
@@ -122,10 +160,11 @@ def read_opportunity(root: Path, lanes: tuple[str, ...],
 def read_station_scope(root: Path, *, current: dict, completed: dict,
                        completed_folder: str | None,
                        latest_result: dict, runs: list[Path]) -> dict:
-    """Never let a historical green run validate newly enabled BANESTAR."""
-    activated_at = _activation_time(root)
-    enabled = activated_at is not None
-    lanes = BASE_NAMES + ((BANESTAR,) if enabled else ())
+    """Respect active local scan scope without trusting historical green runs."""
+    scope = _scan_scope(root)
+    activated_at = scope["activated_at"]
+    enabled = scope["enabled"]
+    lanes = scope["lanes"]
     current_path = runs[0] / "manifest.json" if runs else None
     current_finished = current.get("status") == "SHADOW_RECORDED"
     current_fresh = bool(
@@ -160,7 +199,13 @@ def read_station_scope(root: Path, *, current: dict, completed: dict,
             latest_result.get("run_folder_name") == (runs[0].name if runs else None)
             and current_finished
         )
-        if matching_log:
+        if matching_log and not isinstance(health, dict):
+            health = {}
+        # Keep the manifest's detailed pagination proof. A status-only log
+        # must never override missing/failed page metadata with "COMPLETE".
+        # The log may be used only when there is no detailed manifest for a
+        # legacy base-scope run, never for newly enabled private lanes.
+        if matching_log and not enabled and not health:
             log_health = latest_result.get("structure_status")
             if isinstance(log_health, dict):
                 health = {lane: {"status": log_health.get(lane, "MISSING")}
@@ -170,12 +215,45 @@ def read_station_scope(root: Path, *, current: dict, completed: dict,
             lane: (str((health.get(lane) or {}).get("status") or missing_label))
             for lane in lanes
         }
+        # In enabled scopes, require the report's exact lane set, a full
+        # paginated response for every lane, and the per-run coverage gate.
+        # A legacy 2/3-station SHADOW_RECORDED must never certify 5 stations.
+        verified = bool(
+            current_finished and current_fresh
+            if enabled and current_finished else
+            (not enabled or prior_fresh)
+        )
+        if enabled:
+            selected = current if current_finished and current_fresh else completed
+            verified = bool(
+                verified and selected.get("coverage_gate")
+                == "INPUT_LANES_REPORTED_COMPLETE_NOT_LIVE_VERIFIED"
+                and isinstance(health, dict)
+                and set(health) == set(lanes)
+                and all(
+                    isinstance(health.get(lane), dict)
+                    and health[lane].get("status") == "COMPLETE"
+                    and type(health[lane].get("pages")) is int
+                    and health[lane]["pages"] > 0
+                    and health[lane].get("pages_fetched") == health[lane]["pages"]
+                    for lane in lanes
+                )
+            )
         scan_status = (
-            "COMPLETE" if all(v == "COMPLETE" for v in states.values())
+            "COMPLETE" if verified and all(v == "COMPLETE" for v in states.values())
             else "INCOMPLETE_COVERAGE"
         )
+        if enabled and scan_status != "COMPLETE":
+            states = {
+                lane: ("INCOMPLETE" if states[lane] == "COMPLETE" else states[lane])
+                for lane in lanes
+            }
     return {
-        "banestar_enabled": enabled,
+        "banestar_enabled": scope["banestar_enabled"],
+        "hunter_enabled": scope["hunter_enabled"],
+        "scope_enabled": enabled,
+        "scope_name": scope["name"],
+        "active_lanes": lanes,
         "labels": {lane: LABELS[lane] for lane in lanes},
         "structures": states,
         "scan_scope_status": scan_status,
