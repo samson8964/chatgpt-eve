@@ -28,7 +28,7 @@ class HunterWidgetTests(unittest.TestCase):
 
     def activate(self, valid=True):
         path = self.root / "config" / "hunter-five-station.enabled"
-        path.parent.mkdir()
+        path.parent.mkdir(exist_ok=True)
         path.write_text(HUNTER_ENABLE_CONTENT if valid else "wrong",
                         encoding="utf8")
         return path
