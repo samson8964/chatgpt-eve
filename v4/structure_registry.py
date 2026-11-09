@@ -17,6 +17,17 @@ BASE_LANES = (
 # Kept as an explicit exclusion, never queried or counted as required coverage.
 RETIRED_LANES = {"four_h": ("4-H", 1053970513596, "ACCESS_REVOKED")}
 BANESTAR_LANE = ("banestar", "74L2-U", 1050474463169, "banestar")
+# Exact Hunter mode, opt-in only after all five real market books are read.
+HUNTER_FIVE_LANES = (
+    ("banestar", "74L2-U", 1050474463169, "dc"),
+    ("cj", "C-J", 1049588174021, "dc"),
+    ("o4t", "O4T", 1040804972352, "dc"),
+    ("r_arkn", "R-ARKN", 1048663825563, "dc"),
+    ("ualx", "UALX-3", 1046664001931, "dc"),
+)
+HUNTER_ENABLE_FILE = Path.home() / "EVE-V4-Data" / "config" / "hunter-five-station.enabled"
+HUNTER_ENABLE_CONTENT = "VERIFIED_ARB_HUNTER_1048663825563_1046664001931"
+
 ENABLE_FILE = Path.home() / "EVE-V4-Data" / "config" / "banestar-market.enabled"
 ENABLE_CONTENT = "APPROVED_1050474463169"
 
@@ -29,7 +40,19 @@ def banestar_enabled() -> bool:
         return False
 
 
-ACTIVE_LANES = BASE_LANES + ((BANESTAR_LANE,) if banestar_enabled() else ())
+def hunter_enabled() -> bool:
+    try:
+        return (HUNTER_ENABLE_FILE.is_file()
+                and HUNTER_ENABLE_FILE.read_text(encoding="utf-8").strip()
+                == HUNTER_ENABLE_CONTENT)
+    except (OSError, UnicodeError):
+        return False
+
+
+# Legacy C-J/O4T/BANESTAR auth stays untouched unless the exact user-approved
+# all-five mode is explicitly activated after a successful live probe.
+ACTIVE_LANES = (HUNTER_FIVE_LANES if hunter_enabled() else
+                BASE_LANES + ((BANESTAR_LANE,) if banestar_enabled() else ()))
 STRUCTURES = {lane: (location, profile)
               for lane, _, location, profile in ACTIVE_LANES}
 STATIONS = {label: location
