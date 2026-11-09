@@ -129,6 +129,73 @@ def _structure_lines(info: dict) -> tuple[str, str]:
     return base, extra
 
 
+
+def _contract_source_lines(info: dict) -> tuple[str, str, str]:
+    """Show counts by pickup station, never call snapshot research live bids."""
+    empty = ("合同来源：等待本轮完整扫描", "五站合同：等待有效分析",
+             "NPC合同：艾玛／多迪等待有效分析")
+    if info.get("scan_scope_status") != "COMPLETE":
+        return empty
+    summary = info.get("contract_station_summary") or {}
+    stations = summary.get("stations") if isinstance(summary, dict) else None
+    if not isinstance(stations, dict):
+        return ("合同来源：本轮尚无分站统计（下一轮生效）",
+                "五站合同：尚无分站统计", "NPC合同：尚无分站统计")
+    def label(lane: str, title: str) -> str:
+        row=stations.get(lane)
+        if not isinstance(row, dict):
+            return title + " 未报告"
+        seen, candidates = (row.get("scoped_cash_contracts"),
+                             row.get("shadow_model_candidates"))
+        if (type(seen) is not int or type(candidates) is not int
+                or seen < 0 or candidates < 0 or candidates > seen):
+            return title + " 无效"
+        return f"{title} {candidates}/{seen}"
+    return (
+        "合同机会：模型候选/纳入分析（非实盘）",
+        "  ".join(label(k, v) for k,v in
+                 (("cj","C-J"), ("ualx","UALX"), ("r_arkn","R-ARKN"),
+                  ("o4t","O4T"), ("banestar","74L2"))),
+        "  ".join(label(k, v) for k,v in
+                 (("amarr","艾玛"), ("dodixie","多迪"))),
+    )
+
+
+def _npc_market_line(info: dict) -> str:
+    if info.get("scan_scope_status") != "COMPLETE":
+        return "NPC市场：等待最新完整扫描"
+    values=info.get("npc_trade_hubs") or {}
+    def label(key, name):
+        row=values.get(key)
+        return (f"{name} {_format_int(row['active_orders'])}"
+                if isinstance(row,dict) and
+                   row.get("status") == "PUBLIC_SNAPSHOT_BOTH_SIDES"
+                else name + " 未确认")
+    return "NPC公开市场：" + "  ".join(
+        (label("amarr","艾玛"),label("dodixie","多迪")))
+
+
+def _game_mail_lines(info: dict) -> tuple[str, str]:
+    names=set(info.get("game_mail_configured_recipients") or ())
+    if names == {"MikeChong", "Arb Hunter"}:
+        configured="游戏收件人：MikeChong + Arb Hunter"
+    elif "LadyBaBa" in names:
+        configured="游戏收件人：仍含已注销 LadyBaBa，须迁移"
+    else:
+        configured="游戏收件人：双角色配置尚未确认"
+    if not info.get("game_mail_latest_matched"):
+        latest="本轮邮件：无匹配投递记录，不能认定已发送"
+    else:
+        sent=set(info.get("game_mail_latest_submitted") or ())
+        if sent == {"MikeChong", "Arb Hunter"}:
+            latest="本轮邮件：MikeChong ✓ · Arb Hunter ✓ (API已接受)"
+        elif "LadyBaBa" in sent:
+            latest="本轮邮件：仍发往 LadyBaBa（旧收件人）"
+        else:
+            latest="本轮邮件：仅部分角色投递，检查日志"
+    return configured, latest
+
+
 def _channel_label(status: str) -> str:
     if status in ("GAME_MAIL_SENT", "GMAIL_SENT"):
         return "已发送"
@@ -222,7 +289,7 @@ class DesktopWidget:
         root.configure(bg=COLORS["line"])
         root.attributes("-topmost", True)
         root.resizable(False, False)
-        w, h = 392, 446
+        w, h = 410, 570
         x = max(0, root.winfo_screenwidth() - w - 26)
         root.geometry(f"{w}x{h}+{x}+60")
         tkfont = ("Microsoft YaHei UI", 9)
@@ -256,7 +323,15 @@ class DesktopWidget:
         self.fourth_label = self._label(shell, "等待站点采集状态…", 9, "muted")
         self.fourth_label.pack(anchor="w", padx=14, pady=(1, 2))
         self.private_label = self._label(shell, "建筑市场：等待本轮数据", 9, "muted")
-        self.private_label.pack(anchor="w", padx=14, pady=(1, 3))
+        self.private_label.pack(anchor="w", padx=14, pady=(1, 2))
+        self.npc_label = self._label(shell, "NPC市场：读取中", 9, "muted")
+        self.npc_label.pack(anchor="w", padx=14, pady=(1, 2))
+        self.contract_head_label = self._label(shell, "合同来源：等待本轮分析", 9, "muted")
+        self.contract_head_label.pack(anchor="w", padx=14, pady=(1, 1))
+        self.contract_private_label = self._label(shell, "五站合同：读取中", 8, "muted")
+        self.contract_private_label.pack(anchor="w", padx=14, pady=(1, 1))
+        self.contract_npc_label = self._label(shell, "NPC合同：读取中", 8, "muted")
+        self.contract_npc_label.pack(anchor="w", padx=14, pady=(1, 2))
         self.metrics_label = self._label(shell, "审核记录 --  |  候选 --", 9, "muted")
         self.metrics_label.pack(anchor="w", padx=14, pady=(1, 4))
         self.next_label = self._label(shell, "下次自动：--", 9, "white")
@@ -268,7 +343,11 @@ class DesktopWidget:
         self.opportunity_station_label = self._label(shell, "74L2-U：读取中", 9, "muted")
         self.opportunity_station_label.pack(anchor="w", padx=14, pady=(1, 3))
         self.opportunity_mail_label = self._label(shell, "通知：读取中", 9, "muted")
-        self.opportunity_mail_label.pack(anchor="w", padx=14, pady=(1, 6))
+        self.opportunity_mail_label.pack(anchor="w", padx=14, pady=(1, 2))
+        self.mail_route_label = self._label(shell, "游戏收件人：读取中", 9, "muted")
+        self.mail_route_label.pack(anchor="w", padx=14, pady=(1, 1))
+        self.mail_delivery_label = self._label(shell, "本轮邮件：读取中", 8, "muted")
+        self.mail_delivery_label.pack(anchor="w", padx=14, pady=(1, 4))
 
         # Manual start is user-initiated only. Task Scheduler's IgnoreNew
         # setting serializes it with the normal hourly trigger.
@@ -460,6 +539,11 @@ class DesktopWidget:
                 text=private_text, fg=COLORS["green" if
                                              scope_ok and private_orders is not None
                                              else "amber"])
+            self.npc_label.configure(text=_npc_market_line(info))
+            contract_head, contract_private, contract_npc = _contract_source_lines(info)
+            self.contract_head_label.configure(text=contract_head)
+            self.contract_private_label.configure(text=contract_private)
+            self.contract_npc_label.configure(text=contract_npc)
             evidence = _format_int(info["proofs"])
             models = _format_int(info["model_candidates"])
             market = _format_int(info["market_examined"])
@@ -475,6 +559,12 @@ class DesktopWidget:
                                         != "COMPLETE" else "white"])
             self.opportunity_station_label.configure(text=o_station)
             self.opportunity_mail_label.configure(text=o_mail)
+            route_text, delivery_text = _game_mail_lines(info)
+            self.mail_route_label.configure(
+                text=route_text,
+                fg=COLORS["green" if info.get("game_mail_hunter_and_mike_configured")
+                          else "amber"])
+            self.mail_delivery_label.configure(text=delivery_text)
             channels = ("G" if info["research_gmail_enabled"] else "g") + (
                 "E" if info["research_game_enabled"] else "e")
             self.refresh_label.configure(text="状态只读 · "+channels+" · 更新 " +
