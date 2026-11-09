@@ -12,11 +12,12 @@ from pathlib import Path
 from v4.structure_registry import (
     BASE_LANES, BANESTAR_LANE, ENABLE_CONTENT,
     HUNTER_FIVE_LANES, HUNTER_ENABLE_CONTENT,
+    HY_RWO_LANE, HY_RWO_ENABLE_CONTENT,
 )
 
 BASE_NAMES = tuple(row[0] for row in BASE_LANES)
 BANESTAR = BANESTAR_LANE[0]
-LABELS = {row[0]: row[1] for row in BASE_LANES + (BANESTAR_LANE,) + HUNTER_FIVE_LANES}
+LABELS = {row[0]: row[1] for row in BASE_LANES + (BANESTAR_LANE,) + HUNTER_FIVE_LANES + (HY_RWO_LANE,)}
 
 
 def _json(path: Path) -> dict:
@@ -55,22 +56,42 @@ def _hunter_activation_time(root: Path) -> float | None:
     return None
 
 
+def _hy_rwo_activation_time(root: Path) -> float | None:
+    path = root / "config" / "hunter-hy-rwo.enabled"
+    try:
+        if path.read_text(encoding="utf-8").strip() == HY_RWO_ENABLE_CONTENT:
+            return path.stat().st_mtime
+    except (OSError, UnicodeError):
+        pass
+    return None
+
+
 def _scan_scope(root: Path) -> dict:
     """Use only exact local sentinels; a past green report never selects scope."""
     hunter = _hunter_activation_time(root)
     if hunter is not None:
+        hy_rwo = _hy_rwo_activation_time(root)
+        if hy_rwo is not None:
+            lanes = tuple(row[0] for row in HUNTER_FIVE_LANES + (HY_RWO_LANE,))
+            return {"name": "HUNTER_SIX", "lanes": lanes,
+                    "activated_at": max(hunter, hy_rwo), "enabled": True,
+                    "hunter_enabled": True, "hy_rwo_enabled": True,
+                    "banestar_enabled": True}
         lanes = tuple(row[0] for row in HUNTER_FIVE_LANES)
         return {"name": "HUNTER_FIVE", "lanes": lanes,
                 "activated_at": hunter, "enabled": True,
-                "hunter_enabled": True, "banestar_enabled": True}
+                "hunter_enabled": True, "hy_rwo_enabled": False,
+                "banestar_enabled": True}
     banestar = _activation_time(root)
     if banestar is not None:
         return {"name": "BANESTAR", "lanes": BASE_NAMES + (BANESTAR,),
                 "activated_at": banestar, "enabled": True,
-                "hunter_enabled": False, "banestar_enabled": True}
+                "hunter_enabled": False, "hy_rwo_enabled": False,
+                "banestar_enabled": True}
     return {"name": "BASE", "lanes": BASE_NAMES,
             "activated_at": None, "enabled": False,
-            "hunter_enabled": False, "banestar_enabled": False}
+            "hunter_enabled": False, "hy_rwo_enabled": False,
+            "banestar_enabled": False}
 
 
 def _mail_status(value, channel: str) -> str:
@@ -122,10 +143,10 @@ def read_opportunity(root: Path, lanes: tuple[str, ...],
             for lane in lanes
         ):
             return {**result, "status": "INCOMPLETE_COVERAGE"}
-        # The new five-station mode must not accept a report scoped to an
-        # older set of three buildings or one missing market page.
+        # Neither five nor six may reuse a prior differently scoped report.
         five_lanes = tuple(row[0] for row in HUNTER_FIVE_LANES)
-        if tuple(lanes) == five_lanes and (
+        six_lanes = five_lanes + (HY_RWO_LANE[0],)
+        if tuple(lanes) in (five_lanes, six_lanes) and (
             set(health) != set(lanes)
             or any(health[lane].get("pages_fetched") != health[lane]["pages"]
                    for lane in lanes)
@@ -282,6 +303,7 @@ def read_station_scope(root: Path, *, current: dict, completed: dict,
     return {
         "banestar_enabled": scope["banestar_enabled"],
         "hunter_enabled": scope["hunter_enabled"],
+        "hy_rwo_enabled": scope["hy_rwo_enabled"],
         "scope_enabled": enabled,
         "scope_name": scope["name"],
         "active_lanes": lanes,
