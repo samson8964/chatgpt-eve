@@ -27,7 +27,7 @@ class Response:
 
     def raise_for_status(self):
         if self.status_code >= 400:
-            raise requests.HTTPError("test non-secret HTTP error")
+            raise requests.HTTPError("test non-secret HTTP error", response=self)
 
 
 def order(n=1, station=STATION_ID):
