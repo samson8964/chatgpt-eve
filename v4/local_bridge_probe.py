@@ -1,4 +1,4 @@
-"""One-page, read-only access check for all three EVE player structures.
+"""One-page, read-only access check for all enabled EVE player structures.
 
 Does not fetch the full market, write SQL, log any key, or send email.
 A passing first-page test does not establish that all pages will work.
@@ -9,6 +9,7 @@ import json
 from typing import Callable
 
 from v4.local_run import deep_scan_environment
+from v4.structure_registry import STRUCTURES
 
 
 def probe(*, fetch: Callable | None = None, env: dict[str, str] | None = None) -> dict:
@@ -22,7 +23,7 @@ def probe(*, fetch: Callable | None = None, env: dict[str, str] | None = None) -
         return {"credential_present": False, "probe_result": "MISSING_KEY",
                 "mail_enabled": False,
                 "structures": {name: {"status": "NOT_TESTED_MISSING_KEY"}
-                               for name in ("four_h", "cj", "o4t")}}
+                               for name in STRUCTURES}}
     # Only a real authenticated request needs pandas-heavy deep-scan imports.
     from v4.deep_scan import STRUCTURES, WORKER
     results = {}
