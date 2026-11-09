@@ -70,7 +70,7 @@ def _status_style(s: str) -> tuple[str, str]:
     names = {
         "RUNNING": ("正在扫描", "blue"),
         "SHADOW_RECORDED": ("最近扫描成功", "green"),
-        "WAITING_NEW_SCOPE": ("等待四站首次完整扫描", "amber"),
+        "WAITING_NEW_SCOPE": ("等待新授权范围首次完整扫描", "amber"),
         "SKIPPED_UPSTREAM_STALE": ("上游数据尚未更新", "amber"),
         "DEGRADED_INPUT_QUARANTINE": ("数据校验告警", "amber"),
         "DEGRADED_PARTIAL_COVERAGE": ("完整扫描覆盖不完整", "amber"),
@@ -99,6 +99,36 @@ def _station_symbol(status: str) -> str:
     return "✕"
 
 
+def _structure_lines(info: dict) -> tuple[str, str]:
+    """Two compact UI lines; display only actively configured market lanes."""
+    states = info.get("structures") or {}
+    labels = info.get("structure_labels") or {}
+    lanes = info.get("active_lanes") or list(states)
+    if info.get("hunter_enabled"):
+        # Show five structures across two lines rather than truncating
+        # the rightmost station in the narrow Windows desktop widget.
+        first = ("cj", "ualx", "r_arkn")
+        second = ("o4t", "banestar")
+        def render(group):
+            return "    ".join(
+                f"{labels.get(lane, lane)} {_station_symbol(states.get(lane, 'UNKNOWN'))}"
+                for lane in group if lane in lanes
+            )
+        return render(first), render(second) + "    4-H 已退出"
+    base = "    ".join(
+        f"{labels.get(lane, lane)} {_station_symbol(states.get(lane, 'UNKNOWN'))}"
+        for lane in ("cj", "o4t") if lane in lanes
+    ) + "    4-H 已退出"
+    if "banestar" in lanes:
+        state = states.get("banestar", "UNKNOWN")
+        suffix = ("等待本轮" if state == "PENDING_FIRST_RUN"
+                  else "采集完整" if state == "COMPLETE" else "异常/缺失")
+        extra = f"{labels.get('banestar', '74L2-U')} {_station_symbol(state)} · {suffix}"
+    else:
+        extra = "74L2-U — 未启用"
+    return base, extra
+
+
 def _channel_label(status: str) -> str:
     if status in ("GAME_MAIL_SENT", "GMAIL_SENT"):
         return "已发送"
@@ -111,7 +141,8 @@ def _channel_label(status: str) -> str:
     return "未确认"
 
 
-def _opportunity_text(opportunity: dict, banestar_enabled: bool) -> tuple[str, str, str]:
+def _opportunity_text(opportunity: dict, banestar_enabled: bool,
+                      *, hunter_enabled: bool = False) -> tuple[str, str, str]:
     """Pure text conversion; does not infer live opportunity availability."""
     status = opportunity.get("status")
     if status == "WAITING_FIRST_CYCLE":
@@ -128,7 +159,24 @@ def _opportunity_text(opportunity: dict, banestar_enabled: bool) -> tuple[str, s
     else:
         header = "最近捡漏：结果未知"
     station = opportunity.get("station") or {}
-    if not banestar_enabled:
+    if hunter_enabled:
+        summaries = opportunity.get("station_summaries") or {}
+        if status == "COMPLETE":
+            if summaries:
+                names = ("C-J", "UALX-3", "R-ARKN", "O4T", "74L2-U")
+                detail = "五站机会：" + " · ".join(
+                    f"{name} {_format_int(summaries[lane].get('MODEL_PASS_RESEARCH_ONLY'))}"
+                    for lane, name in (("cj","C-J"), ("ualx","UALX-3"),
+                                       ("r_arkn","R-ARKN"), ("o4t","O4T"),
+                                       ("banestar","74L2-U")) if lane in summaries
+                )
+            else:
+                detail = "五站机会：站点分类未提供，不能分配到各站"
+        elif status == "STALE_REPORT":
+            detail = "五站机会：仅有过期历史报告"
+        else:
+            detail = "五站机会：等待同范围完整报告（不是零机会）"
+    elif not banestar_enabled:
         detail = "74L2-U：未启用"
     elif status == "STALE_REPORT":
         detail = "74L2-U：仅有过期历史结果，需新一轮"
@@ -203,9 +251,9 @@ class DesktopWidget:
 
         self.previous_label = self._label(shell, "上一轮：读取中", 9, "white")
         self.previous_label.pack(anchor="w", padx=14, pady=(9, 2))
-        self.structures_label = self._label(shell, "C-J —    O4T —    4-H（已停用）", 9, "muted")
+        self.structures_label = self._label(shell, "读取采集站点范围…", 9, "muted")
         self.structures_label.pack(anchor="w", padx=14, pady=(1, 1))
-        self.fourth_label = self._label(shell, "74L2-U：读取配置中", 9, "muted")
+        self.fourth_label = self._label(shell, "等待站点采集状态…", 9, "muted")
         self.fourth_label.pack(anchor="w", padx=14, pady=(1, 3))
         self.metrics_label = self._label(shell, "审核记录 --  |  候选 --", 9, "muted")
         self.metrics_label.pack(anchor="w", padx=14, pady=(1, 4))
@@ -392,21 +440,13 @@ class DesktopWidget:
             last_name, last_color = _status_style(str(info["latest_result_status"]))
             self.previous_label.configure(
                 text="上一轮结果：" + last_name, fg=COLORS[last_color])
-            states = info["structures"]
-            self.structures_label.configure(text="    ".join(
-                f"{label} {_station_symbol(states.get(name, 'UNKNOWN'))}"
-                for name, label in (("cj", "C-J"), ("o4t", "O4T")))
-                + "    4-H（已退出扫描）")
-            if info["banestar_enabled"]:
-                fourth = states.get("banestar", "UNKNOWN")
-                tail = (" · 等待首次授权范围扫描" if fourth == "PENDING_FIRST_RUN"
-                        else " · 采集完整" if fourth == "COMPLETE"
-                        else " · 采集异常/缺失")
-                self.fourth_label.configure(
-                    text="74L2-U " + _station_symbol(fourth) + tail,
-                    fg=COLORS["green" if fourth == "COMPLETE" else "amber"])
-            else:
-                self.fourth_label.configure(text="74L2-U — 未启用", fg=COLORS["muted"])
+            row1, row2 = _structure_lines(info)
+            self.structures_label.configure(text=row1)
+            scope_ok = info["scan_scope_status"] == "COMPLETE"
+            self.fourth_label.configure(
+                text=row2,
+                fg=COLORS["green" if scope_ok else "amber"
+                          if info.get("scan_scope_name") != "BASE" else "muted"])
             evidence = _format_int(info["proofs"])
             models = _format_int(info["model_candidates"])
             market = _format_int(info["market_examined"])
@@ -415,7 +455,8 @@ class DesktopWidget:
                 text=f"市场审核 {market} · 合同审核 {contracts} · 候选 {models}")
             self.next_label.configure(text="下次自动：" + human_clock(info["next_run"]))
             o_header, o_station, o_mail = _opportunity_text(
-                info["opportunity"], info["banestar_enabled"])
+                info["opportunity"], info["banestar_enabled"],
+                hunter_enabled=info.get("hunter_enabled", False))
             self.opportunity_label.configure(
                 text=o_header, fg=COLORS["amber" if info["opportunity"]["status"]
                                         != "COMPLETE" else "white"])
