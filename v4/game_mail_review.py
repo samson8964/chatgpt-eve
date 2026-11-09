@@ -29,6 +29,8 @@ RECEIPTS = Path("mail-review/eve-receipts")
 # Recipient identity established by user-visible EVE API success AND inbox check.
 ALLOWED_RECIPIENTS = {"MikeChong": 2124493042}
 USER_APPROVED = ("MikeChong", "LadyBaBa", "Arb Hunter")
+# Exact pilot ID from the user's successful authenticated Arb Hunter preflight.
+HUNTER_CHARACTER_ID = 2124830062
 EXPECTED_SENDER_ID = 2124679425
 
 
@@ -104,6 +106,8 @@ def read_settings(root: Path) -> dict | None:
         if not isinstance(row, dict):
             raise GameMailTestError("V4_GAME_MAIL_CONFIG_INVALID")
         name, ident = row.get("name"), row.get("id")
+        if name == "Arb Hunter" and ident != HUNTER_CHARACTER_ID:
+            raise GameMailTestError("V4_GAME_MAIL_HUNTER_ID_MISMATCH")
         if (name not in USER_APPROVED or isinstance(ident, bool) or
                 not isinstance(ident, int) or ident <= 0 or
                 (name in ALLOWED_RECIPIENTS and ident != ALLOWED_RECIPIENTS[name]) or
@@ -145,6 +149,10 @@ def add_recipient(root: Path, *, recipient: str = "LadyBaBa",
         ident = _resolve_recipient(recipient, session)
     if isinstance(ident, bool) or not isinstance(ident, int) or ident <= 0:
         raise GameMailTestError("EVE_MAIL_RECIPIENT_ID_INVALID")
+    if ident != HUNTER_CHARACTER_ID:
+        raise GameMailTestError("V4_GAME_MAIL_HUNTER_ID_MISMATCH")
+    if recipient == "Arb Hunter" and ident != HUNTER_CHARACTER_ID:
+        raise GameMailTestError("V4_GAME_MAIL_HUNTER_ID_MISMATCH")
     recipients.append({"name":recipient, "id":ident})
     if len(recipients) > 2 or len({x["id"] for x in recipients}) != len(recipients):
         raise GameMailTestError("EVE_MAIL_RECIPIENT_ID_INVALID")
