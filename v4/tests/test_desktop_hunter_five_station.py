@@ -74,6 +74,8 @@ class HunterWidgetTests(unittest.TestCase):
                             for v in result["structures"].values()))
         self.assertIsNone(result["proofs"])
         self.assertIsNone(result["model_candidates"])
+        self.assertIsNone(result["private_market_orders"])
+        self.assertIsNone(result["private_market_pages"])
         row1,row2 = _structure_lines(result)
         for label in ("C-J","UALX-3","R-ARKN"):
             self.assertIn(label,row1)
@@ -89,6 +91,9 @@ class HunterWidgetTests(unittest.TestCase):
         self.assertEqual(result["status"],"SHADOW_RECORDED")
         self.assertEqual(result["scan_scope_status"],"COMPLETE")
         self.assertEqual(result["proofs"],987)
+        self.assertEqual(result["private_market_orders"],500)
+        self.assertEqual(result["private_market_pages"],15)
+        self.assertEqual(result["structure_details"]["ualx"]["orders"],100)
         self.assertEqual(result["market_examined"],13)
         self.assertEqual(result["contract_examined"],111)
         self.assertEqual(set(result["structure_labels"]),set(LANES))
@@ -114,6 +119,8 @@ class HunterWidgetTests(unittest.TestCase):
         self.assertEqual(snap["scan_scope_status"],"INCOMPLETE_COVERAGE")
         self.assertEqual(snap["structures"]["cj"],"INCOMPLETE")
         self.assertIsNone(snap["proofs"])
+        self.assertIsNone(snap["private_market_orders"])
+        self.assertIsNone(snap["private_market_pages"])
 
     def test_failed_newer_run_not_hidden_by_previous_five_success(self):
         marker=self.activate()
@@ -124,6 +131,7 @@ class HunterWidgetTests(unittest.TestCase):
         self.assertEqual(snap["status"],"FAILED")
         self.assertEqual(snap["scan_scope_status"],"INCOMPLETE_COVERAGE")
         self.assertIsNone(snap["model_candidates"])
+        self.assertIsNone(snap["private_market_orders"])
 
     def test_valid_five_report_while_new_scan_running_uses_last_proof(self):
         marker=self.activate()
