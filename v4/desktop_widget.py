@@ -105,12 +105,12 @@ def _structure_lines(info: dict) -> tuple[str, str]:
     labels = info.get("structure_labels") or {}
     lanes = info.get("active_lanes") or list(states)
     if info.get("hunter_enabled"):
-        # Show five structures across two lines rather than truncating
-        # the rightmost station in the narrow Windows desktop widget.
+        # Keep all active Hunter lanes visible, including gated HY-RWO.
         first = ("cj", "ualx", "r_arkn")
-        second = ("o4t", "banestar")
+        second = (("o4t", "banestar", "hy_rwo") if "hy_rwo" in lanes
+                  else ("o4t", "banestar"))
         def render(group):
-            return "    ".join(
+            return ("  " if "hy_rwo" in lanes else "    ").join(
                 f"{labels.get(lane, lane)} {_station_symbol(states.get(lane, 'UNKNOWN'))}"
                 for lane in group if lane in lanes
             )
@@ -132,7 +132,8 @@ def _structure_lines(info: dict) -> tuple[str, str]:
 
 def _contract_source_lines(info: dict) -> tuple[str, str, str]:
     """Show counts by pickup station, never call snapshot research live bids."""
-    empty = ("合同来源：等待本轮完整扫描", "五站合同：等待有效分析",
+    title = "六站合同" if "hy_rwo" in (info.get("active_lanes") or []) else "五站合同"
+    empty = ("合同来源：等待本轮完整扫描", title + "：等待有效分析",
              "NPC合同：艾玛／多迪等待有效分析")
     if info.get("scan_scope_status") != "COMPLETE":
         return empty
@@ -140,7 +141,7 @@ def _contract_source_lines(info: dict) -> tuple[str, str, str]:
     stations = summary.get("stations") if isinstance(summary, dict) else None
     if not isinstance(stations, dict):
         return ("合同来源：本轮尚无分站统计（下一轮生效）",
-                "五站合同：尚无分站统计", "NPC合同：尚无分站统计")
+                title + "：尚无分站统计", "NPC合同：尚无分站统计")
     def label(lane: str, title: str) -> str:
         row=stations.get(lane)
         if not isinstance(row, dict):
@@ -157,7 +158,9 @@ def _contract_source_lines(info: dict) -> tuple[str, str, str]:
             "  ".join(label(k, v) for k, v in
                      (("cj","C-J"), ("ualx","UALX"), ("r_arkn","R-ARKN"))),
             "  ".join(label(k, v) for k, v in
-                     (("o4t","O4T"), ("banestar","74L2"))),
+                     ((("o4t","O4T"), ("banestar","74L2"), ("hy_rwo","HY-RWO"))
+                      if "hy_rwo" in (info.get("active_lanes") or [])
+                      else (("o4t","O4T"), ("banestar","74L2")))),
         )),
         "  ".join(label(k, v) for k,v in
                  (("amarr","艾玛"), ("dodixie","多迪"))),
@@ -212,7 +215,8 @@ def _channel_label(status: str) -> str:
 
 
 def _opportunity_text(opportunity: dict, banestar_enabled: bool,
-                      *, hunter_enabled: bool = False) -> tuple[str, str, str]:
+                      *, hunter_enabled: bool = False,
+                      hy_rwo_enabled: bool = False) -> tuple[str, str, str]:
     """Pure text conversion; does not infer live opportunity availability."""
     status = opportunity.get("status")
     if status == "WAITING_FIRST_CYCLE":
@@ -231,21 +235,24 @@ def _opportunity_text(opportunity: dict, banestar_enabled: bool,
     station = opportunity.get("station") or {}
     if hunter_enabled:
         summaries = opportunity.get("station_summaries") or {}
+        title = "六站机会" if hy_rwo_enabled else "五站机会"
         if status == "COMPLETE":
             if summaries:
-                names = ("C-J", "UALX-3", "R-ARKN", "O4T", "74L2-U")
-                detail = "五站机会：" + " · ".join(
+                lane_names = (("cj","C-J"), ("ualx","UALX-3"),
+                              ("r_arkn","R-ARKN"), ("o4t","O4T"),
+                              ("banestar","74L2-U"))
+                if hy_rwo_enabled:
+                    lane_names += (("hy_rwo","HY-RWO"),)
+                detail = title + "：" + " · ".join(
                     f"{name} {_format_int(summaries[lane].get('MODEL_PASS_RESEARCH_ONLY'))}"
-                    for lane, name in (("cj","C-J"), ("ualx","UALX-3"),
-                                       ("r_arkn","R-ARKN"), ("o4t","O4T"),
-                                       ("banestar","74L2-U")) if lane in summaries
+                    for lane, name in lane_names if lane in summaries
                 )
             else:
-                detail = "五站机会：站点分类未提供，不能分配到各站"
+                detail = title + "：站点分类未提供，不能分配到各站"
         elif status == "STALE_REPORT":
-            detail = "五站机会：仅有过期历史报告"
+            detail = title + "：仅有过期历史报告"
         else:
-            detail = "五站机会：等待同范围完整报告（不是零机会）"
+            detail = title + "：等待同范围完整报告（不是零机会）"
     elif not banestar_enabled:
         detail = "74L2-U：未启用"
     elif status == "STALE_REPORT":
@@ -556,7 +563,8 @@ class DesktopWidget:
             self.next_label.configure(text="下次自动：" + human_clock(info["next_run"]))
             o_header, o_station, o_mail = _opportunity_text(
                 info["opportunity"], info["banestar_enabled"],
-                hunter_enabled=info.get("hunter_enabled", False))
+                hunter_enabled=info.get("hunter_enabled", False),
+                hy_rwo_enabled=info.get("hy_rwo_enabled", False))
             self.opportunity_label.configure(
                 text=o_header, fg=COLORS["amber" if info["opportunity"]["status"]
                                         != "COMPLETE" else "white"])
