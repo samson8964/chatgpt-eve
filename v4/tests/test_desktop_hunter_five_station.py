@@ -9,7 +9,8 @@ import unittest
 from pathlib import Path
 
 from v4.desktop_status import read_snapshot
-from v4.desktop_widget import _structure_lines, _opportunity_text
+from v4.desktop_widget import (_structure_lines, _opportunity_text,
+                               _contract_source_lines, _npc_market_line,\n                               _game_mail_lines)
 from v4.structure_registry import HUNTER_ENABLE_CONTENT, HUNTER_FIVE_LANES
 
 LANES = tuple(row[0] for row in HUNTER_FIVE_LANES)
@@ -183,6 +184,91 @@ class HunterWidgetTests(unittest.TestCase):
         snapshot=read_snapshot(self.root,{"state":"Ready"})
         self.assertEqual(snapshot["opportunity"]["status"],"INCOMPLETE_COVERAGE")
         self.assertIsNone(snapshot["opportunity"]["qualified_model_leads"])
+
+    def test_contract_monitor_shows_five_station_and_npc_candidates(self):
+        marker=self.activate()
+        folder="20261109T010000Z-new"
+        self.write_run(folder,mtime=marker.stat().st_mtime+100)
+        deep=self.root/"runs"/folder/"deep_shadow.json"
+        data=json.loads(deep.read_text("utf8"))
+        targets=tuple(LANES)+("amarr","dodixie")
+        data["contract_station_summary"]={
+            "basis":"PUBLIC_ITEM_EXCHANGE_SNAPSHOT_AND_SHADOW_PROOFS",
+            "stations":{
+                lane:{"scoped_cash_contracts":10,
+                      "audited_contract_proofs":10,
+                      "shadow_model_candidates":1}
+                for lane in targets
+            },
+        }
+        deep.write_text(json.dumps(data),encoding="utf8")
+        manifest=self.root/"runs"/folder/"manifest.json"
+        report=json.loads(manifest.read_text("utf8"))
+        report["npc_trade_hub_health"]={
+            "amarr":{"station_id":60008494,
+                     "status":"BOTH_SIDES_PRESENT_IN_PUBLIC_SNAPSHOT",
+                     "active_orders":127064,
+                     "active_buy_orders":42771,
+                     "active_sell_orders":84293},
+            "dodixie":{"station_id":60011866,
+                       "status":"BOTH_SIDES_PRESENT_IN_PUBLIC_SNAPSHOT",
+                       "active_orders":66506,
+                       "active_buy_orders":19678,
+                       "active_sell_orders":46828},
+        }
+        manifest.write_text(json.dumps(report),encoding="utf8")
+        os.utime(manifest,(marker.stat().st_mtime+100,)*2)
+        snap=read_snapshot(self.root,{"state":"Ready","last_result":0})
+        header,private,npc=_contract_source_lines(snap)
+        self.assertIn("模型候选/纳入",header)
+        for name in ("C-J","UALX","R-ARKN","O4T","74L2"):
+            self.assertIn(name,private)
+        self.assertIn("艾玛 1/10",npc)
+        self.assertIn("多迪 1/10",npc)
+        self.assertIn("127,064",_npc_market_line(snap))
+        self.assertIn("66,506",_npc_market_line(snap))
+
+    def test_old_shadow_without_contract_breakdown_never_fakes_zero(self):
+        marker=self.activate()
+        self.write_run("20261109T010000Z-new",
+                       mtime=marker.stat().st_mtime+100)
+        snap=read_snapshot(self.root,{"state":"Ready","last_result":0})
+        header,private,npc=_contract_source_lines(snap)
+        self.assertIn("尚无分站统计",header)
+        self.assertNotIn("0/0",private+npc)
+
+    def test_mail_monitor_distinguishes_old_lady_from_new_hunter(self):
+        root=self.root
+        config=root/"config"/"eve_game_mail_review.json"
+        config.parent.mkdir(exist_ok=True)
+        config.write_text(json.dumps({"enabled":True,"schema":2,
+           "recipients":[{"name":"MikeChong","id":2124493042},
+                         {"name":"LadyBaBa","id":2124729692}]}),
+            encoding="utf8")
+        marker=self.activate()
+        folder="20261109T010000Z-new"
+        self.write_run(folder,mtime=marker.stat().st_mtime+100)
+        log=root/"logs"/"shadow-task.log"
+        log.write_text('START 2026-11-09T01:00:00+00:00\\n'
+          +'RESULT {"status":"SHADOW_RECORDED","run_folder_name":"'+folder+'"}\\n'
+          +'GAME_REVIEW_MAIL '+json.dumps({
+               "status":"V4_GAME_RESEARCH_MAIL_BATCH_SENT",
+               "run_folder_name":folder,
+               "recipients":{
+                   "MikeChong":{"sent":True},"LadyBaBa":{"sent":True}}})
+          +'\\n',encoding="utf8")
+        snap=read_snapshot(root,{"state":"Ready","last_result":0})
+        a,b=_game_mail_lines(snap)
+        self.assertIn("LadyBaBa",a)
+        self.assertIn("仍发往 LadyBaBa",b)
+        config.write_text(json.dumps({"enabled":True,"schema":2,
+          "recipients":[{"name":"MikeChong","id":2124493042},
+                        {"name":"Arb Hunter","id":2124830062}]}),encoding="utf8")
+        snap=read_snapshot(root,{"state":"Ready","last_result":0})
+        a,b=_game_mail_lines(snap)
+        self.assertIn("MikeChong + Arb Hunter",a)
+        self.assertIn("旧收件人",b)
+        self.assertNotIn("Arb Hunter ✓",b)
 
     def test_no_opportunity_data_is_not_claimed_zero(self):
         self.activate()
