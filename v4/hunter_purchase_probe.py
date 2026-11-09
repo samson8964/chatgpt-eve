@@ -8,6 +8,7 @@ Upwell markets. Zero purchases, messages, task changes or database writes.
 from __future__ import annotations
 
 import argparse
+import os
 import html
 import json
 import re
@@ -18,16 +19,18 @@ import requests
 
 from v4.eve_mail_test import WORKER_URL
 from v4.local_bridge_auth import get_bridge_key, valid_bridge_key
+from v4 import structure_registry as registry
 
-# IDs from the existing V4 registry except R-ARKN, externally cross-checked
-# on EveSynapse. That ID must still be verified against authenticated ESI.
-KNOWN = (
-    ("banestar", "74L2-U - BANESTAR - BALLS DEEP EDITION", 1050474463169),
-    ("cj", "C-J6MT - 1st Taj Mahgoon", 1049588174021),
-    ("o4t", "O4T-Z5 - Dracarys. Prime", 1040804972352),
-    ("r_arkn", "R-ARKN - BIG MOM", 1048663825563),
-)
-UALX_NAME = "UALX-3 - Mothership Bellicose"
+# Exactly match the single V4 source-of-truth registry. UALX ID and exact
+# name were copied from the user's in-game showinfo link on 2026-11-09.
+KNOWN = tuple((lane, {
+    "banestar": "74L2-U - BANESTAR - BALLS DEEP EDITION",
+    "cj": "C-J6MT - 1st Taj Mahgoon",
+    "o4t": "O4T-Z5 - Dracarys. Prime",
+    "r_arkn": "R-ARKN - BIG MOM",
+    "ualx": "UALX-3 - Mothership Bellicose (BC Piggy)",
+}[lane], location) for lane, _, location, profile in registry.HUNTER_FIVE_LANES
+             if profile == "dc")
 MAX_PAGES = 2000
 
 
@@ -43,13 +46,13 @@ def _dc_character(markup: str) -> tuple[str | None, int | None]:
     return match.group(1).strip(), int(match.group(2))
 
 
-def station_catalog(ualx_id: int | None = None) -> list[tuple[str, str, int | None]]:
-    if ualx_id is not None and (isinstance(ualx_id, bool) or
-                                not isinstance(ualx_id, int) or
-                                not 10**12 <= ualx_id <= 9*10**15 or
-                                ualx_id in {r[2] for r in KNOWN}):
-        raise ValueError("UALX_STRUCTURE_ID_INVALID")
-    return list(KNOWN) + [("ualx", UALX_NAME, ualx_id)]
+def station_catalog() -> list[tuple[str, str, int]]:
+    """Every exact structure ID is committed and unique; never infer from system."""
+    rows = list(KNOWN)
+    if (len(rows) != 5 or len({r[0] for r in rows}) != 5
+            or len({r[2] for r in rows}) != 5):
+        raise ValueError("FIVE_STRUCTURE_REGISTRY_INVALID")
+    return rows
 
 
 def _fetch_market(session, key: str, station_id: int, page: int):
@@ -73,9 +76,9 @@ def _fetch_market(session, key: str, station_id: int, page: int):
     return 200, body
 
 
-def probe(*, expected_name: str, ualx_id: int | None = None,
-          full: bool = False, session=None, get_key=None, sleep=time.sleep) -> dict:
-    stations = station_catalog(ualx_id)
+def probe(*, expected_name: str, full: bool = False,
+          session=None, get_key=None, sleep=time.sleep) -> dict:
+    stations = station_catalog()
     result = {
         "mode": "READ_ONLY_PROCUREMENT_SCOUT", "expected_character": expected_name,
         "auth_profile": "dc", "stations": {}, "sent": False, "orders_saved": False,
@@ -105,12 +108,6 @@ def probe(*, expected_name: str, ualx_id: int | None = None,
 
     any_failure = False
     for lane, name, station_id in stations:
-        if station_id is None:
-            result["stations"][lane] = {
-                "name": name, "status": "NEEDS_EXACT_STRUCTURE_ID",
-                "source": "IN_GAME_SHOWINFO_LINK_REQUIRED",
-            }
-            continue
         record = {"name": name, "structure_id": station_id}
         try:
             status, first = _fetch_market(client, key, station_id, 1)
@@ -153,29 +150,65 @@ def probe(*, expected_name: str, ualx_id: int | None = None,
             any_failure = True
         result["stations"][lane] = record
     result["status"] = "ACCESS_FAILED" if any_failure else (
-        "PENDING_UALX_ID" if ualx_id is None else
         "FULL_PAGES_COMPLETE" if full else "FIVE_FIRST_PAGES_OK"
     )
     return result
 
 
+def activate_verified_hunter_mode(result: dict, *, path=None) -> dict:
+    """Atomic opt-in, only after five fully paginated ESI structure books."""
+    expected = {lane: sid for lane, _, sid, profile in registry.HUNTER_FIVE_LANES
+                if profile == "dc"}
+    actual = result.get("stations") or {}
+    if (result.get("status") != "FULL_PAGES_COMPLETE"
+            or result.get("expected_character") != "Arb Hunter"
+            or result.get("authorized_character") != "Arb Hunter"
+            or not isinstance(result.get("authorized_character_id"), int)
+            or result["authorized_character_id"] <= 0
+            or set(actual) != set(expected)
+            or any(actual[lane].get("structure_id") != sid
+                   or actual[lane].get("status") != "COMPLETE"
+                   or actual[lane].get("full_pagination_verified") is not True
+                   or actual[lane].get("pages_fetched") != actual[lane].get("pages_reported")
+                   for lane, sid in expected.items())):
+        raise ValueError("HUNTER_FIVE_STATION_VERIFICATION_NOT_COMPLETE")
+    dest = path or registry.HUNTER_ENABLE_FILE
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    staged = dest.with_suffix(dest.suffix + ".part")
+    try:
+        staged.write_text(registry.HUNTER_ENABLE_CONTENT, encoding="utf-8")
+        os.replace(staged, dest)
+    finally:
+        staged.unlink(missing_ok=True)
+    return {"status": "HUNTER_FIVE_STATIONS_ENABLED_FOR_NEXT_V4_RUN",
+            "active_market_lanes": list(expected),
+            "character": "Arb Hunter",
+            "orders_purchased": 0, "emails_sent": 0,
+            "formal_opportunity_push_changed": False,
+            "enabled": True}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--expected-name", default="Arb Hunter")
-    parser.add_argument("--ualx-id", type=int, default=None,
-                        help="Exact player structure ID, copied from EVE showinfo link")
     parser.add_argument("--full", action="store_true",
-                        help="Read all pages for each structure, with no persistence")
+                        help="Read all market pages from all five; no order persistence")
+    parser.add_argument("--activate-on-success", action="store_true",
+                        help="Requires --full; enable existing V4 research scanner only after all five pass")
     opts = parser.parse_args()
+    if opts.activate_on_success and not opts.full:
+        parser.error("--activate-on-success requires --full")
     try:
-        summary = probe(expected_name=opts.expected_name,
-                        ualx_id=opts.ualx_id, full=opts.full)
+        summary = probe(expected_name=opts.expected_name, full=opts.full)
+        if opts.activate_on_success:
+            activation = activate_verified_hunter_mode(summary)
+            summary["activation"] = activation
     except ValueError as exc:
         summary = {"status": str(exc), "orders_saved": False,
-                   "purchase_enabled": False}
+                   "purchase_enabled": False, "activation": {"enabled": False}}
     print(json.dumps(summary, ensure_ascii=False, indent=2))
     return 0 if summary["status"] in (
-        "PENDING_UALX_ID", "FIVE_FIRST_PAGES_OK", "FULL_PAGES_COMPLETE"
+        "FIVE_FIRST_PAGES_OK", "FULL_PAGES_COMPLETE"
     ) else 2
 
 
