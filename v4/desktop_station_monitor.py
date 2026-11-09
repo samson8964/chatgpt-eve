@@ -180,8 +180,9 @@ def read_station_scope(root: Path, *, current: dict, completed: dict,
         enabled and current_path and _mtime(current_path) > activated_at
         and current.get("status") == "FAILED"
     )
+    details = {}
     if new_failure:
-        # Do not let an earlier successful four-station run conceal a newer
+        # Do not let an earlier successful scoped run conceal a newer
         # failed attempt. The failure itself has no verified lane statuses.
         states = {lane: "MISSING" for lane in lanes}
         scan_status = "INCOMPLETE_COVERAGE"
@@ -248,6 +249,27 @@ def read_station_scope(root: Path, *, current: dict, completed: dict,
                 lane: ("INCOMPLETE" if states[lane] == "COMPLETE" else states[lane])
                 for lane in lanes
             }
+        if scan_status == "COMPLETE":
+            details = {
+                lane: {
+                    "orders": row.get("orders"),
+                    "pages": row.get("pages"),
+                    "pages_fetched": row.get("pages_fetched"),
+                }
+                for lane in lanes
+                for row in [health.get(lane) or {}]
+                if type(row.get("orders")) is int and row["orders"] >= 0
+                and type(row.get("pages")) is int
+                and row.get("pages_fetched") == row.get("pages")
+            }
+    orders_total = (
+        sum(row["orders"] for row in details.values())
+        if len(details) == len(lanes) and details else None
+    )
+    pages_total = (
+        sum(row["pages"] for row in details.values())
+        if len(details) == len(lanes) and details else None
+    )
     return {
         "banestar_enabled": scope["banestar_enabled"],
         "hunter_enabled": scope["hunter_enabled"],
@@ -256,6 +278,9 @@ def read_station_scope(root: Path, *, current: dict, completed: dict,
         "active_lanes": lanes,
         "labels": {lane: LABELS[lane] for lane in lanes},
         "structures": states,
+        "structure_details": details,
+        "private_market_orders": orders_total,
+        "private_market_pages": pages_total,
         "scan_scope_status": scan_status,
         "opportunity": read_opportunity(root, lanes, activated_at),
     }
