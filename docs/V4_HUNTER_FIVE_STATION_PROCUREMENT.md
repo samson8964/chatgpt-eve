@@ -121,3 +121,76 @@ The independent five-station permission preflight (79,009 orders/81
 pages, 2026-11-09) is not an actual scheduled full V4 Shadow scan.
 Do not display that historical probe count as current market volume.
 
+
+
+## 2026-11-09 16:06 Beijing: verified full Shadow + dual mail/NPC/contract follow-up
+
+The user provided local log `20261109T075519Z-93d430cc` (15:55 Beijing):
+- `SHADOW_RECORDED`, `INPUT_LANES_REPORTED_COMPLETE_NOT_LIVE_VERIFIED`,
+  `ALL_PARSED`; all 5 private stations `COMPLETE`.
+- Private-market counts: banestar=1587, cj=52670, o4t=2859,
+  r_arkn=3518, ualx=18342, sum=78976.
+- NPC market snapshots already present: Jita=329097 (buy-depth baseline),
+  Amarr VIII station 60008494=127064, Dodixie IX station
+  60011866=66506, both sides in EVE Ref public market archive.
+  Amarr and Dodixie are `KNOWN_STATIONS` approved sources in
+  `v4/deep_scan.py`. Do not add another ESI private-structure auth for NPC.
+- Contract source scope already includes all fully authorized private
+  locations and the installed NPC high/low SDE catalog, with Jita 4-4
+  buy-depth valuation. User requests *per-source contract opportunity
+  monitoring*. New `v4/contract_station_monitor.py` adds a compact census
+  to each NEW `deep_shadow.json`, counting public cash item-exchange
+  contracts and shadow model candidates for five structures + two NPC hubs.
+  Excludes private/hidden corp contracts not present in the public archive;
+  "candidate" is not a live actionable contract or guaranteed top-ten mail.
+- `GAME_REVIEW_MAIL` for the verified 15:55 run was accepted by
+  MikeChong (2124493042) and retired LadyBaBa (2124729692), not
+  Arb Hunter. Root cause: separate local
+  `config/eve_game_mail_review.json` still has the old recipient;
+  `dc` MARKET OAuth does not change EVE game-mail recipients.
+- Safe migration command is implemented in `v4.game_mail_review`
+  and now checks exact public ESI name **and** verified pilot ID
+  `Arb Hunter (2124830062)`, preserves MikeChong and old receipts,
+  does NOT send current or old runs, and does NOT enable opportunity push.
+- Desktop monitor now shows each source's contract model leads / scoped
+  cash contracts, Amarr and Dodixie public-market order counts, configured
+  game recipients and latest scan-matched game-mail accepted-by-Worker
+  response. It must never interpret `mail_enabled=false` in the *shadow
+  scanner* as failure of the separate research digest task.
+
+### Single Windows handoff (after GitHub CI passes)
+
+The user does **not** need to reauthorize Arb Hunter or add another NPC
+station; the code and live data prove existing access. From the same user
+profile that runs the task:
+
+```powershell
+$repo = Join-Path $HOME 'EVE-V4-Code'
+$task = Get-ScheduledTask -TaskName 'EVE-V4-Shadow' -ErrorAction Stop
+if ($task.State -eq 'Running') { throw 'Shadow is currently Running' }
+$branch = git -C $repo branch --show-current
+if ($branch -ne 'prep/v4-windows-local-migration-20261013') {
+    throw "Unexpected branch: $branch"
+}
+git -C $repo pull --ff-only
+if ($LASTEXITCODE -ne 0) { throw 'Git pull failed; no mail config modified' }
+Push-Location $repo
+try {
+    & .\.venv\Scripts\python.exe -m v4.game_mail_review --replace-recipient --recipient "Arb Hunter"
+    if ($LASTEXITCODE -ne 0) { throw 'Mail recipient migration failed' }
+    & .\.venv\Scripts\python.exe -m v4.game_mail_review --status
+    if ($LASTEXITCODE -ne 0) { throw 'Mail recipient status check failed' }
+} finally { Pop-Location }
+```
+
+The expected `recipients` field is exactly `["MikeChong","Arb Hunter"]`.
+Close and reopen the existing `EVE V4 Monitor` window to load updated
+code; it does not require shortcut reinstallation. Do not use
+`--send-now` (historical run could be duplicated); the **next scheduled
+completed** scan triggers the usual EVE game-mail digest through the
+existing sender. The monitoring UI's per-station contract census will
+also appear starting from that subsequent full scan, because the old
+`deep_shadow.json` lacked the new breakdown. Do not claim verified
+inbox arrival until user checks both characters or ESI recipient inbox.
+GitHub code/CI readiness is not Windows rollout confirmation.
+
