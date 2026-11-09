@@ -236,6 +236,7 @@ def read_snapshot(data_root: Path, task: dict | None = None) -> dict:
         "private_market_pages": scope["private_market_pages"],
         "banestar_enabled": scope["banestar_enabled"],
         "hunter_enabled": scope["hunter_enabled"],
+        "hy_rwo_enabled": scope["hy_rwo_enabled"],
         "scan_scope_name": scope["scope_name"],
         "active_lanes": list(scope["active_lanes"]),
         "scan_scope_status": scope_status,
