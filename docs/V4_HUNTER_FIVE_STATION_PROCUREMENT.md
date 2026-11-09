@@ -82,3 +82,42 @@ Remove-Item (Join-Path $HOME 'EVE-V4-Data/config/hunter-five-station.enabled') -
 ```
 
 **状态边界**：GitHub源码准备及CI测试不等于Windows本地已git pull、五站已实测或已正式启用。务必以用户机器的五站 `COMPLETE` 和后续 Shadow 真实结果为准。
+
+
+## 2026-11-09 Windows desktop monitor five-station compatibility
+
+Updated:
+- `v4/desktop_station_monitor.py`: recognizes the exact `hunter-five-station.enabled`
+  sentinel as the authoritative *local* monitored scope. Displays all five
+  lanes, not retired `four_h`, and prevents old two/three-station reports
+  from falsely turning the monitor green after five-station activation.
+  A current five-lane green status needs complete per-lane pagination
+  and the normal shadow coverage gate. Newer failures remain failures.
+- `v4/desktop_status.py`: exposes `hunter_enabled`, `scan_scope_name`,
+  `active_lanes`, `private_market_orders`, `private_market_pages`.
+  Old-run model metrics and SQLite proofs stay hidden until first verified
+  full-scope shadow run.
+- `v4/desktop_widget.py`: shows C-J/UALX-3/R-ARKN and O4T/BANESTAR on two
+  compact lines, with the retired 4-H noted. A separate market count/page
+  row uses only a verified *V4 shadow report*, not the independent
+  Arb Hunter permission probe. Opportunity section is scope-aware and
+  never claims zero qualified opportunities while the push report is
+  absent or incomplete.
+- `v4/tests/test_desktop_hunter_five_station.py`: regression coverage for
+  pre-activation historical green reports, complete five-lane reports,
+  missing or incomplete pages, newer failed runs, running task with a
+  prior valid run, wrong marker, and old-scope push reports.
+
+After the V4 Shadow task is **not Running**, update the same local
+GitHub checkout as the scheduled scanner with `git pull --ff-only`.
+The existing `EVE V4 Monitor.lnk` shortcut already invokes
+`-m v4.desktop_widget` from the checkout, so **the shortcut need not be
+reinstalled**. Close the old monitoring window and relaunch the
+existing desktop shortcut to load the new code. The monitor itself
+remains read-only except for the user's existing explicit
+"立即全面扫描" button; relaunch does not trigger a scan.
+
+The independent five-station permission preflight (79,009 orders/81
+pages, 2026-11-09) is not an actual scheduled full V4 Shadow scan.
+Do not display that historical probe count as current market volume.
+
