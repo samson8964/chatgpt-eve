@@ -24,6 +24,7 @@ from v4.engine import Order, Policy, contract_proof, market_proof, profitable_tr
 from v4.catalog import ensure_catalog, blueprint_instance_kind
 from v4.market_depth import STATIONS, top_price_levels, station_sell_census
 from v4.npc_hub_health import from_orders as npc_hub_snapshot
+from v4.contract_station_monitor import station_contract_summary
 from v4.structure_registry import STRUCTURES
 from v4.market_execution import gross_depth_upper_bound
 from v4.sources import market_dataframe, contract_dataframes
@@ -376,6 +377,8 @@ def run(market_path,contract_path,output,api_key=''):
        contract_requested_items_excluded=requested_contracts_excluded,
        contract_jita_examined=jita_contract_count,
        contract_approved_locations_examined=len(local_contracts),
+       contract_station_summary=station_contract_summary(
+           local_contracts['start_location_id'].tolist(), proofs),
        npc_catalog_status=('INSTALLED_SDE_FULL_NPC_HIGH_LOW'
                            if npc_reference else 'NOT_INSTALLED_LEGACY_CONTRACT_SCOPE'),
        npc_catalog_sde_version=(npc_reference or {}).get('sde_version'),
