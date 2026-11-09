@@ -153,9 +153,12 @@ def _contract_source_lines(info: dict) -> tuple[str, str, str]:
         return f"{title} {candidates}/{seen}"
     return (
         "合同机会：模型候选/纳入分析（非实盘）",
-        "  ".join(label(k, v) for k,v in
-                 (("cj","C-J"), ("ualx","UALX"), ("r_arkn","R-ARKN"),
-                  ("o4t","O4T"), ("banestar","74L2"))),
+        "\\n".join((
+            "  ".join(label(k, v) for k, v in
+                     (("cj","C-J"), ("ualx","UALX"), ("r_arkn","R-ARKN"))),
+            "  ".join(label(k, v) for k, v in
+                     (("o4t","O4T"), ("banestar","74L2"))),
+        )),
         "  ".join(label(k, v) for k,v in
                  (("amarr","艾玛"), ("dodixie","多迪"))),
     )
@@ -289,7 +292,7 @@ class DesktopWidget:
         root.configure(bg=COLORS["line"])
         root.attributes("-topmost", True)
         root.resizable(False, False)
-        w, h = 410, 570
+        w, h = 410, 590
         x = max(0, root.winfo_screenwidth() - w - 26)
         root.geometry(f"{w}x{h}+{x}+60")
         tkfont = ("Microsoft YaHei UI", 9)
