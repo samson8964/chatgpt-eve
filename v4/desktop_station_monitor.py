@@ -122,6 +122,15 @@ def read_opportunity(root: Path, lanes: tuple[str, ...],
             for lane in lanes
         ):
             return {**result, "status": "INCOMPLETE_COVERAGE"}
+        # The new five-station mode must not accept a report scoped to an
+        # older set of three buildings or one missing market page.
+        five_lanes = tuple(row[0] for row in HUNTER_FIVE_LANES)
+        if tuple(lanes) == five_lanes and (
+            set(health) != set(lanes)
+            or any(health[lane].get("pages_fetched") != health[lane]["pages"]
+                   for lane in lanes)
+        ):
+            return {**result, "status": "INCOMPLETE_COVERAGE"}
         channels = report.get("notification_channels")
         if not isinstance(channels, dict):
             channels = {}
