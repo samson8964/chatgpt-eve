@@ -20,7 +20,7 @@ from v4.unified_review import make_review, render, render_html
 from v4.contract_review import make_review as standalone_contract_review
 
 MARKET_BASIS="JITA_4_4_BUY_DEPTH_SNAPSHOT_NOT_LIVE"
-BLUEPRINT_BASIS="JITA_BUY_FINISHED_GOODS_JITA_SELL_MATERIALS_SNAPSHOT"
+BLUEPRINT_BASIS="JITA_TOP5_BPC_MANUFACTURE_30PCT_BUNDLE_ESTIMATE"
 
 
 def catalogue():
@@ -70,14 +70,18 @@ def blueprint(cid,blueprint_type,product_type):
         "kind":"blueprint_manufacturing","status":"WATCH",
         "reason":"BLUEPRINT_MANUFACTURING_MODEL_ESTIMATE_FEE_UNVERIFIED",
         "model_candidate":True,"valuation_basis":BLUEPRINT_BASIS,
-        "facility_fee_status":"20_PERCENT_MATERIAL_COST_RESERVE_NOT_FACILITY_VERIFIED",
-        "jita_material_ask_depth_verified_in_snapshot":True,
-        "jita_product_buy_depth_verified_in_snapshot":True,
+        "facility_fee_status":"ESI_ADJUSTED_PRICES_SYSTEM_COST_INDEX_JITA_NPC_REFERENCE_NOT_JOB_QUOTE",
+        "manufacturing_fee_snapshot_verified":True,
+        "jita_material_top5_prices_observed":True,
+        "jita_product_top5_prices_observed":True,
+        "risk_score":10,
+        "bundle_selected_details":[{"blueprint_type_id":blueprint_type,"product_type_id":product_type}],
+        "bundle_blueprint_total":1,"bundle_blueprint_selected":1,
         "contract_id":cid,"blueprint_type_id":blueprint_type,"blueprint_kind":"BPC",
         "production_runs_assumed":1,"product_type_id":product_type,"product_units":1,
         "net_profit":99_000_000,"roi":.5,"source_location":60008494,
         "contract_price_isk":100_000_000,"product_gross_isk":240_000_000,
-        "material_cost_isk":10_000_000,"manufacturing_fee_reserve_isk":2_000_000,
+        "material_cost_isk":10_000_000,"manufacturing_fee_isk":2_000_000,
         "sales_tax_isk":8_000_000,
     }
 
