@@ -115,7 +115,7 @@ class BlueprintDigestTests(unittest.TestCase):
         hs,html=render_html(sample)
         self.assertEqual(subject,hs)
         self.assertIn("/c/1234567",html)
-        self.assertIn("费用",html)
+        self.assertIn("制造费",html)
 
 
 if __name__=="__main__":
