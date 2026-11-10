@@ -54,6 +54,8 @@ def inspect_run(folder: Path, *, repo: Path | None = None) -> dict:
     candidate = Counter()
     numeric_gate = Counter()
     contract_no_bid = contract_bp_ignored = contract_unclassified = 0
+    contract_net_roi_below_market_density = 0
+    contract_net_roi_with_unknown_volume = 0
     blueprint_types = set()
     proof_count = 0
     with (folder / "all_proofs.jsonl").open(encoding="utf-8") as stream:
@@ -73,6 +75,16 @@ def inspect_run(folder: Path, *, repo: Path | None = None) -> dict:
                 if _gate(row):
                     numeric_gate[kind] += 1
             if kind == "contract":
+                # This is a diagnostic COMPARISON with the market Policy()
+                # density setting, not a claim that contracts are already
+                # contract-policy density-gated in production.
+                if _gate(row):
+                    net = _finite(row.get("net_profit"))
+                    volume = _finite(row.get("cargo_volume_m3"))
+                    if volume is None or volume <= 0:
+                        contract_net_roi_with_unknown_volume += 1
+                    elif net / volume < 2_000:
+                        contract_net_roi_below_market_density += 1
                 contract_no_bid += int(row.get("ignored_no_bid_types") or 0)
                 contract_bp_ignored += int(row.get("ignored_blueprint_types") or 0)
                 contract_unclassified += int(
@@ -112,6 +124,10 @@ def inspect_run(folder: Path, *, repo: Path | None = None) -> dict:
             "contract_numeric_gate_before_mail_exclusions":
                 numeric_gate["contract"],
             "contract_rejection_reasons": _top(reasons["contract"], 18),
+            "contract_numeric_gate_but_below_2000_isk_per_m3_market_reference":
+                contract_net_roi_below_market_density,
+            "contract_numeric_gate_with_unknown_cargo_volume":
+                contract_net_roi_with_unknown_volume,
             "blueprint_manufacturing_proofs_generated":
                 counts["blueprint_manufacturing"],
             "blueprint_manufacturing_model_candidates":
@@ -146,6 +162,8 @@ def inspect_run(folder: Path, *, repo: Path | None = None) -> dict:
             "Blueprint manufacturing proofs count only evaluable jobs; missing recipe, "
             "unknown runs/ME, missing Jita input/output liquidity and unknown hauling "
             "may produce NO manufacturing proof at all.",
+            "The 2000 ISK/m3 diagnostic is a comparison to the current market Policy;"
+            " ordinary cash contracts do NOT currently enforce that density floor.",
             "Mail additionally excludes capital/freighter types and caps each category "
             "at 10 by first discovery. This audit does not send or re-rank mail.",
             "No proof here verifies current live trade availability.",
