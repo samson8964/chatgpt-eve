@@ -9,6 +9,7 @@ import json
 import math
 from collections import Counter
 from v4.engine import Policy
+from v4.contract_partial import CONTRACT_REFERENCE_BASIS, CONTRACT_VALUATION_BASIS
 from v4.ship_alert_exclusions import load_policy_for_run, POLICY_NAME
 from v4.mail_volume import contract_volume
 from v4.contract_content_policy import eligible_contract_research, CRYSTAL_SHARE_BASIS, CONTRACT_MIN_NET_ISK
@@ -51,14 +52,17 @@ def make_review(root: Path, *, limit: int = MAX_CANDIDATES) -> dict:
         raise RuntimeError("NOT_A_SHADOW_AUDIT")
     # Previous runs used the prohibited same-location valuation model.
     # Never re-mail old estimates after switching to Jita 4-4.
-    if deep.get("contract_pricing_basis") != "JITA_4_4_BUY_DEPTH_SNAPSHOT":
+    if deep.get("contract_pricing_basis") not in (
+            "JITA_4_4_BUY_DEPTH_SNAPSHOT",
+            "JITA_4_4_REGULAR_REFERENCE_NO_BUY_DEPTH_GATE"):
         raise RuntimeError("REVIEW_REQUIRES_NEW_JITA_4_4_VALUATION_SCAN")
     if manifest.get("mail_enabled") is not False or manifest.get("ready_for_production") is not False:
         raise RuntimeError("UNSAFE_SCAN_MAIL_STATUS")
     exclude_policy=load_policy_for_run(deep)
     excluded_ship_leads=0
-    partial_mode=(deep.get("contract_partial_valuation_basis") ==
-                  "JITA_CREDITED_REGULAR_BUY_DEPTH_IGNORED_CARGO_ZERO")
+    partial_mode=deep.get("contract_partial_valuation_basis") in (
+        "JITA_CREDITED_REGULAR_BUY_DEPTH_IGNORED_CARGO_ZERO",
+        CONTRACT_REFERENCE_BASIS)
     count = Counter()
     leads = []
     observed = 0
@@ -79,12 +83,15 @@ def make_review(root: Path, *, limit: int = MAX_CANDIDATES) -> dict:
             cost = _safe_float(proof.get("cost"))
             if not isinstance(cid, int) or cid <= 0:
                 continue
-            if (proof.get("valuation_basis") != "JITA_4_4_BUY_DEPTH_SNAPSHOT_NOT_LIVE"
+            if (proof.get("valuation_basis") not in (
+                    "JITA_4_4_BUY_DEPTH_SNAPSHOT_NOT_LIVE",
+                    CONTRACT_VALUATION_BASIS)
                     or proof.get("valuation_location_id") != 60003760
                     or proof.get("destination_location") != 60003760):
                 continue
-            # Only candidates whose ordinary items have already passed the
-            # complete snapshot buy-depth/value calculation may be listed.
+            # New reference valuations may extrapolate beyond buy depth.
+            # Only proven prices, transparent risk flags and economic gates
+            # qualify; never imply immediate exit liquidity.
             if not eligible_contract_research(
                     net_profit=profit, roi=roi, stress=stress, cost=cost,
                     crystal_share=proof.get("energy_crystal_value_share"),
@@ -120,7 +127,7 @@ def make_review(root: Path, *, limit: int = MAX_CANDIDATES) -> dict:
                 "investment": cost,
                 "haul_estimate_isk": _safe_float(proof.get("haul_cost_estimate_isk")),
                 "valuation_location_id": 60003760,
-                "valuation_basis": "JITA_4_4_BUY_DEPTH_SNAPSHOT_NOT_LIVE",
+                "valuation_basis": proof.get("valuation_basis"),
                 "haul_route_verified": False,
                 "net_profit_snapshot": profit,
                 "roi_snapshot": roi,
@@ -129,6 +136,11 @@ def make_review(root: Path, *, limit: int = MAX_CANDIDATES) -> dict:
                 "credited_items": credited,
                 "ignored_types_count": proof.get("ignored_types_count") if partial_mode else 0,
                 "partial_liquidation_basis":proof.get("partial_liquidation_basis") if partial_mode else None,
+                "ordinary_price_sources":proof.get("ordinary_price_sources") or {},
+                "contract_liquidity_risk_flags":proof.get("contract_liquidity_risk_flags") or [],
+                "contract_ask_only_reference_share":proof.get("contract_ask_only_reference_share") or 0,
+                "jita_buy_depth_sufficient_for_credited_items":proof.get(
+                    "jita_buy_depth_sufficient_for_credited_items",False),
                 "source_location": proof.get("source_location"),
                 "source_security_band": proof.get("source_security_band"),
                 "source_station_name": proof.get("source_station_name"),
