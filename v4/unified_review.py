@@ -128,8 +128,9 @@ def make_review(root: Path, *, limit_each: int = MAX_EACH) -> dict:
                     row.get("status") == "WATCH" and
                     row.get("valuation_basis") ==
                       "JITA_BUY_FINISHED_GOODS_JITA_SELL_MATERIALS_SNAPSHOT" and
-                    row.get("facility_fee_status") ==
-                      "20_PERCENT_MATERIAL_COST_RESERVE_NOT_FACILITY_VERIFIED" and
+                    row.get("facility_fee_status") in (
+                      "20_PERCENT_MATERIAL_COST_RESERVE_NOT_FACILITY_VERIFIED",
+                      "ESI_ADJUSTED_PRICES_SYSTEM_COST_INDEX_JITA_NPC_REFERENCE_NOT_JOB_QUOTE") and
                     row.get("jita_material_ask_depth_verified_in_snapshot") is True and
                     row.get("jita_product_buy_depth_verified_in_snapshot") is True):
                     net=_amount(row.get("net_profit"))
@@ -150,12 +151,18 @@ def make_review(root: Path, *, limit_each: int = MAX_EACH) -> dict:
                             "contract_price":row.get("contract_price_isk"),
                             "product_gross":row.get("product_gross_isk"),
                             "material_cost":row.get("material_cost_isk"),
-                            "fee_reserve":row.get("manufacturing_fee_reserve_isk"),
+                            "fee_reserve":row.get("manufacturing_fee_isk",row.get("manufacturing_fee_reserve_isk")),
+                            "manufacturing_eiv_isk":row.get("manufacturing_eiv_isk"),
+                            "manufacturing_fee_status":row.get("facility_fee_status"),
+                            "manufacturing_fee_observed_at_utc":row.get("manufacturing_fee_observed_at_utc"),
                             "sales_tax":row.get("sales_tax_isk"),
                             "net_profit_snapshot":net,
                             "roi_snapshot":roi,
                             "source_location":row.get("source_location"),
-                            "cost_basis":"20% material cost fee reserve; actual facility taxes unverified",
+                            "cost_basis":(
+                                "ESI Jita NPC index + adjusted EIV + 0.25% facility + 4% SCC; no live job quote"
+                                if row.get("manufacturing_fee_snapshot_verified") is True else
+                                "20% material cost fee reserve; actual facility taxes unverified"),
                             "live_verified":False,
                             "actionable":False,
                         })
@@ -385,8 +392,8 @@ def render(review: dict, *, game: bool = False) -> tuple[str, str]:
                 f" 合同{yi(p.get('contract_price'))}"
                 f" 材料{yi(p['material_cost'])}"
                 f" 销售税{yi(p.get('sales_tax'))}"
-                f" 预留制造费{yi(p['fee_reserve'])}"
-                f"（按材料费20%预留；实际设施费、技能、工期未验证）")
+                f" 制造费{yi(p['fee_reserve'])}"
+                f"（{p.get('cost_basis') or '制造费用待核'}；技能、工期与成交待核）")
     if not pairs and not contracts and not blueprints:
         lines.append("本轮暂无候选。")
     if review.get("npc_catalog_status") == "NOT_INSTALLED_LEGACY_CONTRACT_SCOPE":
@@ -460,8 +467,8 @@ def render_html(review: dict) -> tuple[str, str]:
                 f' 合同{yi(b.get("contract_price"))}'
                 f' 材料{yi(b["material_cost"])}'
                 f' 销售税{yi(b.get("sales_tax"))}'
-                f' 制造费用预留{yi(b["fee_reserve"])}'
-                '（材料费用20%预留，实际费用、工期、技能未核实）</p>')
+                f' 制造费{yi(b["fee_reserve"])}'
+                f'（{b.get("cost_basis") or "制造费用待核"}；工期、技能与成交待核）</p>')
     if review.get("npc_catalog_status") == "NOT_INSTALLED_LEGACY_CONTRACT_SCOPE":
         blocks.append('<p>注意：NPC高低安目录未安装，本轮合同仍仅覆盖旧站点。</p>')
     if pairs or contracts:
