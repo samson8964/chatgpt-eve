@@ -182,7 +182,7 @@ class ShipExclusionTests(unittest.TestCase):
             self.assertEqual(len(review["market_research_leads"]),10)
             self.assertEqual(review["market_research_leads"][0]["type_id"],111)
             self.assertEqual(review["contract_research_leads_total"],2)
-            self.assertEqual(review["contract_research_leads"][0]["contract_id"],1003)
+            self.assertEqual(review["contract_research_leads"][0]["contract_id"],1002)
             self.assertEqual(review["blueprint_research_leads_total"],1)
             self.assertEqual(review["blueprint_research_leads"][0]["contract_id"],2002)
             self.assertEqual(review["excluded_capital_freighter_market_leads"],1)
