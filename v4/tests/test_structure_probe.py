@@ -1,5 +1,6 @@
 """No-network minimal V4 private Worker health probe tests."""
 import unittest
+from unittest.mock import patch
 
 import requests
 
@@ -37,7 +38,13 @@ class StructureProbeTests(unittest.TestCase):
             self.assertIn("Bearer " + self.KEY, kw["headers"]["Authorization"])
             self.assertEqual(kw["params"]["page"], 1)
             return FakeResponse(results[kw["params"]["auth_profile"]])
-        report = probe(key=self.KEY, get=get)
+        # The user's Windows HOME can opt into six stations. This unit test
+        # must use fixed fixtures, never the machine's active market scopes.
+        with patch("v4.structure_probe.STRUCTURES", {
+            "cj": (1049588174021, "cj"),
+            "o4t": (1040804972352, "dc"),
+        }):
+            report = probe(key=self.KEY, get=get)
         self.assertEqual(len(count), 2)
         self.assertNotIn("four_h", report["profiles"])
         self.assertEqual(report["profiles"]["cj"]["http_status"], 401)
