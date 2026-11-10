@@ -112,6 +112,31 @@ class GameMailReviewTests(unittest.TestCase):
             self.assertTrue(receipt.is_file())
             self.assertNotIn(self.KEY,receipt.read_text("utf-8"))
 
+    def test_new_jita_reference_basis_sends_research_mail_without_relabeling(self):
+        # A six-station V4 scan uses a newly named ordinary-contract Jita
+        # research basis (BUY depth if sufficient; indicative quotes otherwise).
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            enable(root)
+            report = review()
+            report["contract_pricing_basis"] = (
+                "JITA_4_4_REGULAR_REFERENCE_NO_BUY_DEPTH_GATE")
+            session = Transport()
+            with patch("v4.game_mail_review.make_review", return_value=report):
+                result = send_review_to_game(
+                    root, expected_run=report["run_folder"],
+                    session=session, get_key=lambda: self.KEY)
+            self.assertEqual(result["status"], "V4_GAME_RESEARCH_MAIL_SENT")
+            self.assertTrue(result["research_only"])
+            self.assertFalse(result["formal_trade_alert"])
+            self.assertEqual(len(session.calls), 2)
+            self.assertEqual(session.calls[0][0], "GET")
+            self.assertEqual(session.calls[1][0], "POST")
+            self.assertEqual(session.calls[1][2]["json"]["recipient_id"], 2124493042)
+            receipt = (root / "mail-review" / "eve-receipts" /
+                       (report["run_folder"] + ".json"))
+            self.assertTrue(receipt.is_file())
+
     def test_old_price_basis_blocks_network_and_receipt(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory)
