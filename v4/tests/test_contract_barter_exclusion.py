@@ -72,7 +72,7 @@ class V4ContractBarterExclusionTests(unittest.TestCase):
             self.assertEqual(report["market_potential_pairs"],1)
             self.assertEqual(report["market_top5_price_definition"],
                 "UNWEIGHTED_MEAN_OF_DISTINCT_PRICE_LEVELS")
-            self.assertEqual(report["market_station_sell_census"]["4-H"]["active_sell_type_ids"],0)
+            self.assertNotIn("4-H",report["market_station_sell_census"])  # retired 4-H must not be restored
             self.assertEqual(report["market_station_sell_census"]["O4T"]["active_sell_type_ids"],0)
             self.assertTrue(any(args.args[0]==60008494 and args.args[1]==60003760
                                 and args.args[2]==100.0 for args in haul_mock.call_args_list))
