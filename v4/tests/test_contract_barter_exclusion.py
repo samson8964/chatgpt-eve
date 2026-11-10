@@ -72,7 +72,7 @@ class V4ContractBarterExclusionTests(unittest.TestCase):
             self.assertEqual(report["market_potential_pairs"],1)
             self.assertEqual(report["market_top5_price_definition"],
                 "UNWEIGHTED_MEAN_OF_DISTINCT_PRICE_LEVELS")
-            self.assertEqual(report["market_station_sell_census"]["C-J"]["active_sell_type_ids"],0)
+            self.assertEqual(report["market_station_sell_census"]["4-H"]["active_sell_type_ids"],0)
             self.assertEqual(report["market_station_sell_census"]["O4T"]["active_sell_type_ids"],0)
             self.assertTrue(any(args.args[0]==60008494 and args.args[1]==60003760
                                 and args.args[2]==100.0 for args in haul_mock.call_args_list))
@@ -97,7 +97,7 @@ class V4ContractBarterExclusionTests(unittest.TestCase):
             self.assertEqual(contract["included_items"],{"34":10})
             self.assertFalse(contract["requested_items_present"])
             self.assertEqual(contract["valuation_basis"],
-                "JITA_4_4_BUY_DEPTH_SNAPSHOT_NOT_LIVE")
+                "JITA_4_4_REGULAR_REFERENCE_NO_BUY_DEPTH_GATE_NOT_LIVE")
             amarr=next(p for p in proofs if p.get("contract_id")==103)
             self.assertEqual(amarr["source_location"],60008494)
             self.assertEqual(amarr["destination_location"],60003760)
