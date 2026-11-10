@@ -22,6 +22,9 @@ FIXTURE_LANES = {
     "cj": (STRUCTURES["C-J"], "dc"),
     "o4t": (STRUCTURES["O4T"], "dc"),
 }
+FIXTURE_LANE_TO_LABEL = {"cj": "C-J", "o4t": "O4T"}
+FIXTURE_LABEL_TO_LANE = {label: lane
+                         for lane, label in FIXTURE_LANE_TO_LABEL.items()}
 
 RUN="20261017T231839Z-9c24d05b"
 REF="20261017T152301Z-acd96c27"
@@ -71,6 +74,8 @@ class PrivateSourceABTests(unittest.TestCase):
             "v4.esi_private_source_jita_ab",
             AUTHORIZED_LANES=FIXTURE_LANES,
             STRUCTURES=STRUCTURES,
+            LANE_TO_LABEL=FIXTURE_LANE_TO_LABEL,
+            LABEL_TO_LANE=FIXTURE_LABEL_TO_LANE,
         )
         scope.start()
         self.addCleanup(scope.stop)
