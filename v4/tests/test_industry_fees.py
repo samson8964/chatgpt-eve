@@ -104,7 +104,7 @@ class ManufacturingFeeTests(unittest.TestCase):
         self.assertEqual(result["required_materials"],{"34":180,"35":2})
         self.assertEqual(result["material_cost_isk"],20_000_000)
         self.assertEqual(result["manufacturing_fee_isk"],3_135_000)
-        self.assertEqual(result["net_profit"],546_865_000)
+        self.assertEqual(result["manufacturing_contribution_isk"],749_865_000)
         self.assertEqual(result["facility_fee_status"],FEE_BASIS)
         self.assertTrue(result["manufacturing_fee_snapshot_verified"])
         self.assertFalse(result["live_verified"])
@@ -127,7 +127,7 @@ class ManufacturingFeeTests(unittest.TestCase):
             fee_context=context())
         self.assertEqual(proof["status"],"WATCH")
         self.assertEqual(proof["reason"],
-             "BLUEPRINT_MANUFACTURING_ESI_REFERENCE_FEE_NOT_LIVE_JOB_VERIFIED")
+             "BLUEPRINT_BPC_TOP5_30PCT_ESI_FEE_RESEARCH_ONLY")
         self.assertTrue(proof["model_candidate"])
         self.assertEqual(proof["facility_fee_status"],FEE_BASIS)
 
