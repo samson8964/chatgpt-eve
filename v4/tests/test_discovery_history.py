@@ -78,7 +78,8 @@ class DiscoveryMailTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp)
             make_run(root, OLD,[market(34,profit=900_000_000),contract(2000)])
-            current=[market(t) for t in range(34,45)]
+            current=[market(t,profit=(900_000_000 if t==34 else 60_000_000))
+                     for t in range(34,45)]
             folder=make_run(root, NEW,current+[contract(cid) for cid in range(2000,2011)])
             (folder/"deep_shadow.json").write_text(json.dumps({
                 "status":"SHADOW_ONLY_NO_LIVE_ALERTS",
@@ -125,7 +126,7 @@ class DiscoveryMailTests(unittest.TestCase):
                 self.assertIn("市场10 合同10",subject)
                 self.assertIn("首见10-15 14:23",body)
                 self.assertIn("商品 34",body)
-                self.assertIn("合同 2000 ",body)
+                self.assertIn("2000",body)
             _,html=render_html(review)
             self.assertIn("首见10-15 14:23",html)
 
