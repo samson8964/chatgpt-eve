@@ -172,11 +172,12 @@ class UnifiedReviewTests(unittest.TestCase):
             lead=review["blueprint_research_leads"][0]
             self.assertEqual(lead["fee_reserve"],3_135_000)
             self.assertEqual(lead["bundle_blueprint_selected"],2)
-            self.assertGreater(lead["ranking_score"],0)
+            self.assertEqual(lead["risk_score"],20)
             self.assertFalse(lead["actionable"])
             _,email=render(review,game=False)
             self.assertIn("BPC组合2/4张",email)
-            self.assertIn("综合分",email)
+            self.assertNotIn("综合分",email)
+            self.assertIn("风险",email)
 
     def test_missing_npc_reference_warning_in_both_mail_formats(self):
         review=mocked_contract()
