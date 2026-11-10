@@ -47,16 +47,21 @@ class BlueprintManufacturingTests(unittest.TestCase):
         self.assertEqual(r["manufacturing_contribution_isk"],749_000_000)
         self.assertFalse(r["actionable"])
 
-    def test_bpo_always_excluded_including_mixed_bundle(self):
+    def test_bpo_zero_value_but_mixed_bpc_still_valued(self):
         original={**self.bp,"is_blueprint_copy":False,"runs":-1}
         self.assertIsNone(evaluate_one(self.contract,original,self.recipe,
                                        self.asks,self.bids,3_000_000))
         markets={(60003760,34,False):self.asks[34],
                  (60003760,35,False):self.asks[35],
                  (60003760,36,True):self.bids[36]}
-        self.assertIsNone(evaluate_blueprint_contract(self.contract,
+        result=evaluate_blueprint_contract(self.contract,
                            [self.bp,original],{"101":self.recipe},
-                           markets,3_000_000))
+                           markets,3_000_000)
+        self.assertIsNotNone(result)
+        self.assertEqual(result["bundle_blueprint_total"],1)
+        self.assertEqual(result["bundle_blueprint_ignored_bpo"],1)
+        self.assertEqual(result["bundle_selected_type_ids"],[101])
+        self.assertEqual(result["contract_price_isk"],200_000_000)
 
     def test_bpc_runs_are_not_capped_at_ten(self):
         r=evaluate_one(self.contract,{**self.bp,"runs":100},
