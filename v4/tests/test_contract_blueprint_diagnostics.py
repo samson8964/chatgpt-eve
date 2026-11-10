@@ -35,7 +35,8 @@ class FunnelDiagnosticsTests(unittest.TestCase):
              "net_profit":-2,"roi":-.3,
              "ignored_no_bid_types":2,"ignored_blueprint_types":1},
             {"kind":"contract","reason":"LIVE_ORDER_AND_CONTRACT_NOT_REVALIDATED",
-             "model_candidate":True,"net_profit":60_000_000,"roi":.24},
+             "model_candidate":True,"net_profit":60_000_000,"roi":.24,
+             "cargo_volume_m3":50060},
             {"kind":"blueprint_manufacturing",
              "reason":"BLUEPRINT_MANUFACTURING_MODEL_ESTIMATE_FEE_UNVERIFIED",
              "model_candidate":True, "net_profit":100_000_000,"roi":.55,
@@ -71,6 +72,7 @@ class FunnelDiagnosticsTests(unittest.TestCase):
         report = inspect_run(folder)
         self.assertEqual(report["status"], "READ_ONLY_FUNNEL_REPORTED")
         self.assertEqual(report["proofs"]["contract_model_candidates"], 1)
+        self.assertEqual(report["proofs"]["contract_numeric_gate_but_below_2000_isk_per_m3_market_reference"], 1)
         self.assertEqual(report["proofs"]["contract_numeric_gate_before_mail_exclusions"], 1)
         self.assertEqual(report["proofs"]["blueprint_manufacturing_proofs_generated"], 2)
         self.assertEqual(report["proofs"]["blueprint_manufacturing_model_candidates"], 1)
