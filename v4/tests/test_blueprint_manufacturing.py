@@ -31,7 +31,9 @@ class BlueprintManufacturingTests(unittest.TestCase):
                    35:book(35,1_000_000,10000,False)}
         self.bids={36:book(36,200_000_000,10000,True)}
 
-    def test_bpc_bound_manufactured_output_cost_and_taxes(self):
+    def test_bpc_full_licensed_runs_and_no_depth_requirement(self):
+        # A two-run copy uses all runs; price is quoted even if only one
+        # unit is available at a quoted level.
         r=evaluate_one(self.contract,self.bp,self.recipe,self.asks,
                        self.bids,3_000_000)
         self.assertEqual(r["blueprint_kind"],"BPC")
@@ -39,30 +41,40 @@ class BlueprintManufacturingTests(unittest.TestCase):
         self.assertEqual(r["product_units"],4)
         self.assertEqual(r["required_materials"],{"34":180,"35":2})
         self.assertEqual(r["material_cost_isk"],20_000_000)
-        self.assertEqual(r["manufacturing_fee_reserve_isk"],4_000_000)
+        self.assertEqual(r["manufacturing_fee_isk"],4_000_000)
         self.assertEqual(r["product_gross_isk"],800_000_000)
         self.assertEqual(r["sales_tax_isk"],27_000_000)
-        self.assertEqual(r["cost"],227_000_000)
-        self.assertEqual(r["net_profit"],546_000_000)
-        self.assertGreater(r["roi"],.1)
-        self.assertTrue(r["policy_passed"])
+        self.assertEqual(r["manufacturing_contribution_isk"],749_000_000)
+        self.assertFalse(r["actionable"])
 
-    def test_bpo_bounded_ten_runs_no_infinite_value(self):
-        r=evaluate_one(self.contract,{**self.bp,"is_blueprint_copy":False,
-                                      "runs":-1},self.recipe,
-                       self.asks,self.bids,3_000_000)
-        self.assertEqual(r["blueprint_kind"],"BPO")
-        self.assertEqual(r["production_runs_assumed"],10)
+    def test_bpo_zero_value_but_mixed_bpc_still_valued(self):
+        original={**self.bp,"is_blueprint_copy":False,"runs":-1}
+        self.assertIsNone(evaluate_one(self.contract,original,self.recipe,
+                                       self.asks,self.bids,3_000_000))
+        markets={(60003760,34,False):self.asks[34],
+                 (60003760,35,False):self.asks[35],
+                 (60003760,36,True):self.bids[36]}
+        result=evaluate_blueprint_contract(self.contract,
+                           [self.bp,original],{"101":self.recipe},
+                           markets,3_000_000)
+        self.assertIsNotNone(result)
+        self.assertEqual(result["bundle_blueprint_total"],1)
+        self.assertEqual(result["bundle_blueprint_ignored_bpo"],1)
+        self.assertEqual(result["bundle_selected_type_ids"],[101])
+        self.assertEqual(result["contract_price_isk"],200_000_000)
 
-    def test_bpc_cannot_use_more_than_one_licensed_run(self):
-        r=evaluate_one(self.contract,{**self.bp,"runs":1},self.recipe,
-                       self.asks,self.bids,0)
-        self.assertEqual(r["production_runs_assumed"],1)
+    def test_bpc_runs_are_not_capped_at_ten(self):
+        r=evaluate_one(self.contract,{**self.bp,"runs":100},
+                       self.recipe,self.asks,self.bids,0)
+        self.assertEqual(r["production_runs_assumed"],100)
 
-    def test_no_jita_material_ask_depth_no_blueprint_alert(self):
-        missing={**self.asks,34:book(34,100_000,100,False)}
-        self.assertIsNone(evaluate_one(self.contract,self.bp,self.recipe,missing,
-                                       self.bids,0))
+    def test_no_bid_depth_gate_but_missing_price_is_unpriceable(self):
+        low={**self.asks,34:book(34,100_000,1,False)}
+        result=evaluate_one(self.contract,self.bp,self.recipe,low,self.bids,0)
+        self.assertIsNotNone(result)
+        self.assertIn("SNAPSHOT_DEPTH_BELOW_MODEL_QUANTITY",result["risk_flags"])
+        self.assertIsNone(evaluate_one(self.contract,self.bp,self.recipe,
+                                       self.asks,{},0))
         self.assertIsNone(evaluate_one(self.contract,{**self.bp,
              "is_blueprint_copy":None},self.recipe,self.asks,self.bids,0))
 
@@ -108,7 +120,7 @@ class BlueprintDigestTests(unittest.TestCase):
         hs,html=render_html(sample)
         self.assertEqual(subject,hs)
         self.assertIn("/c/1234567",html)
-        self.assertIn("费用",html)
+        self.assertIn("制造费",html)
 
 
 if __name__=="__main__":
