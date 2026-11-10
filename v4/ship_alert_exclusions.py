@@ -48,10 +48,12 @@ class ExclusionPolicy:
             return True  # Fail closed on malformed identifiers.
 
     def blocks_contract(self, included_items: dict) -> bool:
-        """Any excluded hull or matching BPO/BPC suppresses the whole bundle.
+        """Preserve hull exclusion, but never veto a cash subset for blueprints.
 
-        Even if the excluded hull wasn't credited in the ordinary subset
-        liquidation and is technically a zero-value 'bonus'.
+        BPO/BPC (including capital, unknown-recipe blueprint TYPES) are
+        credited at zero in the ordinary liquidation model. Their presence
+        must not hide value in other regular items in the same contract.
+        Actual excluded capital/freighter HULL items remain prohibited.
         """
         if not isinstance(included_items,dict) or not included_items:
             return True
@@ -59,8 +61,7 @@ class ExclusionPolicy:
             types={int(t) for t in included_items}
         except (TypeError,ValueError,OverflowError):
             return True
-        return bool(types & (self.blocked_hull_types | self.blocked_blueprint_types |
-                             self.unclassified_blueprint_types))
+        return bool(types & self.blocked_hull_types)
 
     def blocks_blueprint(self, blueprint_type, output_type) -> bool:
         try:
