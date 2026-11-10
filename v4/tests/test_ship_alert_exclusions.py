@@ -212,7 +212,7 @@ class ShipExclusionTests(unittest.TestCase):
             ]
             write_run(root,rows)
             policy=build_policy(catalogue(),recipes())
-            with patch("v4.contract_review.load_policy_for_run",return_value=policy), \\
+            with patch("v4.contract_review.load_policy_for_run",return_value=policy), \
                  patch("v4.unified_review.load_policy_for_run",return_value=policy):
                 review=make_review(root)
             self.assertEqual(review["contract_research_leads_total"],1)
