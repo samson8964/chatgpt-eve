@@ -7,7 +7,7 @@ from v4.engine import Order
 from v4.blueprint_manufacturing import (
     evaluate_one, evaluate_blueprint_contract, top_five_levels,
 )
-from v4.unified_review import bpc_research_score
+from v4.unified_review import research_mail_eligible, research_profit_sort_key
 from v4.tests.test_industry_fees import context
 
 JITA = 60003760
@@ -73,11 +73,17 @@ class BpcStrategyTests(unittest.TestCase):
         self.assertAlmostEqual(proof["net_profit"],
             proof["manufacturing_contribution_isk"]-50_000_000)
 
-    def test_mixed_bpo_contract_ignored(self):
+    def test_mixed_bpo_contract_keeps_other_bpc_value(self):
         bp={**self.blueprints[0],"is_blueprint_copy":False,"runs":-1}
-        self.assertIsNone(evaluate_blueprint_contract(
+        result=evaluate_blueprint_contract(
             self.contract,[bp,self.blueprints[1]],self.recipes,
-            self.books,0,fee_context=context(adjusted_prices={34:10})))
+            self.books,0,fee_context=context(adjusted_prices={34:10}))
+        self.assertIsNotNone(result)
+        self.assertEqual(result["bundle_blueprint_total"],1)
+        self.assertEqual(result["bundle_blueprint_ignored_bpo"],1)
+        self.assertEqual(result["bundle_selected_type_ids"],[101])
+        self.assertEqual(result["contract_price_isk"],50_000_000)
+        # The BPO is ignored, not a reason to lose the BPC research proof.
 
     def test_bundle_missing_bpc_does_not_invent_value(self):
         proof=evaluate_blueprint_contract(
@@ -88,15 +94,20 @@ class BpcStrategyTests(unittest.TestCase):
         self.assertEqual(proof["bundle_blueprint_evaluated"],3)
         self.assertIn("BPC_VALUE_MISSING_IN_BUNDLE",proof["risk_flags"])
 
-    def test_rank_combines_profit_roi_and_risk(self):
-        high=dict(net_profit_snapshot=500_000_000,roi_snapshot=.5,risk_score=10)
-        low=dict(net_profit_snapshot=500_000_000,roi_snapshot=.5,risk_score=90)
-        self.assertGreater(bpc_research_score(high),bpc_research_score(low))
-        self.assertGreater(bpc_research_score(
-            dict(high,net_profit_snapshot=1_000_000_000)),
-            bpc_research_score(high))
-        self.assertGreater(bpc_research_score(
-            dict(high,roi_snapshot=1.2)),bpc_research_score(high))
+    def test_mail_gates_and_profit_first_sort_not_risk_weighted(self):
+        below=dict(net_profit_snapshot=49_999_999,roi_snapshot=.8,risk_score=0,
+                   contract_id=1)
+        low_roi=dict(net_profit_snapshot=500_000_000,roi_snapshot=.1,
+                     risk_score=0,contract_id=2)
+        a=dict(net_profit_snapshot=500_000_000,roi_snapshot=.11,risk_score=100,
+               contract_id=3)
+        b=dict(net_profit_snapshot=100_000_000,roi_snapshot=2.,risk_score=0,
+               contract_id=4)
+        self.assertFalse(research_mail_eligible(below))
+        self.assertFalse(research_mail_eligible(low_roi))
+        self.assertTrue(research_mail_eligible(a))
+        self.assertTrue(research_mail_eligible(b))
+        self.assertEqual(sorted([b,a],key=research_profit_sort_key)[0]["contract_id"],3)
 
 
 if __name__ == "__main__":
