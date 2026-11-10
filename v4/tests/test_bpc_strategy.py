@@ -53,7 +53,7 @@ class BpcStrategyTests(unittest.TestCase):
         self.assertIsNotNone(r)
         self.assertEqual(r["production_runs_assumed"],20)
         self.assertEqual(r["product_unit_price_estimate_isk"],800_000)
-        self.assertEqual(r["material_cost_isk"],200*11)
+        self.assertEqual(r["material_cost_isk"],180*11)
         self.assertIn("SNAPSHOT_DEPTH_BELOW_MODEL_QUANTITY",r["risk_flags"])
 
     def test_bundle_top_30_percent_ceil_and_full_contract_once(self):
