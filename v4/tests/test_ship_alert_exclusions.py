@@ -140,10 +140,10 @@ class ShipExclusionTests(unittest.TestCase):
         blocked=build_policy(catalogue(),recipes())
         self.assertTrue(blocked.blocks_blueprint(201,103))
         self.assertFalse(blocked.blocks_blueprint(202,111))
-        self.assertTrue(blocked.blocks_contract({"34":100,"201":1}))
+        self.assertFalse(blocked.blocks_contract({"34":100,"201":1}))
         self.assertTrue(blocked.blocks_contract({"34":100,"101":1}))
         self.assertFalse(blocked.blocks_contract({"34":100,"202":1}))
-        self.assertTrue(blocked.blocks_contract({"34":100,"203":1}))
+        self.assertFalse(blocked.blocks_contract({"34":100,"203":1}))
         self.assertTrue(blocked.blocks_contract({}))
         self.assertTrue(blocked.blocks_market("not-a-type"))
         self.assertEqual(blocked.catalog_sha256,"fixture-sha")
@@ -181,24 +181,49 @@ class ShipExclusionTests(unittest.TestCase):
             self.assertEqual(review["market_research_leads_total"],11)
             self.assertEqual(len(review["market_research_leads"]),10)
             self.assertEqual(review["market_research_leads"][0]["type_id"],111)
-            self.assertEqual(review["contract_research_leads_total"],1)
+            self.assertEqual(review["contract_research_leads_total"],2)
             self.assertEqual(review["contract_research_leads"][0]["contract_id"],1003)
             self.assertEqual(review["blueprint_research_leads_total"],1)
             self.assertEqual(review["blueprint_research_leads"][0]["contract_id"],2002)
             self.assertEqual(review["excluded_capital_freighter_market_leads"],1)
-            self.assertEqual(review["excluded_capital_freighter_contract_leads"],2)
+            self.assertEqual(review["excluded_capital_freighter_contract_leads"],1)
             self.assertEqual(review["excluded_capital_freighter_blueprint_leads"],1)
             self.assertEqual(review["ship_exclusion_policy"],POLICY_NAME)
             subject,body=render(review)
-            self.assertIn("市场10 合同1 蓝图制造1",subject)
+            self.assertIn("市场10 合同2 蓝图制造1",subject)
             self.assertNotIn("合同 1001",body)
-            self.assertNotIn("合同 1002",body)
+            self.assertIn("1002",body)
             self.assertNotIn("2001",body)
             self.assertIn("1003",body)
             _,rich=render_html(review)
             self.assertNotIn("/c/1001",rich)
-            self.assertNotIn("/c/1002",rich)
+            self.assertIn("/c/1002",rich)
             self.assertNotIn("/c/2001",rich)
+
+    def test_same_contract_has_two_separate_valuations_with_bpo_ignored(self):
+        # Cash lane credits ordinary goods; BPC lane models manufacturing.
+        # Both charge the complete contract cost independently, never sum.
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td)
+            cid=7788
+            rows=[
+                cash(cid,{"34":100,"201":1,"202":1}),
+                blueprint(cid,202,111),
+            ]
+            write_run(root,rows)
+            policy=build_policy(catalogue(),recipes())
+            with patch("v4.contract_review.load_policy_for_run",return_value=policy), \\
+                 patch("v4.unified_review.load_policy_for_run",return_value=policy):
+                review=make_review(root)
+            self.assertEqual(review["contract_research_leads_total"],1)
+            self.assertEqual(review["blueprint_research_leads_total"],1)
+            self.assertEqual(review["contract_research_leads"][0]["contract_id"],cid)
+            self.assertEqual(review["blueprint_research_leads"][0]["contract_id"],cid)
+            self.assertEqual(review["contract_research_leads"][0]["contract_price"],100_000_000)
+            self.assertEqual(review["blueprint_research_leads"][0]["contract_price"],100_000_000)
+            subject,body=render(review)
+            self.assertIn("合同1 蓝图制造1",subject)
+            self.assertIn("【蓝图制造",body)
 
     def test_standalone_contract_review_also_filters_before_limit(self):
         with tempfile.TemporaryDirectory() as td:
