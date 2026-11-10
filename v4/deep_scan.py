@@ -331,9 +331,13 @@ def run(market_path,contract_path,output,api_key=''):
         # Separate, explicitly bounded blueprint manufacturing research lane.
         # No manufacturing recipes -> no fabricated BOM or blueprints email.
         if bp_instances.get(cid) and manufacturing_recipes:
+            # BPOs remain in the purchased contract but contribute zero
+            # manufacturing value and are not assumed to be transported.
             bp_ship_volume=sum(
                 (catalog.volume(x['type_id']) or 0)*int(x['quantity'])
-                for x in bp_instances[cid])
+                for x in bp_instances[cid]
+                if blueprint_instance_kind(x.get('is_blueprint_copy'),
+                                           x.get('runs'))=='BPC')
             # Building is modelled at Jita: ship only purchased blueprints
             # to Jita, materials and output trades take place at Jita.
             ship=subset_haul(bp_ship_volume) if bp_ship_volume>0 else None
