@@ -51,6 +51,16 @@ def place(value) -> str:
     return LOCATION_NAMES.get(n, str(n))
 
 
+def contract_liquidity_label(lead: dict) -> str:
+    """Do not hide speculative ask-side valuation in the research email."""
+    if float(lead.get("contract_ask_only_reference_share") or 0) > 0:
+        return "｜风险: 无吉他买单的商品按卖价上界参考，不代表可成交收入"
+    if "JITA_BUY_DEPTH_INSUFFICIENT" in (
+            lead.get("contract_liquidity_risk_flags") or []):
+        return "｜风险: 吉他买单深度不足，仅参考价估值"
+    return ""
+
+
 def contract_place(lead: dict) -> str:
     """Identify high/low NPC contract pickup without claiming safe transport."""
     source = place(lead.get("source_location"))
@@ -120,7 +130,9 @@ def make_review(root: Path, *, limit_each: int = MAX_EACH) -> dict:
         raise RuntimeError("UNIFIED_REVIEW_REQUIRES_FRESH_JITA_MARKET_SCAN")
     if report.get("market_execution_basis") != "OPTIMIZED_MATCHED_QUANTITY_AND_VWAP":
         raise RuntimeError("UNIFIED_REVIEW_REQUIRES_DEPTH_VWAP_MARKET_SCAN")
-    if review.get("contract_pricing_basis") != "JITA_4_4_BUY_DEPTH_SNAPSHOT":
+    if review.get("contract_pricing_basis") not in (
+            "JITA_4_4_BUY_DEPTH_SNAPSHOT",
+            "JITA_4_4_REGULAR_REFERENCE_NO_BUY_DEPTH_GATE"):
         raise RuntimeError("UNIFIED_REVIEW_REQUIRES_FRESH_JITA_CONTRACT_SCAN")
     exclusion=load_policy_for_run(report)
     blocked=Counter()
@@ -404,6 +416,7 @@ def render(review: dict, *, game: bool = False) -> tuple[str, str]:
                 f" 价{yi(p.get('contract_price'))}"
                 f" 净{yi(p['net_profit_snapshot'])} ROI{p['roi_snapshot']*100:.0f}%"
                 f"｜{contract_label(p)}"
+                f"{contract_liquidity_label(p)}"
                 + (f"｜{credited_volume_breakdown(p)}"
                    if credited_volume_breakdown(p) else ""))
     if blueprints:
@@ -481,6 +494,7 @@ def render_html(review: dict) -> tuple[str, str]:
                     f' ｜净{yi(p["net_profit_snapshot"])}'
                     f' ｜ROI {float(p["roi_snapshot"])*100:.0f}%'
                     f' ｜{html.escape(contract_label(p))}'
+                    f'{html.escape(contract_liquidity_label(p))}'
                     + (f' ｜{html.escape(credited_volume_breakdown(p))}'
                        if credited_volume_breakdown(p) else '') + '</p>')
         if not pairs and not contracts and not blueprints:
