@@ -201,13 +201,13 @@ def evaluate_blueprint_contract(contract, instances: list[dict], recipes: Mappin
     haul = _number(source_to_jita_haul)
     if price is None or price <= 0 or haul is None or haul < 0:
         return None
-    # User excluded BPO contracts entirely, including mixed BPO/BPC bundles.
+    # BPO contributes ZERO value, but must never veto the remaining BPCs.
+    # A BPO-only contract has no BPC manufacturing valuation lane.
     kinds = [blueprint_instance_kind(x.get("is_blueprint_copy"), x.get("runs"))
              for x in instances]
-    if "BPO" in kinds:
-        return None
+    ignored_bpo_count = sum(kind == "BPO" for kind in kinds)
     valid_bpc = [x for x, kind in zip(instances, kinds) if kind == "BPC"]
-    if not valid_bpc:  # BPO-only contract is never part of BPC research.
+    if not valid_bpc:
         return None
     possibilities = []
     for row in valid_bpc:
@@ -255,6 +255,7 @@ def evaluate_blueprint_contract(contract, instances: list[dict], recipes: Mappin
         "blueprint_type_id": strongest["blueprint_type_id"],
         "blueprint_kind": "BPC",
         "bundle_blueprint_total": len(valid_bpc),
+        "bundle_blueprint_ignored_bpo": ignored_bpo_count,
         "bundle_blueprint_evaluated": len(possibilities),
         "bundle_blueprint_selected": len(selected),
         "bundle_selected_fraction": SELECT_FRACTION,
@@ -292,6 +293,6 @@ def evaluate_blueprint_contract(contract, instances: list[dict], recipes: Mappin
         "scenario_caveats": (
             "All licensed BPC runs; top-five distinct level arithmetic mean; "
             "depth not guaranteed; top ceil(30%) of BPC bundle, full contract cost; "
-            "no BPO/resale/time/capital/sales-cycle value; not live executable."
+            "BPO items ignored, not contract-vetoed; no resale/time/capital/sales-cycle value; not live executable."
         ),
     }
