@@ -73,7 +73,7 @@ class DiscoveryMailTests(unittest.TestCase):
             ],kind="market",seen=seen,fallback_run=NEW)
             self.assertEqual([x["type_id"] for x in ordered],[35,34])
 
-    def test_10_newest_market_and_contracts_not_profit_pretruncated(self):
+    def test_10_most_profitable_market_and_contracts_not_discovery_pretruncated(self):
         self.assertEqual(MAX_EACH,10)
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp)
@@ -114,16 +114,18 @@ class DiscoveryMailTests(unittest.TestCase):
                              [x["contract_id"] for x in c])
             self.assertEqual(review["market_research_leads_total"],11)
             self.assertEqual(review["contract_research_leads_total"],11)
-            self.assertNotIn(34,[x["type_id"] for x in m])
-            self.assertNotIn(2000,[x["contract_id"] for x in c])
-            self.assertEqual({x["type_id"] for x in m},set(range(35,45)))
-            self.assertEqual({x["contract_id"] for x in c},set(range(2001,2011)))
+            self.assertEqual(m[0]["type_id"],34)
+            self.assertEqual(c[0]["contract_id"],2000)
+            self.assertNotIn(44,[x["type_id"] for x in m])
+            self.assertNotIn(2010,[x["contract_id"] for x in c])
+            self.assertEqual({x["type_id"] for x in m},set(range(34,44)))
+            self.assertEqual({x["contract_id"] for x in c},set(range(2000,2010)))
             for game in (False,True):
                 subject,body=render(review,game=game)
                 self.assertIn("市场10 合同10",subject)
                 self.assertIn("首见10-15 14:23",body)
-                self.assertNotIn("商品 34",body)
-                self.assertNotIn("合同 2000 ",body)
+                self.assertIn("商品 34",body)
+                self.assertIn("合同 2000 ",body)
             _,html=render_html(review)
             self.assertIn("首见10-15 14:23",html)
 
