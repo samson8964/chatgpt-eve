@@ -12,9 +12,16 @@ from unittest.mock import Mock, patch
 
 from v4.engine import Order
 from v4.esi_private_source_jita_ab import (
-    STRUCTURES, JITA, ParityError, _private_asks, _evaluate, audit,
-    _fresh_jita_books
+    JITA, ParityError, _private_asks, _evaluate, audit, _fresh_jita_books
 )
+
+# Stable historical A/B fixture. DO NOT use the Windows HOME opt-in registry:
+# six active production lanes must remain mandatory in real scans.
+STRUCTURES = {"C-J": 1049588174021, "O4T": 1040804972352}
+FIXTURE_LANES = {
+    "cj": (STRUCTURES["C-J"], "dc"),
+    "o4t": (STRUCTURES["O4T"], "dc"),
+}
 
 RUN="20261017T231839Z-9c24d05b"
 REF="20261017T152301Z-acd96c27"
@@ -57,6 +64,30 @@ class Catalog:
 
 
 class PrivateSourceABTests(unittest.TestCase):
+    def setUp(self):
+        # Patch ONLY this module's comparison scope during each isolated unit
+        # test. Production's structure_registry and deep_scan remain unmodified.
+        scope = patch.multiple(
+            "v4.esi_private_source_jita_ab",
+            AUTHORIZED_LANES=FIXTURE_LANES,
+            STRUCTURES=STRUCTURES,
+        )
+        scope.start()
+        self.addCleanup(scope.stop)
+
+    def test_scope_mismatch_fails_closed_even_in_six_station_mode(self):
+        # A real scan must NEVER drop active six-lane coverage merely because
+        # an older two-station A/B fixture exists.
+        raw, health = input_private()
+        full = dict(FIXTURE_LANES)
+        full["banestar"] = (1050474463169, "dc")
+        full["r_arkn"] = (1048663825563, "dc")
+        full["ualx"] = (1046664001931, "dc")
+        full["hy_rwo"] = (1049633275448, "dc")
+        with patch("v4.esi_private_source_jita_ab.AUTHORIZED_LANES", full):
+            with self.assertRaisesRegex(ParityError, "PRIVATE_STRUCTURE_COVERAGE_UNVERIFIED"):
+                _private_asks(raw, health)
+
     def test_private_book_accounting_and_privacy(self):
         raw,health=input_private()
         book,counts,hashes=_private_asks(raw,health)
