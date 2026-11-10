@@ -131,7 +131,7 @@ class UnifiedReviewTests(unittest.TestCase):
             self.assertLess(len(rich),1600)
             self.assertNotIn('审核记录',game)
 
-    def test_esi_blueprint_fee_reaches_research_digest_without_live_claim(self):
+    def test_esi_bpc_top5_bundle_reaches_research_digest(self):
         with tempfile.TemporaryDirectory() as td:
             root=Path(td)
             folder=root/"runs"/"20261014T112000Z-proof"
@@ -144,31 +144,39 @@ class UnifiedReviewTests(unittest.TestCase):
             proof={
                 "kind":"blueprint_manufacturing","model_candidate":True,
                 "status":"WATCH","contract_id":314,"blueprint_type_id":101,
-                "blueprint_kind":"BPC","material_efficiency":10,
-                "production_runs_assumed":2,"product_type_id":36,
-                "product_units":4,"contract_price_isk":200_000_000,
+                "blueprint_kind":"BPC","production_runs_assumed":20,
+                "product_type_id":36,"product_units":40,
+                "bundle_blueprint_total":4,"bundle_blueprint_selected":2,
+                "bundle_selected_type_ids":[101,102],
+                "bundle_selected_details":[
+                    {"blueprint_type_id":101,"product_type_id":36},
+                    {"blueprint_type_id":102,"product_type_id":37}],
+                "contract_price_isk":200_000_000,
                 "product_gross_isk":800_000_000,"material_cost_isk":20_000_000,
                 "manufacturing_fee_isk":3_135_000,
                 "manufacturing_fee_snapshot_verified":True,
-                "manufacturing_eiv_isk":22_000_000,
                 "manufacturing_fee_observed_at_utc":"2026-11-10T00:00:00Z",
                 "facility_fee_status":"ESI_ADJUSTED_PRICES_SYSTEM_COST_INDEX_JITA_NPC_REFERENCE_NOT_JOB_QUOTE",
-                "valuation_basis":"JITA_BUY_FINISHED_GOODS_JITA_SELL_MATERIALS_SNAPSHOT",
-                "jita_material_ask_depth_verified_in_snapshot":True,
-                "jita_product_buy_depth_verified_in_snapshot":True,
-                "net_profit":546_865_000,"roi":2.4,"source_location":60003760,
+                "valuation_basis":"JITA_TOP5_BPC_MANUFACTURE_30PCT_BUNDLE_ESTIMATE",
+                "jita_material_top5_prices_observed":True,
+                "jita_product_top5_prices_observed":True,
+                "net_profit":546_865_000,"roi":2.4,"risk_score":20,
+                "risk_flags":["SNAPSHOT_DEPTH_BELOW_MODEL_QUANTITY"],
+                "source_location":60003760,
             }
             (folder/"all_proofs.jsonl").write_text(
-                json.dumps(proof)+"\n",encoding="utf-8")
+                json.dumps(proof)+"\\n",encoding="utf-8")
             with patch("v4.unified_review.contract_review",return_value=mocked_contract()):
                 review=make_review(root)
             self.assertEqual(review["blueprint_research_leads_total"],1)
             lead=review["blueprint_research_leads"][0]
             self.assertEqual(lead["fee_reserve"],3_135_000)
-            self.assertIn("ESI Jita NPC index",lead["cost_basis"])
+            self.assertEqual(lead["bundle_blueprint_selected"],2)
+            self.assertGreater(lead["ranking_score"],0)
             self.assertFalse(lead["actionable"])
             _,email=render(review,game=False)
-            self.assertIn("ESI Jita NPC index",email)
+            self.assertIn("BPC组合2/4张",email)
+            self.assertIn("综合分",email)
 
     def test_missing_npc_reference_warning_in_both_mail_formats(self):
         review=mocked_contract()
