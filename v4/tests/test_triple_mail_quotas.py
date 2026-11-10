@@ -36,10 +36,14 @@ class TripleMailQuotaTests(unittest.TestCase):
                     "kind":"blueprint_manufacturing","status":"WATCH",
                     "reason":"BLUEPRINT_MANUFACTURING_MODEL_ESTIMATE_FEE_UNVERIFIED",
                     "model_candidate":True,
-                    "valuation_basis":"JITA_BUY_FINISHED_GOODS_JITA_SELL_MATERIALS_SNAPSHOT",
-                    "facility_fee_status":"20_PERCENT_MATERIAL_COST_RESERVE_NOT_FACILITY_VERIFIED",
-                    "jita_material_ask_depth_verified_in_snapshot":True,
-                    "jita_product_buy_depth_verified_in_snapshot":True,
+                    "valuation_basis":"JITA_TOP5_BPC_MANUFACTURE_30PCT_BUNDLE_ESTIMATE",
+                    "facility_fee_status":"ESI_ADJUSTED_PRICES_SYSTEM_COST_INDEX_JITA_NPC_REFERENCE_NOT_JOB_QUOTE",
+                    "manufacturing_fee_snapshot_verified":True,
+                    "jita_material_top5_prices_observed":True,
+                    "jita_product_top5_prices_observed":True,
+                    "risk_score":15,
+                    "bundle_blueprint_total":1,"bundle_blueprint_selected":1,
+                    "bundle_selected_details":[{"blueprint_type_id":100+i,"product_type_id":200+i}],
                     "contract_id":123456+i,
                     "blueprint_type_id":100+i,
                     "blueprint_kind":"BPC",
@@ -49,7 +53,7 @@ class TripleMailQuotaTests(unittest.TestCase):
                     "product_units":1,
                     "contract_price_isk":10_000_000,
                     "material_cost_isk":20_000_000,
-                    "manufacturing_fee_reserve_isk":4_000_000,
+                    "manufacturing_fee_isk":4_000_000,
                     "sales_tax_isk":1_000_000,
                     "net_profit":100_000_000+i,
                     "roi":2.0,
@@ -62,6 +66,7 @@ class TripleMailQuotaTests(unittest.TestCase):
             self.assertEqual(review["contract_research_leads_total"],0)
             self.assertEqual(review["blueprint_research_leads_total"],15)
             self.assertEqual(len(review["blueprint_research_leads"]),10)
+            self.assertEqual(review["blueprint_research_leads"][0]["contract_id"],123470)
             self.assertEqual(len(review["market_research_leads"]),0)
             self.assertEqual(len(review["contract_research_leads"]),0)
             subject,body=render(review)

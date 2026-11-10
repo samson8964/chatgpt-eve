@@ -23,6 +23,20 @@ from v4.structure_registry import STATIONS as APPROVED_STRUCTURES, LANE_TO_LABEL
 JITA = 60003760
 WORKER = "https://eve-contract-opener.99617224.workers.dev"
 MAX_EACH = 10
+# Approved mail rule: net profit >= 50m, ROI > 10%, descending profit.
+# ROI and risk may be displayed, but never secretly reweight the ranking.
+def research_mail_eligible(lead: dict) -> bool:
+    profit = _amount(lead.get("net_profit_snapshot"))
+    roi = _amount(lead.get("roi_snapshot"))
+    policy = Policy()
+    return (profit is not None and profit >= policy.profit_floor and
+            roi is not None and roi > policy.min_roi)
+
+
+def research_profit_sort_key(lead: dict):
+    return (-float(lead["net_profit_snapshot"]),
+            -float(lead["roi_snapshot"]),
+            int(lead.get("contract_id") or lead.get("type_id") or 0))
 LOCATION_NAMES = {
     60003760:"吉他4-4", 60008494:"Amarr", 60011866:"Dodixie",
     **{location: name for name, location in APPROVED_STRUCTURES.items()},
@@ -121,51 +135,63 @@ def make_review(root: Path, *, limit_each: int = MAX_EACH) -> dict:
                 continue
             row = json.loads(line)
             if row.get("kind") == "blueprint_manufacturing":
-                blueprint_examined+=1
-                # Strictly research-only. Never trust unaudited profit fields
-                # that bypass the manufacturing model provenance.
+                blueprint_examined += 1
+                # The BPC strategy has its own provenance, not the old Jita
+                # depth-executable valuation. BPO and resale do not enter.
                 if (row.get("model_candidate") is True and
                     row.get("status") == "WATCH" and
+                    row.get("blueprint_kind") == "BPC" and
                     row.get("valuation_basis") ==
-                      "JITA_BUY_FINISHED_GOODS_JITA_SELL_MATERIALS_SNAPSHOT" and
-                    row.get("facility_fee_status") in (
-                      "20_PERCENT_MATERIAL_COST_RESERVE_NOT_FACILITY_VERIFIED",
-                      "ESI_ADJUSTED_PRICES_SYSTEM_COST_INDEX_JITA_NPC_REFERENCE_NOT_JOB_QUOTE") and
-                    row.get("jita_material_ask_depth_verified_in_snapshot") is True and
-                    row.get("jita_product_buy_depth_verified_in_snapshot") is True):
-                    net=_amount(row.get("net_profit"))
-                    roi=_amount(row.get("roi"))
-                    if net is not None and net>=50_000_000 and roi is not None and roi>.10:
-                        if exclusion is not None and exclusion.blocks_blueprint(
-                                row.get("blueprint_type_id"),row.get("product_type_id")):
-                            blocked["blueprint_manufacturing"]+=1
+                        "JITA_TOP5_BPC_MANUFACTURE_30PCT_BUNDLE_ESTIMATE" and
+                    row.get("facility_fee_status") ==
+                        "ESI_ADJUSTED_PRICES_SYSTEM_COST_INDEX_JITA_NPC_REFERENCE_NOT_JOB_QUOTE" and
+                    row.get("manufacturing_fee_snapshot_verified") is True and
+                    row.get("jita_material_top5_prices_observed") is True and
+                    row.get("jita_product_top5_prices_observed") is True):
+                    net = _amount(row.get("net_profit"))
+                    roi = _amount(row.get("roi"))
+                    risk = _amount(row.get("risk_score"))
+                    if (net is not None and net >= 50_000_000 and
+                        roi is not None and roi > .10 and
+                        risk is not None and 0 <= risk <= 100):
+                        selected = row.get("bundle_selected_details") or []
+                        if not isinstance(selected, list) or not selected:
                             continue
-                        blueprints.append({
-                            "contract_id":row.get("contract_id"),
-                            "blueprint_type_id":row.get("blueprint_type_id"),
-                            "blueprint_kind":row.get("blueprint_kind"),
-                            "material_efficiency":row.get("material_efficiency"),
-                            "production_runs_assumed":row.get("production_runs_assumed"),
-                            "product_type_id":row.get("product_type_id"),
-                            "product_units":row.get("product_units"),
-                            "contract_price":row.get("contract_price_isk"),
-                            "product_gross":row.get("product_gross_isk"),
-                            "material_cost":row.get("material_cost_isk"),
-                            "fee_reserve":row.get("manufacturing_fee_isk",row.get("manufacturing_fee_reserve_isk")),
-                            "manufacturing_eiv_isk":row.get("manufacturing_eiv_isk"),
-                            "manufacturing_fee_status":row.get("facility_fee_status"),
-                            "manufacturing_fee_observed_at_utc":row.get("manufacturing_fee_observed_at_utc"),
-                            "sales_tax":row.get("sales_tax_isk"),
-                            "net_profit_snapshot":net,
-                            "roi_snapshot":roi,
-                            "source_location":row.get("source_location"),
-                            "cost_basis":(
-                                "ESI Jita NPC index + adjusted EIV + 0.25% facility + 4% SCC; no live job quote"
-                                if row.get("manufacturing_fee_snapshot_verified") is True else
-                                "20% material cost fee reserve; actual facility taxes unverified"),
-                            "live_verified":False,
-                            "actionable":False,
-                        })
+                        if (exclusion is not None and any(
+                            exclusion.blocks_blueprint(
+                                x.get("blueprint_type_id"), x.get("product_type_id"))
+                            for x in selected)):
+                            blocked["blueprint_manufacturing"] += 1
+                            continue
+                        lead = {
+                            "contract_id": row.get("contract_id"),
+                            "blueprint_type_id": row.get("blueprint_type_id"),
+                            "blueprint_kind": "BPC",
+                            "production_runs_assumed": row.get("production_runs_assumed"),
+                            "product_type_id": row.get("product_type_id"),
+                            "product_units": row.get("product_units"),
+                            "bundle_blueprint_total": row.get("bundle_blueprint_total"),
+                            "bundle_blueprint_selected": row.get("bundle_blueprint_selected"),
+                            "bundle_selected_type_ids": row.get("bundle_selected_type_ids"),
+                            "bundle_selected_details": selected,
+                            "contract_price": row.get("contract_price_isk"),
+                            "product_gross": row.get("product_gross_isk"),
+                            "material_cost": row.get("material_cost_isk"),
+                            "fee_reserve": row.get("manufacturing_fee_isk"),
+                            "manufacturing_fee_status": row.get("facility_fee_status"),
+                            "manufacturing_fee_observed_at_utc": row.get("manufacturing_fee_observed_at_utc"),
+                            "sales_tax": row.get("sales_tax_isk"),
+                            "net_profit_snapshot": net,
+                            "roi_snapshot": roi,
+                            "risk_score": risk,
+                            "risk_flags": row.get("risk_flags") or [],
+                            "source_location": row.get("source_location"),
+                            "cost_basis": "Jita top-five distinct price mean + ESI manufacturing reference fee; not depth executable",
+                            "live_verified": False,
+                            "actionable": False,
+                        }
+                        # Risk still appears in mail, never in ordering.
+                        blueprints.append(lead)
                 continue
             if row.get("kind") != "market":
                 continue
@@ -194,7 +220,8 @@ def make_review(root: Path, *, limit_each: int = MAX_EACH) -> dict:
             jita_vwap = _amount(row.get("jita_vwap_isk_per_unit"))
             if (profit is None or roi is None or stress is None or capital is None or
                     source_vwap is None or jita_vwap is None or
-                    profit <= 0 or roi <= 0 or stress <= Policy().profit_floor or capital <= 0 or
+                    profit < Policy().profit_floor or roi <= Policy().min_roi or
+                    stress <= Policy().profit_floor or capital <= 0 or
                     source_vwap <= 0 or jita_vwap <= 0 or
                     row.get("quantity_optimized") is not True):
                 continue
@@ -227,6 +254,8 @@ def make_review(root: Path, *, limit_each: int = MAX_EACH) -> dict:
     seen = first_seen(root, folder.name)
     market = order_by_discovery(market, kind="market", seen=seen,
                                 fallback_run=folder.name)
+    market = [lead for lead in market if research_mail_eligible(lead)]
+    market.sort(key=research_profit_sort_key)
     all_contracts=review.get("research_leads") or []
     if exclusion is not None:
         # Defense in depth: even if a caller bypassed contract_review, no
@@ -241,8 +270,12 @@ def make_review(root: Path, *, limit_each: int = MAX_EACH) -> dict:
     contracts = order_by_discovery(all_contracts,
                                    kind="contract", seen=seen,
                                    fallback_run=folder.name)
-    blueprints = order_by_discovery(blueprints,kind="blueprint",
-                                   seen=seen,fallback_run=folder.name)
+    contracts = [lead for lead in contracts if research_mail_eligible(lead)]
+    contracts.sort(key=research_profit_sort_key)
+    blueprints = order_by_discovery(blueprints, kind="blueprint",
+                                   seen=seen, fallback_run=folder.name)
+    blueprints = [lead for lead in blueprints if research_mail_eligible(lead)]
+    blueprints.sort(key=research_profit_sort_key)
     cap = max(0, min(int(limit_each), MAX_EACH))
     review.update({
         "report_type":"V4_UNIFIED_MARKET_AND_CONTRACT_REVIEW_ONLY",
@@ -385,15 +418,16 @@ def render(review: dict, *, game: bool = False) -> tuple[str, str]:
                 label=f"蓝图合同 {cid} {WORKER}/c/{cid}"
             lines.append(
                 f"{n}. {label} {place(p.get('source_location'))}"
-                f" 蓝图{bpid} {p['blueprint_kind']} ×{p['production_runs_assumed']}次"
-                f"→成品{product}×{p['product_units']}"
+                f" BPC组合{p.get('bundle_blueprint_selected')}/{p.get('bundle_blueprint_total')}张"
+                f"（代表蓝图{bpid}，共{p['production_runs_assumed']}次）"
                 f"｜净{yi(p['net_profit_snapshot'])} ROI{p['roi_snapshot']*100:.0f}%"
                 f"｜成品卖出{yi(p.get('product_gross'))}"
                 f" 合同{yi(p.get('contract_price'))}"
                 f" 材料{yi(p['material_cost'])}"
                 f" 销售税{yi(p.get('sales_tax'))}"
                 f" 制造费{yi(p['fee_reserve'])}"
-                f"（{p.get('cost_basis') or '制造费用待核'}；技能、工期与成交待核）")
+                f" 风险{p.get('risk_score', 0):.0f}/100"
+                f"（吉他前5档均价；非即时成交，未计时间/资金占用）")
     if not pairs and not contracts and not blueprints:
         lines.append("本轮暂无候选。")
     if review.get("npc_catalog_status") == "NOT_INSTALLED_LEGACY_CONTRACT_SCOPE":
@@ -452,15 +486,14 @@ def render_html(review: dict) -> tuple[str, str]:
         if not pairs and not contracts and not blueprints:
             blocks.append("<p>本轮暂无候选。</p>")
     if blueprints:
-        blocks.append('<p><strong>蓝图制造（成本预留估算，非交易核验）</strong></p>')
+        blocks.append('<p><strong>BPC制造（吉他前5档均价，非即时成交）</strong></p>')
         for n,b in enumerate(blueprints,1):
             cid=int(b["contract_id"])
             blocks.append(
                 f'<p>{n}. <a href="{WORKER}/c/{cid}">合同 {cid}</a>'
-                f' 蓝图{int(b["blueprint_type_id"])}'
-                f' {html.escape(str(b["blueprint_kind"]))}'
+                f' BPC组合{int(b.get("bundle_blueprint_selected") or 1)}/{int(b.get("bundle_blueprint_total") or 1)}张'
+                f' 代表蓝图{int(b["blueprint_type_id"])}'
                 f' 制造{int(b["production_runs_assumed"])}次'
-                f' 成品{int(b["product_type_id"])}×{int(b["product_units"])}'
                 f' 净{yi(b["net_profit_snapshot"])}'
                 f' ROI{float(b["roi_snapshot"])*100:.0f}%'
                 f' 成品卖出{yi(b.get("product_gross"))}'
@@ -468,7 +501,8 @@ def render_html(review: dict) -> tuple[str, str]:
                 f' 材料{yi(b["material_cost"])}'
                 f' 销售税{yi(b.get("sales_tax"))}'
                 f' 制造费{yi(b["fee_reserve"])}'
-                f'（{b.get("cost_basis") or "制造费用待核"}；工期、技能与成交待核）</p>')
+                 f' 风险{float(b.get("risk_score") or 0):.0f}/100'
+                '（前5档均价，非即时成交，未计时间/资金占用）</p>')
     if review.get("npc_catalog_status") == "NOT_INSTALLED_LEGACY_CONTRACT_SCOPE":
         blocks.append('<p>注意：NPC高低安目录未安装，本轮合同仍仅覆盖旧站点。</p>')
     if pairs or contracts:

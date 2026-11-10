@@ -331,9 +331,13 @@ def run(market_path,contract_path,output,api_key=''):
         # Separate, explicitly bounded blueprint manufacturing research lane.
         # No manufacturing recipes -> no fabricated BOM or blueprints email.
         if bp_instances.get(cid) and manufacturing_recipes:
+            # BPOs remain in the purchased contract but contribute zero
+            # manufacturing value and are not assumed to be transported.
             bp_ship_volume=sum(
                 (catalog.volume(x['type_id']) or 0)*int(x['quantity'])
-                for x in bp_instances[cid])
+                for x in bp_instances[cid]
+                if blueprint_instance_kind(x.get('is_blueprint_copy'),
+                                           x.get('runs'))=='BPC')
             # Building is modelled at Jita: ship only purchased blueprints
             # to Jita, materials and output trades take place at Jita.
             ship=subset_haul(bp_ship_volume) if bp_ship_volume>0 else None
@@ -399,8 +403,13 @@ def run(market_path,contract_path,output,api_key=''):
        blueprint_manufacturing_valuation_errors=blueprint_recipe_valuation_errors,
        blueprint_manufacturing_recipe_count=len(manufacturing_recipes),
        blueprint_manufacturing_cost_basis=(
-           'JITA_SELL_INPUT_BUY_OUTPUT_PLUS_ESI_EIV_JITA_NPC_MANUFACTURING_INDEX_FEES'
-           if fee_context else 'JITA_SELL_INPUT_BUY_OUTPUT_PLUS_20PCT_MATERIAL_FEE_RESERVE'),
+           'BPC_ACTUAL_LICENSED_RUNS_JITA_TOP5_DISTINCT_ASK_BID_MEAN_ESI_NPC_FEE_BUNDLE_TOP30'
+           if fee_context else 'BPC_TOP5_BUNDLE_TOP30_LEGACY_UNVERIFIED_FEE'),
+       blueprint_manufacturing_price_basis='JITA_TOP5_DISTINCT_PRICE_LEVELS_SIMPLE_MEAN_NO_DEPTH_GATE',
+       blueprint_manufacturing_bundle_basis='TOP_CEIL_30PCT_POSITIVE_CONTRIBUTION_FULL_CONTRACT_PRICE_ONCE',
+       blueprint_manufacturing_bpo_included=False,
+       blueprint_manufacturing_resale_included=False,
+       blueprint_manufacturing_time_or_capital_cost_included=False,
        blueprint_manufacturing_fee_source=('ESI_JITA_NPC_REFERENCE' if fee_context else 'UNVERIFIED_20PCT_MATERIAL_RESERVE'),
        blueprint_manufacturing_fee_source_error=fee_context_error,
        blueprint_manufacturing_fee_snapshot_observed_at_utc=(
