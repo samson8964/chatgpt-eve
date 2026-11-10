@@ -201,10 +201,12 @@ def evaluate_blueprint_contract(contract, instances: list[dict], recipes: Mappin
     haul = _number(source_to_jita_haul)
     if price is None or price <= 0 or haul is None or haul < 0:
         return None
-    valid_bpc = [
-        x for x in instances
-        if blueprint_instance_kind(x.get("is_blueprint_copy"), x.get("runs")) == "BPC"
-    ]
+    # User excluded BPO contracts entirely, including mixed BPO/BPC bundles.
+    kinds = [blueprint_instance_kind(x.get("is_blueprint_copy"), x.get("runs"))
+             for x in instances]
+    if "BPO" in kinds:
+        return None
+    valid_bpc = [x for x, kind in zip(instances, kinds) if kind == "BPC"]
     if not valid_bpc:  # BPO-only contract is never part of BPC research.
         return None
     possibilities = []
