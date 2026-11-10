@@ -23,21 +23,20 @@ from v4.structure_registry import STATIONS as APPROVED_STRUCTURES, LANE_TO_LABEL
 JITA = 60003760
 WORKER = "https://eve-contract-opener.99617224.workers.dev"
 MAX_EACH = 10
-# Research opportunity ranking: economic profit (45), ROI (30), safety (25).
-BPC_RANK_WEIGHTS = (45.0, 30.0, 25.0)
-
-
-def bpc_research_score(lead: dict) -> float:
+# Approved mail rule: net profit >= 50m, ROI > 10%, descending profit.
+# ROI and risk may be displayed, but never secretly reweight the ranking.
+def research_mail_eligible(lead: dict) -> bool:
     profit = _amount(lead.get("net_profit_snapshot"))
     roi = _amount(lead.get("roi_snapshot"))
-    risk = _amount(lead.get("risk_score"))
-    if profit is None or roi is None or risk is None:
-        return 0.0
-    profit_norm = min(1.0, math.log1p(max(0, profit) / 50_000_000) / math.log1p(20))
-    roi_norm = min(1.0, math.log1p(max(0.0, roi)) / math.log1p(2))
-    safety_norm = 1.0 - max(0.0, min(100.0, risk)) / 100.0
-    a, b, c = BPC_RANK_WEIGHTS
-    return round(a * profit_norm + b * roi_norm + c * safety_norm, 4)
+    policy = Policy()
+    return (profit is not None and profit >= policy.profit_floor and
+            roi is not None and roi > policy.min_roi)
+
+
+def research_profit_sort_key(lead: dict):
+    return (-float(lead["net_profit_snapshot"]),
+            -float(lead["roi_snapshot"]),
+            int(lead.get("contract_id") or lead.get("type_id") or 0))
 LOCATION_NAMES = {
     60003760:"吉他4-4", 60008494:"Amarr", 60011866:"Dodixie",
     **{location: name for name, location in APPROVED_STRUCTURES.items()},
@@ -191,7 +190,7 @@ def make_review(root: Path, *, limit_each: int = MAX_EACH) -> dict:
                             "live_verified": False,
                             "actionable": False,
                         }
-                        lead["ranking_score"] = bpc_research_score(lead)
+                        # Risk still appears in mail, never in ordering.
                         blueprints.append(lead)
                 continue
             if row.get("kind") != "market":
@@ -221,7 +220,8 @@ def make_review(root: Path, *, limit_each: int = MAX_EACH) -> dict:
             jita_vwap = _amount(row.get("jita_vwap_isk_per_unit"))
             if (profit is None or roi is None or stress is None or capital is None or
                     source_vwap is None or jita_vwap is None or
-                    profit <= 0 or roi <= 0 or stress <= Policy().profit_floor or capital <= 0 or
+                    profit < Policy().profit_floor or roi <= Policy().min_roi or
+                    stress <= Policy().profit_floor or capital <= 0 or
                     source_vwap <= 0 or jita_vwap <= 0 or
                     row.get("quantity_optimized") is not True):
                 continue
@@ -254,6 +254,8 @@ def make_review(root: Path, *, limit_each: int = MAX_EACH) -> dict:
     seen = first_seen(root, folder.name)
     market = order_by_discovery(market, kind="market", seen=seen,
                                 fallback_run=folder.name)
+    market = [lead for lead in market if research_mail_eligible(lead)]
+    market.sort(key=research_profit_sort_key)
     all_contracts=review.get("research_leads") or []
     if exclusion is not None:
         # Defense in depth: even if a caller bypassed contract_review, no
@@ -268,10 +270,12 @@ def make_review(root: Path, *, limit_each: int = MAX_EACH) -> dict:
     contracts = order_by_discovery(all_contracts,
                                    kind="contract", seen=seen,
                                    fallback_run=folder.name)
-    # Rank by profit + ROI + risk; no first-discovered ten-slot blocking.
-    blueprints.sort(key=lambda p: (
-        -p["ranking_score"], -p["net_profit_snapshot"],
-        -p["roi_snapshot"], p["risk_score"], int(p["contract_id"])))
+    contracts = [lead for lead in contracts if research_mail_eligible(lead)]
+    contracts.sort(key=research_profit_sort_key)
+    blueprints = order_by_discovery(blueprints, kind="blueprint",
+                                   seen=seen, fallback_run=folder.name)
+    blueprints = [lead for lead in blueprints if research_mail_eligible(lead)]
+    blueprints.sort(key=research_profit_sort_key)
     cap = max(0, min(int(limit_each), MAX_EACH))
     review.update({
         "report_type":"V4_UNIFIED_MARKET_AND_CONTRACT_REVIEW_ONLY",
@@ -422,7 +426,7 @@ def render(review: dict, *, game: bool = False) -> tuple[str, str]:
                 f" 材料{yi(p['material_cost'])}"
                 f" 销售税{yi(p.get('sales_tax'))}"
                 f" 制造费{yi(p['fee_reserve'])}"
-                f" 综合分{p.get('ranking_score', 0):.1f} 风险{p.get('risk_score', 0):.0f}/100"
+                f" 风险{p.get('risk_score', 0):.0f}/100"
                 f"（吉他前5档均价；非即时成交，未计时间/资金占用）")
     if not pairs and not contracts and not blueprints:
         lines.append("本轮暂无候选。")
@@ -497,8 +501,7 @@ def render_html(review: dict) -> tuple[str, str]:
                 f' 材料{yi(b["material_cost"])}'
                 f' 销售税{yi(b.get("sales_tax"))}'
                 f' 制造费{yi(b["fee_reserve"])}'
-                f' 综合分{float(b.get("ranking_score") or 0):.1f}'
-                f' 风险{float(b.get("risk_score") or 0):.0f}/100'
+                 f' 风险{float(b.get("risk_score") or 0):.0f}/100'
                 '（前5档均价，非即时成交，未计时间/资金占用）</p>')
     if review.get("npc_catalog_status") == "NOT_INSTALLED_LEGACY_CONTRACT_SCOPE":
         blocks.append('<p>注意：NPC高低安目录未安装，本轮合同仍仅覆盖旧站点。</p>')
