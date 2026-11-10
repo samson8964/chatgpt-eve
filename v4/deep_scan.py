@@ -31,6 +31,7 @@ from v4.contract_content_policy import CRYSTAL_SHARE_BASIS
 from v4.contract_partial import partial_cash_contract_proof
 from v4.blueprint_recipes import load as load_blueprint_recipes
 from v4.blueprint_manufacturing import evaluate_blueprint_contract
+from v4.industry_fees import load_jita_npc_fee_context
 
 JITA = 60003760
 KNOWN_STATIONS = {'jita': JITA, 'amarr': 60008494, 'dodixie':60011866}
@@ -253,6 +254,15 @@ def run(market_path,contract_path,output,api_key=''):
         blueprints_reference=None
         blueprint_recipe_error=type(e).__name__
     manufacturing_recipes=((blueprints_reference or {}).get('manufacturing_recipes') or {})
+    # One pair of public ESI requests per completed scan, not per blueprint.
+    # On fetch failure retain explicitly marked legacy research estimates.
+    fee_context=None
+    fee_context_error=None
+    if manufacturing_recipes:
+        try:
+            fee_context=load_jita_npc_fee_context(fetch=request)
+        except (requests.RequestException,ValueError,TypeError,KeyError,RuntimeError) as exc:
+            fee_context_error=type(exc).__name__
     blueprint_recipe_valuation_errors=0
     for row in inc[inc['contract_id'].isin(set(local_contracts['contract_id']))].itertuples(index=False):
         key=int(row.contract_id);typ=int(row.type_id);qty=int(row.quantity)
@@ -330,7 +340,7 @@ def run(market_path,contract_path,output,api_key=''):
             try:
                 bp=evaluate_blueprint_contract(
                     row,bp_instances[cid],manufacturing_recipes,markets,ship,
-                    policy=POLICY)
+                    policy=POLICY,fee_context=fee_context)
             except (ValueError,TypeError,KeyError,OverflowError):
                 blueprint_recipe_valuation_errors+=1
                 bp=None
@@ -388,7 +398,13 @@ def run(market_path,contract_path,output,api_key=''):
        blueprint_manufacturing_recipe_error_type=blueprint_recipe_error,
        blueprint_manufacturing_valuation_errors=blueprint_recipe_valuation_errors,
        blueprint_manufacturing_recipe_count=len(manufacturing_recipes),
-       blueprint_manufacturing_cost_basis='JITA_SELL_INPUT_BUY_OUTPUT_PLUS_20PCT_MATERIAL_FEE_RESERVE',
+       blueprint_manufacturing_cost_basis=(
+           'JITA_SELL_INPUT_BUY_OUTPUT_PLUS_ESI_EIV_JITA_NPC_MANUFACTURING_INDEX_FEES'
+           if fee_context else 'JITA_SELL_INPUT_BUY_OUTPUT_PLUS_20PCT_MATERIAL_FEE_RESERVE'),
+       blueprint_manufacturing_fee_source=('ESI_JITA_NPC_REFERENCE' if fee_context else 'UNVERIFIED_20PCT_MATERIAL_RESERVE'),
+       blueprint_manufacturing_fee_source_error=fee_context_error,
+       blueprint_manufacturing_fee_snapshot_observed_at_utc=(
+           fee_context.observed_at_utc if fee_context else None),
        blueprint_manufacturing_candidates=sum(
            p.get('kind')=='blueprint_manufacturing' and p.get('model_candidate') is True
            for p in proofs),
@@ -422,7 +438,11 @@ def run(market_path,contract_path,output,api_key=''):
                  'ALL contract item valuations use Jita 4-4 BUY order-depth snapshots regardless of pickup location',
                  'Non-Jita estimated haul is deducted when calculable, otherwise HAUL_UNVERIFIED; no live delivery/access verification'] +
                  (['Malformed input orders were explicitly quarantined; this is PARTIAL source input coverage']
-                  if quarantined else []))
+                  if quarantined else []) +
+                 (['Blueprint fee ESI snapshot unavailable; old 20% cost reserve remains RESEARCH ONLY']
+                  if fee_context_error else []) +
+                 (['Blueprint fees use Jita NPC ESI reference, NOT a live industry-job quote or structure-specific fee']
+                  if fee_context else []))
     path=Path(output);path.parent.mkdir(parents=True,exist_ok=True)
     path.write_text(json.dumps(report,ensure_ascii=False,indent=2,default=str,allow_nan=False),encoding='utf-8')
     proof_path=path.with_name('all_proofs.jsonl')
