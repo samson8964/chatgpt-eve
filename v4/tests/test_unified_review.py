@@ -165,7 +165,7 @@ class UnifiedReviewTests(unittest.TestCase):
                 "source_location":60003760,
             }
             (folder/"all_proofs.jsonl").write_text(
-                json.dumps(proof)+"\\n",encoding="utf-8")
+                json.dumps(proof)+"\n",encoding="utf-8")
             with patch("v4.unified_review.contract_review",return_value=mocked_contract()):
                 review=make_review(root)
             self.assertEqual(review["blueprint_research_leads_total"],1)
