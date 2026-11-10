@@ -28,7 +28,7 @@ from v4.market_execution import gross_depth_upper_bound
 from v4.sources import market_dataframe, contract_dataframes
 from v4.npc_station_catalog import load_catalog
 from v4.contract_content_policy import CRYSTAL_SHARE_BASIS
-from v4.contract_partial import partial_cash_contract_proof
+from v4.contract_partial import partial_cash_contract_proof, CONTRACT_VALUATION_BASIS, CONTRACT_REFERENCE_BASIS
 from v4.blueprint_recipes import load as load_blueprint_recipes
 from v4.blueprint_manufacturing import evaluate_blueprint_contract
 from v4.industry_fees import load_jita_npc_fee_context
@@ -287,6 +287,8 @@ def run(market_path,contract_path,output,api_key=''):
         contract_location=int(row['start_location_id'])
         jita_bids={t:markets.get((JITA,int(t),True),[])
                    for t in by_contract[cid]}
+        jita_asks={t:markets.get((JITA,int(t),False),[])
+                   for t in by_contract[cid]}
         # The whole contract price is paid, but uncredited goods are left at
         # source and valued zero. Only the credited subset is hauled.
         def subset_haul(cargo_m3, src=contract_location):
@@ -294,7 +296,8 @@ def run(market_path,contract_path,output,api_key=''):
                 return haul(src,JITA,cargo_m3,stations,npc_stations)
             return haul(src,JITA,cargo_m3,stations)
         proof=partial_cash_contract_proof(
-            row,by_contract[cid],jita_bids,catalog,subset_haul,policy=POLICY)
+            row,by_contract[cid],jita_bids,catalog,subset_haul,
+            policy=POLICY,ask_books=jita_asks)
         cargo_m3=proof.get('cargo_volume_m3')
         haul_estimate=proof.get('haul_isk')
         crystal_share=proof.get('energy_crystal_value_share')
@@ -303,7 +306,7 @@ def run(market_path,contract_path,output,api_key=''):
                      included_items=by_contract[cid],
                      contract_price=float(row.get('price') or 0),
                      contract_title=str(row.get('title') or '')[:180],
-                     valuation_basis='JITA_4_4_BUY_DEPTH_SNAPSHOT_NOT_LIVE',
+                     valuation_basis=CONTRACT_VALUATION_BASIS,
                      valuation_location_id=JITA,
                      contract_access_verified=False,
                      haul_cost_estimate_isk=haul_estimate,
@@ -323,7 +326,7 @@ def run(market_path,contract_path,output,api_key=''):
                                  if (npc_stations.get(contract_location) or {}).get('band')=='LOW'
                                  else 'LEGACY_STATION_OR_STRUCTURE_ESTIMATE'),
                      destination_location=JITA,
-                     jita_exit_buy_orders_only=True,
+                     jita_exit_buy_orders_only=proof.get('jita_buy_depth_sufficient_for_credited_items',False),
                      expires_at=str(row.get('date_expired','')))
         quarantine_snapshot_candidate(proof)
         proofs.append(proof)
@@ -395,7 +398,7 @@ def run(market_path,contract_path,output,api_key=''):
        npc_contracts_approved_for_deep_analysis=int(
            local_contracts['start_location_id'].isin(set(npc_stations)).sum()),
        npc_contract_scope_definition='CCP_SDE_NPC_STATIONS_WITH_POSITIVE_SYSTEM_SECURITY',
-       contract_pricing_basis='JITA_4_4_BUY_DEPTH_SNAPSHOT',
+       contract_pricing_basis='JITA_4_4_REGULAR_REFERENCE_NO_BUY_DEPTH_GATE',
        blueprint_manufacturing_recipe_status=(
            'INVALID' if blueprint_recipe_error else
            'INSTALLED' if manufacturing_recipes else 'NOT_INSTALLED'),
@@ -429,7 +432,16 @@ def run(market_path,contract_path,output,api_key=''):
        contract_partial_ignored_no_jita_buy_item_types=sum(
            p.get('ignored_no_bid_types',0)
            for p in proofs if p.get('kind')=='contract'),
-       contract_partial_valuation_basis='JITA_CREDITED_REGULAR_BUY_DEPTH_IGNORED_CARGO_ZERO',
+       contract_partial_valuation_basis=CONTRACT_REFERENCE_BASIS,
+       contract_partial_ignored_no_reference_item_types=sum(
+           p.get('ignored_no_reference_types',0) for p in proofs if p.get('kind')=='contract'),
+       contract_partial_ask_only_reference_proofs=sum(
+           p.get('kind')=='contract' and p.get('contract_ask_only_reference_share',0)>0
+           for p in proofs),
+       contract_partial_insufficient_jita_buy_depth_proofs=sum(
+           p.get('kind')=='contract' and
+           'JITA_BUY_DEPTH_INSUFFICIENT' in p.get('contract_liquidity_risk_flags',())
+           for p in proofs),
        contract_ordinary_min_stress_not_required=True,
        contract_crystal_screen_basis=CRYSTAL_SHARE_BASIS,
        contract_min_net_profit_isk=50_000_000,
@@ -444,7 +456,7 @@ def run(market_path,contract_path,output,api_key=''):
                 + ['All snapshot-derived model candidates downgraded to WATCH: no live ESI order verification',
                  'Full-universe public contracts/markets census succeeded separately',
                  'Non-verified destination routes and BPC are not production mail-eligible',
-                 'ALL contract item valuations use Jita 4-4 BUY order-depth snapshots regardless of pickup location',
+                 'Ordinary contracts: full Jita BUY depth when available; else top-five bid or ask-only RESEARCH reference, never an executable quote',
                  'Non-Jita estimated haul is deducted when calculable, otherwise HAUL_UNVERIFIED; no live delivery/access verification'] +
                  (['Malformed input orders were explicitly quarantined; this is PARTIAL source input coverage']
                   if quarantined else []) +
