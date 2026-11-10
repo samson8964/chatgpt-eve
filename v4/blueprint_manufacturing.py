@@ -39,7 +39,7 @@ def _material_count(qty_per_run:int,runs:int,me:int):
 
 
 def evaluate_one(contract, blueprint_instance, recipe, jita_asks,
-                 jita_bids, source_to_jita_haul, policy=Policy()):
+                 jita_bids, source_to_jita_haul, policy=Policy(), fee_context=None):
     cid=int(contract["contract_id"])
     price=_number(contract.get("price"))
     if price is None or price<=0:
@@ -98,7 +98,13 @@ def evaluate_one(contract, blueprint_instance, recipe, jita_asks,
         return None
     # This is a transparent risk buffer, not the actual ESI industry system
     # cost-index and facility-tax quotation. Disclose in every emitted lead.
-    fee_reserve=materials_paid*INDUSTRY_FEE_RESERVE_RATE
+    # A fresh ESI index/adjusted-price quote supersedes the old 20% reserve.
+    # If data for any base material are missing, do not invent an ESI fee.
+    fee_quote=fee_context.quote(recipe,scenario_runs) if fee_context is not None else None
+    if fee_context is not None and fee_quote is None:
+        return None
+    fee_reserve=(fee_quote["manufacturing_fee_isk"] if fee_quote is not None
+                 else materials_paid*INDUSTRY_FEE_RESERVE_RATE)
     investment=price+materials_paid+fee_reserve+haul
     gross=product_fill.value
     sale_tax=gross*policy.sales_tax
@@ -114,7 +120,9 @@ def evaluate_one(contract, blueprint_instance, recipe, jita_asks,
         "product_units":total_products,
         "product_gross_isk":gross,
         "material_cost_isk":materials_paid,
-        "manufacturing_fee_reserve_isk":fee_reserve,
+        "manufacturing_fee_reserve_isk":fee_reserve,  # legacy digest compatibility
+        "manufacturing_fee_isk":fee_reserve,
+        **(fee_quote or {}),
         "sales_tax_isk":sale_tax,
         "contract_price_isk":price,
         "haul_estimate_isk":haul,
@@ -122,7 +130,8 @@ def evaluate_one(contract, blueprint_instance, recipe, jita_asks,
         "net_profit":net,
         "roi":roi,
         "required_materials":needed,
-        "facility_fee_status":"20_PERCENT_MATERIAL_COST_RESERVE_NOT_FACILITY_VERIFIED",
+        "facility_fee_status":(fee_quote["facility_fee_status"] if fee_quote else
+                               "20_PERCENT_MATERIAL_COST_RESERVE_NOT_FACILITY_VERIFIED"),
         "jita_product_buy_depth_verified_in_snapshot":True,
         "jita_material_ask_depth_verified_in_snapshot":True,
         "live_verified":False,
@@ -133,7 +142,7 @@ def evaluate_one(contract, blueprint_instance, recipe, jita_asks,
 
 def evaluate_blueprint_contract(contract, instances:list[dict], recipes:Mapping,
                                 markets:Mapping, source_to_jita_haul,
-                                policy=Policy()):
+                                policy=Policy(), fee_context=None):
     """Conservatively pick strongest ONE blueprint, charging whole contract."""
     possibilities=[]
     for row in instances:
@@ -145,7 +154,8 @@ def evaluate_blueprint_contract(contract, instances:list[dict], recipes:Mapping,
         prod={int(t) for t in (recipe.get("products") or {})}
         asks={t:markets.get((JITA,t,False),[]) for t in mats}
         bids={t:markets.get((JITA,t,True),[]) for t in prod}
-        result=evaluate_one(contract,row,recipe,asks,bids,source_to_jita_haul,policy)
+        result=evaluate_one(contract,row,recipe,asks,bids,source_to_jita_haul,policy,
+                            fee_context=fee_context)
         if result:
             possibilities.append(result)
     if not possibilities:
@@ -153,10 +163,14 @@ def evaluate_blueprint_contract(contract, instances:list[dict], recipes:Mapping,
     best=max(possibilities,key=lambda x:(int(x["policy_passed"]),x["net_profit"],x["roi"]))
     return {**best,
             "status":"WATCH",
-            "reason":"BLUEPRINT_MANUFACTURING_MODEL_ESTIMATE_FEE_UNVERIFIED",
+            "reason":("BLUEPRINT_MANUFACTURING_ESI_REFERENCE_FEE_NOT_LIVE_JOB_VERIFIED"
+                      if fee_context is not None else
+                      "BLUEPRINT_MANUFACTURING_MODEL_ESTIMATE_FEE_UNVERIFIED"),
             "model_candidate":best["policy_passed"],
             "source_location":int(contract["start_location_id"]),
             "valuation_location_id":JITA,
             "destination_location":JITA,
             "valuation_basis":"JITA_BUY_FINISHED_GOODS_JITA_SELL_MATERIALS_SNAPSHOT",
-            "scenario_caveats":"BPO at most 10 runs; BPC limited by license, skills and slot time unverified, fees modelled with explicit reserve only."}
+            "scenario_caveats":("BPO at most 10 runs; BPC limited by license; Jita NPC ESI installation reference, NOT live job quote; skills, job slots and execution unverified."
+                                if fee_context is not None else
+                                "BPO at most 10 runs; BPC limited by license, skills and slot time unverified, fees modelled with explicit reserve only.")}
