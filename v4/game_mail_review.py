@@ -3,7 +3,9 @@
 The existing Cloudflare mail Worker was already tested end-to-end by
 LadyGuaGua -> MikeChong (ESI mail ID 403312040). This module only queues
 a digest after the local V4 snapshot is DURABLY recorded. All valuations
-must be Jita 4-4 buy-depth snapshots and are explicitly not live verified.
+must use approved Jita 4-4 research bases: buy-depth, or the explicitly
+flagged ordinary-contract reference price without a buy-depth hard gate.
+None of these research valuations is a live executable quote.
 
 No secret in a config file, mail body, receipt or console. No schedule is
 installed or switched on at import time. The user opts in explicitly.
@@ -295,7 +297,12 @@ def send_review_to_game(root: Path, *, expected_run: str | None = None,
     run_name = review["run_folder"]
     if expected_run is not None and expected_run != run_name:
         raise GameMailTestError("GAME_MAIL_LATEST_RUN_MISMATCH")
-    if review.get("contract_pricing_basis") != "JITA_4_4_BUY_DEPTH_SNAPSHOT":
+    # The ordinary cash-contract research lane has a Jita-only
+    # price fallback when BUY depth is thin or absent. Keep this strict
+    # allowlist rather than weakening the location/valuation safety gate.
+    if review.get("contract_pricing_basis") not in (
+            "JITA_4_4_BUY_DEPTH_SNAPSHOT",
+            "JITA_4_4_REGULAR_REFERENCE_NO_BUY_DEPTH_GATE"):
         raise GameMailTestError("GAME_MAIL_NON_JITA_PRICING_FORBIDDEN")
 
     outcomes = []
