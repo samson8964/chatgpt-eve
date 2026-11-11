@@ -64,10 +64,10 @@ class ForgeHistoryReferenceTests(unittest.TestCase):
             day1 = date(2026, 11, 10)
             def initial(url):
                 trading_day = url.rsplit("market-history-",1)[-1][:10]
-                base = ("date,region_id,type_id,average,highest,lowest,volume,order_count\\n"
-                        + trading_day + ",10000002,34,100,100,100,5,2\\n")
+                base = ("date,region_id,type_id,average,highest,lowest,volume,order_count\n"
+                        + trading_day + ",10000002,34,100,100,100,5,2\n")
                 if trading_day == "2026-11-01":
-                    base += trading_day + ",10000002,99,500,500,500,1,1\\n"
+                    base += trading_day + ",10000002,99,500,500,500,1,1\n"
                 return bz2.compress(base.encode())
             refresh(root, days=10, today=self.TODAY, fetch=initial)
             def update(url):
