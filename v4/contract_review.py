@@ -54,7 +54,8 @@ def make_review(root: Path, *, limit: int = MAX_CANDIDATES) -> dict:
     # Never re-mail old estimates after switching to Jita 4-4.
     if deep.get("contract_pricing_basis") not in (
             "JITA_4_4_BUY_DEPTH_SNAPSHOT",
-            "JITA_4_4_REGULAR_REFERENCE_NO_BUY_DEPTH_GATE"):
+            "JITA_4_4_REGULAR_REFERENCE_NO_BUY_DEPTH_GATE",
+            "JITA_BUY_OR_FORGE_LATEST_TRADED_DAY_AVG_RESEARCH"):
         raise RuntimeError("REVIEW_REQUIRES_NEW_JITA_4_4_VALUATION_SCAN")
     if manifest.get("mail_enabled") is not False or manifest.get("ready_for_production") is not False:
         raise RuntimeError("UNSAFE_SCAN_MAIL_STATUS")
