@@ -55,18 +55,20 @@ class BoosterBlueprintDeepExclusionTests(unittest.TestCase):
                            "orders":0,"pages":1}}
             bp_recipe={"25327":{"materials":{"34":1},"products":{"34":1},
                                  "time_seconds":600}}
-            with patch("v4.deep_scan.market_dataframe",return_value=orders), \\
-                 patch("v4.deep_scan.contract_dataframes",
-                       return_value=(contracts,items)), \\
-                 patch("v4.deep_scan.all_structure_orders",
-                       return_value=([],health)), \\
-                 patch("v4.deep_scan.ensure_catalog",return_value=catalog), \\
-                 patch("v4.deep_scan.known_station_regions",return_value={}), \\
-                 patch("v4.deep_scan.load_blueprint_recipes",
-                       return_value={"manufacturing_recipes":bp_recipe}), \\
-                 patch("v4.deep_scan.load_jita_npc_fee_context",
-                       return_value=None), \\
-                 patch("v4.deep_scan.evaluate_blueprint_contract") as bp_eval:
+            with (
+                patch("v4.deep_scan.market_dataframe",return_value=orders),
+                patch("v4.deep_scan.contract_dataframes",
+                      return_value=(contracts,items)),
+                patch("v4.deep_scan.all_structure_orders",
+                      return_value=([],health)),
+                patch("v4.deep_scan.ensure_catalog",return_value=catalog),
+                patch("v4.deep_scan.known_station_regions",return_value={}),
+                patch("v4.deep_scan.load_blueprint_recipes",
+                      return_value={"manufacturing_recipes":bp_recipe}),
+                patch("v4.deep_scan.load_jita_npc_fee_context",
+                      return_value=None),
+                patch("v4.deep_scan.evaluate_blueprint_contract") as bp_eval,
+            ):
                 report=run_deep(root/"market",root/"contracts",output)
             proof_file=output.with_name("all_proofs.jsonl")
             proofs=[json.loads(x) for x in proof_file.read_text("utf-8").splitlines()]
