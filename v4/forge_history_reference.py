@@ -195,7 +195,11 @@ def refresh(root: Path, *, days: int = WINDOW_DAYS, today: date | None = None,
     recent = [d for d in fetched if (today-d).days <= 3]
     if not recent or not any(fetched[d] for d in recent):
         raise ValueError("FORGE_HISTORY_RECENT_PUBLISHER_MISSING")
-    if len(fetched) < min(days, 5):
+    # A daily 5-day incremental refresh may encounter 1-2 unpublished
+    # recent archives. Require at least 3 published days and a recent
+    # Forge trade instead of failing the whole cache solely on publisher lag.
+    minimum_days = min(days, 3) if merge_existing else min(days, 5)
+    if len(fetched) < minimum_days:
         raise ValueError("FORGE_HISTORY_ARCHIVE_COVERAGE_INCOMPLETE")
     quotes = dict(old_quotes)
     for day in sorted(fetched):
@@ -264,8 +268,14 @@ def main():
     elif args.refresh_auto:
         today = datetime.now(timezone.utc).date()
         full = today.weekday() == 6 or not (args.data_root / CACHE).is_file()
+        if not full:
+            try:
+                _existing_for_merge(args.data_root, today)
+            except ValueError:
+                full = True  # Recover an invalid/incomplete base cache.
         result = refresh(args.data_root, days=WINDOW_DAYS if full else 5,
-                         workers=args.workers, merge_existing=not full)
+                         workers=args.workers, merge_existing=not full,
+                         resume_archives=full)
     else:
         result = {"status": "READ_ONLY_FORGE_HISTORY_CACHE",
                   "types_ready": len(load(args.data_root)),
