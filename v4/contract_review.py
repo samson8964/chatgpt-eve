@@ -139,6 +139,8 @@ def make_review(root: Path, *, limit: int = MAX_CANDIDATES) -> dict:
                 "ordinary_price_sources":proof.get("ordinary_price_sources") or {},
                 "contract_liquidity_risk_flags":proof.get("contract_liquidity_risk_flags") or [],
                 "contract_ask_only_reference_share":proof.get("contract_ask_only_reference_share") or 0,
+                "contract_history_reference_share":proof.get("contract_history_reference_share") or 0,
+                "contract_history_reference_dates":proof.get("contract_history_reference_dates") or {},
                 "jita_buy_depth_sufficient_for_credited_items":proof.get(
                     "jita_buy_depth_sufficient_for_credited_items",False),
                 "source_location": proof.get("source_location"),
