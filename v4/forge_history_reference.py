@@ -158,10 +158,15 @@ def refresh(root: Path, *, days: int = WINDOW_DAYS, today: date | None = None,
     fetched = {}
     with ThreadPoolExecutor(max_workers=workers) as pool:
         jobs = {pool.submit(download, day): day for day in days_to_fetch}
+        done = 0
         for task in as_completed(jobs):
             day, records = task.result()
+            done += 1
             if records is not None:
                 fetched[day] = records
+            if done % 10 == 0 or done == len(jobs):
+                print(f"FORGE_HISTORY_ARCHIVE_PROGRESS {done}/{len(jobs)} "
+                      f"available={len(fetched)}", flush=True)
     recent = [d for d in fetched if (today-d).days <= 3]
     if not recent or not any(fetched[d] for d in recent):
         raise ValueError("FORGE_HISTORY_RECENT_PUBLISHER_MISSING")
