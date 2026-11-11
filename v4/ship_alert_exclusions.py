@@ -30,7 +30,11 @@ FREIGHTER_GROUPS = frozenset({
     902,   # Jump Freighter
 })
 BLOCKED_SHIP_GROUPS = CAPITAL_GROUPS | FREIGHTER_GROUPS
-POLICY_NAME = "NO_CAPITAL_OR_FREIGHTER_HULLS_OR_HULL_BLUEPRINTS_V1"
+# EVE SDE: inventory category Blueprint (9), group Booster Blueprints (718).
+# This is distinct from finished Booster products (303), from ammunition
+# capacitor-booster blueprints and from Biochemical Reaction Formulas.
+BOOSTER_BLUEPRINT_GROUP_ID = 718
+POLICY_NAME = "NO_CAPITAL_FREIGHTER_HULLS_OR_BOOSTER_BLUEPRINT_CONTRACTS_V2"
 
 
 @dataclass
@@ -40,6 +44,7 @@ class ExclusionPolicy:
     unclassified_blueprint_types: frozenset[int]
     catalog_sha256: str | None
     manufacturing_recipes_installed: bool
+    excluded_booster_blueprint_types: frozenset[int] = frozenset()
 
     def blocks_market(self, type_id) -> bool:
         try:
@@ -48,12 +53,11 @@ class ExclusionPolicy:
             return True  # Fail closed on malformed identifiers.
 
     def blocks_contract(self, included_items: dict) -> bool:
-        """Preserve hull exclusion, but never veto a cash subset for blueprints.
+        """Exclude capital hulls and any mixed Booster Blueprint contract.
 
-        BPO/BPC (including capital, unknown-recipe blueprint TYPES) are
-        credited at zero in the ordinary liquidation model. Their presence
-        must not hide value in other regular items in the same contract.
-        Actual excluded capital/freighter HULL items remain prohibited.
+        Most BPO/BPC types carry zero ordinary resale credit but do not
+        otherwise veto their entire bundle. The user explicitly excluded
+        *all contracts* containing inventory group 718 Booster Blueprints.
         """
         if not isinstance(included_items,dict) or not included_items:
             return True
@@ -61,7 +65,8 @@ class ExclusionPolicy:
             types={int(t) for t in included_items}
         except (TypeError,ValueError,OverflowError):
             return True
-        return bool(types & self.blocked_hull_types)
+        return bool(types & (
+            self.blocked_hull_types | self.excluded_booster_blueprint_types))
 
     def blocks_blueprint(self, blueprint_type, output_type) -> bool:
         try:
@@ -70,6 +75,7 @@ class ExclusionPolicy:
         except (TypeError,ValueError,OverflowError):
             return True
         return (product in self.blocked_hull_types or
+                bp in self.excluded_booster_blueprint_types or
                 bp in self.blocked_blueprint_types or
                 bp in self.unclassified_blueprint_types)
 
@@ -84,9 +90,13 @@ def build_policy(catalog: Catalog, recipe_data: dict | None) -> ExclusionPolicy:
         raise RuntimeError("SHIP_EXCLUSION_NO_HULL_GROUPS_IN_CATALOG")
     blocked_blueprints=set()
     unknown_blueprints=set()
+    booster_blueprints=set()
     recipes=(recipe_data or {}).get("manufacturing_recipes") or {}
     for type_id,group in catalog.items.items():
         if catalog.classification(type_id)!="blueprint_type":
+            continue
+        if catalog.group_id(type_id)==BOOSTER_BLUEPRINT_GROUP_ID:
+            booster_blueprints.add(int(type_id))
             continue
         recipe=recipes.get(str(type_id))
         if not isinstance(recipe,dict):
@@ -112,6 +122,7 @@ def build_policy(catalog: Catalog, recipe_data: dict | None) -> ExclusionPolicy:
         unclassified_blueprint_types=frozenset(unknown_blueprints),
         catalog_sha256=catalog.meta.get("sha256"),
         manufacturing_recipes_installed=bool(recipe_data),
+        excluded_booster_blueprint_types=frozenset(booster_blueprints),
     )
 
 
