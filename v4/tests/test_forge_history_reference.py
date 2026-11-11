@@ -58,6 +58,36 @@ class ForgeHistoryReferenceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"DATE_MISMATCH"):
             _parse_day(daily_blob(date(2026,11,9)),day)
 
+    def test_incremental_preserves_old_rare_item_and_refreshes_recent_price(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            day1 = date(2026, 11, 10)
+            def initial(url):
+                trading_day = url.rsplit("market-history-",1)[-1][:10]
+                base = ("date,region_id,type_id,average,highest,lowest,volume,order_count\\n"
+                        + trading_day + ",10000002,34,100,100,100,5,2\\n")
+                if trading_day == "2026-11-01":
+                    base += trading_day + ",10000002,99,500,500,500,1,1\\n"
+                return bz2.compress(base.encode())
+            refresh(root, days=10, today=self.TODAY, fetch=initial)
+            def update(url):
+                trading_day = url.rsplit("market-history-",1)[-1][:10]
+                return daily_blob(trading_day,typ=34,avg=250)
+            result = refresh(root, days=5, today=self.TODAY,
+                             fetch=update, merge_existing=True)
+            self.assertEqual(result["refresh_mode"], "INCREMENTAL_5_DAY_MERGE")
+            quotes = load(root, now=self.TODAY)
+            self.assertEqual(quotes[34]["price"],250)
+            self.assertEqual(quotes[99]["price"],500)
+            self.assertEqual(quotes[99]["date"],"2026-11-01")
+
+    def test_incremental_refuses_missing_base_without_network(self):
+        with tempfile.TemporaryDirectory() as td:
+            with self.assertRaisesRegex(ValueError,"INITIAL_FULL_REFRESH_REQUIRED"):
+                refresh(Path(td), days=5, today=self.TODAY,
+                        fetch=lambda url: self.fail("should not download"),
+                        merge_existing=True)
+
     def test_publisher_incomplete_does_not_publish_new_cache(self):
         with tempfile.TemporaryDirectory() as td:
             root=Path(td)
