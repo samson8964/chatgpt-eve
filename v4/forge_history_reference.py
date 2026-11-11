@@ -30,6 +30,8 @@ SOURCE = "EVE_REF_ARCHIVE_ESI_FORGE_REGIONAL_DAILY_TRADE_AVERAGE"
 BASIS = "THE_FORGE_LATEST_TRADED_DAY_AVERAGE_NOT_JITA_STATION_OR_LAST_TRADE"
 MAX_CACHE_AGE_DAYS = 3
 MAX_COMPRESSED_BYTES = 4_000_000
+BOOTSTRAP_ARCHIVES = Path("reference/forge-history-bootstrap-archives")
+MAX_RESUME_AGE_SECONDS = 86400
 
 
 def _positive(value):
@@ -128,7 +130,8 @@ def _existing_for_merge(root: Path, today: date) -> dict[str, dict]:
 
 
 def refresh(root: Path, *, days: int = WINDOW_DAYS, today: date | None = None,
-            fetch=None, workers: int = 4, merge_existing: bool = False) -> dict:
+            fetch=None, workers: int = 4, merge_existing: bool = False,
+            resume_archives: bool = False) -> dict:
     """Explicit slow data preparation; NEVER invoked from shadow scanning.
 
     Retrieve completed days only. If current publisher snapshots are missing,
@@ -136,6 +139,8 @@ def refresh(root: Path, *, days: int = WINDOW_DAYS, today: date | None = None,
     """
     if not 1 <= days <= WINDOW_DAYS or not 1 <= workers <= 6:
         raise ValueError("HISTORY_REFRESH_BOUNDS_INVALID")
+    if resume_archives and merge_existing:
+        raise ValueError("HISTORY_RESUME_AND_INCREMENTAL_CONFLICT")
     today = today or datetime.now(timezone.utc).date()
     # Never let a missing/invalid base cache truncate historical coverage.
     old_quotes = _existing_for_merge(root, today) if merge_existing else {}
@@ -143,17 +148,37 @@ def refresh(root: Path, *, days: int = WINDOW_DAYS, today: date | None = None,
         url = ("https://data.everef.net/market-history/"
                + str(day.year) + "/market-history-" + day.isoformat()
                + ".csv.bz2")
+        saved = Path(root) / BOOTSTRAP_ARCHIVES / (
+            "market-history-" + day.isoformat() + ".csv.bz2")
+        if resume_archives and saved.is_file():
+            try:
+                from time import time
+                if 0 <= time() - saved.stat().st_mtime <= MAX_RESUME_AGE_SECONDS:
+                    blob = saved.read_bytes()
+                    parsed = _parse_day(blob, day)
+                    return day, parsed
+            except (OSError, ValueError, EOFError):
+                pass  # Invalid prior archive is re-fetched, never trusted.
         if fetch:
             blob = fetch(url)
         else:
             response = requests.get(
-                url, timeout=(15, 50), headers={"User-Agent":
+                url, timeout=(10, 25), headers={"User-Agent":
                 "V4 EVE history research / github.com/samson8964/chatgpt-eve"})
             if response.status_code == 404:
                 return day, None
             response.raise_for_status()
             blob = response.content
-        return day, _parse_day(blob, day)
+        parsed = _parse_day(blob, day)
+        if resume_archives:
+            saved.parent.mkdir(parents=True, exist_ok=True)
+            temp = saved.with_suffix(".bz2.part")
+            try:
+                temp.write_bytes(blob)
+                os.replace(temp, saved)
+            finally:
+                temp.unlink(missing_ok=True)
+        return day, parsed
     days_to_fetch = [today - timedelta(days=n) for n in range(1, days + 1)]
     fetched = {}
     with ThreadPoolExecutor(max_workers=workers) as pool:
@@ -164,7 +189,7 @@ def refresh(root: Path, *, days: int = WINDOW_DAYS, today: date | None = None,
             done += 1
             if records is not None:
                 fetched[day] = records
-            if done % 10 == 0 or done == len(jobs):
+            if done % 5 == 0 or done == len(jobs):
                 print(f"FORGE_HISTORY_ARCHIVE_PROGRESS {done}/{len(jobs)} "
                       f"available={len(fetched)}", flush=True)
     recent = [d for d in fetched if (today-d).days <= 3]
@@ -221,17 +246,26 @@ def main():
                          help="Daily five-day update; merge prior 90 days")
     methods.add_argument("--refresh-auto", action="store_true",
                          help="Daily scheduled: full on Sundays or first run, else 5-day merge")
+    methods.add_argument("--refresh-resumable", action="store_true",
+                         help="One-time 90-day bootstrap with per-day resumable archive files")
     p.add_argument("--days", type=int, default=WINDOW_DAYS)
+    p.add_argument("--workers", type=int, default=2,
+                   help="Network requests in parallel; 2 is gentler for unstable links")
     args = p.parse_args()
     if args.refresh:
-        result = refresh(args.data_root, days=args.days)
+        result = refresh(args.data_root, days=args.days,
+                         workers=args.workers)
+    elif args.refresh_resumable:
+        result = refresh(args.data_root, days=args.days,
+                         workers=args.workers, resume_archives=True)
     elif args.refresh_incremental:
-        result = refresh(args.data_root, days=5, merge_existing=True)
+        result = refresh(args.data_root, days=5, workers=args.workers,
+                         merge_existing=True)
     elif args.refresh_auto:
         today = datetime.now(timezone.utc).date()
         full = today.weekday() == 6 or not (args.data_root / CACHE).is_file()
         result = refresh(args.data_root, days=WINDOW_DAYS if full else 5,
-                         merge_existing=not full)
+                         workers=args.workers, merge_existing=not full)
     else:
         result = {"status": "READ_ONLY_FORGE_HISTORY_CACHE",
                   "types_ready": len(load(args.data_root)),
