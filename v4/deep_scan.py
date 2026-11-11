@@ -34,6 +34,8 @@ from v4.contract_partial import partial_cash_contract_proof, CONTRACT_VALUATION_
 from v4.blueprint_recipes import load as load_blueprint_recipes
 from v4.blueprint_manufacturing import evaluate_blueprint_contract
 from v4.industry_fees import load_jita_npc_fee_context
+from v4.ship_alert_exclusions import BOOSTER_BLUEPRINT_GROUP_ID
+from v4.forge_history_reference import load as load_forge_history, SOURCE as FORGE_HISTORY_SOURCE
 
 JITA = 60003760
 KNOWN_STATIONS = {'jita': JITA, 'amarr': 60008494, 'dodixie':60011866}
@@ -119,6 +121,9 @@ def run(market_path,contract_path,output,api_key=''):
     data_root=(target.parent.parent.parent if target.parent.parent.name=='runs'
                else target.parent)
     npc_reference=load_catalog(data_root)
+    # Local read-only ESI regional-history cache. The deep scan never queries
+    # one ESI history endpoint per missing Jita bid; missing cache => zero value.
+    forge_historical_quotes=load_forge_history(data_root)
     npc_stations=({int(k):v for k,v in npc_reference['stations'].items()}
                   if npc_reference else {})
     raw_market=market_dataframe(Path(market_path))
@@ -267,6 +272,7 @@ def run(market_path,contract_path,output,api_key=''):
         except (requests.RequestException,ValueError,TypeError,KeyError,RuntimeError) as exc:
             fee_context_error=type(exc).__name__
     blueprint_recipe_valuation_errors=0
+    booster_blueprint_contracts_excluded=0
     for row in inc[inc['contract_id'].isin(set(local_contracts['contract_id']))].itertuples(index=False):
         key=int(row.contract_id);typ=int(row.type_id);qty=int(row.quantity)
         if qty>0:by_contract[key][typ]=by_contract[key].get(typ,0)+qty
@@ -285,6 +291,24 @@ def run(market_path,contract_path,output,api_key=''):
         if cid not in by_contract:continue
         if 'date_expired' in row and str(row['date_expired'])[:19] < datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'):
             continue
+        # Group-718 Booster Blueprint in a contract excludes BOTH scenarios.
+        # Keep one explicit rejection proof, never a profitable research lead.
+        if any(catalog.classification(typ)=='blueprint_type'
+               and catalog.group_id(typ)==BOOSTER_BLUEPRINT_GROUP_ID
+               for typ in by_contract[cid]):
+            excluded=dict(kind='contract',contract_id=cid,
+                          family='contract:'+str(cid),instance='contract:'+str(cid),
+                          status='WATCH',model_candidate=False,
+                          reason='BOOSTER_BLUEPRINT_CONTRACT_EXCLUDED',
+                          included_items=by_contract[cid],
+                          contract_price=float(row.get('price') or 0),
+                          source_location=int(row['start_location_id']),
+                          valuation_location_id=JITA,destination_location=JITA,
+                          contract_access_verified=False)
+            proofs.append(excluded)
+            reasons[excluded['reason']]+=1
+            booster_blueprint_contracts_excluded+=1
+            continue
         # Blueprint types are excluded from ordinary cash-value credit,
         # regardless of BPO/BPC instance state.
         contract_location=int(row['start_location_id'])
@@ -300,7 +324,8 @@ def run(market_path,contract_path,output,api_key=''):
             return haul(src,JITA,cargo_m3,stations)
         proof=partial_cash_contract_proof(
             row,by_contract[cid],jita_bids,catalog,subset_haul,
-            policy=POLICY,ask_books=jita_asks)
+            policy=POLICY,ask_books=jita_asks,
+            historical_quotes=forge_historical_quotes)
         cargo_m3=proof.get('cargo_volume_m3')
         haul_estimate=proof.get('haul_isk')
         crystal_share=proof.get('energy_crystal_value_share')
@@ -394,6 +419,7 @@ def run(market_path,contract_path,output,api_key=''):
        contract_requested_items_excluded=requested_contracts_excluded,
        contract_jita_examined=jita_contract_count,
        contract_approved_locations_examined=len(local_contracts),
+       booster_blueprint_contracts_excluded=booster_blueprint_contracts_excluded,
        contract_station_summary=station_contract_summary(
            local_contracts['start_location_id'].tolist(), proofs),
        npc_catalog_status=('INSTALLED_SDE_FULL_NPC_HIGH_LOW'
@@ -404,7 +430,11 @@ def run(market_path,contract_path,output,api_key=''):
        npc_contracts_approved_for_deep_analysis=int(
            local_contracts['start_location_id'].isin(set(npc_stations)).sum()),
        npc_contract_scope_definition='CCP_SDE_NPC_STATIONS_WITH_POSITIVE_SYSTEM_SECURITY',
-       contract_pricing_basis='JITA_4_4_REGULAR_REFERENCE_NO_BUY_DEPTH_GATE',
+       contract_pricing_basis='JITA_BUY_OR_FORGE_LATEST_TRADED_DAY_AVG_RESEARCH',
+       forge_history_source=FORGE_HISTORY_SOURCE,
+       forge_history_region_id=10000002,
+       forge_history_cache_types=len(forge_historical_quotes),
+       forge_history_station_trade_tape_available=False,
        blueprint_manufacturing_recipe_status=(
            'INVALID' if blueprint_recipe_error else
            'INSTALLED' if manufacturing_recipes else 'NOT_INSTALLED'),
@@ -428,6 +458,10 @@ def run(market_path,contract_path,output,api_key=''):
            for p in proofs),
        contract_partial_credited_proofs=sum(
            p.get('kind')=='contract' and bool(p.get('credited_items'))
+           for p in proofs),
+       contract_partial_forge_history_reference_proofs=sum(
+           p.get('kind')=='contract'
+           and float(p.get('contract_history_reference_share') or 0)>0
            for p in proofs),
        contract_partial_ignored_blueprint_item_types=sum(
            p.get('ignored_blueprint_types',0)

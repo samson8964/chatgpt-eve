@@ -54,7 +54,8 @@ def make_review(root: Path, *, limit: int = MAX_CANDIDATES) -> dict:
     # Never re-mail old estimates after switching to Jita 4-4.
     if deep.get("contract_pricing_basis") not in (
             "JITA_4_4_BUY_DEPTH_SNAPSHOT",
-            "JITA_4_4_REGULAR_REFERENCE_NO_BUY_DEPTH_GATE"):
+            "JITA_4_4_REGULAR_REFERENCE_NO_BUY_DEPTH_GATE",
+            "JITA_BUY_OR_FORGE_LATEST_TRADED_DAY_AVG_RESEARCH"):
         raise RuntimeError("REVIEW_REQUIRES_NEW_JITA_4_4_VALUATION_SCAN")
     if manifest.get("mail_enabled") is not False or manifest.get("ready_for_production") is not False:
         raise RuntimeError("UNSAFE_SCAN_MAIL_STATUS")
@@ -139,6 +140,8 @@ def make_review(root: Path, *, limit: int = MAX_CANDIDATES) -> dict:
                 "ordinary_price_sources":proof.get("ordinary_price_sources") or {},
                 "contract_liquidity_risk_flags":proof.get("contract_liquidity_risk_flags") or [],
                 "contract_ask_only_reference_share":proof.get("contract_ask_only_reference_share") or 0,
+                "contract_history_reference_share":proof.get("contract_history_reference_share") or 0,
+                "contract_history_reference_dates":proof.get("contract_history_reference_dates") or {},
                 "jita_buy_depth_sufficient_for_credited_items":proof.get(
                     "jita_buy_depth_sufficient_for_credited_items",False),
                 "source_location": proof.get("source_location"),

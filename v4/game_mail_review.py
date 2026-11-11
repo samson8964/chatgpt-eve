@@ -302,7 +302,8 @@ def send_review_to_game(root: Path, *, expected_run: str | None = None,
     # allowlist rather than weakening the location/valuation safety gate.
     if review.get("contract_pricing_basis") not in (
             "JITA_4_4_BUY_DEPTH_SNAPSHOT",
-            "JITA_4_4_REGULAR_REFERENCE_NO_BUY_DEPTH_GATE"):
+            "JITA_4_4_REGULAR_REFERENCE_NO_BUY_DEPTH_GATE",
+            "JITA_BUY_OR_FORGE_LATEST_TRADED_DAY_AVG_RESEARCH"):
         raise GameMailTestError("GAME_MAIL_NON_JITA_PRICING_FORBIDDEN")
 
     outcomes = []

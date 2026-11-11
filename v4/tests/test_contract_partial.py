@@ -34,10 +34,12 @@ class PartialContractTests(unittest.TestCase):
         },{"schema":2,"type_count":6})
         self.offer={"contract_id":55555,"type":"item_exchange","price":100_000_000}
 
-    def profit(self,items,books,price=100_000_000,ask_books=None):
+    def profit(self,items,books,price=100_000_000,ask_books=None,
+               historical_quotes=None):
         return partial_cash_contract_proof(
             {**self.offer,"price":price},items,books,self.catalog,
-            lambda v:10_000_000+100*v,ask_books=ask_books)
+            lambda v:10_000_000+100*v,ask_books=ask_books,
+            historical_quotes=historical_quotes)
 
     def test_one_profitable_subset_pays_whole_bundle_ignores_bpo_and_missing_type(self):
         p=self.profit({34:2,37:1,39:100,200000:50},
@@ -65,26 +67,30 @@ class PartialContractTests(unittest.TestCase):
         self.assertEqual(p["matched_jita_buy_units"],1)
         self.assertEqual(p["credited_jita_buy_order_ids"],[])
 
-    def test_no_buy_orders_uses_jita_ask_reference_without_claiming_sale(self):
+    def test_no_buy_uses_forge_region_traded_day_mean_not_jita_ask(self):
         p=self.profit({34:2,37:1},{},ask_books={
-            34:[ask(34,130_000_000,n=1),
-                ask(34,150_000_000,n=2)]})
+            34:[ask(34,800_000_000,n=1),
+                ask(34,900_000_000,n=2)]},
+            historical_quotes={34:{"price":140_000_000,"date":"2026-11-09",
+                "volume":9,"region_id":10000002,"age_days":2}})
         self.assertEqual(p["credited_items"],{"34":2})
         self.assertEqual(p["ignored_blueprint_types"],1)
         self.assertEqual(p["gross"],280_000_000)
         self.assertEqual(p["status"],"MAIL")
         self.assertEqual(p["ordinary_price_sources"]["34"],
-                         "JITA_TOP5_ASK_ONLY_UPPER_BOUND_NO_BUY_ORDERS")
-        self.assertEqual(p["contract_ask_only_reference_share"],1.0)
-        self.assertIn("ASK_PRICE_IS_NOT_A_SELL_EXIT_PRICE",
+                         "THE_FORGE_LAST_TRADED_DAY_AVG_NO_JITA_BUY_NOT_EXECUTABLE")
+        self.assertEqual(p["contract_ask_only_reference_share"],0.0)
+        self.assertEqual(p["contract_history_reference_share"],1.0)
+        self.assertEqual(p["contract_history_reference_dates"],{"34":"2026-11-09"})
+        self.assertIn("FORGE_REGION_NOT_JITA_4_4_STATION",
                       p["contract_liquidity_risk_flags"])
         self.assertFalse(p["jita_buy_depth_sufficient_for_credited_items"])
         quarantine_snapshot_candidate(p)
         self.assertFalse(p.get("actionable",False))
         self.assertEqual(p["status"],"WATCH")
 
-    def test_no_bid_or_ask_has_no_invented_price(self):
-        p=self.profit({34:2},{})
+    def test_ask_only_without_history_has_no_invented_sale(self):
+        p=self.profit({34:2},{},ask_books={34:[ask(34,1_000_000_000)]})
         self.assertEqual(p["status"],"WATCH")
         self.assertEqual(p["reason"],
                          "NO_JITA_REFERENCE_PRICE_FOR_REGULAR_SUBSET")

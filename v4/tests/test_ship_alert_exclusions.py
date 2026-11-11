@@ -40,6 +40,9 @@ def catalogue():
         "201":[0.01,"blueprint_type",9],     # capital blueprint -> hull 103
         "202":[0.01,"blueprint_type",9],     # subcap blueprint -> hull 111
         "203":[0.01,"blueprint_type",9],     # unknown blueprint
+        "204":[0.01,"blueprint_type",718],   # Booster Blueprint group
+        "205":[0.01,"regular",303],          # finished booster, not a blueprint
+        "206":[0.01,"blueprint_type",1041],  # unrelated blueprint
     }
     return Catalog(items,{"type_count":len(items),"sha256":"fixture-sha"})
 
@@ -144,6 +147,13 @@ class ShipExclusionTests(unittest.TestCase):
         self.assertTrue(blocked.blocks_contract({"34":100,"101":1}))
         self.assertFalse(blocked.blocks_contract({"34":100,"202":1}))
         self.assertFalse(blocked.blocks_contract({"34":100,"203":1}))
+        # A Group-718 BPC/BPO vetoes the entire contract, even with profit
+        # in regular goods. A finished booster or unrelated blueprint does not.
+        self.assertTrue(blocked.blocks_contract({"34":100,"204":1}))
+        self.assertFalse(blocked.blocks_contract({"34":100,"205":1}))
+        self.assertFalse(blocked.blocks_contract({"34":100,"206":1}))
+        self.assertTrue(blocked.blocks_blueprint(204,205))
+        self.assertIn(204,blocked.excluded_booster_blueprint_types)
         self.assertTrue(blocked.blocks_contract({}))
         self.assertTrue(blocked.blocks_market("not-a-type"))
         self.assertEqual(blocked.catalog_sha256,"fixture-sha")
@@ -170,8 +180,10 @@ class ShipExclusionTests(unittest.TestCase):
                 [cash(1001,{"34":100,"101":1})] +
                 [cash(1002,{"34":100,"201":1})] +
                 [cash(1003,{"34":100,"202":1})] +
+                [cash(1004,{"34":100,"204":1})] +
                 [blueprint(2001,201,103)] +
-                [blueprint(2002,202,111)]
+                [blueprint(2002,202,111)] +
+                [blueprint(2003,204,205)]
             )
             write_run(root,rows)
             policy=build_policy(catalogue(),recipes())
@@ -186,19 +198,23 @@ class ShipExclusionTests(unittest.TestCase):
             self.assertEqual(review["blueprint_research_leads_total"],1)
             self.assertEqual(review["blueprint_research_leads"][0]["contract_id"],2002)
             self.assertEqual(review["excluded_capital_freighter_market_leads"],1)
-            self.assertEqual(review["excluded_capital_freighter_contract_leads"],1)
-            self.assertEqual(review["excluded_capital_freighter_blueprint_leads"],1)
+            self.assertEqual(review["excluded_capital_freighter_contract_leads"],2)
+            self.assertEqual(review["excluded_capital_freighter_blueprint_leads"],2)
             self.assertEqual(review["ship_exclusion_policy"],POLICY_NAME)
             subject,body=render(review)
             self.assertIn("市场10 合同2 蓝图制造1",subject)
             self.assertNotIn("合同 1001",body)
             self.assertIn("1002",body)
             self.assertNotIn("2001",body)
+            self.assertNotIn("1004",body)
+            self.assertNotIn("2003",body)
             self.assertIn("1003",body)
             _,rich=render_html(review)
             self.assertNotIn("/c/1001",rich)
             self.assertIn("/c/1002",rich)
             self.assertNotIn("/c/2001",rich)
+            self.assertNotIn("/c/1004",rich)
+            self.assertNotIn("/c/2003",rich)
 
     def test_same_contract_has_two_separate_valuations_with_bpo_ignored(self):
         # Cash lane credits ordinary goods; BPC lane models manufacturing.

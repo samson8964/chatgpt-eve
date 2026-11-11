@@ -16,11 +16,11 @@ from v4.contract_review import make_review as contract_review
 from v4.unified_review import make_review as unified_review, render, render_html
 
 JITA = 60003760
-NEW_BASIS = "JITA_4_4_REGULAR_REFERENCE_NO_BUY_DEPTH_GATE"
+NEW_BASIS = "JITA_BUY_OR_FORGE_LATEST_TRADED_DAY_AVG_RESEARCH"
 
 
 class ContractNoDepthMailTests(unittest.TestCase):
-    def test_ask_only_contract_and_bpc_are_separate_mail_research_lanes(self):
+    def test_forge_history_contract_and_bpc_are_separate_mail_research_lanes(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp)
             run=root/"runs"/"20261110T122301Z-test"
@@ -35,10 +35,12 @@ class ContractNoDepthMailTests(unittest.TestCase):
                        price=160_000_000,remaining=1)]
             proof=partial_cash_contract_proof(
                 offer,included,{},catalog,lambda volume: 1_000_000,
-                ask_books={34:ask})
+                ask_books={34:ask},historical_quotes={
+                    34:{"price":150_000_000,"date":"2026-11-09",
+                        "volume":50,"region_id":10000002,"age_days":2}})
             self.assertTrue(proof["policy_passed"])
             self.assertEqual(proof["ordinary_price_sources"]["34"],
-                             "JITA_TOP5_ASK_ONLY_UPPER_BOUND_NO_BUY_ORDERS")
+                             "THE_FORGE_LAST_TRADED_DAY_AVG_NO_JITA_BUY_NOT_EXECUTABLE")
             self.assertEqual(proof["credited_items"],{"34":2})
             proof.update(included_items={"34":2,"37":1},
                 contract_price=100_000_000,valuation_basis=CONTRACT_VALUATION_BASIS,
@@ -96,14 +98,14 @@ class ContractNoDepthMailTests(unittest.TestCase):
             self.assertEqual(unified["contract_research_leads"][0]["contract_id"],7345)
             self.assertEqual(unified["blueprint_research_leads"][0]["contract_id"],7345)
             self.assertEqual(unified["contract_research_leads"][0]
-                             ["contract_ask_only_reference_share"],1.0)
+                             ["contract_history_reference_share"],1.0)
             subject,plain=render(unified)
             self.assertIn("合同1 蓝图制造1",subject)
-            self.assertIn("卖价上界",plain)
-            self.assertIn("不代表可成交收入",plain)
+            self.assertIn("伏尔加星域",plain)
+            self.assertIn("不是吉他最后一笔成交价",plain)
             _,rich=render_html(unified)
-            self.assertIn("卖价上界",rich)
-            self.assertIn("不代表可成交收入",rich)
+            self.assertIn("伏尔加星域",rich)
+            self.assertIn("不是吉他最后一笔成交价",rich)
 
 
 if __name__=="__main__":
