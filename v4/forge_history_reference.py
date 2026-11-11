@@ -5,7 +5,7 @@ The latest completed day with traded volume in The Forge (10000002) supplies
 an explicitly labelled DAY-AVERAGE historical *research* quote. This must
 never be called a Jita 4-4 execution price or a live sellable bid.
 
-An explicit one-off refresh downloads EVE Ref's daily archives of the
+An explicit standalone refresh downloads EVE Ref's daily archives of the
 official regional ESI market-history feed. Scheduled scans NEVER fetch here.
 No credentials, SMTP, orders, or SQLite writes.
 """
@@ -101,8 +101,34 @@ def load(root: Path, *, now: date | None = None) -> dict[int, dict]:
         return {}
 
 
+def _existing_for_merge(root: Path, today: date) -> dict[str, dict]:
+    """Read trustworthy prior data even after its scan-use TTL expired."""
+    path = Path(root) / CACHE
+    if not path.is_file():
+        raise ValueError("FORGE_HISTORY_INITIAL_FULL_REFRESH_REQUIRED")
+    try:
+        obj = json.loads(path.read_text("utf-8"))
+        if (obj.get("schema") != 1 or obj.get("region_id") != FORGE_REGION_ID
+                or obj.get("source") != SOURCE
+                or not isinstance(obj.get("quotes"), dict)):
+            raise ValueError("FORGE_HISTORY_OLD_CACHE_UNTRUSTED")
+        valid = {}
+        for typ, info in obj["quotes"].items():
+            if not isinstance(info, dict):
+                continue
+            price = _positive(info.get("price"))
+            traded = date.fromisoformat(str(info.get("date")))
+            if (int(typ) > 0 and price is not None
+                    and int(info.get("volume") or 0) > 0
+                    and 1 <= (today-traded).days <= WINDOW_DAYS):
+                valid[str(int(typ))] = info
+        return valid
+    except (OSError, ValueError, TypeError, OverflowError) as exc:
+        raise ValueError("FORGE_HISTORY_OLD_CACHE_UNTRUSTED") from exc
+
+
 def refresh(root: Path, *, days: int = WINDOW_DAYS, today: date | None = None,
-            fetch=None, workers: int = 4) -> dict:
+            fetch=None, workers: int = 4, merge_existing: bool = False) -> dict:
     """Explicit slow data preparation; NEVER invoked from shadow scanning.
 
     Retrieve completed days only. If current publisher snapshots are missing,
@@ -111,6 +137,8 @@ def refresh(root: Path, *, days: int = WINDOW_DAYS, today: date | None = None,
     if not 1 <= days <= WINDOW_DAYS or not 1 <= workers <= 6:
         raise ValueError("HISTORY_REFRESH_BOUNDS_INVALID")
     today = today or datetime.now(timezone.utc).date()
+    # Never let a missing/invalid base cache truncate historical coverage.
+    old_quotes = _existing_for_merge(root, today) if merge_existing else {}
     def download(day):
         url = ("https://data.everef.net/market-history/"
                + str(day.year) + "/market-history-" + day.isoformat()
@@ -139,17 +167,26 @@ def refresh(root: Path, *, days: int = WINDOW_DAYS, today: date | None = None,
         raise ValueError("FORGE_HISTORY_RECENT_PUBLISHER_MISSING")
     if len(fetched) < min(days, 5):
         raise ValueError("FORGE_HISTORY_ARCHIVE_COVERAGE_INCOMPLETE")
-    quotes = {}
+    quotes = dict(old_quotes)
     for day in sorted(fetched):
         for typ, info in fetched[day].items():
-            quotes[str(typ)] = info  # Newest day with volume supersedes.
+            key = str(typ)
+            prior = quotes.get(key)
+            if prior is None or str(prior["date"]) <= day.isoformat():
+                quotes[key] = info  # Newer trade day or in-place correction.
+    quotes = {key: value for key, value in quotes.items()
+              if 1 <= (today - date.fromisoformat(value["date"])).days
+              <= WINDOW_DAYS}
     if not quotes:
         raise ValueError("FORGE_HISTORY_NO_REPORTED_TRADES")
     path = Path(root) / CACHE
     path.parent.mkdir(parents=True, exist_ok=True)
     result = {"schema": 1, "region_id": FORGE_REGION_ID,
               "source": SOURCE, "built_on": today.isoformat(),
-              "window_days": days, "days_available": len(fetched),
+              "window_days": WINDOW_DAYS,
+              "refresh_mode": ("INCREMENTAL_5_DAY_MERGE" if merge_existing
+                               else "FULL_REBUILD"),
+              "days_available": len(fetched),
               "latest_archive_date": max(fetched).isoformat(),
               "quotes": quotes}
     tmp = path.with_suffix(".json.part")
@@ -163,6 +200,7 @@ def refresh(root: Path, *, days: int = WINDOW_DAYS, today: date | None = None,
     return {"status": "FORGE_HISTORY_CACHE_PREPARED_NOT_STATION_TRADES",
             "latest_archive_date": result["latest_archive_date"],
             "days_available": len(fetched), "types_with_history": len(quotes),
+            "refresh_mode": result["refresh_mode"],
             "cache": str(path)}
 
 
@@ -171,11 +209,17 @@ def main():
     p = ArgumentParser(description="Explicit 90-day regional trade-history cache")
     p.add_argument("--data-root", type=Path,
                    default=Path.home()/"EVE-V4-Data")
-    p.add_argument("--refresh", action="store_true")
+    methods = p.add_mutually_exclusive_group()
+    methods.add_argument("--refresh", action="store_true",
+                         help="Full initial/weekly 90-day rebuild")
+    methods.add_argument("--refresh-incremental", action="store_true",
+                         help="Daily five-day update; merge prior 90 days")
     p.add_argument("--days", type=int, default=WINDOW_DAYS)
     args = p.parse_args()
     if args.refresh:
         result = refresh(args.data_root, days=args.days)
+    elif args.refresh_incremental:
+        result = refresh(args.data_root, days=5, merge_existing=True)
     else:
         result = {"status": "READ_ONLY_FORGE_HISTORY_CACHE",
                   "types_ready": len(load(args.data_root)),
