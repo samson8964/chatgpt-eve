@@ -97,7 +97,7 @@ class V4ContractBarterExclusionTests(unittest.TestCase):
             self.assertEqual(contract["included_items"],{"34":10})
             self.assertFalse(contract["requested_items_present"])
             self.assertEqual(contract["valuation_basis"],
-                "JITA_4_4_REGULAR_REFERENCE_NO_BUY_DEPTH_GATE_NOT_LIVE")
+                "JITA_BUY_OR_FORGE_LATEST_TRADED_DAY_AVG_NOT_LIVE")
             amarr=next(p for p in proofs if p.get("contract_id")==103)
             self.assertEqual(amarr["source_location"],60008494)
             self.assertEqual(amarr["destination_location"],60003760)
