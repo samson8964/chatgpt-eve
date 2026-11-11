@@ -81,6 +81,32 @@ class ForgeHistoryReferenceTests(unittest.TestCase):
             self.assertEqual(quotes[99]["price"],500)
             self.assertEqual(quotes[99]["date"],"2026-11-01")
 
+    def test_resumable_bootstrap_reuses_valid_daily_files_after_interrupt(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            seen = []
+            def download(url):
+                seen.append(url)
+                trading_day = url.rsplit("market-history-", 1)[-1][:10]
+                return daily_blob(trading_day, avg=123.0)
+            initial = refresh(root, days=5, today=self.TODAY, fetch=download,
+                              workers=2, resume_archives=True)
+            self.assertEqual(len(seen), 5)
+            self.assertEqual(initial["days_available"], 5)
+            seen.clear()
+            repeated = refresh(root, days=5, today=self.TODAY, fetch=download,
+                               workers=2, resume_archives=True)
+            self.assertEqual(len(seen), 0)
+            self.assertEqual(repeated["days_available"], 5)
+            cached = root / "reference" / "forge-history-bootstrap-archives"
+            broken = cached / "market-history-2026-11-10.csv.bz2"
+            broken.write_bytes(b"invalid bzip2")
+            seen.clear()
+            refreshed = refresh(root, days=5, today=self.TODAY, fetch=download,
+                                workers=2, resume_archives=True)
+            self.assertEqual(len(seen), 1)
+            self.assertEqual(refreshed["days_available"], 5)
+
     def test_incremental_refuses_missing_base_without_network(self):
         with tempfile.TemporaryDirectory() as td:
             with self.assertRaisesRegex(ValueError,"INITIAL_FULL_REFRESH_REQUIRED"):
