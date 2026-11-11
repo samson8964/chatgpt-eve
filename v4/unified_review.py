@@ -52,7 +52,13 @@ def place(value) -> str:
 
 
 def contract_liquidity_label(lead: dict) -> str:
-    """Do not hide speculative ask-side valuation in the research email."""
+    """Explicitly distinguish historical regional trades from station bid fills."""
+    if float(lead.get("contract_history_reference_share") or 0) > 0:
+        dates = lead.get("contract_history_reference_dates") or {}
+        most_recent = max(dates.values(), default="日期未核实")
+        return ("｜风险: 无吉他4-4买单，使用伏尔加星域最近有成交日的"
+                "区域日均成交价(" + most_recent + ")；不是吉他最后一笔成交价、"
+                "不是即时可兑现价格")
     if float(lead.get("contract_ask_only_reference_share") or 0) > 0:
         return "｜风险: 无吉他买单的商品按卖价上界参考，不代表可成交收入"
     if "JITA_BUY_DEPTH_INSUFFICIENT" in (
@@ -132,7 +138,8 @@ def make_review(root: Path, *, limit_each: int = MAX_EACH) -> dict:
         raise RuntimeError("UNIFIED_REVIEW_REQUIRES_DEPTH_VWAP_MARKET_SCAN")
     if review.get("contract_pricing_basis") not in (
             "JITA_4_4_BUY_DEPTH_SNAPSHOT",
-            "JITA_4_4_REGULAR_REFERENCE_NO_BUY_DEPTH_GATE"):
+            "JITA_4_4_REGULAR_REFERENCE_NO_BUY_DEPTH_GATE",
+            "JITA_BUY_OR_FORGE_LATEST_TRADED_DAY_AVG_RESEARCH"):
         raise RuntimeError("UNIFIED_REVIEW_REQUIRES_FRESH_JITA_CONTRACT_SCAN")
     exclusion=load_policy_for_run(report)
     blocked=Counter()
