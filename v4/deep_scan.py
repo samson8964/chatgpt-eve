@@ -34,6 +34,7 @@ from v4.contract_partial import partial_cash_contract_proof, CONTRACT_VALUATION_
 from v4.blueprint_recipes import load as load_blueprint_recipes
 from v4.blueprint_manufacturing import evaluate_blueprint_contract
 from v4.industry_fees import load_jita_npc_fee_context
+from v4.ship_alert_exclusions import BOOSTER_BLUEPRINT_GROUP_ID
 
 JITA = 60003760
 KNOWN_STATIONS = {'jita': JITA, 'amarr': 60008494, 'dodixie':60011866}
@@ -267,6 +268,7 @@ def run(market_path,contract_path,output,api_key=''):
         except (requests.RequestException,ValueError,TypeError,KeyError,RuntimeError) as exc:
             fee_context_error=type(exc).__name__
     blueprint_recipe_valuation_errors=0
+    booster_blueprint_contracts_excluded=0
     for row in inc[inc['contract_id'].isin(set(local_contracts['contract_id']))].itertuples(index=False):
         key=int(row.contract_id);typ=int(row.type_id);qty=int(row.quantity)
         if qty>0:by_contract[key][typ]=by_contract[key].get(typ,0)+qty
@@ -284,6 +286,24 @@ def run(market_path,contract_path,output,api_key=''):
         cid=int(row['contract_id'])
         if cid not in by_contract:continue
         if 'date_expired' in row and str(row['date_expired'])[:19] < datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'):
+            continue
+        # Group-718 Booster Blueprint in a contract excludes BOTH scenarios.
+        # Keep one explicit rejection proof, never a profitable research lead.
+        if any(catalog.classification(typ)=='blueprint_type'
+               and catalog.group_id(typ)==BOOSTER_BLUEPRINT_GROUP_ID
+               for typ in by_contract[cid]):
+            excluded=dict(kind='contract',contract_id=cid,
+                          family='contract:'+str(cid),instance='contract:'+str(cid),
+                          status='WATCH',model_candidate=False,
+                          reason='BOOSTER_BLUEPRINT_CONTRACT_EXCLUDED',
+                          included_items=by_contract[cid],
+                          contract_price=float(row.get('price') or 0),
+                          source_location=int(row['start_location_id']),
+                          valuation_location_id=JITA,destination_location=JITA,
+                          contract_access_verified=False)
+            proofs.append(excluded)
+            reasons[excluded['reason']]+=1
+            booster_blueprint_contracts_excluded+=1
             continue
         # Blueprint types are excluded from ordinary cash-value credit,
         # regardless of BPO/BPC instance state.
@@ -394,6 +414,7 @@ def run(market_path,contract_path,output,api_key=''):
        contract_requested_items_excluded=requested_contracts_excluded,
        contract_jita_examined=jita_contract_count,
        contract_approved_locations_examined=len(local_contracts),
+       booster_blueprint_contracts_excluded=booster_blueprint_contracts_excluded,
        contract_station_summary=station_contract_summary(
            local_contracts['start_location_id'].tolist(), proofs),
        npc_catalog_status=('INSTALLED_SDE_FULL_NPC_HIGH_LOW'
