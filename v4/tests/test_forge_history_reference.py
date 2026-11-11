@@ -107,6 +107,28 @@ class ForgeHistoryReferenceTests(unittest.TestCase):
             self.assertEqual(len(seen), 1)
             self.assertEqual(refreshed["days_available"], 5)
 
+    def test_daily_incremental_handles_two_unpublished_archives(self):
+        from unittest.mock import Mock, patch
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            def initial(url):
+                day = url.rsplit("market-history-", 1)[-1][:10]
+                return daily_blob(day)
+            refresh(root, days=5, today=self.TODAY, fetch=initial)
+            def late_publisher(url, **kwargs):
+                day = url.rsplit("market-history-", 1)[-1][:10]
+                if day in {"2026-11-10", "2026-11-09"}:
+                    return Mock(status_code=404)
+                return Mock(status_code=200, content=daily_blob(day, avg=200))
+            with patch("v4.forge_history_reference.requests.get",
+                       side_effect=late_publisher):
+                outcome = refresh(root, days=5, today=self.TODAY,
+                                  workers=2, merge_existing=True)
+            self.assertEqual(outcome["days_available"], 3)
+            # A valid older quote survives a lagged publisher.
+            self.assertEqual(load(root, now=self.TODAY)[34]["date"],
+                             "2026-11-10")
+
     def test_incremental_refuses_missing_base_without_network(self):
         with tempfile.TemporaryDirectory() as td:
             with self.assertRaisesRegex(ValueError,"INITIAL_FULL_REFRESH_REQUIRED"):
