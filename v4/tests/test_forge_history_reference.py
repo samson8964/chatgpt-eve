@@ -50,7 +50,7 @@ class ForgeHistoryReferenceTests(unittest.TestCase):
                 "built_on":"2026-11-01","quotes":{"34":{
                     "price":10,"date":"2026-10-31","volume":10}}}))
             self.assertEqual(load(root,now=self.TODAY),{})
-            self.assertEqual(load(root,now=date(2026,11,1)),{})
+            self.assertEqual(load(root,now=date(2026,11,7)),{})
 
     def test_non_forge_rows_not_considered_last_jita_trades(self):
         day=date(2026,11,10)
