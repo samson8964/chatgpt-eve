@@ -214,12 +214,19 @@ def main():
                          help="Full initial/weekly 90-day rebuild")
     methods.add_argument("--refresh-incremental", action="store_true",
                          help="Daily five-day update; merge prior 90 days")
+    methods.add_argument("--refresh-auto", action="store_true",
+                         help="Daily scheduled: full on Sundays or first run, else 5-day merge")
     p.add_argument("--days", type=int, default=WINDOW_DAYS)
     args = p.parse_args()
     if args.refresh:
         result = refresh(args.data_root, days=args.days)
     elif args.refresh_incremental:
         result = refresh(args.data_root, days=5, merge_existing=True)
+    elif args.refresh_auto:
+        today = datetime.now(timezone.utc).date()
+        full = today.weekday() == 6 or not (args.data_root / CACHE).is_file()
+        result = refresh(args.data_root, days=WINDOW_DAYS if full else 5,
+                         merge_existing=not full)
     else:
         result = {"status": "READ_ONLY_FORGE_HISTORY_CACHE",
                   "types_ready": len(load(args.data_root)),
