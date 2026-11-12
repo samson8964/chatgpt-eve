@@ -213,11 +213,12 @@ def raw_drilldown(folder, deep, census, ids):
     """
     if not ids:
         return {"status":"NO_MISSING_BPC_PROOFS","contract_count":0}
+    from v4 import catalog as catalog_module
     from v4.catalog import Catalog, DEFAULT_CACHE, blueprint_instance_kind
     from v4.blueprint_recipes import load, RECIPE_CACHE
     from v4.sources import market_dataframe, contract_dataframes
     from v4.deep_scan import to_orders
-    repo = Path(__file__).resolve().parent.parent
+    repo = Path(catalog_module.__file__).resolve().parent.parent
     market_file=folder/"source"/"market_orders.csv.bz2"
     contract_file=folder/"source"/"public_contracts.tar.bz2"
     for name,path in (("market_orders",market_file),("public_contracts",contract_file)):
