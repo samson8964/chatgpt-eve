@@ -30,9 +30,9 @@ class CatalogTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             path=Path(d)/"ref.tar.xz"
             archive(path,{
-                "34":{"volume":0.01, "packaged_volume":0.01},
-                "39":{"volume":0.01, "packaged_volume":0},
-                "17477":{"volume":0.01, "packaged_volume":0.01},
+                "34":{"volume":0.01, "packaged_volume":0.01, "group_id":18},
+                "39":{"volume":0.01, "packaged_volume":0, "groupID":86},
+                "17477":{"volume":0.01, "packaged_volume":0.01, "group_id":726},
                 "999":{"volume":0, "packaged_volume":None},
             },{"17477":{"blueprint_type_id":17477}})
             result=from_archive(path,min_types=1,min_blueprints=1)
@@ -42,6 +42,10 @@ class CatalogTests(unittest.TestCase):
             self.assertEqual(result.classification(17477),"blueprint_type")
             self.assertEqual(result.classification(34),"regular")
             self.assertEqual(result.classification(9999),"unknown")
+            self.assertEqual(result.group_id(34),18)
+            self.assertEqual(result.group_id(39),86)
+            self.assertIsNone(result.group_id(999))
+            self.assertIsNone(result.group_id(9999))
             self.assertEqual(result.coverage([34,39,17477,999,9999])["missing_volume"],2)
             result.save(Path(d)/"catalog.json.gz")
             reloaded=Catalog.load(Path(d)/"catalog.json.gz")

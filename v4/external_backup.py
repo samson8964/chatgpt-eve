@@ -1,0 +1,285 @@
+"""Controlled, integrity-checked V4 pre-cutover FULL backup on another volume.
+
+No writes to the source SQLite, no scan, network, mail, or notification.
+Read-only inspection by default; --create explicitly writes a new verified
+backup on a DIFFERENT Windows volume. This is a maintenance-only tool:
+both EVE V4 scheduled tasks must be disabled and the shared scan lock free.
+
+Another Windows volume is not necessarily a different physical device.
+"""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import platform
+import shutil
+import stat
+import sqlite3
+import sys
+import time
+from contextlib import closing
+from datetime import datetime, timezone
+from pathlib import Path, PureWindowsPath
+
+from v4.hot_cutover import _check_tasks_disabled, _no_uncheckpointed_sidecars
+from v4.local_run import exclusive_lock
+from v4.proof_cold_archive import ledger_runs
+
+GIB = 1024 ** 3
+MIN_SLACK_GIB = 10
+
+
+def require_different_volume(root: Path, directory: Path) -> None:
+    """Drive test deliberately independent of process-host path semantics."""
+    if platform.system() == "Windows":
+        a = PureWindowsPath(str(root)).drive.lower()
+        b = PureWindowsPath(str(directory)).drive.lower()
+        if not a or not b or a == b:
+            raise RuntimeError("EXTERNAL_BACKUP_MUST_BE_ON_OTHER_VOLUME")
+    if root == directory or root in directory.parents:
+        raise RuntimeError("EXTERNAL_BACKUP_MUST_BE_OUTSIDE_DATA_ROOT")
+
+
+def _safe_directory(root: Path, directory: Path) -> None:
+    if directory.is_symlink() or directory.is_file():
+        raise RuntimeError("EXTERNAL_BACKUP_DIRECTORY_UNSAFE")
+    # Refuse redirection through an existing symlink/junction parent.
+    probe = directory
+    while probe != probe.parent:
+        if probe.exists():
+            attributes = getattr(probe.stat(follow_symlinks=False),
+                                 "st_file_attributes", 0)
+            is_reparse = bool(attributes & getattr(
+                stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0))
+            if probe.is_symlink() or (
+                    platform.system() == "Windows" and is_reparse):
+                raise RuntimeError("EXTERNAL_BACKUP_REDIRECTED_DIRECTORY")
+        probe = probe.parent
+    require_different_volume(root, directory)
+
+
+def _available_space(directory: Path):
+    probe = directory
+    while not probe.exists() and probe != probe.parent:
+        probe = probe.parent
+    return shutil.disk_usage(probe).free
+
+
+def inspect(root: Path, backup_dir: Path) -> dict:
+    root = Path(root).resolve()
+    backup_dir = Path(backup_dir).absolute()
+    _safe_directory(root, backup_dir)
+    source = root / "sqlite" / "v4-shadow.sqlite3"
+    if not source.is_file() or source.is_symlink():
+        raise RuntimeError("SOURCE_SQLITE_MISSING_OR_UNSAFE")
+    free = _available_space(backup_dir)
+    needed = source.stat().st_size + MIN_SLACK_GIB * GIB
+    return {
+        "status": "READ_ONLY_EXTERNAL_BACKUP_INSPECTION",
+        "source_size_gib": round(source.stat().st_size / GIB, 3),
+        "destination_available_gib": round(free / GIB, 3),
+        "space_ready": free >= needed,
+        "volume_check": "DIFFERENT_VOLUME" if platform.system() == "Windows"
+                        else "NON_WINDOWS_TEST_ONLY",
+        "both_scheduled_tasks_must_be_disabled_before_create": True,
+        "created": False,
+        "source_modified": False,
+        "off_machine_copy_still_required": True,
+    }
+
+
+def _sha256(path: Path) -> str:
+    """Verify the independent, immutable snapshot's exact file identity."""
+    h = hashlib.sha256()
+    with path.open("rb") as stream:
+        while block := stream.read(4 * 1024 * 1024):
+            h.update(block)
+    return h.hexdigest()
+
+
+def create(root: Path, backup_dir: Path, *, now=None,
+           verification: str = "full") -> dict:
+    if verification not in ("full", "quick"):
+        raise ValueError("INVALID_EXTERNAL_BACKUP_VERIFICATION_MODE")
+    root = Path(root).resolve()
+    directory = Path(backup_dir).absolute()
+    status = inspect(root, directory)
+    if not status["space_ready"]:
+        raise RuntimeError("INSUFFICIENT_EXTERNAL_BACKUP_FREE_SPACE")
+    # Time-of-check state is not authorization to mutate a live ledger.
+    _check_tasks_disabled()
+    with exclusive_lock(root / "v4-local-shadow.lock"):
+        _check_tasks_disabled()
+        source = root / "sqlite" / "v4-shadow.sqlite3"
+        # SQLite online backup includes committed WAL frames. The mere
+        # presence of -wal/-shm is NOT grounds to refuse a consistent backup;
+        # unlike cutover, this operation never renames the source database.
+        # SQLite itself must read WAL and enforce transaction consistency.
+        before = ledger_runs(root)
+        if not before or any(row["status"] != "SHADOW_VERIFIED_OFFLINE"
+                             for row in before):
+            raise RuntimeError("SOURCE_RUNS_NOT_ALL_VERIFIED")
+        moment = now or datetime.now(timezone.utc)
+        stamp = moment.strftime("%Y%m%dT%H%M%SZ")
+        directory.mkdir(parents=True, exist_ok=True)
+        _safe_directory(root, directory)
+        target = directory / ("v4-shadow-full-" + stamp + ".sqlite3")
+        partial = target.with_name(target.name + ".part")
+        verified = target.with_name(target.name + ".verified.json")
+        if (target.exists() or target.is_symlink() or
+                partial.exists() or partial.is_symlink() or
+                verified.exists() or verified.is_symlink()):
+            raise FileExistsError("EXTERNAL_BACKUP_TARGET_EXISTS")
+        try:
+            # Progress diagnostics: SQLite online copy and its subsequent
+            # integrity check may each run for many minutes on a 30+ GiB DB.
+            # Never log sensitive source rows or credentials.
+            last_report = [time.monotonic() - 60.0]
+            def progress(status: int, remaining: int, total: int) -> None:
+                now_tick = time.monotonic()
+                if remaining == 0 or now_tick - last_report[0] >= 30.0:
+                    completed = max(0, total - remaining)
+                    percent = round(completed * 100.0 / total, 1) if total else 100.0
+                    print("BACKUP_COPY_PROGRESS", str(percent) + "%",
+                          completed, "of", total, "pages", flush=True,
+                          file=sys.stderr)
+                    last_report[0] = now_tick
+            print("BACKUP_COPY_START", source.stat().st_size, "bytes",
+                  flush=True, file=sys.stderr)
+            with closing(sqlite3.connect(
+                    "file:" + source.as_posix() + "?mode=ro",
+                    uri=True, timeout=30)) as live:
+                with closing(sqlite3.connect(partial, timeout=30)) as backup:
+                    live.backup(backup, pages=2048, sleep=0.1,
+                                progress=progress)
+                    check_sql = ("PRAGMA integrity_check" if verification == "full"
+                                 else "PRAGMA quick_check")
+                    print("BACKUP_COPY_DONE_INTEGRITY_START",
+                          "mode", verification.upper(),
+                          flush=True, file=sys.stderr)
+                    # SQLite's full integrity_check can be CPU-intensive on
+                    # multi-GB proof ledgers. This progress hook reports
+                    # *activity* every 60s (not a fabricated percentage).
+                    started_check = time.monotonic()
+                    last_check_report = [started_check - 60.0]
+                    vm_callbacks = [0]
+                    def integrity_heartbeat() -> int:
+                        vm_callbacks[0] += 1
+                        tick = time.monotonic()
+                        if tick - last_check_report[0] >= 60:
+                            print("BACKUP_INTEGRITY_ACTIVE",
+                                  "elapsed_seconds", int(tick - started_check),
+                                  "vm_callback_count", vm_callbacks[0],
+                                  flush=True, file=sys.stderr)
+                            last_check_report[0] = tick
+                        return 0
+                    backup.set_progress_handler(integrity_heartbeat, 100000)
+                    try:
+                        if backup.execute(check_sql).fetchone()[0] != "ok":
+                            raise RuntimeError("EXTERNAL_BACKUP_INTEGRITY_FAILED")
+                    finally:
+                        backup.set_progress_handler(None, 0)
+                    print("BACKUP_INTEGRITY_OK_VERIFYING_LEDGER",
+                          "mode", verification.upper(),
+                          "elapsed_seconds", int(time.monotonic() - started_check),
+                          flush=True, file=sys.stderr)
+                    keys = ("run_id", "status", "proof_count",
+                            "proof_sha256", "audited_at")
+                    copy_runs = [dict(zip(keys, row)) for row in backup.execute(
+                        "SELECT run_id,status,proof_count,proof_sha256,audited_at "
+                        "FROM scan_runs ORDER BY audited_at DESC,run_id DESC")]
+                    copy_proofs = backup.execute(
+                        "SELECT COUNT(*) FROM proof_versions").fetchone()[0]
+                    # A backup of a WAL-mode database must be published as a
+                    # single self-contained SQLite file. Only checkpoint and
+                    # normalize the DESTINATION, never the live source.
+                    if backup.execute("PRAGMA journal_mode").fetchone()[0].lower() == "wal":
+                        ck = backup.execute(
+                            "PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
+                        if not ck or ck[0] != 0:
+                            raise RuntimeError("EXTERNAL_BACKUP_WAL_CHECKPOINT_FAILED")
+                    if backup.execute(
+                            "PRAGMA journal_mode=DELETE").fetchone()[0].lower() != "delete":
+                        raise RuntimeError("EXTERNAL_BACKUP_NOT_SELF_CONTAINED")
+            # Reject a copied DB that depends on transient WAL/SHM/journal.
+            _no_uncheckpointed_sidecars(partial)
+            with closing(sqlite3.connect(
+                    "file:" + partial.resolve().as_posix() + "?mode=ro&immutable=1",
+                    uri=True, timeout=30)) as immutable:
+                # Full integrity was already checked *once* on this exact
+                # destination snapshot before closing it. Re-running the
+                # whole check doubles validation time without new evidence.
+                # Independent immutable opening still proves the published
+                # file is readable without its prior connection or WAL.
+                if immutable.execute(
+                        "SELECT COUNT(*) FROM proof_versions").fetchone()[0] != copy_proofs:
+                    raise RuntimeError("EXTERNAL_BACKUP_STANDALONE_PROOFS_MISMATCH")
+                if immutable.execute(
+                        "SELECT COUNT(*) FROM scan_runs").fetchone()[0] != len(copy_runs):
+                    raise RuntimeError("EXTERNAL_BACKUP_STANDALONE_RUNS_MISMATCH")
+            after = ledger_runs(root)
+            # Verify copied records against the current logical SQLite view.
+            # Do NOT rely on parsing the bare .sqlite3 while WAL exists.
+            if after != before or copy_runs != before or (
+                    copy_proofs != sum(x["proof_count"] for x in before)):
+                raise RuntimeError("EXTERNAL_BACKUP_NOT_CURRENT_OR_INCOMPLETE")
+            # Persist only after all audit checks completed successfully.
+            os.replace(partial, target)
+            # The quick path is explicitly less exhaustive: it does NOT
+            # verify UNIQUE/index contents. Pin the verified file hash so
+            # activation can reject any modified, incomplete snapshot.
+            if verification == "quick":
+                print("BACKUP_SHA256_START", flush=True, file=sys.stderr)
+                receipt = {
+                    "schema": 1, "verification": "quick",
+                    "backup_sha256": _sha256(target),
+                    "backup_bytes": target.stat().st_size,
+                    "latest_run_id": before[0]["run_id"],
+                    "scan_runs": len(copy_runs),
+                    "proof_rows": copy_proofs,
+                    "verified_at": datetime.now(timezone.utc).isoformat()
+                }
+                with verified.open("x", encoding="utf-8") as handle:
+                    json.dump(receipt, handle, indent=2)
+            print("BACKUP_VERIFIED_PUBLISHED", target, flush=True,
+                  file=sys.stderr)
+            return {
+                "status": ("FULL_EXTERNAL_BACKUP_VERIFIED" if verification == "full"
+                           else "QUICK_EXTERNAL_BACKUP_VERIFIED"),
+                "path": str(target), "bytes": target.stat().st_size,
+                "sqlite_integrity": ("ok" if verification == "full"
+                                     else "quick_check_ok"),
+                "verification_scope": verification,
+                "verified_receipt": (str(verified) if verification == "quick" else None),
+                "scan_runs": len(copy_runs), "proof_rows": copy_proofs,
+                "source_database_modified": False,
+                "off_machine_copy_still_required": True,
+            }
+        finally:
+            # Only this tool's OWN explicitly named temporary output is removed.
+            partial.unlink(missing_ok=True)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="V4 external pre-cutover full backup")
+    parser.add_argument("--data-root", type=Path,
+                        default=Path.home() / "EVE-V4-Data")
+    parser.add_argument("--backup-dir", type=Path, required=True)
+    parser.add_argument("--create", action="store_true",
+                        help="Explicitly create an external full SQLite backup")
+    parser.add_argument("--verification", choices=("full", "quick"),
+                        default="full",
+                        help="full=exhaustive SQLite index check; quick=bounded O(N) "
+                             "structure check plus audited ledger and SHA256")
+    args = parser.parse_args()
+    report = (create(args.data_root, args.backup_dir,
+                     verification=args.verification) if args.create
+              else inspect(args.data_root, args.backup_dir))
+    print(json.dumps(report, ensure_ascii=False, indent=2))
+
+
+if __name__ == "__main__":
+    main()

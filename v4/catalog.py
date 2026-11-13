@@ -20,7 +20,7 @@ from pathlib import Path
 
 REF_URL = "https://data.everef.net/reference-data/reference-data-latest.tar.xz"
 DEFAULT_CACHE = Path(".cache/v4/reference/catalog.json.gz")
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 class CatalogError(RuntimeError):
@@ -69,6 +69,14 @@ class Catalog:
     def classification(self, type_id):
         row = self.items.get(str(int(type_id)))
         return row[1] if row else "unknown"
+
+    def group_id(self, type_id):
+        """Inventory group from EVE Ref, NOT a market category or type-ID range."""
+        row = self.items.get(str(int(type_id)))
+        if not row or len(row) < 3:
+            return None
+        group = row[2]
+        return group if isinstance(group, int) and group > 0 else None
 
     def coverage(self, type_ids):
         ids = {int(x) for x in type_ids}
@@ -124,18 +132,35 @@ def from_archive(path, *, sha256=None, min_types=10000, min_blueprints=500) -> C
     blueprint_ids = {str(int(k)) for k in blueprints}
     items = {}
     zero = 0
+    groups_known = 0
     for key,raw in types.items():
         if not isinstance(raw,dict):
             continue
         vol = _positive(raw.get("packaged_volume")) or _positive(raw.get("volume"))
         if vol is None:
             zero += 1
-        items[str(int(key))] = [vol, "blueprint_type" if str(key) in blueprint_ids else "regular"]
+        # EVE Ref reference-data keys are snake_case. Some historical archives
+        # have the original CCP groupID spelling; support both, never infer.
+        raw_group=raw.get("group_id",raw.get("groupID"))
+        try:
+            group=int(raw_group) if raw_group is not None else None
+        except (TypeError,ValueError,OverflowError):
+            group=None
+        if group is not None and group > 0:
+            groups_known += 1
+        else:
+            group=None
+        items[str(int(key))] = [vol, "blueprint_type" if str(key) in blueprint_ids else "regular", group]
     if len(items) < min_types:
         raise CatalogError("INCOMPLETE_CATALOG")
+    # Production catalogs MUST contain group metadata. Otherwise crystal
+    # classification would silently pass unwanted contracts to users.
+    if min_types >= 10_000 and groups_known < int(len(items)*.95):
+        raise CatalogError("ITEM_GROUP_METADATA_INCOMPLETE")
     return Catalog(items, {"source":REF_URL,"sha256":sha256,"schema":SCHEMA_VERSION,
         "built_at":datetime.now(timezone.utc).isoformat(),"type_count":len(items),
-        "blueprint_count":len(blueprint_ids),"no_usable_volume":zero})
+        "blueprint_count":len(blueprint_ids),"no_usable_volume":zero,
+        "inventory_group_known":groups_known})
 
 
 def fetch_archive(path, url=REF_URL):
@@ -181,8 +206,15 @@ def ensure_catalog(cache=DEFAULT_CACHE, *, max_age_hours=168):
     if path.exists():
         age=(datetime.now(timezone.utc).timestamp()-path.stat().st_mtime)/3600
         if 0 <= age <= max_age_hours:
-            loaded=Catalog.load(path)
-            return loaded
+            try:
+                loaded=Catalog.load(path)
+            except CatalogError as exc:
+                # Old schema-1 cached volume+blueprint tables lack item groups.
+                # Rebuild once from the full bulk archive; do NOT quietly reuse.
+                if str(exc) != "CATALOG_SCHEMA_MISMATCH":
+                    raise
+            else:
+                return loaded
     with tempfile.TemporaryDirectory(prefix="eve-v4-catalog-") as d:
         archive=Path(d)/"reference-data-latest.tar.xz"
         sha=fetch_archive(archive)
