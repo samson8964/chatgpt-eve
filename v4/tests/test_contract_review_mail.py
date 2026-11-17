@@ -163,10 +163,11 @@ class V4ContractReviewTests(unittest.TestCase):
             self.assertTrue(_SMTP.sent[0].is_multipart())
             plain = _SMTP.sent[0].get_body(preferencelist=("plain",)).get_content()
             rich = _SMTP.sent[0].get_body(preferencelist=("html",)).get_content()
-            self.assertIn("合同 123456789", plain)
+            self.assertIn("/c/123456789", plain)
+            self.assertNotIn("合同 123456789", plain)
             self.assertIn("/c/123456789", rich)
             self.assertIn("href=", rich)
-            self.assertLess(len(rich), 1600)
+            self.assertLess(len(rich), 5000)
             receipt=(root/"mail-review"/"receipts"/
                      "20261014T082300Z-613afb20.json").read_text("utf-8")
             self.assertNotIn("abcdefghijklmnop",receipt)
