@@ -299,9 +299,9 @@ class DesktopWidget:
         root.configure(bg=COLORS["line"])
         root.attributes("-topmost", True)
         root.resizable(False, False)
-        w, h = 410, 590
+        w, h = 450, 710
         x = max(0, root.winfo_screenwidth() - w - 26)
-        root.geometry(f"{w}x{h}+{x}+60")
+        root.geometry(f"{w}x{h}+{x}+{max(0, min(40, root.winfo_screenheight()-h-55))}")
         tkfont = ("Microsoft YaHei UI", 9)
         self.font = tkfont
 
@@ -310,7 +310,7 @@ class DesktopWidget:
         shell.pack(fill="both", expand=True, padx=1, pady=1)
         title = tk.Frame(shell, bg=COLORS["bg"], height=34)
         title.pack(fill="x", padx=12, pady=(9, 3))
-        self._label(title, "EVE V4  |  市场+合同监控", 10, "white", bold=True).pack(side="left")
+        self._label(title, "EVE V4  |  系统健康监控", 10, "white", bold=True).pack(side="left")
         self._button(title, "×", self.close, width=2).pack(side="right")
         self.pin_button = self._button(title, "置顶", self.toggle_pin, width=4)
         self.pin_button.pack(side="right", padx=(0, 6))
@@ -358,6 +358,16 @@ class DesktopWidget:
         self.mail_route_label.pack(anchor="w", padx=14, pady=(1, 1))
         self.mail_delivery_label = self._label(shell, "本轮邮件：读取中", 8, "muted")
         self.mail_delivery_label.pack(anchor="w", padx=14, pady=(1, 4))
+        self.names_label = self._label(shell, "名称字典：读取中", 9, "muted")
+        self.names_label.pack(anchor="w", padx=14, pady=(1, 2))
+        self.history_label = self._label(shell, "历史行情：读取中", 9, "muted")
+        self.history_label.pack(anchor="w", padx=14, pady=(1, 2))
+        self.disk_label = self._label(shell, "磁盘：读取中", 9, "muted")
+        self.disk_label.pack(anchor="w", padx=14, pady=(1, 2))
+        self.cleanup_label = self._label(shell, "历史清理：读取中", 9, "muted")
+        self.cleanup_label.pack(anchor="w", padx=14, pady=(1, 1))
+        self.cleanup_reason_label = self._label(shell, "清理阻塞：读取中", 8, "muted")
+        self.cleanup_reason_label.pack(anchor="w", padx=14, pady=(1, 3))
 
         # Manual start is user-initiated only. Task Scheduler's IgnoreNew
         # setting serializes it with the normal hourly trigger.
@@ -561,21 +571,23 @@ class DesktopWidget:
             self.metrics_label.configure(
                 text=f"市场审核 {market} · 合同审核 {contracts} · 候选 {models}")
             self.next_label.configure(text="下次自动：" + human_clock(info["next_run"]))
-            o_header, o_station, o_mail = _opportunity_text(
-                info["opportunity"], info["banestar_enabled"],
-                hunter_enabled=info.get("hunter_enabled", False),
-                hy_rwo_enabled=info.get("hy_rwo_enabled", False))
-            self.opportunity_label.configure(
-                text=o_header, fg=COLORS["amber" if info["opportunity"]["status"]
-                                        != "COMPLETE" else "white"])
-            self.opportunity_station_label.configure(text=o_station)
-            self.opportunity_mail_label.configure(text=o_mail)
-            route_text, delivery_text = _game_mail_lines(info)
-            self.mail_route_label.configure(
-                text=route_text,
-                fg=COLORS["green" if info.get("game_mail_hunter_and_mike_configured")
-                          else "amber"])
-            self.mail_delivery_label.configure(text=delivery_text)
+            health = info["health"]
+            from v4.desktop_health import health_lines
+            view = health_lines(health)
+            for key, label in (
+                ("opportunities", self.opportunity_label),
+                ("station_errors", self.opportunity_station_label),
+                ("mail", self.opportunity_mail_label),
+                ("mail_route", self.mail_route_label),
+                ("mail_note", self.mail_delivery_label),
+                ("names", self.names_label),
+                ("history", self.history_label),
+                ("disk", self.disk_label),
+                ("cleanup", self.cleanup_label),
+                ("cleanup_reason", self.cleanup_reason_label),
+            ):
+                value, tone = view[key]
+                label.configure(text=value, fg=COLORS[tone])
             channels = ("G" if info["research_gmail_enabled"] else "g") + (
                 "E" if info["research_game_enabled"] else "e")
             self.refresh_label.configure(text="状态只读 · "+channels+" · 更新 " +

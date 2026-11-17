@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from v4.desktop_station_monitor import read_station_scope
+from v4.desktop_health import read_health
 
 
 def _json_file(path: Path) -> dict:
@@ -98,7 +99,8 @@ def read_snapshot(data_root: Path, task: dict | None = None) -> dict:
         runs = []
     current = _json_file(runs[0] / "manifest.json") if runs else {}
     completed, deep, completed_folder = _last_completed_run(runs)
-    event = _log_events(_log_tail(root / "logs" / "shadow-task.log"))
+    log_text = _log_tail(root / "logs" / "shadow-task.log")
+    event = _log_events(log_text)
     latest_result = event["last_result"]
     # A shell task returning exit code 2 is an acknowledged degraded scan.
     last_code = task.get("last_result")
@@ -219,7 +221,10 @@ def read_snapshot(data_root: Path, task: dict | None = None) -> dict:
             name for name, detail in last_game_mail["recipients"].items()
             if isinstance(detail, dict) and detail.get("sent") is True
         ]
+    health = read_health(root, current, runs[0].name if runs else None,
+                         scope_status, status, log_text)
     return {
+        "health": health,
         "status": status,
         "task_state": task_state,
         "phase": phase,
