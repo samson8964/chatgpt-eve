@@ -410,9 +410,9 @@ def money(value):
     if n is None:
         return "未核实"
     if abs(n) >= 100_000_000:
-        return f"{n/100_000_000:,.2f}".rstrip("0").rstrip(".")+"亿"
+        return f"{n/100_000_000:.2f}".rstrip("0").rstrip(".")+"亿"
     if abs(n) >= 10_000:
-        return f"{n/10_000:,.2f}".rstrip("0").rstrip(".")+"万"
+        return f"{n/10_000:.2f}".rstrip("0").rstrip(".")+"万"
     return f"{n:,.2f}".rstrip("0").rstrip(".")+" ISK"
 
 
@@ -590,7 +590,7 @@ def _sections(review, compact=False):
         return subject, [], [alert]
     sections = [(label,[_entry(review,kind,p,compact) for p in leads])
                 for label,kind,leads in (("市场","market",pairs),("合同","contract",contracts),
-                                        ("蓝图制造","blueprint",bps)) if leads]
+                                        ("蓝图制造（估算研究）","blueprint",bps)) if leads]
     notes = []
     if not sections:
         notes.append("本轮暂无候选。")
