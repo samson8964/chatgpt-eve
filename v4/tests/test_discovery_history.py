@@ -124,11 +124,11 @@ class DiscoveryMailTests(unittest.TestCase):
             for game in (False,True):
                 subject,body=render(review,game=game)
                 self.assertIn("市场10 合同10",subject)
-                self.assertIn("首见10-15 14:23",body)
-                self.assertIn("商品 34",body)
+                self.assertIn("首次发现 10-15 14:23",body)
+                self.assertIn("物品名称待核实",body)
                 self.assertIn("2000",body)
             _,html=render_html(review)
-            self.assertIn("首见10-15 14:23",html)
+            self.assertIn("首次发现 10-15 14:23",html)
 
     def test_nonqualified_proofs_do_not_backdate_first_seen(self):
         with tempfile.TemporaryDirectory() as tmp:

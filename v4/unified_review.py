@@ -18,6 +18,7 @@ from v4.engine import Policy
 from v4.ship_alert_exclusions import load_policy_for_run, POLICY_NAME
 from v4.mail_volume import market_volume, market_label, contract_label, credited_volume_breakdown
 from v4.discovery_history import first_seen, order_by_discovery
+from v4.mail_names import load as load_mail_names, clean as clean_name
 from v4.structure_registry import STATIONS as APPROVED_STRUCTURES, LANE_TO_LABEL
 
 JITA = 60003760
@@ -38,7 +39,7 @@ def research_profit_sort_key(lead: dict):
             -float(lead["roi_snapshot"]),
             int(lead.get("contract_id") or lead.get("type_id") or 0))
 LOCATION_NAMES = {
-    60003760:"吉他4-4", 60008494:"Amarr", 60011866:"Dodixie",
+    60003760:"吉他4-4", 60008494:"艾玛", 60011866:"多迪谢",
     **{location: name for name, location in APPROVED_STRUCTURES.items()},
 }
 
@@ -111,7 +112,7 @@ def unit_price(value) -> str:
     if amount is None:
         return "无报价"
     if amount >= 1_000_000:
-        return f"{amount/100_000_000:.2f}亿"
+        return money(amount)
     if amount >= 10_000:
         return f"{amount/10_000:.2f}万"
     return f"{amount:,.2f}ISK"
@@ -197,6 +198,8 @@ def make_review(root: Path, *, limit_each: int = MAX_EACH) -> dict:
                             "product_gross": row.get("product_gross_isk"),
                             "material_cost": row.get("material_cost_isk"),
                             "fee_reserve": row.get("manufacturing_fee_isk"),
+                            "investment": row.get("cost"),
+                            "haul_estimate_isk": row.get("haul_estimate_isk"),
                             "manufacturing_fee_status": row.get("facility_fee_status"),
                             "manufacturing_fee_observed_at_utc": row.get("manufacturing_fee_observed_at_utc"),
                             "sales_tax": row.get("sales_tax_isk"),
@@ -258,6 +261,8 @@ def make_review(root: Path, *, limit_each: int = MAX_EACH) -> dict:
                 "net_profit_snapshot":profit,"roi_snapshot":roi,
                 "stress_profit_snapshot":stress,
                 "capital":capital,"haul_estimate":_amount(row.get("haul_isk")),
+                "purchase_total":_amount(row.get("executed_sell_cost")),
+                "gross_sale":_amount(row.get("executed_jita_buy_gross")),
                 "source_vwap_isk_per_unit":source_vwap,
                 "jita_vwap_isk_per_unit":jita_vwap,
                 "source_top5_sell":row.get("source_top5_sell"),
@@ -320,6 +325,7 @@ def make_review(root: Path, *, limit_each: int = MAX_EACH) -> dict:
         # contract leads, not the unbounded unsorted source pool.
         "research_leads":contracts[:cap],
     })
+    review["mail_names"] = _select_names(load_mail_names(root), review)
     return review
 
 
@@ -380,157 +386,267 @@ def _coverage_alert(review: dict) -> tuple[str, str]:
     return subject, body
 
 
-def render(review: dict, *, game: bool = False) -> tuple[str, str]:
-    """Short human-readable body. Game version contains native EVE click targets.
+def _select_names(names, review):
+    """Retain only the names required for this digest, never the full SDE."""
+    types, stations = set(), set()
+    for lead in review.get("market_research_leads") or []:
+        types.add(str(lead.get("type_id")))
+        stations.add(str(lead.get("source_location")))
+    for lead in review.get("contract_research_leads") or []:
+        types.update(str(k) for k in (lead.get("included_items") or {}))
+        types.update(str(d.get("type_id")) for d in lead.get("credited_volume_items") or [])
+        stations.add(str(lead.get("source_location")))
+    for lead in review.get("blueprint_research_leads") or []:
+        types.add(str(lead.get("blueprint_type_id")))
+        types.update(str(d.get("blueprint_type_id")) for d in lead.get("bundle_selected_details") or [])
+        stations.add(str(lead.get("source_location")))
+    return {kind:{k:names[kind][k] for k in keys if k in names.get(kind,{})}
+            for kind,keys in (("types",types),("stations",stations))}
 
-    Important: showinfo opens the item's information, not a particular sell
-    order. Contract links open the exact contract identifier in-game.
-    """
+
+def money(value):
+    """Human-readable ISK amounts, including negative and sub-million values."""
+    n = _amount(value)
+    if n is None:
+        return "未核实"
+    if abs(n) >= 100_000_000:
+        return f"{n/100_000_000:.2f}".rstrip("0").rstrip(".")+"亿"
+    if abs(n) >= 10_000:
+        return f"{n/10_000:.2f}".rstrip("0").rstrip(".")+"万"
+    return f"{n:,.2f}".rstrip("0").rstrip(".")+" ISK"
+
+
+def _display_name(review, tid, limit=70):
+    names = (review.get("mail_names") or {}).get("types") or {}
+    name = clean_name(names.get(str(tid)))
+    if not name or name.isdigit():
+        return "物品名称待核实"
+    return name if len(name)<=limit else name[:limit-1]+"…"
+
+
+def _location(review, lead, limit=80):
+    key = str(lead.get("source_location"))
+    try:
+        station = LOCATION_NAMES.get(int(key))
+    except (TypeError, ValueError):
+        station = None
+    if not station:
+        station = clean_name(((review.get("mail_names") or {}).get("stations") or {}).get(key))
+    if not station:
+        station = clean_name(lead.get("source_station_name"))
+    if not station or station.isdigit():
+        station = "空间站名称待核实"
+    prefix = {"HIGH":"高安","LOW":"低安"}.get(lead.get("source_security_band"),"")
+    return (prefix+" " if prefix else "")+station[:limit]
+
+
+def _summary(lead):
+    roi = _amount(lead.get("roi_snapshot"))
+    return "预计净赚 "+money(lead.get("net_profit_snapshot"))+"｜回报率 "+(
+        f"{roi*100:.1f}".rstrip("0").rstrip(".")+"%" if roi is not None else "未核实")
+
+
+def _items(review, lead, limit):
+    items = lead.get("included_items") or {}
+    credited = lead.get("credited_items") or {}
+    if not isinstance(items,dict):
+        return []
+    # Credit-bearing goods first. No valuation of ignored items is implied.
+    volume = {str(d.get("type_id")):(_amount(d.get("subtotal_volume_m3")) or 0)
+              for d in lead.get("credited_volume_items") or []}
+    ordered = sorted(items.items(),key=lambda x:(str(x[0]) not in credited and x[0] not in credited,
+                                                  -volume.get(str(x[0]),0),-int(x[1]),str(x[0])))
+    return [(_display_name(review,t,limit),q) for t,q in ordered]
+
+
+def _contract_description(review, lead, limit):
+    items = _items(review,lead,limit)
+    if not items:
+        return "物品合同", "内容待核实"
+    title = items[0][0]+("等物品合同" if len(items)>1 else "合同")
+    details = "、".join(f"{name}×{q}" for name,q in items[:3])
+    if len(items)>3:
+        details += f"；另{len(items)-3}类"
+    return title,details
+
+
+def _blueprint_description(review, lead, limit):
+    # A selected entry can represent more than one physical copy. Group
+    # actual recorded licensed production runs by type, not by entry count.
+    groups = {}
+    details = lead.get("bundle_selected_details") or []
+    for item in details:
+        typ = item.get("blueprint_type_id")
+        runs = _amount(item.get("production_runs"))
+        contribution = _amount(item.get("contribution_isk"))
+        if typ is None or runs is None or runs <= 0 or contribution is None:
+            continue
+        before = groups.get(typ,(0,0.))
+        groups[typ] = (before[0]+int(runs),before[1]+contribution)
+    ranked = sorted(groups.items(),key=lambda x:(-x[1][1],str(x[0])))
+    if ranked:
+        name = _display_name(review,ranked[0][0],limit)
+        text = "、".join(f"{_display_name(review,t,limit)}×{v[0]:,}次"
+                         for t,v in ranked[:3])
+        if len(ranked)>3:
+            text += f"；另{len(ranked)-3}种"
+        total = sum(v[0] for v in groups.values())
+        if len(details)==sum(1 for d in details if
+                d.get("blueprint_type_id") is not None and
+                (_amount(d.get("production_runs")) or 0)>0 and
+                _amount(d.get("contribution_isk")) is not None):
+            count = f"组合制造{total:,}次"
+        else:
+            count = "组合总次数未核实"
+        return name+("等组合" if len(ranked)>1 else "组合"),count,text
+    name = _display_name(review,lead.get("blueprint_type_id"),limit)
+    runs = _amount(lead.get("production_runs_assumed"))
+    return name+"组合","组合总次数未核实",(
+        f"代表蓝图{int(runs):,}次" if runs is not None else "制造次数未核实")
+
+
+def _risk_text(lead):
+    flags = lead.get("risk_flags") or []
+    labels = {"LESS_THAN_FIVE_PRICE_LEVELS":"报价档数不足",
+              "SNAPSHOT_DEPTH_BELOW_MODEL_QUANTITY":"买卖深度不足",
+              "BPC_VALUE_MISSING_IN_BUNDLE":"部分蓝图未估值",
+              "MANUFACTURING_FEE_NOT_ESI_VERIFIED":"制造费未核实"}
+    risk = _amount(lead.get("risk_score"))
+    text = "模型风险 "+(f"{risk:.0f}/100" if risk is not None else "未核实")
+    reasons = [v for k,v in labels.items() if k in flags]
+    return text+("；"+"、".join(reasons) if reasons else "")
+
+
+def _entry(review, kind, lead, compact=False):
+    lim = 12 if compact == 2 else 18 if compact else 45
+    loc = _location(review,lead,20 if compact == 2 else 30 if compact else 80)
+    discovered = discovered_label(lead).strip()
+    head = _summary(lead)
+    if kind == "market":
+        name = _display_name(review,lead.get("type_id"),lim)+f" ×{int(lead['quantity']):,}"
+        link = ("m",int(lead["type_id"]))
+        lines = [head,
+                 f"采购：{loc}｜投入 {money(lead.get('capital'))}",
+                 f"单价 买{money(lead.get('source_vwap_isk_per_unit'))} → 吉他卖{money(lead.get('jita_vwap_isk_per_unit'))}",
+                 market_label(lead)]
+        if not compact:
+            lines.append("采购货款 "+money(lead.get("purchase_total"))+"｜销售额 "+
+                         money(lead.get("gross_sale"))+"｜运费 "+money(lead.get("haul_estimate")))
+            lines.append("参考 "+five_level_label(lead,"source_top5_sell","本地卖")+
+                         " / "+five_level_label(lead,"jita_top5_buy","吉他买"))
+    elif kind == "contract":
+        name,contents = _contract_description(review,lead,lim)
+        link = ("c",int(lead["contract_id"]))
+        lines = [head,
+                 f"采购：{loc}｜合同价 {money(lead.get('contract_price'))}",
+                 f"投入 {money(lead.get('investment'))}｜运费 {money(lead.get('haul_estimate_isk'))}",
+                 "合同包含："+contents,
+                 contract_label(lead)]
+        if not compact:
+            details = lead.get("credited_volume_items") or []
+            if details:
+                from v4.mail_volume import format_m3
+                lines.append("计价货物："+"；".join(
+                    f"{_display_name(review,d.get('type_id'),lim)}×{d['quantity']} 单件{format_m3(d.get('unit_volume_m3'))} 小计{format_m3(d.get('subtotal_volume_m3'))}"
+                    for d in details[:3]))
+            risk = contract_liquidity_label(lead).lstrip("｜")
+        else:
+            risk = ""
+            if float(lead.get("contract_history_reference_share") or 0)>0:
+                risk = "风险：无吉他买单，采用伏尔加星域历史成交参考，非即时成交"
+            elif float(lead.get("contract_ask_only_reference_share") or 0)>0:
+                risk = "风险：卖价参考，非可成交收入"
+            elif "JITA_BUY_DEPTH_INSUFFICIENT" in (lead.get("contract_liquidity_risk_flags") or []):
+                risk = "风险：吉他买单深度不足"
+        if risk:
+            lines.append(risk)
+    else:
+        name,count,details = _blueprint_description(review,lead,lim)
+        link = ("c",int(lead["contract_id"]))
+        lines = [head,
+                 f"采购：{loc}｜投入 {money(lead.get('investment'))}",
+                 f"蓝图 {money(lead.get('contract_price'))}｜材料 {money(lead.get('material_cost'))}｜制造费 {money(lead.get('fee_reserve'))}",
+                 f"运费 {money(lead.get('haul_estimate_isk'))}｜销售税 {money(lead.get('sales_tax'))}｜销售额 {money(lead.get('product_gross'))}",
+                 f"BPC选中{lead.get('bundle_blueprint_selected') or 1}/{lead.get('bundle_blueprint_total') or 1}条｜{count}",
+                 details, _risk_text(lead)]
+    if compact == 2:
+        if kind == "contract":
+            # Keep all candidates and their price, profit, location, costs and
+            # risk. Long item lists remain in the full Gmail digest.
+            lines[3] = "合同包含："+(contents.split("、")[0].split("；")[0])+"（详见Gmail）"
+        elif kind == "blueprint":
+            lines[5] = details.split("、")[0].split("；")[0]+"（详见Gmail）"
+    elif discovered:
+        lines.append("首次发现 "+discovered.replace("首见","",1))
+    return name,link,lines
+
+
+def _sections(review, compact=False):
     pairs, contracts, good = _selected(review)
-    blueprints = _blueprints(review,good)
-    subject = _subject(review, pairs, contracts) + f" 蓝图制造{len(blueprints)}"
-    lines = []
+    bps = _blueprints(review,good)
+    subject = _subject(review,pairs,contracts)+f" 蓝图制造{len(bps)}"
     if not good:
-        return _coverage_alert(review)
-    if pairs:
-        lines.append("【市场】")
-        for n, p in enumerate(pairs, 1):
-            tid = int(p["type_id"])
-            if game:
-                name = f"<url=showinfo:{tid}><b>查看商品 {tid}</b></url>"
-            else:
-                name = f"商品 {tid} {WORKER}/m/{tid}"
-            lines.append(
-                f"{n}. {name} ×{p['quantity']} {place(p['source_location'])}"
-                f"{discovered_label(p)}"
-                f" 净{yi(p['net_profit_snapshot'])} ROI{p['roi_snapshot']*100:.0f}%"
-                f"｜成交均 本地卖{unit_price(p['source_vwap_isk_per_unit'])}"
-                f"→吉买{unit_price(p['jita_vwap_isk_per_unit'])}"
-                f"｜参考{five_level_label(p, 'source_top5_sell', '卖')}"
-                f" / {five_level_label(p, 'jita_top5_buy', '吉买')}"
-                f"｜{market_label(p)}")
-    if contracts:
-        lines.append("【合同】")
-        for n, p in enumerate(contracts, 1):
-            cid = int(p["contract_id"])
-            if game:
-                name = f"<url=contract:0//{cid}><b>打开合同 {cid}</b></url>"
-            else:
-                name = f"合同 {cid} {WORKER}/c/{cid}"
-            lines.append(
-                f"{n}. {name} {contract_place(p)}"
-                f"{discovered_label(p)}"
-                f" 价{yi(p.get('contract_price'))}"
-                f" 净{yi(p['net_profit_snapshot'])} ROI{p['roi_snapshot']*100:.0f}%"
-                f"｜{contract_label(p)}"
-                f"{contract_liquidity_label(p)}"
-                + (f"｜{credited_volume_breakdown(p)}"
-                   if credited_volume_breakdown(p) else ""))
-    if blueprints:
-        lines.append("【蓝图制造（估算研究）】")
-        for n, p in enumerate(blueprints,1):
-            cid=int(p["contract_id"])
-            bpid=int(p["blueprint_type_id"])
-            product=int(p["product_type_id"])
-            if game:
-                label=f"<url=contract:0//{cid}>蓝图合同 {cid}</url>"
-            else:
-                label=f"蓝图合同 {cid} {WORKER}/c/{cid}"
-            lines.append(
-                f"{n}. {label} {place(p.get('source_location'))}"
-                f" BPC组合{p.get('bundle_blueprint_selected')}/{p.get('bundle_blueprint_total')}张"
-                f"（代表蓝图{bpid}，共{p['production_runs_assumed']}次）"
-                f"｜净{yi(p['net_profit_snapshot'])} ROI{p['roi_snapshot']*100:.0f}%"
-                f"｜成品卖出{yi(p.get('product_gross'))}"
-                f" 合同{yi(p.get('contract_price'))}"
-                f" 材料{yi(p['material_cost'])}"
-                f" 销售税{yi(p.get('sales_tax'))}"
-                f" 制造费{yi(p['fee_reserve'])}"
-                f" 风险{p.get('risk_score', 0):.0f}/100"
-                f"（吉他前5档均价；非即时成交，未计时间/资金占用）")
-    if not pairs and not contracts and not blueprints:
-        lines.append("本轮暂无候选。")
-    if review.get("npc_catalog_status") == "NOT_INSTALLED_LEGACY_CONTRACT_SCOPE":
-        lines.append("注意：NPC高低安目录未安装，本轮合同仍仅覆盖旧站点。")
+        subject,alert = _coverage_alert(review)
+        return subject, [], [alert]
+    sections = [(label,[_entry(review,kind,p,compact) for p in leads])
+                for label,kind,leads in (("市场","market",pairs),("合同","contract",contracts),
+                                        ("蓝图制造（估算研究）","blueprint",bps)) if leads]
+    notes = []
+    if not sections:
+        notes.append("本轮暂无候选。")
+    if sections and not (review.get("mail_names") or {}).get("types"):
+        notes.append("当前机会名称未核实，请安装或更新官方SDE名称字典。")
+    if review.get("npc_catalog_status")=="NOT_INSTALLED_LEGACY_CONTRACT_SCOPE":
+        notes.append("注意：NPC高低安目录未安装，本轮合同仍仅覆盖旧站点。")
     if pairs or contracts:
-        lines.append("体积按静态物品打包体积估算；已组装舰船等的实际运输体积以游戏内为准。")
-    lines.append("快照待核，不代表可立即成交。")
-    # EVE ESI supports <br>, and actual native in-client <url=...> syntax.
-    return subject, ("<br>" if game else "\n").join(lines)
+        notes.append("体积按打包估算；已组装舰船以游戏内为准。")
+    if bps:
+        notes.append("蓝图为吉他前5档均价制造估算；投入不含销售税，未计制造时间、资金占用及销售周期；风险分0不等于无风险。")
+    notes.append("快照待核，不代表可立即成交。")
+    return subject,sections,notes
+
+
+def render(review: dict, *, game: bool = False) -> tuple[str, str]:
+    """Shared native EVE and plain-text layout. IDs appear only in link targets."""
+    def build(compact):
+        subject,sections,notes = _sections(review,compact)
+        lines = []
+        for label,entries in sections:
+            lines.append("【"+label+"】")
+            for n,(name,(kind,ident),details) in enumerate(entries,1):
+                if game:
+                    target = f"showinfo:{ident}" if kind=="m" else f"contract:0//{ident}"
+                    title = f"<url={target}><b>{html.escape(name)}</b></url>"
+                else:
+                    title = f"{name} {WORKER}/{kind}/{ident}"
+                lines.append(f"{n}. {title}")
+                lines.extend(html.escape(x) if game else x for x in details)
+                if not compact:
+                    lines.append("")
+        lines.extend(html.escape(x).replace("\n","<br>") if game else x for x in notes)
+        return subject, ("<br>" if game else "\n").join(lines)
+    subject,body=build(False)
+    if game and len(body)>9000:
+        subject,body=build(True)
+    if game and len(body)>9000:
+        subject,body=build(2)
+    # No truncation of native links or removal of any candidate.
+    if game and len(body)>9000:
+        raise RuntimeError("GAME_MAIL_DIGEST_TOO_LONG")
+    return subject,body
 
 
 def render_html(review: dict) -> tuple[str, str]:
-    """HTML Gmail alternative with real anchors, not plain URL text.
-
-    No remote images, scripts, or unsanitized data from contracts; hrefs
-    are created only from validated numeric IDs on our own opener domain.
-    """
-    pairs, contracts, good = _selected(review)
-    blueprints = _blueprints(review,good)
-    subject = _subject(review, pairs, contracts) + f" 蓝图制造{len(blueprints)}"
-    blocks = []
-    if not good:
-        subject, body = _coverage_alert(review)
-        blocks.append("<p>" + html.escape(body).replace("\n", "<br>") + "</p>")
-    else:
-        if pairs:
-            blocks.append("<p><strong>市场</strong></p>")
-            for n, p in enumerate(pairs, 1):
-                tid = int(p["type_id"])
-                place_name = html.escape(place(p.get("source_location")))
-                blocks.append(
-                    f'<p>{n}. <a href="{WORKER}/m/{tid}">查看商品 {tid}</a>'
-                    f' ×{int(p["quantity"])} {place_name}'
-                    f'{html.escape(discovered_label(p))}'
-                    f' ｜净{yi(p["net_profit_snapshot"])}'
-                    f' ｜ROI {float(p["roi_snapshot"])*100:.0f}%'
-                    f' ｜成交均 本地卖{unit_price(p["source_vwap_isk_per_unit"])}'
-                    f'→吉买{unit_price(p["jita_vwap_isk_per_unit"])}'
-                    f' ｜参考{html.escape(five_level_label(p, "source_top5_sell", "卖"))}'
-                    f' / {html.escape(five_level_label(p, "jita_top5_buy", "吉买"))}'
-                    f' ｜{html.escape(market_label(p))}</p>')
-        if contracts:
-            blocks.append("<p><strong>合同</strong></p>")
-            for n, p in enumerate(contracts, 1):
-                cid = int(p["contract_id"])
-                place_name = html.escape(contract_place(p))
-                blocks.append(
-                    f'<p>{n}. <a href="{WORKER}/c/{cid}">打开合同 {cid}</a>'
-                    f' {place_name}{html.escape(discovered_label(p))}'
-                    f' ｜价{yi(p.get("contract_price"))}'
-                    f' ｜净{yi(p["net_profit_snapshot"])}'
-                    f' ｜ROI {float(p["roi_snapshot"])*100:.0f}%'
-                    f' ｜{html.escape(contract_label(p))}'
-                    f'{html.escape(contract_liquidity_label(p))}'
-                    + (f' ｜{html.escape(credited_volume_breakdown(p))}'
-                       if credited_volume_breakdown(p) else '') + '</p>')
-        if not pairs and not contracts and not blueprints:
-            blocks.append("<p>本轮暂无候选。</p>")
-    if blueprints:
-        blocks.append('<p><strong>BPC制造（吉他前5档均价，非即时成交）</strong></p>')
-        for n,b in enumerate(blueprints,1):
-            cid=int(b["contract_id"])
-            blocks.append(
-                f'<p>{n}. <a href="{WORKER}/c/{cid}">合同 {cid}</a>'
-                f' BPC组合{int(b.get("bundle_blueprint_selected") or 1)}/{int(b.get("bundle_blueprint_total") or 1)}张'
-                f' 代表蓝图{int(b["blueprint_type_id"])}'
-                f' 制造{int(b["production_runs_assumed"])}次'
-                f' 净{yi(b["net_profit_snapshot"])}'
-                f' ROI{float(b["roi_snapshot"])*100:.0f}%'
-                f' 成品卖出{yi(b.get("product_gross"))}'
-                f' 合同{yi(b.get("contract_price"))}'
-                f' 材料{yi(b["material_cost"])}'
-                f' 销售税{yi(b.get("sales_tax"))}'
-                f' 制造费{yi(b["fee_reserve"])}'
-                 f' 风险{float(b.get("risk_score") or 0):.0f}/100'
-                '（前5档均价，非即时成交，未计时间/资金占用）</p>')
-    if review.get("npc_catalog_status") == "NOT_INSTALLED_LEGACY_CONTRACT_SCOPE":
-        blocks.append('<p>注意：NPC高低安目录未安装，本轮合同仍仅覆盖旧站点。</p>')
-    if pairs or contracts:
-        blocks.append('<p style="color:#777;font-size:12px">'
-                      '体积按静态物品打包体积估算；已组装舰船等实际运输体积以游戏内为准。</p>')
-    blocks.append('<p style="color:#777;font-size:12px">快照待核，不代表可立即成交。</p>')
-    body = ('<!doctype html><html><head><meta charset="utf-8"></head>'
-            '<body style="font-family:Arial,sans-serif;font-size:14px;'
-            'line-height:1.4">' + "".join(blocks) + '</body></html>')
-    return subject, body
+    subject,sections,notes = _sections(review)
+    blocks=[]
+    for label,entries in sections:
+        blocks.append(f"<h3>{html.escape(label)}</h3>")
+        for n,(name,(kind,ident),details) in enumerate(entries,1):
+            blocks.append(f'<p>{n}. <a href="{WORKER}/{kind}/{ident}">{html.escape(name)}</a>'
+                          f'<br><strong>{html.escape(details[0])}</strong>'
+                          +"".join("<br>"+html.escape(x) for x in details[1:])+"</p>")
+    blocks.extend("<p>"+html.escape(x).replace("\n","<br>")+"</p>" for x in notes)
+    body=('<!doctype html><html><head><meta charset="utf-8"></head>'
+          '<body style="font-family:Arial,sans-serif;font-size:14px;line-height:1.4">'
+          +"".join(blocks)+"</body></html>")
+    return subject,body

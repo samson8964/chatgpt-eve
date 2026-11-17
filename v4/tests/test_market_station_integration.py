@@ -108,9 +108,9 @@ class StationDepthIntegration(unittest.TestCase):
                 unified=make_review(root)
             self.assertEqual(unified["market_research_leads_total"],1)
             _,mail=render(unified,game=True)
-            self.assertIn("成交均 本地卖",mail)
-            self.assertIn("卖5档均0.03亿",mail)
-            self.assertIn("吉买5档均0.08亿",mail)
+            self.assertIn("单价 买",mail)
+            self.assertIn("本地卖5档均300万",mail)
+            self.assertIn("吉他买5档均800万",mail)
             from v4.market_station_audit import summarize
             historical=summarize(root)
             self.assertEqual(historical["stations"]["C-J"]["active_sell_type_ids"],1)
