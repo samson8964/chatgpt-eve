@@ -325,7 +325,7 @@ def make_review(root: Path, *, limit_each: int = MAX_EACH) -> dict:
         # contract leads, not the unbounded unsorted source pool.
         "research_leads":contracts[:cap],
     })
-    review["mail_names"] = load_mail_names(root)
+    review["mail_names"] = _select_names(load_mail_names(root), review)
     return review
 
 
@@ -386,6 +386,24 @@ def _coverage_alert(review: dict) -> tuple[str, str]:
     return subject, body
 
 
+def _select_names(names, review):
+    """Retain only the names required for this digest, never the full SDE."""
+    types, stations = set(), set()
+    for lead in review.get("market_research_leads") or []:
+        types.add(str(lead.get("type_id")))
+        stations.add(str(lead.get("source_location")))
+    for lead in review.get("contract_research_leads") or []:
+        types.update(str(k) for k in (lead.get("included_items") or {}))
+        types.update(str(d.get("type_id")) for d in lead.get("credited_volume_items") or [])
+        stations.add(str(lead.get("source_location")))
+    for lead in review.get("blueprint_research_leads") or []:
+        types.add(str(lead.get("blueprint_type_id")))
+        types.update(str(d.get("blueprint_type_id")) for d in lead.get("bundle_selected_details") or [])
+        stations.add(str(lead.get("source_location")))
+    return {kind:{k:names[kind][k] for k in keys if k in names.get(kind,{})}
+            for kind,keys in (("types",types),("stations",stations))}
+
+
 def money(value):
     """Human-readable ISK amounts, including negative and sub-million values."""
     n = _amount(value)
@@ -434,8 +452,10 @@ def _items(review, lead, limit):
     if not isinstance(items,dict):
         return []
     # Credit-bearing goods first. No valuation of ignored items is implied.
+    volume = {str(d.get("type_id")):(_amount(d.get("subtotal_volume_m3")) or 0)
+              for d in lead.get("credited_volume_items") or []}
     ordered = sorted(items.items(),key=lambda x:(str(x[0]) not in credited and x[0] not in credited,
-                                                  -int(x[1]),str(x[0])))
+                                                  -volume.get(str(x[0]),0),-int(x[1]),str(x[0])))
     return [(_display_name(review,t,limit),q) for t,q in ordered]
 
 
@@ -568,7 +588,7 @@ def _sections(review, compact=False):
     if not sections:
         notes.append("本轮暂无候选。")
     if sections and not (review.get("mail_names") or {}).get("types"):
-        notes.append("中文名称缓存未安装，请安装官方SDE名称字典。")
+        notes.append("当前机会名称未核实，请安装或更新官方SDE名称字典。")
     if review.get("npc_catalog_status")=="NOT_INSTALLED_LEGACY_CONTRACT_SCOPE":
         notes.append("注意：NPC高低安目录未安装，本轮合同仍仅覆盖旧站点。")
     if pairs or contracts:
