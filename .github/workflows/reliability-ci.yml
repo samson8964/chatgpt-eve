@@ -26,6 +26,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Install the same pinned V4 runtime dependencies as isolated CI
+        run: python -m pip install -r requirements.txt
       - name: Compile independent V4 sources
         run: python -m compileall -q v4
       - name: Verify V4 opportunity identity and policy regression tests
