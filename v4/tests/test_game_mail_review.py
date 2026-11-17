@@ -47,6 +47,7 @@ def review():
         "sqlite_unique_proofs":14,
         "research_leads_total":1,
         "contract_rejection_reasons":{},
+        "mail_names":{"types":{"34":"三钛合金"},"stations":{}},
         "research_leads":[{
             "contract_id":236977688, "review_tier":"MODEL_CANDIDATE",
             "contract_price":100000000, "investment":103000000,
@@ -103,10 +104,10 @@ class GameMailReviewTests(unittest.TestCase):
             self.assertEqual(send[0:2],("POST",WORKER_URL+"/api/send-mail"))
             self.assertEqual(send[2]["json"]["recipient_id"],2124493042)
             self.assertIn("V4捡漏待核",send[2]["json"]["subject"])
-            self.assertIn("打开合同",send[2]["json"]["body"])
+            self.assertIn("三钛合金合同",send[2]["json"]["body"])
             self.assertIn("236977688",send[2]["json"]["body"])
             self.assertIn("快照待核",send[2]["json"]["body"])
-            self.assertIn("<url=contract:0//236977688><b>打开合同 236977688</b></url>",send[2]["json"]["body"])
+            self.assertIn("<url=contract:0//236977688><b>三钛合金合同</b></url>",send[2]["json"]["body"])
             self.assertEqual(len(send[2]["json"]["idempotency_key"]), len("v4-contract-research:")+38)
             receipt=root/"mail-review"/"eve-receipts"/"20261014T082300Z-sample.json"
             self.assertTrue(receipt.is_file())
