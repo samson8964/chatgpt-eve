@@ -76,7 +76,7 @@ class MailVolumeTests(unittest.TestCase):
                 "run_folder":"20261017T112301Z-xyz",
                 "market_research_leads":[mk],
                 "contract_research_leads":[con],
-                "blueprint_research_leads":[]}
+                "blueprint_research_leads":[], "mail_names":{"types":{"34":"三钛合金"},"stations":{}}}
         subject,plain=render(report,game=False)
         _,game=render(report,game=True)
         _,rich=render_html(report)
@@ -86,7 +86,7 @@ class MailVolumeTests(unittest.TestCase):
             self.assertIn("合计4.5 m³",body)
             self.assertIn("计价货物50 m³",body)
             self.assertIn("整份合同150 m³",body)
-            self.assertIn("Type 34×100 单件0.5 m³ 小计50 m³",body)
+            self.assertIn("三钛合金×100 单件0.5 m³ 小计50 m³",body)
         self.assertIn("<url=showinfo:34>",game)
         self.assertIn('<a href=',rich)
         self.assertEqual(len(report["market_research_leads"]),1)
