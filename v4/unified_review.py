@@ -498,8 +498,8 @@ def _risk_text(lead):
 
 
 def _entry(review, kind, lead, compact=False):
-    lim = 20 if compact else 45
-    loc = _location(review,lead,38 if compact else 80)
+    lim = 18 if compact else 45
+    loc = _location(review,lead,30 if compact else 80)
     discovered = discovered_label(lead).strip()
     head = _summary(lead)
     if kind == "market":
@@ -598,7 +598,9 @@ def render(review: dict, *, game: bool = False) -> tuple[str, str]:
                     lines.append("")
         lines.extend(html.escape(x).replace("\n","<br>") if game else x for x in notes)
         return subject, ("<br>" if game else "\n").join(lines)
-    subject,body=build(game)
+    subject,body=build(False)
+    if game and len(body)>9000:
+        subject,body=build(True)
     # No truncation of native links or removal of any candidate.
     if game and len(body)>9000:
         raise RuntimeError("GAME_MAIL_DIGEST_TOO_LONG")
