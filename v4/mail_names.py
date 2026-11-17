@@ -55,7 +55,7 @@ def _rows(z, filename):
                 yield json.loads(raw)
 
 
-def compile_names(path):
+def compile_names(path, *, min_types=10_000, min_stations=1_000):
     with zipfile.ZipFile(path) as z:
         types = {str(r["_key"]):localized(r.get("name"))
                  for r in _rows(z,"types.jsonl")}
@@ -77,7 +77,7 @@ def compile_names(path):
             parent = planets.get(int(r["orbitID"]))
             if parent:
                 moons[int(r["_key"])] = (localized(r.get("uniqueName"))
-                                          or f'{parent} - 卫星 {roman(r["celestialIndex"])}')
+                                          or f'{parent} - 卫星 {int(r["orbitIndex"])}')
         stations = {}
         for r in _rows(z,"npcStations.jsonl"):
             name = localized(r.get("name"))
@@ -91,7 +91,7 @@ def compile_names(path):
                 name = parent+" - "+corp+(" "+operation if r.get("useOperationName") else "")
             if name:
                 stations[str(r["_key"])] = name
-    if len(types)<10_000 or len(stations)<1_000:
+    if len(types)<min_types or len(stations)<min_stations:
         raise ValueError("SDE_NAME_COVERAGE_INCOMPLETE")
     return {"schema":SCHEMA,"source":URL,"types":types,"stations":stations}
 
