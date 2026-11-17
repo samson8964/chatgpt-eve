@@ -373,6 +373,9 @@ def cleanup(root: Path, *, apply=False, max_runs=MAX_PER_CYCLE) -> dict:
             if warnings:
                 return {**out, "status": "BLOCKED_HISTORY_INTEGRITY",
                         "warnings": warnings}
+            out["keep_successful_runs"] = KEEP
+            out["old_run_count_after"] = max(0, len(rows) - KEEP)
+            out["blocked_reasons"] = {}
             if len(rows) <= KEEP:
                 return out
             chosen = rows[KEEP:]
@@ -380,8 +383,13 @@ def cleanup(root: Path, *, apply=False, max_runs=MAX_PER_CYCLE) -> dict:
                 if out["deleted"] >= max_runs:
                     break
                 folder = root / "runs" / name
-                if _mail_guards(root, folder) or not _safe_tree(folder, root / "runs"):
+                blockers = _mail_guards(root, folder)
+                if not blockers and not _safe_tree(folder, root / "runs"):
+                    blockers = ["UNSAFE_DIRECTORY"]
+                if blockers:
                     out["blocked"] += 1
+                    for reason in set(blockers):
+                        out["blocked_reasons"][reason] = out["blocked_reasons"].get(reason, 0) + 1
                     continue
                 # Never remove any row in the latest 72 success window.
                 again, bad = _history(root, db)
@@ -405,6 +413,7 @@ def cleanup(root: Path, *, apply=False, max_runs=MAX_PER_CYCLE) -> dict:
                     raise
                 out["sqlite_modified"] = True
                 out["deleted"] += 1
+                out["old_run_count_after"] -= 1
                 out["reclaimed_bytes"] += _remove_pending(db, root, run_id, name)
                 out["raw_folders_deleted"] += 1
             if out["deleted"]:

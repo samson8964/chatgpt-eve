@@ -19,7 +19,7 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 
-from v4.unified_review import make_review, render as render_unified
+from v4.unified_review import make_review, render as render_unified, digest_counts
 from v4.eve_mail_test import (
     WORKER_URL, EXPECTED_SENDER, GameMailTestError,
     _get_bridge_credential, _request_json, _resolve_recipient,
@@ -352,7 +352,8 @@ def send_review_to_game(root: Path, *, expected_run: str | None = None,
                 })
     if len(outcomes) == 1:
         return {**outcomes[0], "research_only":True, "formal_trade_alert":False,
-                "research_leads_total":review.get("research_leads_total",0)}
+                "research_leads_total":review.get("research_leads_total",0),
+                "digest_counts":digest_counts(review)}
     failures = sum(p["status"] == "V4_GAME_RESEARCH_MAIL_RECIPIENT_FAILED"
                    for p in outcomes)
     return {
@@ -365,6 +366,7 @@ def send_review_to_game(root: Path, *, expected_run: str | None = None,
         "recipients":{p["recipient"]:p for p in outcomes},
         "recipient_success_count":len(outcomes)-failures,
         "recipient_failure_count":failures,
+        "digest_counts":digest_counts(review),
         "research_only":True, "formal_trade_alert":False,
     }
 

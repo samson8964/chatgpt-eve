@@ -19,7 +19,7 @@ from datetime import datetime, timezone
 from email.message import EmailMessage
 from pathlib import Path
 
-from v4.unified_review import make_review, render as render_unified, render_html
+from v4.unified_review import make_review, render as render_unified, render_html, digest_counts
 
 SERVICE = "eve-v4-contract-review-gmail"
 CONFIG = Path("config/research_gmail.json")
@@ -280,6 +280,7 @@ def send_review(root: Path, *, expected_run: str | None = None,
     return {"status":"REVIEW_GMAIL_SENT","sent":True,
             "run_folder_name":run_name,
             "research_only":True,"formal_mail":False,
+            "digest_counts": digest_counts(review),
             "contract_leads_included": len(review.get("research_leads") or [])
                  if review.get("source_input_integrity")=="ALL_PARSED" and
                  review.get("coverage_gate")=="INPUT_LANES_REPORTED_COMPLETE_NOT_LIVE_VERIFIED" else 0}

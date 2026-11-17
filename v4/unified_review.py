@@ -360,6 +360,15 @@ def _blueprints(review: dict, good: bool):
     return (review.get("blueprint_research_leads") or [])[:MAX_EACH] if good else []
 
 
+def digest_counts(review: dict):
+    """Exact selected research candidates, not orders executed or mail delivered."""
+    pairs, contracts, good = _selected(review)
+    if not good:
+        return None
+    return {"market":len(pairs), "contract":len(contracts),
+            "blueprint":len(_blueprints(review, good))}
+
+
 def _subject(review: dict, pairs: list, contracts: list) -> str:
     time = beijing_scan_time(review.get("run_folder"))
     return f"V4捡漏待核 {time} 市场{len(pairs)} 合同{len(contracts)}"
