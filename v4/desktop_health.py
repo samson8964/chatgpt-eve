@@ -98,6 +98,7 @@ def _confirmed_game(root,run,name,ident):
         if (r.get("run")==run and r.get("recipient_id")==ident
                 and (r.get("recipient")==name or
                      (name=="MikeChong" and not r.get("recipient")))
+                and r.get("research_only") is True and r.get("formal_trade_alert") is False
                 and r.get("sender_id")==WORKER_SENDER
                 and r.get("source")=="EVE_OFFICIAL_MAIL_VIA_EXISTING_WORKER"
                 and _receipt_time(r.get("confirmed_at"),run)
@@ -195,6 +196,8 @@ def read_health(root,manifest,run,scope_status,task_status,log_text):
                 result=recent.get("GAME_REVIEW_MAIL",{})
                 details=result.get("recipients") or {}
                 item=details.get(name,{}) if isinstance(details,dict) else {}
+                if not isinstance(item,dict):
+                    item={}
                 if (recent.get("GAME_REVIEW_MAIL_FAILED") or
                     (result.get("run_folder_name")==run and
                      (item.get("status")=="V4_GAME_RESEARCH_MAIL_RECIPIENT_FAILED" or
@@ -202,8 +205,8 @@ def read_health(root,manifest,run,scope_status,task_status,log_text):
                        result.get("status")=="V4_GAME_RESEARCH_MAIL_RECIPIENT_FAILED")))):
                     game[name]="FAILED"
     codes=Counter()
-    if current:
-        for v in (manifest.get("structure_health") or {}).values():
+    if current and isinstance(manifest.get("structure_health"),dict):
+        for v in manifest["structure_health"].values():
             if isinstance(v,dict) and v.get("status")!="COMPLETE":
                 code=v.get("http_status")
                 codes["HTTP "+str(code) if type(code) is int and 100<=code<=599
@@ -214,7 +217,7 @@ def read_health(root,manifest,run,scope_status,task_status,log_text):
              "status":roll.get("status"),"checked_at":roll_at,
              "blocked":roll.get("blocked"),"remaining":roll.get("old_run_count_after"),
              "keep":roll.get("keep_successful_runs",72),
-             "reasons":roll.get("blocked_reasons") or {}}
+             "reasons":roll.get("blocked_reasons") if isinstance(roll.get("blocked_reasons"),dict) else {}}
     try:
         free=shutil.disk_usage(root).free/(1024**3)
     except OSError:
@@ -276,14 +279,14 @@ def health_lines(h):
         remaining=r["remaining"]
         blocked=r["blocked"]
         out["cleanup"]=(f"清理保留{r['keep']}轮 · 旧轮剩余 {remaining if type(remaining) is int else '--'} · 上次阻塞 {blocked if type(blocked) is int else '--'}",
-                         "amber" if blocked or r["status"].startswith("BLOCKED") or remaining is None else "green")
+                         "amber" if blocked or r["status"].startswith("BLOCKED") or type(remaining) is not int or remaining>0 else "green")
     reasons=r["reasons"]
     labels={"GMAIL_UNCONFIRMED":"Gmail回执缺失","GAME_MAIL_UNCONFIRMED:Arb Hunter":"Arb回执缺失",
             "GAME_MAIL_UNCONFIRMED:MikeChong":"Mike回执缺失","GAME_MAIL_UNCONFIRMED:LadyBaBa":"旧角色回执缺失",
             "MAIL_CONFIGURATION_UNKNOWN":"邮件配置未知","UNSAFE_DIRECTORY":"目录保护"}
-    shown=[f"{labels.get(k,'其他保护')} {v}" for k,v in sorted(reasons.items(),key=lambda kv:-kv[1])[:2]
+    shown=[f"{labels.get(k,'其他保护')} {v}" for k,v in sorted(((k,v) for k,v in reasons.items() if type(v) is int and v>0),key=lambda kv:-kv[1])[:2]
            if type(v) is int]
-    if shown:
+    if shown and r["configured"]:
         out["cleanup_reason"]=("上次阻塞："+" · ".join(shown),"amber")
     elif r["blocked"] or str(r["status"]).startswith("BLOCKED"):
         out["cleanup_reason"]=("上次清理受保护；详细原因待新维护日志","amber")

@@ -300,14 +300,25 @@ class DesktopWidget:
         root.attributes("-topmost", True)
         root.resizable(False, False)
         w, h = 450, 710
+        h = min(h, max(480, root.winfo_screenheight()-85))
         x = max(0, root.winfo_screenwidth() - w - 26)
         root.geometry(f"{w}x{h}+{x}+{max(0, min(40, root.winfo_screenheight()-h-55))}")
         tkfont = ("Microsoft YaHei UI", 9)
         self.font = tkfont
 
-        shell = tk.Frame(root, bg=COLORS["bg"], highlightbackground=COLORS["line"],
+        container = tk.Frame(root, bg=COLORS["bg"])
+        container.pack(fill="both", expand=True)
+        canvas = tk.Canvas(container, bg=COLORS["bg"], highlightthickness=0)
+        scroll = tk.Scrollbar(container, orient="vertical", command=canvas.yview)
+        canvas.configure(yscrollcommand=scroll.set)
+        scroll.pack(side="right", fill="y")
+        canvas.pack(side="left", fill="both", expand=True)
+        shell = tk.Frame(canvas, bg=COLORS["bg"], highlightbackground=COLORS["line"],
                          highlightthickness=1)
-        shell.pack(fill="both", expand=True, padx=1, pady=1)
+        window = canvas.create_window((0,0), window=shell, anchor="nw")
+        shell.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.bind("<Configure>", lambda e: canvas.itemconfigure(window,width=e.width))
+        root.bind("<MouseWheel>", lambda e: canvas.yview_scroll(-int(e.delta/120),"units"))
         title = tk.Frame(shell, bg=COLORS["bg"], height=34)
         title.pack(fill="x", padx=12, pady=(9, 3))
         self._label(title, "EVE V4  |  系统健康监控", 10, "white", bold=True).pack(side="left")

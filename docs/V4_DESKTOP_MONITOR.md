@@ -63,3 +63,7 @@ to be run and observed locally.
 
 The monitor displays previous stored scan health; it does not assert
 unverified orders are executable or that formal opportunity emails are enabled.
+
+## Current health panel (2026-11-17)
+
+The UI now shows the latest matching **research** digest counts, not the disabled formal opportunity task. Counts are capped selected candidates from the actual digest; missing old telemetry, partial input or unmatched runs are not zero. Gmail and each configured game recipient require same-run local acceptance receipts. HTTP status summaries are derived from current manifests. Names and Forge archive summaries are cached by file modification time and size. Disk uses live free space plus recent governor warnings. Rolling cleanup shows only the most recent maintenance log (remaining old runs and observed blocker counts); it never invokes cleanup or queries SQLite. Historical logs may not contain new fields until the next normal cycle. The existing shortcut works after git pull; close and reopen the monitor window to load new code. The manual scan button still only requests the existing scheduled task on explicit user click.
