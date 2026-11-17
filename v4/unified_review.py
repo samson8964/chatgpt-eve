@@ -518,8 +518,8 @@ def _risk_text(lead):
 
 
 def _entry(review, kind, lead, compact=False):
-    lim = 18 if compact else 45
-    loc = _location(review,lead,30 if compact else 80)
+    lim = 12 if compact == 2 else 18 if compact else 45
+    loc = _location(review,lead,20 if compact == 2 else 30 if compact else 80)
     discovered = discovered_label(lead).strip()
     head = _summary(lead)
     if kind == "market":
@@ -569,7 +569,14 @@ def _entry(review, kind, lead, compact=False):
                  f"运费 {money(lead.get('haul_estimate_isk'))}｜销售税 {money(lead.get('sales_tax'))}｜销售额 {money(lead.get('product_gross'))}",
                  f"BPC选中{lead.get('bundle_blueprint_selected') or 1}/{lead.get('bundle_blueprint_total') or 1}条｜{count}",
                  details, _risk_text(lead)]
-    if discovered:
+    if compact == 2:
+        if kind == "contract":
+            # Keep all candidates and their price, profit, location, costs and
+            # risk. Long item lists remain in the full Gmail digest.
+            lines[3] = "合同包含："+(contents.split("、")[0].split("；")[0])+"（详见Gmail）"
+        elif kind == "blueprint":
+            lines[5] = details.split("、")[0].split("；")[0]+"（详见Gmail）"
+    elif discovered:
         lines.append("首次发现 "+discovered.replace("首见","",1))
     return name,link,lines
 
@@ -621,6 +628,8 @@ def render(review: dict, *, game: bool = False) -> tuple[str, str]:
     subject,body=build(False)
     if game and len(body)>9000:
         subject,body=build(True)
+    if game and len(body)>9000:
+        subject,body=build(2)
     # No truncation of native links or removal of any candidate.
     if game and len(body)>9000:
         raise RuntimeError("GAME_MAIL_DIGEST_TOO_LONG")
