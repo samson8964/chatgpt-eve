@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from v4.celebration_crate_radar import (
-    BOXES, JITA, TAX, _cash_out, _books, _orders, _time,
+    BOXES, JITA, PLEX, TAX, _cash_out, _books, _orders, _time,
 )
 from v4.catalog import Catalog, DEFAULT_CACHE
 from v4.sources import contract_dataframes, market_dataframe
@@ -140,7 +140,9 @@ def audit_rows(contracts, items, market, *, catalog, locations, at=None,
     candidates, counts = _contract_candidate_rows(
         contracts,items,locations=locations,catalog=catalog,at=at)
     test_set = candidates[:MAX_AUDIT_CANDIDATES]
-    used_types = {tid for c in test_set for tid in c["goods"]}
+    # Crate conversion has an implicit PLEX exit that is not listed in the
+    # contract items. Always load the actual Jita PLEX bid book.
+    used_types = {tid for c in test_set for tid in c["goods"]} | {PLEX}
     bids = [
         r for r in market if
         _int(r.get("type_id")) in used_types
@@ -156,23 +158,23 @@ def audit_rows(contracts, items, market, *, catalog, locations, at=None,
         other = {tid:q for tid,q in goods.items() if tid not in boxes}
         model = _cash_out(boxes,other,books)
         independent_plex_units = sum(BOXES[t][1]*q for t,q in boxes.items())
-        independent_plex_units += other.get(44992,0)
+        independent_plex_units += other.get(PLEX,0)
         breakdown = []
         uncredited = []
         total = 0.
         independent_missing_plex = False
         if independent_plex_units:
-            match = _manual_match(books.get((JITA,44992,True),[]),
+            match = _manual_match(books.get((JITA,PLEX,True),[]),
                                   independent_plex_units)
             if match["matched_units"] != independent_plex_units:
                 independent_missing_plex = True
             total += match["gross_isk"]
-            breakdown.append({"type_id":44992,"kind":"PLEX_CONVERTED",
+            breakdown.append({"type_id":PLEX,"kind":"PLEX_CONVERTED",
                               "requested_units":independent_plex_units,**match})
         random_total = sum(q*15_000_000 for t,q in boxes.items() if BOXES[t][1] == 0)
         total += random_total
         for tid,qty in other.items():
-            if tid == 44992:
+            if tid == PLEX:
                 continue
             match = _manual_match(books.get((JITA,tid,True),[]),qty)
             total += match["gross_isk"]
@@ -205,7 +207,7 @@ def audit_rows(contracts, items, market, *, catalog, locations, at=None,
             # Only count credited ordinary items; box units always count.
             if tid in boxes:
                 n = qty
-            elif tid == 44992:
+            elif tid == PLEX:
                 n = qty
             else:
                 n = next((d["matched_units"] for d in breakdown
