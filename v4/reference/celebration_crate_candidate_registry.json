@@ -1,0 +1,87 @@
+{
+  "schema": 1,
+  "reviewed_at": "2026-11-23",
+  "policy": "Reference catalog only. Do NOT feed unapproved rows to BOXES, market valuation or mail.",
+  "entries": [
+    {
+      "type_id": 53530,
+      "name": "Coercer Combat Crate",
+      "documented_plex": 100,
+      "classification": "NON_TRADEABLE",
+      "source": "https://everef.net/types/53530",
+      "reason": "EVE Ref explicitly states cannot be traded or sold on market."
+    },
+    {
+      "type_id": 53531,
+      "name": "Cormorant Combat Crate",
+      "documented_plex": 100,
+      "classification": "NON_TRADEABLE",
+      "source": "https://everef.net/types/53531",
+      "reason": "EVE Ref explicitly states cannot be traded or sold on market."
+    },
+    {
+      "type_id": 53532,
+      "name": "Catalyst Combat Crate",
+      "documented_plex": 100,
+      "classification": "NON_TRADEABLE",
+      "source": "https://everef.net/types/53532",
+      "reason": "EVE Ref explicitly states cannot be traded or sold on market."
+    },
+    {
+      "type_id": 53533,
+      "name": "Thrasher Combat Crate",
+      "documented_plex": 100,
+      "classification": "NON_TRADEABLE",
+      "source": "https://everef.net/types/53533",
+      "reason": "EVE Ref explicitly states cannot be traded or sold on market."
+    },
+    {
+      "type_id": 63097,
+      "name": "Retriever Bundle",
+      "documented_plex": null,
+      "classification": "PLEX_QTY_UNKNOWN",
+      "source": "https://everef.net/types/63097",
+      "reason": "Description contains 'Retriever, Modules, and PLEX' but gives no PLEX quantity or reliable tradeability proof."
+    },
+    {
+      "type_id": 56860,
+      "name": "Forward 4-4 Celebration Crate",
+      "documented_plex": null,
+      "classification": "NAME_ONLY_PLEX_UNVERIFIED",
+      "source": "https://everef.net/groups/1194",
+      "reason": "Verified type/name via group listing; no verified PLEX drop or amount."
+    },
+    {
+      "type_id": 47962,
+      "name": "XV Anniversary Gift Box (Alpha)",
+      "documented_plex": null,
+      "classification": "NAME_ONLY_PLEX_UNVERIFIED",
+      "source": "https://everef.net/groups/1194",
+      "reason": "Verified type/name via group listing; no verified PLEX contents."
+    },
+    {
+      "type_id": 47963,
+      "name": "XV Anniversary Gift Box (Omega)",
+      "documented_plex": null,
+      "classification": "NAME_ONLY_PLEX_UNVERIFIED",
+      "source": "https://everef.net/groups/1194",
+      "reason": "Verified type/name via group listing; no verified PLEX contents."
+    },
+    {
+      "type_id": 50045,
+      "name": "Guardian's Gala Surprise Gift",
+      "documented_plex": null,
+      "classification": "NAME_ONLY_PLEX_UNVERIFIED",
+      "source": "https://everef.net/types/50045",
+      "reason": "Description only says surprise gift; does not document PLEX."
+    },
+    {
+      "type_id": 46766,
+      "name": "Glacial Drift Festival Box",
+      "documented_plex": null,
+      "classification": "SKIN_ONLY_DESCRIPTION",
+      "source": "https://everef.net/types/46766",
+      "reason": "Description mentions a chance of a Glacial Drift SKIN but not PLEX; do not apply 15m random PLEX rule."
+    }
+  ]
+}
