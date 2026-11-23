@@ -54,7 +54,8 @@ def request(url, params=None, headers=None, timeout=50):
 def all_structure_orders(api_key):
     """Fresh complete private-market pagination with bounded page-level retries."""
     from v4.structure_transport import all_structure_orders as fetch_all
-    return fetch_all(api_key, structures=STRUCTURES, worker=WORKER, fetch=request)
+    return fetch_all(api_key, structures=STRUCTURES, worker=WORKER, fetch=request,
+                     progress=lambda line: print(line, flush=True))
 
 def to_orders(rows, *, source):
     # Every raw row is accounted for as a valid order or an explicit proof.

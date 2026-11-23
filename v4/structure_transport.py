@@ -46,20 +46,41 @@ def _transient(exc: Exception) -> bool:
     return isinstance(exc, (OSError, TimeoutError))
 
 
+def _progress(callback: Callable[[str], None] | None, event: str) -> None:
+    """Best-effort diagnostic only; never allow monitoring to alter collection."""
+    if callback is not None:
+        try:
+            callback(event)
+        except Exception:
+            pass
+
+
 def _fetch_page(fetch: Callable, url: str, params: dict, header: dict, *,
-                attempts: int, sleep: Callable, jitter: Callable) -> tuple[dict, int]:
+                attempts: int, sleep: Callable, jitter: Callable,
+                lane: str = "", progress: Callable[[str], None] | None = None
+                ) -> tuple[dict, int]:
     retries = 0
     for n in range(1, attempts + 1):
+        page = params["page"]
+        _progress(progress, f"STRUCTURE_REQUEST_START lane={lane} page={page} attempt={n}")
+        started = time.monotonic()
         try:
             payload, _ = fetch(url, params=params, headers=header, timeout=(10, 55))
             if not isinstance(payload, dict):
-                raise StructurePageError("MALFORMED_RESPONSE", params["page"], n)
+                _progress(progress, f"STRUCTURE_REQUEST_INVALID lane={lane} page={page} attempt={n}")
+                raise StructurePageError("MALFORMED_RESPONSE", page, n)
+            _progress(progress, f"STRUCTURE_REQUEST_OK lane={lane} page={page} attempt={n} "
+                               f"elapsed_seconds={time.monotonic()-started:.2f}")
             return payload, retries
         except StructurePageError:
             raise
         except Exception as exc:
             response = getattr(exc, "response", None)
             status = getattr(response, "status_code", None)
+            safe_status = status if type(status) is int and 100 <= status <= 599 else "none"
+            _progress(progress, f"STRUCTURE_REQUEST_ERROR lane={lane} page={page} attempt={n} "
+                               f"exception={type(exc).__name__} http_status={safe_status} "
+                               f"elapsed_seconds={time.monotonic()-started:.2f}")
             if not _transient(exc):
                 raise StructurePageError("NONRETRYABLE_REQUEST", params["page"], n,
                                          http_status=status, transient_retries=retries,
@@ -78,7 +99,9 @@ def all_structure_orders(api_key: str, *, structures: dict, worker: str,
                          jitter: Callable = random.random,
                          page_attempts: int = PAGE_ATTEMPTS,
                          pace_seconds: float = PACE_SECONDS,
-                         pagination_restart_limit: int = 1) -> tuple[list, dict]:
+                         pagination_restart_limit: int = 1,
+                         progress: Callable[[str], None] | None = None
+                         ) -> tuple[list, dict]:
     """Return only complete lane books; restart a lane once if page count moves.
 
     The current ESI/Worker book can gain or lose a page during the 54-page
@@ -97,6 +120,7 @@ def all_structure_orders(api_key: str, *, structures: dict, worker: str,
             health[lane] = {"status": "FAILED", "reason": "missing_api_key"}
             continue
         headers = {"Authorization": "Bearer " + api_key}
+        _progress(progress, f"STRUCTURE_LANE_START lane={lane}")
         retries = 0
         restarts = 0
         current = 1
@@ -110,7 +134,8 @@ def all_structure_orders(api_key: str, *, structures: dict, worker: str,
                 try:
                     first, count = _fetch_page(
                         fetch, worker + "/api/structure-market", params, headers,
-                        attempts=page_attempts, sleep=sleep, jitter=jitter)
+                        attempts=page_attempts, sleep=sleep, jitter=jitter,
+                        lane=lane, progress=progress)
                     retries += count
                     if (first.get("ok") is not True or
                             int(first.get("structure_id") or 0) != location or
@@ -128,7 +153,8 @@ def all_structure_orders(api_key: str, *, structures: dict, worker: str,
                         params["page"] = current
                         extra, count = _fetch_page(
                             fetch, worker + "/api/structure-market", params, headers,
-                            attempts=page_attempts, sleep=sleep, jitter=jitter)
+                            attempts=page_attempts, sleep=sleep, jitter=jitter,
+                            lane=lane, progress=progress)
                         retries += count
                         # Malformed or unauthorized response is never repaired
                         # by re-fetching one page or restarting the full lane.
@@ -151,11 +177,16 @@ def all_structure_orders(api_key: str, *, structures: dict, worker: str,
                         "location": location, "pages_fetched": pages_done,
                         "transient_retries": retries,
                         "pagination_restarts": restarts}
+                    _progress(progress, f"STRUCTURE_LANE_COMPLETE lane={lane} pages={pages} "
+                                       f"orders={len(results)} retries={retries} restarts={restarts}")
                     break
                 except StructurePageError as exc:
                     if exc.page_count_changed and restarts < pagination_restart_limit:
                         retries += exc.transient_retries
                         restarts += 1
+                        _progress(progress, f"STRUCTURE_LANE_RESTART lane={lane} "
+                                           f"page={exc.page} reason=PAGE_COUNT_CHANGED "
+                                           f"restart={restarts}")
                         continue
                     raise
         except StructurePageError as exc:
@@ -168,9 +199,14 @@ def all_structure_orders(api_key: str, *, structures: dict, worker: str,
                 "pagination_restarts": restarts,
                 "request_exception_class": exc.exception_class,
                 "page_count_changed": exc.page_count_changed}
+            _progress(progress, f"STRUCTURE_LANE_FAILED lane={lane} "
+                               f"page={exc.page} reason={exc.category} "
+                               f"exception={exc.exception_class or 'none'} retries={retries}")
         except Exception as exc:
             health[lane] = {
                 "status": "FAILED", "reason": "UNEXPECTED_" + type(exc).__name__,
                 "failed_page": current, "pages_fetched": pages_done,
                 "transient_retries": retries, "pagination_restarts": restarts}
+            _progress(progress, f"STRUCTURE_LANE_FAILED lane={lane} "
+                               f"page={current} reason=UNEXPECTED_{type(exc).__name__}")
     return out, health
