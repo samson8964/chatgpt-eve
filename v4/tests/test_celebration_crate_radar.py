@@ -110,7 +110,7 @@ class CrateRadarTests(unittest.TestCase):
                                 {SRC}, self.catalog, self.haul)
         self.assertEqual(rows, [])
 
-    def test_unpriced_other_valued_zero_not_ask(self):
+    def test_unmatched_remainder_zero_but_matched_three_units_credited(self):
         c = [{"contract_id": 99, "type": "item_exchange",
               "start_location_id": SRC, "price": 50_000_000}]
         items = [{"contract_id": 99, "type_id": 80240, "quantity": 1,
@@ -120,9 +120,10 @@ class CrateRadarTests(unittest.TestCase):
         rows = _evaluate_contracts(c, items, _books(self.bids),
                                    {SRC}, self.catalog, self.haul)
         self.assertEqual(len(rows), 1)
-        self.assertEqual(rows[0]["gross_isk"], 100_000_000)
-        self.assertEqual(rows[0]["other_credited_count"], 0)
-        self.assertEqual(rows[0]["unpriced_other_types"], [OTHER])
+        self.assertEqual(rows[0]["gross_isk"], 160_000_000)
+        self.assertEqual(rows[0]["other_credited_count"], 1)
+        self.assertEqual(rows[0]["other_partial_depth_types"], [OTHER])
+        self.assertEqual(rows[0]["other_jita_buy_exits"][0]["matched"], 3)
 
     def test_top20_total_not_twenty_per_category(self):
         c = [{"contract_id": i, "type": "item_exchange",
