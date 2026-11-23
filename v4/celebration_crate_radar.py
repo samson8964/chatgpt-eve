@@ -34,6 +34,8 @@ COMPLETE_GATE = "INPUT_LANES_REPORTED_COMPLETE_NOT_LIVE_VERIFIED"
 # 15m ISK *research assumption* only, not a redeemable floor.
 BOXES = {
     80240: ("Yoiul Festival Celebration Crate", 20),
+    87333: ("Resplendent Coil Crate", 8),
+    92278: ("Unbridled Glory Crate", 8),
     95463: ("Federation Day Celebration Crate", 10),
     95657: ("Liberation Day Celebration Crate", 10),
     95747: ("Foundation Day Celebration Crate", 10),
@@ -74,7 +76,7 @@ def _json(path):
 def _time(value):
     try:
         t = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
-        return t if t.tzinfo else None
+        return t if t.tzinfo else t.replace(tzinfo=timezone.utc)
     except (TypeError, ValueError, OverflowError):
         return None
 
@@ -230,6 +232,8 @@ def _evaluate_contracts(contracts, items, books, locations, catalog, haul_fn,
         if str(c.get("status", "outstanding")).lower() not in ("outstanding", ""):
             continue
         expires = _time(c.get("date_expired"))
+        if c.get("date_expired") and not expires:
+            continue
         if expires and expires < now:
             continue
         price = _positive(c.get("price"), zero=True)
@@ -478,6 +482,17 @@ def main():
     if args.send_game and not args.confirm_research_only:
         parser.error("--send-game requires --confirm-research-only")
     result = scan(args.data_root)
+    report_dir = args.data_root / "crate-radar" / "reports"
+    report_dir.mkdir(parents=True, exist_ok=True)
+    report_path = report_dir / (result["source_run"] + ".json")
+    temp = report_path.with_suffix(".part")
+    try:
+        temp.write_text(json.dumps(result, ensure_ascii=False, indent=2,
+                                   allow_nan=False), encoding="utf-8")
+        os.replace(temp, report_path)
+    finally:
+        temp.unlink(missing_ok=True)
+    result["saved_report"] = str(report_path)
     if args.send_game:
         result["delivery"] = send_to_existing_recipients(args.data_root, result)
     print(json.dumps(result, ensure_ascii=False, indent=2, allow_nan=False))
