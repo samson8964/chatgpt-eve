@@ -135,6 +135,7 @@ def _cash_out(box_counts, other_counts, books, *, tax=TAX):
     cash = random_units * RANDOM_ISK
     missing = []
     matched_other_units = {}
+    other_exit_breakdown = []
     partial_other_types = []
     if plex_units:
         filled = fill_book(books.get((JITA, PLEX, True), []), plex_units)
@@ -150,6 +151,9 @@ def _cash_out(box_counts, other_counts, books, *, tax=TAX):
         if filled.units:
             cash += filled.value
             matched_other_units[str(tid)] = filled.units
+            other_exit_breakdown.append({
+                "type_id": tid, "requested": qty, "matched": filled.units,
+                "gross_isk": filled.value, "buy_order_ids": list(filled.order_ids)})
         if filled.units != qty:
             partial_other_types.append(tid)
             if not filled.units:
@@ -158,14 +162,15 @@ def _cash_out(box_counts, other_counts, books, *, tax=TAX):
             "guaranteed_plex": plex_units, "random_boxes": random_units,
             "unpriced_other_types": missing,
             "partially_unmatched_other_types": partial_other_types,
-            "other_matched_units": matched_other_units}
+            "other_matched_units": matched_other_units,
+            "other_exit_breakdown": other_exit_breakdown}
 
 
 def _evaluate_market(books, locations, catalog, haul_fn, *, tax=TAX):
     found = []
     for loc in locations:
-        if loc == JITA:
-            continue  # A Jita sell offer is not inter-station arbitrage.
+        # Jita itself is eligible: opening a crate transforms it into PLEX,
+        # unlike ordinary same-type bid/ask station-arbitrage scans.
         for tid, (name, guaranteed) in BOXES.items():
             asks = books.get((loc, tid, False), [])
             if not asks:
@@ -289,6 +294,8 @@ def _evaluate_contracts(contracts, items, books, locations, catalog, haul_fn,
             "other_credited_count": len(cash["other_matched_units"]),
             "unpriced_other_types": cash["unpriced_other_types"][:10],
             "other_partial_depth_types": cash["partially_unmatched_other_types"][:10],
+            "other_jita_buy_exits": sorted(cash["other_exit_breakdown"],
+                                         key=lambda d: -d["gross_isk"]),
             "gross_isk": cash["gross"], "purchase_isk": price,
             "haul_isk": freight, "net_profit_isk": profit,
             "capital_isk": capital, "roi": profit / capital,
@@ -414,9 +421,17 @@ def format_game_mail(result, names=None):
         lines.append(f"净利{_money(row['net_profit_isk'])} ROI{row['roi'] * 100:.1f}%"
                      f"｜买入{_money(row['purchase_isk'])} 运费{_money(row['haul_isk'])}"
                      f"｜PLEX {row['guaranteed_plex']} 随机箱{row['random_boxes']}")
+        if row.get("other_jita_buy_exits"):
+            best = row["other_jita_buy_exits"][:2]
+            detail = "；".join(
+                f"{html.escape(types.get(str(x['type_id']), str(x['type_id'])))}"
+                f"×{x['matched']}＝{_money(x['gross_isk'])}" for x in best)
+            lines.append("其他物品吉他买单：" + detail)
+        if row.get("other_partial_depth_types"):
+            lines.append("注意：部分其他商品买单深度不足，剩余数量按零估值")
         if row.get("unpriced_other_types"):
-            lines.append("未计价的其他商品类型数：" +
-                         str(row["other_type_count"] - row["other_credited_count"]))
+            lines.append("完全无买单的其他商品类型：" +
+                         str(len(row["unpriced_other_types"])))
     lines.append("快照研究，合同/市场可变，买前人工复核；未计入随机奖励实际期望。")
     body = "<br>".join(lines)
     if len(body) > MAX_GAME_BODY:
