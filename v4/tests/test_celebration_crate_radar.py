@@ -47,6 +47,14 @@ class CrateRadarTests(unittest.TestCase):
         self.assertAlmostEqual(rows[0]["gross_isk"], 200_000_000)
         self.assertLess(rows[0]["net_profit_isk"], 80_000_000)
 
+    def test_jita_source_is_allowed_for_crate_to_plex_conversion(self):
+        books = _books(self.bids + [
+            order(87, 80240, JITA, 60_000_000, 1, buy=False)])
+        opportunities = _evaluate_market(books, {JITA}, self.catalog, self.haul)
+        self.assertEqual(len(opportunities), 1)
+        self.assertEqual(opportunities[0]["source_location"], JITA)
+        self.assertEqual(opportunities[0]["haul_isk"], 0)
+
     def test_random_crate_is_15m_not_500plex_expected_value(self):
         b = _books([order(4, 97314, SRC, 2_000_000, 2, buy=False)])
         rows = _evaluate_market(b, {SRC}, self.catalog, self.haul)
