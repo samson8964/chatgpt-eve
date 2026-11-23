@@ -33,9 +33,42 @@ class V4EngineTests(unittest.TestCase):
         self.assertEqual(len(bad),2)
         self.assertEqual(len({r['instance'] for r in bad}),2)
         self.assertEqual([r['status'] for r in bad],['RESEARCH','RESEARCH'])
-        self.assertTrue(all(r['reason']=='SOURCE_ORDER_INVALID' for r in bad))
+        self.assertEqual([r['reason'] for r in bad],
+                         ['SOURCE_ORDER_ZERO_REMAINING','SOURCE_ORDER_INVALID'])
         self.assertEqual([r['row_index'] for r in bad],[1,2])
         json.dumps(bad,allow_nan=False)
+
+    def test_zero_remaining_keeps_proof_but_does_not_create_tradable_order(self):
+        base={'order_id':7444436938,'type_id':482,'location_id':60003760,
+              'is_buy_order':'false','price':518100.0,
+              'min_volume':1,'range':'region'}
+        data=[dict(base,volume_remain=0)]
+        valid,records=parse_orders_with_quarantine(data,source='PUBLIC')
+        self.assertEqual(valid,[])
+        self.assertEqual(len(records),1)
+        self.assertEqual(records[0]['reason'],'SOURCE_ORDER_ZERO_REMAINING')
+        self.assertEqual(records[0]['kind'],'input_non_actionable')
+        self.assertEqual(records[0]['status'],'RESEARCH')
+        self.assertEqual(records[0]['order_id_hint'],'7444436938')
+
+    def test_malformed_orders_with_zero_volume_remain_invalid(self):
+        base={'order_id':44,'type_id':10,'location_id':60003760,
+              'is_buy_order':False,'price':5000.0,
+              'volume_remain':0,'min_volume':1}
+        cases=[
+            dict(base,price=-5),
+            dict(base,price='nan'),
+            dict(base,order_id=-1),
+            dict(base,type_id=0),
+            dict(base,volume_remain=-1),
+            dict(base,volume_remain=0.5),
+            dict(base,volume_remain='missing'),
+        ]
+        valid,records=parse_orders_with_quarantine(cases,source='PUBLIC')
+        self.assertEqual(valid,[])
+        self.assertEqual(len(records),len(cases))
+        self.assertTrue(all(r['reason']=='SOURCE_ORDER_INVALID' for r in records))
+        json.dumps(records,allow_nan=False)
 
     def test_valid_order_source_is_fully_preserved(self):
         rows=[{'order_id':i,'type_id':10,'location_id':1,
