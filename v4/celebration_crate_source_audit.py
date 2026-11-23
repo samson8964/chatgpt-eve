@@ -102,12 +102,16 @@ def analyze(market, contracts, items, *, structure_ids=(), npc_ids=(),
             list(_int_counter(plex_bids, "_loc").items())[:10]),
         "global_and_jita_order_id_overlap": int(len(
             set(global_bids["order_id"]) & set(jita_bids["order_id"]))),
+        "global_only_order_ids_count": int(len(
+            set(global_bids["order_id"]) - set(jita_bids["order_id"]))),
         "interpretation": (
-            "GLOBAL_REGION_PRESENT_JITA_ONLY_BASIS_MAY_UNDERVALUE"
-            if len(global_bids) and len(jita_bids) < len(global_bids)
-            else "GLOBAL_REGION_NOT_IN_SNAPSHOT_VERIFY_ESI_19000001"
+            "GLOBAL_REGION_NOT_IN_SNAPSHOT_VERIFY_ESI_19000001"
             if not len(global_bids)
-            else "JITA_AND_GLOBAL_OVERLAP_CHECK_LOCATIONS"
+            else "GLOBAL_REGION_PRESENT_JITA_ONLY_BASIS_MAY_UNDERVALUE"
+            if (set(global_bids["order_id"]) != set(jita_bids["order_id"])
+                or summary(global_bids)["best_bid_isk"] !=
+                   summary(jita_bids)["best_bid_isk"])
+            else "JITA_AND_GLOBAL_SAME_ORDER_IDS_VERIFY_DETAILS"
         ),
     }
     sells = live[(live["type_id"].isin(BOXES)) & ~live["_buy"]]
