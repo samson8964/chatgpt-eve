@@ -139,6 +139,17 @@ def audit_rows(contracts, items, market, *, catalog, locations, at=None,
     at = at or datetime.now(timezone.utc)
     candidates, counts = _contract_candidate_rows(
         contracts,items,locations=locations,catalog=catalog,at=at)
+    # Prefer genuinely priced multi-item examples instead of the largest
+    # arbitrary bundles, which often have zero Jita bids for every item.
+    quote_ids = {_int(r.get("type_id")) for r in market
+                 if _int(r.get("location_id")) == JITA
+                 and _true(r.get("is_buy_order"))
+                 and (_float(r.get("volume_remain")) or 0) > 0}
+    quote_ids.discard(None)
+    candidates.sort(key=lambda c:(
+        not c["contains_approved_plex_crate"],
+        -len(set(c["goods"]) & quote_ids),
+        c["source_location"] != JITA, -len(c["goods"]), c["contract_id"]))
     test_set = candidates[:MAX_AUDIT_CANDIDATES]
     # Crate conversion has an implicit PLEX exit that is not listed in the
     # contract items. Always load the actual Jita PLEX bid book.
@@ -224,6 +235,7 @@ def audit_rows(contracts, items, market, *, catalog, locations, at=None,
             "contract_id":c["contract_id"],"source_location":c["source_location"],
             "actual_contract_price_isk":c["contract_price_isk"],
             "actual_included_types":len(goods),
+            "included_types_with_jita_bids":len(set(goods) & quote_ids),
             "included_item_quantities":{str(t):q for t,q in goods.items()},
             "contains_approved_plex_crate":c["contains_approved_plex_crate"],
             "reference_valuation_classification":classification,
@@ -252,8 +264,13 @@ def audit_rows(contracts, items, market, *, catalog, locations, at=None,
         "selection_counts":dict(counts),
         "real_plex_crate_plus_other_contract_candidates": real_crate_mixed,
         "actual_contracts_cross_checked":len(checked),
+        "real_mixed_contracts_with_any_jita_buy_bid":sum(
+            bool(set(c["goods"]) & quote_ids) for c in candidates),
+        "sampled_contracts_with_two_plus_priced_item_types":sum(
+            x["included_types_with_jita_bids"] >= 2 for x in checked),
         "examples":examples,
-        "all_cross_checks_passed":all(x["independent_cross_check_passed"] for x in checked),
+        "all_cross_checks_passed":bool(checked) and all(
+            x["independent_cross_check_passed"] for x in checked),
         "basis":"Real contract item quantities + actual Jita buy order IDs, matched depth, one contract price; historical nonlive",
         "limitations":[
             "No live buyer/order/contract access verification; not an executable trade.",
