@@ -134,6 +134,8 @@ def _cash_out(box_counts, other_counts, books, *, tax=TAX):
     random_units = sum(q for t, q in box_counts.items() if BOXES[t][1] == 0)
     cash = random_units * RANDOM_ISK
     missing = []
+    matched_other_units = {}
+    partial_other_types = []
     if plex_units:
         filled = fill_book(books.get((JITA, PLEX, True), []), plex_units)
         if filled.units != plex_units:
@@ -143,13 +145,20 @@ def _cash_out(box_counts, other_counts, books, *, tax=TAX):
         if tid == PLEX or qty <= 0:
             continue
         filled = fill_book(books.get((JITA, tid, True), []), qty)
-        if filled.units == qty:
+        # Only actual matched units count. Unsold remainder is valued zero,
+        # rather than silently multiplying the first bid by the entire lot.
+        if filled.units:
             cash += filled.value
-        else:
-            missing.append(tid)  # No confirmed liquidity -> zero credited.
+            matched_other_units[str(tid)] = filled.units
+        if filled.units != qty:
+            partial_other_types.append(tid)
+            if not filled.units:
+                missing.append(tid)
     return {"gross": cash, "net_after_tax": cash * (1 - tax),
             "guaranteed_plex": plex_units, "random_boxes": random_units,
-            "unpriced_other_types": missing}
+            "unpriced_other_types": missing,
+            "partially_unmatched_other_types": partial_other_types,
+            "other_matched_units": matched_other_units}
 
 
 def _evaluate_market(books, locations, catalog, haul_fn, *, tax=TAX):
@@ -250,8 +259,10 @@ def _evaluate_contracts(contracts, items, books, locations, catalog, haul_fn,
         # no value and are not presumed moved; full contract price paid once.
         credited = {**boxes}
         for tid, qty in other.items():
-            if tid not in cash["unpriced_other_types"]:
-                credited[tid] = qty
+            # Shipping is budgeted only for units with an observed bid fill.
+            matched = cash["other_matched_units"].get(str(tid), 0)
+            if matched:
+                credited[tid] = matched
         cargo = 0.0
         for tid, qty in credited.items():
             volume = _positive(catalog.volume(tid))
@@ -275,8 +286,9 @@ def _evaluate_contracts(contracts, items, books, locations, catalog, haul_fn,
             "contract_title": str(c.get("title") or "")[:100],
             "included_box_types": {str(k): v for k, v in boxes.items()},
             "other_type_count": len(other),
-            "other_credited_count": len(other) - len(cash["unpriced_other_types"]),
+            "other_credited_count": len(cash["other_matched_units"]),
             "unpriced_other_types": cash["unpriced_other_types"][:10],
+            "other_partial_depth_types": cash["partially_unmatched_other_types"][:10],
             "gross_isk": cash["gross"], "purchase_isk": price,
             "haul_isk": freight, "net_profit_isk": profit,
             "capital_isk": capital, "roi": profit / capital,
