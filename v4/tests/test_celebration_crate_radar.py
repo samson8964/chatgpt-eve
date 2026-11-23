@@ -70,6 +70,23 @@ class CrateRadarTests(unittest.TestCase):
         self.assertEqual(rows[0]["other_credited_count"], 1)
         self.assertEqual(rows[0]["purchase_isk"], 150_000_000)
 
+    def test_partial_other_bid_only_credits_matched_units(self):
+        c = [{"contract_id": 100, "type": "item_exchange",
+              "start_location_id": SRC, "price": 50_000_000}]
+        contents = [
+            {"contract_id": 100, "type_id": 80240, "quantity": 1,
+             "is_included": True},
+            {"contract_id": 100, "type_id": OTHER, "quantity": 8,
+             "is_included": True},
+        ]
+        rows = _evaluate_contracts(c, contents, _books(self.bids),
+                                   {SRC}, self.catalog, self.haul)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["gross_isk"], 160_000_000)
+        self.assertEqual(rows[0]["other_credited_count"], 1)
+        self.assertEqual(rows[0]["other_partial_depth_types"], [OTHER])
+        self.assertLess(rows[0]["haul_isk"], 10_000_000 + 500 * (4 + 8))
+
     def test_request_side_excludes_entire_bundle(self):
         c = [{"contract_id": 99, "type": "item_exchange",
               "start_location_id": SRC, "price": 1}]
