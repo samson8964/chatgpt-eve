@@ -48,12 +48,15 @@ def order_is_bid(row):
 def _exit_books(market_rows):
     orders = _orders(market_rows)
     jita = _books(orders)
-    global_orders = [
-        o for o, raw in zip(orders, (r for r in market_rows
-                    if finite(r.get("volume_remain")) not in (0, None)))
-        if o.type_id == PLEX and o.buy
+    # Parse the global region independently: do not zip original rows with
+    # parsed rows because zero-remaining orders can be discarded.
+    global_rows = [
+        raw for raw in market_rows if
+        integer(raw.get("type_id")) == PLEX
+        and order_is_bid(raw)
         and integer(raw.get("region_id")) == GLOBAL_PLEX_REGION
     ]
+    global_orders = _orders(global_rows)
     # Don't assume that restricted Upwell structure bids are executable.
     global_npc = [o for o in global_orders
                   if 60_000_000 <= o.location_id < 70_000_000]
