@@ -47,9 +47,9 @@
       "type_id": 56860,
       "name": "Forward 4-4 Celebration Crate",
       "documented_plex": null,
-      "classification": "NAME_ONLY_PLEX_UNVERIFIED",
-      "source": "https://everef.net/groups/1194",
-      "reason": "Verified type/name via group listing; no verified PLEX drop or amount."
+      "classification": "NO_PLEX_IN_DOCUMENTED_CONTENTS",
+      "source": "https://www.thonky.com/eve-online-guide/eve-item-database?groupID=1194&page=5",
+      "reason": "Item description explicitly documents only one random 'Forward 4-4' SKIN and one random apparel item. No PLEX listed; not eligible for user's random PLEX-box 15m rule."
     },
     {
       "type_id": 47962,
