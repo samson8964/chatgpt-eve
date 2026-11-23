@@ -330,16 +330,61 @@ def run(data_root, run_name, *, max_examples=20):
     return report
 
 
+def compact_receipt(report, *, examples=5):
+    """Small, complete, audit-status receipt safe for terminal/chat copy-paste.
+
+    A terminal that truncates long detailed JSON must not hide the important
+    denominator, mixed-crate count, or independent verification status.
+    Detailed order IDs remain in the optional full report.
+    """
+    if not 1 <= examples <= 20:
+        raise ValueError("COMPACT_AUDIT_EXAMPLES_OUT_OF_RANGE")
+    rows=sorted(report.get("examples") or [], key=lambda x:(
+        -(x.get("net_after_haul_isk") if x.get("net_after_haul_isk") is not None
+          else -float("inf")),
+        x.get("contract_id",0)))
+    short=[]
+    for x in rows[:examples]:
+        short.append({k:x.get(k) for k in (
+            "contract_id", "source_location", "actual_contract_price_isk",
+            "actual_included_types", "included_types_with_jita_bids",
+            "contains_approved_plex_crate", "independent_cross_check_passed",
+            "gross_jita_buy_depth_isk", "net_before_haul_isk",
+            "haul_estimate_isk", "net_after_haul_isk",
+            "unmatched_item_type_ids")})
+    return {k:report.get(k) for k in (
+        "status", "source_run", "as_of_source_finished_at",
+        "source_public_contract_count", "source_public_included_item_row_count",
+        "selection_counts", "actual_contracts_cross_checked",
+        "real_plex_crate_plus_other_contract_candidates",
+        "real_mixed_contracts_with_any_jita_buy_bid",
+        "sampled_contracts_with_two_plus_priced_item_types",
+        "all_cross_checks_passed")} | {
+        "example_summary_count":len(short),
+        "examples_ranked_only_within_saved_sample":short,
+        "not_trade_recommendations":True,
+    }
+
+
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument("--data-root",type=Path,default=Path.home()/"EVE-V4-Data")
     p.add_argument("--run",required=True)
     p.add_argument("--max-examples",type=int,default=20)
+    p.add_argument("--compact",action="store_true",
+                   help="Print counts, true validation state and five short examples")
+    p.add_argument("--output",type=Path,
+                   help="Optional full detailed JSON report file (outside original V4 run)")
     a=p.parse_args()
     if not 1<=a.max_examples<=50:
         p.error("--max-examples requires 1..50")
-    print(json.dumps(run(a.data_root,a.run,max_examples=a.max_examples),
-                     ensure_ascii=False,indent=2,allow_nan=False))
+    report=run(a.data_root,a.run,max_examples=a.max_examples)
+    if a.output:
+        a.output.parent.mkdir(parents=True,exist_ok=True)
+        a.output.write_text(json.dumps(report,ensure_ascii=False,indent=2,
+                                       allow_nan=False),encoding="utf-8")
+    display=compact_receipt(report) if a.compact else report
+    print(json.dumps(display,ensure_ascii=False,indent=2,allow_nan=False))
 
 
 if __name__=="__main__":
